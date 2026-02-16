@@ -1,0 +1,10 @@
+{
+  "cSpell.words": [
+    "Arpeggiator",
+    "Harmonicity"
+  ],
+  "liveServer.settings.multiRootWorkspaceName": "Web Arpeggiator",
+  "liveServer.settings.NoBrowser": true,
+  "livePreview.autoRefreshPreview": "On All Changes in Editor",
+  "svg.preview.background": "editor"
+}
