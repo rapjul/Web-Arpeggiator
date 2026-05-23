@@ -6,7 +6,7 @@ A browser-based musical arpeggiator with real-time synthesis, effects, and recor
 
 Web Arpeggiator is an interactive music tool that generates flowing musical patterns (arpeggios) from note sequences you provide. Combine it with customizable synthesizers, professional effects, and multiple pattern directions to create evolving soundscapes—all in your browser. It ships as an installable PWA with offline shell caching and browser-backed preset storage.
 
-**Try it now**: Open `index.html` or `Web Arpeggiator.html` in any modern web browser.
+**Try it now**: Open `index.html` in any modern web browser.
 
 ## Features
 
@@ -37,7 +37,7 @@ Web Arpeggiator is an interactive music tool that generates flowing musical patt
 - **Virtual Keyboard**: Interactive two-octave piano interface
 - **Real-Time Visualizer**: Waveform display during playback
 - **Preset System**: Save and load complete configurations, with optional browser persistence for offline use
-- **AI Note Generation**: Generate note sequences from natural language (requires Gemini API key)
+- **Randomize Notes**: Generate musically coherent, scale-quantized note sequences with a single click
 
 ### 📱 PWA Support
 
@@ -62,7 +62,7 @@ Web Arpeggiator is an interactive music tool that generates flowing musical patt
 
 ### Quick Start
 
-1. **Open the app**: Double-click `Web Arpeggiator.html` or open it in your browser
+1. **Open the app**: Double-click `index.html` or open it in your browser
 2. **Initialize audio**: Click "Start Audio" (required for browser autoplay policy)
 3. **Enter notes**: Type notes in the "Notes" field (e.g., `C4 E4 G4`)
 4. **Play**: Click the play button to start the arpeggiator
@@ -241,7 +241,6 @@ Example: With C Major selected, the note "C#4" becomes "D4"
 
 ## Limitations
 
-- **AI Generation**: Requires user-provided Google Gemini API key (not included)
 - **MP3 Encoding**: Client-side encoding is CPU-intensive; larger exports may take time
 - **Recording Length**: Limited by available browser memory
 - **Pattern Complexity**: Patterns are predefined; custom patterns require code modification
@@ -290,7 +289,7 @@ When modifying the codebase:
 Web Arpeggiator/
 ├── README.md                    # This file
 ├── AGENTS.md                    # Architecture & development guide
-├── Web Arpeggiator.html         # Main application (single file)
+├── index.html                   # Main application shell
 ├── styles.css                   # External styles (optional)
 ├── presets/                     # Saved configurations
 ├── exports/                     # Generated audio
@@ -329,7 +328,6 @@ Built with:
 - [Tonal.js](https://github.com/tonaljs/tonal) for music theory
 - [LameJS](https://www.npmjs.com/package/lamejs) for MP3 encoding
 - [Tailwind CSS](https://tailwindcss.com/) for styling
-- [Google Gemini API](https://deepmind.google/technologies/gemini/) for AI features (optional)
 
 ## License
 
@@ -337,6 +335,6 @@ This project is provided as-is for personal use and experimentation.
 
 ---
 
-**Have questions or feedback?** Check [AGENTS.md](AGENTS.md) for technical details, or review the code in `Web Arpeggiator.html` directly—it's extensively documented!
+**Have questions or feedback?** Check [AGENTS.md](AGENTS.md) for technical details, or review the code in [index.html](index.html) directly - it's extensively documented!
 
-**Ready to create?** Open `Web Arpeggiator.html` and start making music! 🎵
+**Ready to create?** Open [index.html](index.html) and start making music!

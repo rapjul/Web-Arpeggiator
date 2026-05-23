@@ -165,16 +165,14 @@ JSON-based preset management:
 
 Presets are saved with automatic timestamped filenames.
 
-### 8. AI Note Generation
+### 8. Randomize Notes
 
-Optional AI-powered note sequence generation using Google Gemini API:
+Offline-friendly note sequence generation using local music theory calculations:
 
-- **Model**: gemini-2.5-flash-preview-09-2025
-- **Feature**: Converts natural language prompts to note sequences
-- **System Prompt**: Constrains output to space-separated note lists (3-7 notes)
-- **Backoff Strategy**: Exponential backoff with jitter for rate limiting
+- **Feature**: Generates a random sequence of 4–6 unique ascending notes in octaves 3–5.
+- **Scale Quantization**: When scale quantization is enabled, notes are generated strictly from the pitches in the active scale (e.g., F minor or C major).
+- **Chromatic Mode**: When quantization is disabled or set to chromatic, a random scale mode is chosen under the hood to ensure the generated notes are musically coherent.
 
-**Note**: API key field is intentionally empty in source. Users must provide their own key.
 
 ## State Management
 
@@ -301,19 +299,29 @@ loadPreset(file)
 
 - Visualizer toggle and canvas
 - Preset save/load buttons
-
-### AI Generation (Optional)
-
-- Prompt input
-- Generate button
+- Randomize button next to notes input
 
 ## File Structure
 
 ```
 Web Arpeggiator/
-├── Web Arpeggiator.html    # Main application (single-file)
-├── styles.css              # External styles (optional)
+├── index.html              # Main application shell (PWA-enabled)
+├── styles.css              # Tailwind CSS styles
+├── manifest.json           # PWA manifest
+├── sw.js                   # Service worker
 ├── AGENTS.md               # This file
+├── js/                     # ES modules (no bundler needed)
+│   ├── app.js              # Main entry point, DOM wiring, transport, presets, randomizer
+│   ├── audio-engine.js     # Tone.js synths, effects chain, setSynth, updateEnvelope
+│   ├── audio-utils.js      # WAV/MP3 encoding, download helpers
+│   ├── keyboard-controller.js   # Virtual keyboard input handling
+│   ├── pattern-generator.js     # Pattern logic (11 directions), scale quantization
+│   ├── presets-store.js         # IndexedDB preset persistence
+│   ├── pwa.js                   # Service worker registration
+│   ├── recorder.js              # Real-time recording + offline Tone.Offline export
+│   ├── settings-manager.js      # Settings serialization/restoration
+│   ├── visualizer.js            # Canvas waveform rendering, UI update loop, toggle
+│   └── asset-manifest.js        # Cache versioning manifest
 ├── exports/                # Generated audio test files
 │   ├── realtime-recordings/
 │   └── perfect-loops/
@@ -410,10 +418,9 @@ All major functions call `log()` which respects the DEBUG flag.
 
 ## Known Limitations
 
-1. **AI Generation**: Requires user-provided Gemini API key
-2. **MP3 Encoding**: Client-side encoding is CPU-intensive
-3. **Recording Length**: Limited by browser memory for real-time recording
-4. **Pattern Complexity**: Custom patterns limited to predefined options
+1. **MP3 Encoding**: Client-side encoding is CPU-intensive
+2. **Recording Length**: Limited by browser memory for real-time recording
+3. **Pattern Complexity**: Custom patterns limited to predefined options
 
 ## Future Enhancements
 

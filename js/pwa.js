@@ -22,12 +22,12 @@
     let messageCounter = 0;
 
     /**
-     * Builds a cache-busted service worker URL from the active asset manifest.
+     * Returns the service worker script URL.
      *
-     * @returns {string} Relative service worker URL with cache version query.
+     * @returns {string} Relative service worker URL.
      */
     function getServiceWorkerUrl() {
-        return `./sw.js?cache=${encodeURIComponent(manifest.cacheVersion || 'dev')}`;
+        return './sw.js';
     }
 
     /**

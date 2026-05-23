@@ -59,7 +59,7 @@ async function cacheFirst(request) {
     try {
         const networkResponse = await fetch(request);
         if (networkResponse && (networkResponse.ok || networkResponse.type === 'opaque')) {
-            cache.put(request, networkResponse.clone()).catch(() => {});
+            cache.put(request, networkResponse.clone()).catch(() => { });
         }
 
         return networkResponse;
@@ -81,7 +81,7 @@ async function networkFirst(request, fallbackUrl = FALLBACK_URL) {
     try {
         const networkResponse = await fetch(request);
         if (networkResponse && (networkResponse.ok || networkResponse.type === 'opaque')) {
-            cache.put(request, networkResponse.clone()).catch(() => {});
+            cache.put(request, networkResponse.clone()).catch(() => { });
         }
 
         return networkResponse;
@@ -201,6 +201,11 @@ self.addEventListener('fetch', (event) => {
     }
 
     const requestUrl = new URL(request.url);
+
+    // Bypass caching for the service worker itself to avoid update check failures
+    if (requestUrl.pathname.endsWith('/sw.js')) {
+        return;
+    }
 
     if (request.mode === 'navigate') {
         event.respondWith(networkFirst(request, FALLBACK_URL));
