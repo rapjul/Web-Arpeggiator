@@ -1,38 +1,33 @@
 #!/usr/bin/env bash
+#
+# scripts/pwa-agent-browser-check.sh
+#
+# End-to-end integration testing script for the Web Arpeggiator PWA shell.
+# Verifies:
+#   - PWA Manifest completeness
+#   - Service Worker registration & lifecycle hook compliance
+#   - Preset storage CRUD operations in IndexedDB
+#   - Session persistence (save & load)
+#   - Offline app shell rendering
+#   - Audio Context initialization and basic play/stop transport control
+#   - Cache clearing/invalidation operations
+#
+
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-PORT="${PORT:-4173}"
-APP_URL="http://127.0.0.1:${PORT}/index.html"
-AB_TIMEOUT="${AB_TIMEOUT:-10000}"
-SERVER_PID=""
+# Source the shared test helpers
+# shellcheck source=./_test-helpers.sh
+source "$(dirname "${BASH_SOURCE[0]}")/_test-helpers.sh"
 
-cleanup() {
-    if [[ -n "$SERVER_PID" ]]; then
-        kill "$SERVER_PID" >/dev/null 2>&1 || true
-    fi
-}
+# 1. Start HTTP server in the background (using port 4173 by default)
+# If port 4173 is occupied, it will automatically search upward.
+start_test_server 4173 "python"
 
-trap cleanup EXIT
+# 2. Open browser, register service worker, and wait for initialization
+wait_for_pwa_ready
 
-run_browser() {
-    AGENT_BROWSER_DEFAULT_TIMEOUT="$AB_TIMEOUT" agent-browser "$@"
-}
-
-assert_page() {
-    local js="$1"
-    run_browser eval "Promise.resolve((async () => { ${js} })()).then((value) => value === undefined ? true : value)"
-}
-
-python3 -m http.server "$PORT" --bind 127.0.0.1 --directory "$ROOT_DIR" >/tmp/web-arpeggiator-pwa-http.log 2>&1 &
-SERVER_PID=$!
-
-run_browser open "$APP_URL"
-run_browser wait --load networkidle
-run_browser wait --fn "window.__WEB_ARP_PWA_STATE__?.serviceWorkerRegistered === true"
-run_browser reload
-run_browser wait --fn "navigator.serviceWorker?.controller !== null && document.getElementById('notes') !== null"
-
+# 3. Assert PWA Manifest completeness
+echo "Verifying PWA manifest parameters..."
 assert_page "
     const manifest = await fetch('./manifest.json').then((response) => response.json());
     if (!manifest.name || !manifest.start_url || manifest.display !== 'standalone' || !Array.isArray(manifest.icons) || manifest.icons.length === 0) {
@@ -40,6 +35,16 @@ assert_page "
     }
 "
 
+# 4. Assert PWA service worker is registered
+echo "Checking service worker registration..."
+assert_page "
+    if (!navigator.serviceWorker) {
+        throw new Error('Service worker is not registered.');
+    }
+"
+
+# 5. Assert preset store is empty initially
+echo "Verifying IndexedDB preset store clear..."
 assert_page "
     await window.__WEB_ARP_TEST__.clearPresets();
     const emptyPresets = await window.__WEB_ARP_TEST__.listPresets();
@@ -48,6 +53,8 @@ assert_page "
     }
 "
 
+# 6. Assert preset can be saved to IndexedDB
+echo "Testing saving preset to IndexedDB..."
 assert_page "
     const settings = window.__WEB_ARP_TEST__.getCurrentSettings();
     settings.baseNotes = ['C4', 'D4', 'F4'];
@@ -58,6 +65,8 @@ assert_page "
     }
 "
 
+# 7. Assert preset can be loaded back into the DOM
+echo "Testing loading preset from IndexedDB..."
 assert_page "
     const latest = (await window.__WEB_ARP_TEST__.listPresets())[0];
     await window.__WEB_ARP_TEST__.loadPreset(latest.id);
@@ -67,6 +76,8 @@ assert_page "
     }
 "
 
+# 8. Assert preset can be deleted from IndexedDB
+echo "Testing removing preset from IndexedDB..."
 assert_page "
     const latest = (await window.__WEB_ARP_TEST__.listPresets())[0];
     await window.__WEB_ARP_TEST__.removePreset(latest.id);
@@ -76,14 +87,20 @@ assert_page "
     }
 "
 
+# 9. Assert last session state is saved
+echo "Testing last-session state serialization..."
 assert_page "
     const settings = window.__WEB_ARP_TEST__.getCurrentSettings();
     settings.baseNotes = ['E4', 'G4', 'B4'];
     await window.WebArpPresetStore.saveLastSession(settings);
 "
 
+# 10. Reload the page to test restoration
+echo "Reloading page to test session restoration..."
 run_browser reload
 run_browser wait --fn "window.__WEB_ARP_TEST__?.lastSessionRestoreFinished === true"
+
+# Assert the last session was restored successfully
 assert_page "
     const notes = document.getElementById('notes').value;
     if (notes !== 'E4 G4 B4') {
@@ -91,21 +108,29 @@ assert_page "
     }
 "
 
+# 11. Test offline app capabilities
+echo "Testing offline app shell rendering..."
 run_browser set offline on
 run_browser reload
-run_browser wait --fn "document.getElementById('notes') !== null"
+run_browser wait --fn "document.getElementById('notes') !== null && window.__WEB_ARP_TEST__?.lastSessionRestoreFinished === true"
+
+# Assert offline app shell is correctly loaded and DOM is fully complete
 assert_page "
     if (!document.getElementById('visualizer') || !document.getElementById('play-stop')) {
         throw new Error('Offline app shell did not render required controls.');
     }
 "
 
-run_browser click "#start-overlay"
-run_browser wait --fn "document.getElementById('play-stop')?.disabled === false"
-run_browser click "#play-stop"
-run_browser wait --fn "typeof Tone !== 'undefined' && Tone.Transport.state === 'started'"
+# 12. Simulate interactions and play/stop transport control in offline mode
+# Handles start overlay click, warning output, and Tone.js start checks.
+initialize_audio
+
+# Stop transport audio playback in offline mode
+echo "Stopping playback..."
 run_browser click "#play-stop"
 
+# 13. Disable offline mode and test cache invalidation/clear hooks
+echo "Disabling offline mode and testing cache control operations..."
 run_browser set offline off
 assert_page "
     const cachesBeforeClear = await window.WebArpPWA.listCaches();

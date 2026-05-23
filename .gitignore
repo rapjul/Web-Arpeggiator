@@ -108,3 +108,7 @@ guides/*
 presets/*.json
 
 _previous-versions/*
+
+## Ignore AI Agents ##
+_agent/
+.specstory/

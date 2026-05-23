@@ -14,5 +14,7 @@
   "[json]": {
     "editor.indentSize": 2,
     "files.insertFinalNewline": false
-  }
+  },
+  "specstory.cloudSync.enabled": "never",
+  "harper.workspaceDictPath": "./harper-dictionary.txt"
 }
