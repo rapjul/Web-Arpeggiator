@@ -106,8 +106,5 @@ $RECYCLE.BIN/
 exports/*
 guides/*
 presets/*.json
-.vscode/ltex.hiddenFalsePositives.en-US.txt
-!.vscode/ltex.dictionary.en-US.txt
-!.vscode/ltex.disabledRules.en-US.txt
 
 Previous Versions/*
