@@ -4,9 +4,9 @@ A browser-based musical arpeggiator with real-time synthesis, effects, and recor
 
 ## Overview
 
-Web Arpeggiator is an interactive music tool that generates flowing musical patterns (arpeggios) from note sequences you provide. Combine it with customizable synthesizers, professional effects, and multiple pattern directions to create evolving soundscapes—all in your browser.
+Web Arpeggiator is an interactive music tool that generates flowing musical patterns (arpeggios) from note sequences you provide. Combine it with customizable synthesizers, professional effects, and multiple pattern directions to create evolving soundscapes—all in your browser. It ships as an installable PWA with offline shell caching and browser-backed preset storage.
 
-**Try it now**: Open `Web Arpeggiator.html` in any modern web browser.
+**Try it now**: Open `index.html` or `Web Arpeggiator.html` in any modern web browser.
 
 ## Features
 
@@ -36,8 +36,14 @@ Web Arpeggiator is an interactive music tool that generates flowing musical patt
 - **Scale Quantization**: Snap notes to scales (Major, Minor, Blues, Chromatic, etc.)
 - **Virtual Keyboard**: Interactive two-octave piano interface
 - **Real-Time Visualizer**: Waveform display during playback
-- **Preset System**: Save and load complete configurations
+- **Preset System**: Save and load complete configurations, with optional browser persistence for offline use
 - **AI Note Generation**: Generate note sequences from natural language (requires Gemini API key)
+
+### 📱 PWA Support
+
+- **Installable**: Add the app to your desktop or home screen
+- **Offline Shell**: The app shell and curated assets are cached for offline launch
+- **Editable Cache List**: Cached assets are defined in `js/asset-manifest.js` for easy updates during development
 
 ### 📊 Recording & Export
 
@@ -139,6 +145,12 @@ Save and load your complete setup:
 2. Select a saved JSON file
 3. All settings restore instantly
 
+### Load the Last Saved Browser Preset
+
+1. Click "Load Saved Preset"
+2. The most recent preset saved in the browser is restored
+3. Use this when you want to keep working without re-importing a file
+
 Presets store:
 
 - Synth type and waveform selection
@@ -147,6 +159,8 @@ Presets store:
 - Pattern configuration
 - Scale quantization settings
 - Effects parameters (filter, delay, reverb)
+
+Saving a preset also keeps a copy in browser storage so it can be restored offline later.
 
 ## Scale Quantization
 
