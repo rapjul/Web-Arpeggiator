@@ -107,4 +107,4 @@ exports/*
 guides/*
 presets/*.json
 
-Previous Versions/*
+_previous-versions/*
