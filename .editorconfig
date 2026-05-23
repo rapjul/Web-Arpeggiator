@@ -1,0 +1,36 @@
+# editorconfig.org
+root = true
+
+[*]
+indent_style = space
+indent_size = 4
+tab_width = 4
+end_of_line = lf # To allow compiling code on CI.
+charset = utf-8
+trim_trailing_whitespace = true
+insert_final_newline = true
+
+[*.md]
+indent_style = space
+indent_size = 4
+tab_width = 4
+trim_trailing_whitespace = false
+
+# SVG files often have attributes that are easier to read with 2-space indentation. They don't require a final newline.
+[*.svg]
+indent_style = space
+indent_size = 2
+tab_width = 2
+insert_final_newline = false
+
+# JSON files are mostly configuration files, so we use 2 spaces for better readability and disable final newline insertion.
+[*.json]
+indent_style = space
+indent_size = 2
+tab_width = 2
+insert_final_newline = false
+
+# Minified JavaScript files shouldn't be changed and often have no newlines, so we ignore indentation and final newline rules.
+[**.min.js]
+indent_style = ignore
+insert_final_newline = ignore
