@@ -1,0 +1,24 @@
+{
+  "name": "Web Arpeggiator",
+  "short_name": "Arpeggiator",
+  "description": "A browser-based musical arpeggiator with synthesis, effects, recording, and offline preset storage.",
+  "start_url": "./Web%20Arpeggiator.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "icons": [
+    {
+      "src": "./images/icons/pwa-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "./images/icons/pwa-icon-maskable.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}

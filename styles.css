@@ -1,6 +1,9 @@
 /*
- * In order for the extension to activate you must have tailwindcss installed and one of these:
- * For v4 and later, a .css file that imports a Tailwind CSS stylesheet (e.g. `@import "tailwindcss"`)
+ * Tailwind entry stylesheet.
+ *
+ * Keep future custom CSS grouped under short comments that explain the UI area
+ * or behavior being styled. Prefer component-specific comments over restating
+ * individual declarations.
  */
 
-@import "tailwindcss"
+@import "tailwindcss";

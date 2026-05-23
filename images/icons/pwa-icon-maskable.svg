@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Web Arpeggiator maskable icon">
+  <defs>
+    <linearGradient id="bg-maskable" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#020617" />
+      <stop offset="100%" stop-color="#0f172a" />
+    </linearGradient>
+    <linearGradient id="wave-maskable" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="100%" stop-color="#a78bfa" />
+    </linearGradient>
+  </defs>
+  <rect x="48" y="48" width="416" height="416" rx="96" fill="url(#bg-maskable)" />
+  <path d="M104 278 C136 214 164 214 196 278 S256 342 288 278 S348 214 380 278 S440 342 440 278"
+        fill="none" stroke="url(#wave-maskable)" stroke-width="18" stroke-linecap="round" stroke-linejoin="round" />
+  <circle cx="160" cy="176" r="20" fill="#e2e8f0" />
+  <circle cx="256" cy="146" r="26" fill="#38bdf8" />
+  <circle cx="352" cy="176" r="20" fill="#e2e8f0" />
+  <path d="M128 392 H384" stroke="#334155" stroke-width="10" stroke-linecap="round" />
+</svg>
