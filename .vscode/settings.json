@@ -6,5 +6,13 @@
   "liveServer.settings.multiRootWorkspaceName": "Web Arpeggiator",
   "liveServer.settings.NoBrowser": true,
   "livePreview.autoRefreshPreview": "On All Changes in Editor",
-  "svg.preview.background": "editor"
+  "svg.preview.background": "editor",
+  "css.format.spaceAroundSelectorSeparator": true,
+  "css.format.newlineBetweenRules": false,
+  "css.format.newlineBetweenSelectors": false,
+  "css.format.braceStyle": "collapse",
+  "[json]": {
+    "editor.indentSize": 2,
+    "files.insertFinalNewline": false
+  }
 }
