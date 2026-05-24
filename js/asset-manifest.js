@@ -6,12 +6,11 @@
  */
 (() => {
     const manifest = {
-        cacheVersion: 'phase2-2026-05-23-6',
-        appShell: './Web Arpeggiator.html',
-        navigationFallback: './Web Arpeggiator.html',
+        cacheVersion: 'phase3-2026-05-23-1',
+        appShell: './index.html',
+        navigationFallback: './index.html',
         assets: [
             './index.html',
-            './Web Arpeggiator.html',
             './manifest.json',
             './js/asset-manifest.js',
             './js/app.js',

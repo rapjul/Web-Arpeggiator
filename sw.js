@@ -9,21 +9,19 @@ importScripts('./js/asset-manifest.js');
 
 const manifest = self.__WEB_ARP_ASSET_MANIFEST__ || {
     cacheVersion: 'dev',
-    appShell: './Web Arpeggiator.html',
-    navigationFallback: './Web Arpeggiator.html',
+    appShell: './index.html',
+    navigationFallback: './index.html',
     assets: []
 };
 
 const CACHE_NAME = `web-arpeggiator-${manifest.cacheVersion || 'dev'}`;
 const CACHE_PREFIX = 'web-arpeggiator-';
-const FALLBACK_URL = manifest.navigationFallback || manifest.appShell || './Web Arpeggiator.html';
-const MUTABLE_PATHS = new Set([
+const FALLBACK_URL = manifest.navigationFallback || manifest.appShell || './index.html';
+const MUTABLE_PATHS = [
     '/index.html',
-    '/Web%20Arpeggiator.html',
-    '/Web Arpeggiator.html',
     '/manifest.json',
     '/js/asset-manifest.js'
-]);
+];
 
 /**
  * Adds each configured URL to the active cache without failing the whole install
@@ -217,7 +215,7 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    if (MUTABLE_PATHS.has(requestUrl.pathname) || requestUrl.pathname.endsWith('/manifest.json')) {
+    if (MUTABLE_PATHS.some(path => requestUrl.pathname.endsWith(path)) || requestUrl.pathname.endsWith('/manifest.json')) {
         event.respondWith(networkFirst(request));
         return;
     }

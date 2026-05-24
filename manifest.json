@@ -2,7 +2,7 @@
   "name": "Web Arpeggiator",
   "short_name": "Arpeggiator",
   "description": "A browser-based musical arpeggiator with synthesis, effects, recording, and offline preset storage.",
-  "start_url": "./Web%20Arpeggiator.html",
+  "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "background_color": "#0f172a",

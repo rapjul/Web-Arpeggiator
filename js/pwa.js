@@ -5,8 +5,8 @@
 (() => {
     const manifest = window.__WEB_ARP_ASSET_MANIFEST__ || {
         cacheVersion: 'dev',
-        appShell: './Web Arpeggiator.html',
-        navigationFallback: './Web Arpeggiator.html',
+        appShell: './index.html',
+        navigationFallback: './index.html',
         assets: []
     };
 
