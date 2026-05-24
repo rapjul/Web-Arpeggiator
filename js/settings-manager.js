@@ -23,6 +23,8 @@ export function createSettingsManager(context) {
         return {
             bpm: parseInt(dom.bpmSlider.value),
             swing: parseFloat(dom.swingSlider.value),
+            postGain: parseFloat(dom.postGainSlider.value),
+            // Pattern
             baseNotes,
             notes: notesWithOctaves,
             direction: actions.getSelectedPatternDirection(),
@@ -59,6 +61,14 @@ export function createSettingsManager(context) {
             dom.swingSlider.value = settings.swing;
             dom.swingValue.textContent = settings.swing.toFixed(2);
             Tone.Transport.swing = settings.swing;
+
+            // Restore post gain
+            if (settings.postGain !== undefined && dom.postGainSlider) {
+                dom.postGainSlider.value = settings.postGain;
+                const pct = Math.round((settings.postGain + 40) / 40 * 100);
+                dom.postGainValue.textContent = pct;
+                if (audio.postGain) audio.postGain.volume.value = settings.postGain;
+            }
 
             dom.notesInput.value = settings.baseNotes.join(' ');
             state.currentNotes = settings.baseNotes;

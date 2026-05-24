@@ -6,9 +6,9 @@
  * can inject DOM references and action callbacks.
  *
  * Signal chain:
- *   Synths → Filter → Delay → Reverb → Limiter → Destination
- *                                       ↓
- *                                    Analyser  (shared with visualizer)
+ *   Synths → Filter → Delay → Reverb → Post Gain → Limiter → Destination
+ *                                                ↓
+ *                                            Analyser  (shared with visualizer)
  *
  * @module audio-engine
  */
@@ -35,6 +35,7 @@
  * @returns {Tone.Filter}          return.filter          - Low-pass filter.
  * @returns {Tone.FeedbackDelay}   return.delay           - Feedback delay.
  * @returns {Tone.Reverb}          return.reverb          - Convolution reverb.
+ * @returns {Tone.Volume}          return.postGain        - Post gain node.
  * @returns {Tone.Limiter}         return.limiter         - Master limiter.
  * @returns {object}               return.synths          - { synth, fmSynth, amSynth }.
  * @returns {string}               return.currentWaveform - Active waveform type (get/set).
@@ -52,6 +53,9 @@ export function createAudioEngine(context) {
 
     // --- Analyser (shared with visualizer) ---
     const analyser = new Tone.Analyser('waveform', 1024);
+
+    // --- Post Gain (pre-limiter) ---
+    const postGain = new Tone.Volume(0); // 0 dB = unity gain
 
     // --- Master Limiter ---
     let limiter;
@@ -104,11 +108,12 @@ export function createAudioEngine(context) {
     synths.fmSynth.connect(filter);
     synths.amSynth.connect(filter);
 
-    // Connect reverb → limiter → destination; reverb → analyser
+    // Connect reverb → post gain → limiter → destination; reverb → analyser
+    reverb.connect(postGain);
     if (limiter) {
-        reverb.connect(limiter);
+        postGain.connect(limiter);
     } else {
-        reverb.toDestination();
+        postGain.toDestination();
     }
     reverb.connect(analyser);
 
@@ -205,6 +210,7 @@ export function createAudioEngine(context) {
         filter,
         delay,
         reverb,
+        postGain,
         limiter,
         synths,
         get activeSynth() { return activeSynth; },

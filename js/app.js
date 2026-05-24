@@ -133,6 +133,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const bpmSlider = document.getElementById('bpm');
     const bpmValue = document.getElementById('bpm-value');
+    const postGainSlider = document.getElementById('post-gain');
+    const postGainValue = document.getElementById('post-gain-value');
     const swingSlider = document.getElementById('swing');
     const swingValue = document.getElementById('swing-value');
     const notesInput = document.getElementById('notes');
@@ -531,6 +533,7 @@ document.addEventListener('DOMContentLoaded', () => {
         state: appState,
         dom: {
             bpmSlider, bpmValue, swingSlider, swingValue, notesInput, intervalSelect,
+            postGainSlider, postGainValue,
             scaleQuantizeToggle, scaleRootSelect, scaleTypeSelect,
             synthTypeSelect, harmonicitySlider, harmonicityValue,
             modIndexSlider, modIndexValue, gateSlider, gateValue,
@@ -553,7 +556,8 @@ document.addEventListener('DOMContentLoaded', () => {
         audio: {
             filter: audioEngine.filter,
             delay: audioEngine.delay,
-            reverb: audioEngine.reverb
+            reverb: audioEngine.reverb,
+            postGain: audioEngine.postGain
         }
     });
 
@@ -959,6 +963,22 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // --- Transport & Pattern ---
+
+    /**
+     * Converts the post gain slider's dB value to a 0–100% display label.
+     * @param {number} db - Decibel value (-40 to 0).
+     * @returns {number} Percentage (0–100).
+     */
+    function dbToPercent(db) {
+        return Math.round((db + 40) / 40 * 100);
+    }
+
+    postGainSlider.addEventListener('input', () => {
+        const db = parseFloat(postGainSlider.value);
+        audioEngine.postGain.volume.value = db;
+        postGainValue.textContent = dbToPercent(db);
+    });
+
     bpmSlider.addEventListener('input', () => {
         Tone.Transport.bpm.value = parseInt(bpmSlider.value);
         bpmValue.textContent = bpmSlider.value;
@@ -1389,6 +1409,7 @@ document.addEventListener('DOMContentLoaded', () => {
     audioEngine.filter.Q.value = parseFloat(filterResonanceSlider.value);
     audioEngine.delay.wet.value = parseFloat(delayMixSlider.value);
     audioEngine.reverb.wet.value = parseFloat(reverbMixSlider.value);
+    audioEngine.postGain.volume.value = parseFloat(postGainSlider.value);
 
     log("Arpeggiator initialized and ready.");
     void refreshSavedPresetList();

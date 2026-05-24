@@ -66,6 +66,11 @@
                 <h2 class="text-xl font-semibold mb-3 text-blue-300">Transport</h2>
                 <div class="space-y-4">
                     <div>
+                        <label for="post-gain" class="block text-sm font-medium mb-1">Post Gain: <span
+                                id="post-gain-value">100</span>%</label>
+                        <input type="range" id="post-gain" min="-40" max="0" value="0" step="1">
+                    </div>
+                    <div>
                         <label for="bpm" class="block text-sm font-medium mb-1">BPM: <span
                                 id="bpm-value">120</span></label>
                         <input type="range" id="bpm" min="40" max="240" value="120" step="1">
