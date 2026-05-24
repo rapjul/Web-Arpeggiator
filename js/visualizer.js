@@ -36,7 +36,7 @@ export function createVisualizer(context) {
 
     // --- Internal state ---
     let isVisualizerOn = false;
-    let uiUpdateLoop = null;
+    let animationFrameId = null;
 
     const visualizerCanvas = dom.visualizerCanvas;
     const visualizerCtx = visualizerCanvas.getContext('2d');
@@ -195,27 +195,31 @@ export function createVisualizer(context) {
     }
 
     /**
-     * Starts the 30 Hz Tone.Loop used for UI (visualizer + timer) updates.
+     * Starts the requestAnimationFrame loop used for UI (visualizer + timer) updates.
+     * Only runs when visualizer is enabled or recording is active.
      *
      * @returns {void}
      */
     function startUiLoop() {
-        if (!uiUpdateLoop) {
-            uiUpdateLoop = new Tone.Loop(runUiUpdate, '30hz').start(0);
+        if (!animationFrameId && (isVisualizerOn || state.isRecording)) {
+            const loop = () => {
+                runUiUpdate();
+                animationFrameId = requestAnimationFrame(loop);
+            };
+            animationFrameId = requestAnimationFrame(loop);
         }
     }
 
     /**
-     * Stops and disposes the UI update loop, but only when both the
+     * Stops the requestAnimationFrame loop, but only when both the
      * transport and recording are inactive.
      *
      * @returns {void}
      */
     function stopUiLoop() {
-        if (uiUpdateLoop && !state.isPlaying && !state.isRecording) {
-            uiUpdateLoop.stop(0);
-            uiUpdateLoop.dispose();
-            uiUpdateLoop = null;
+        if (animationFrameId && !state.isPlaying && !state.isRecording) {
+            cancelAnimationFrame(animationFrameId);
+            animationFrameId = null;
         }
     }
 
@@ -233,11 +237,17 @@ export function createVisualizer(context) {
             btn.textContent = "Disable Visualizer";
             btn.classList.add('bg-yellow-600', 'hover:bg-yellow-700');
             btn.classList.remove('bg-gray-600', 'hover:bg-gray-500');
+            if (state.isPlaying) {
+                startUiLoop();
+            }
         } else {
             btn.textContent = "Enable Visualizer";
             btn.classList.remove('bg-yellow-600', 'hover:bg-yellow-700');
             btn.classList.add('bg-gray-600', 'hover:bg-gray-500');
             visualizerCtx.clearRect(0, 0, visualizerCanvas.width, visualizerCanvas.height);
+            if (!state.isRecording) {
+                stopUiLoop();
+            }
         }
     }
 
