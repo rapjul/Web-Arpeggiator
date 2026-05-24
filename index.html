@@ -437,25 +437,27 @@
                 <h2 class="text-xl font-semibold mb-3 text-blue-300">Octave</h2>
                 <div class="space-y-4">
                     <div class="space-y-2">
-                        <label class="block text-sm font-medium">Octave Shift</label>
-                        <div id="octave-shift-buttons" class="flex flex-wrap gap-2">
-                            <button data-shift="-3">-3</button>
-                            <button data-shift="-2">-2</button>
-                            <button data-shift="-1">-1</button>
-                            <button data-shift="0">0</button>
-                            <button data-shift="1">+1</button>
-                            <button data-shift="2">+2</button>
-                            <button data-shift="3">+3</button>
+                        <label class="block text-sm font-medium">Octave Shift <span
+                                class="text-xs text-gray-400 font-normal">(0 = no shift)</span></label>
+                        <div id="octave-shift-buttons" class="flex flex-wrap justify-center gap-2">
+                            <button class="octave-btn" data-shift="-3">-3</button>
+                            <button class="octave-btn" data-shift="-2">-2</button>
+                            <button class="octave-btn" data-shift="-1">-1</button>
+                            <button class="octave-btn" data-shift="0">0</button>
+                            <button class="octave-btn" data-shift="1">+1</button>
+                            <button class="octave-btn" data-shift="2">+2</button>
+                            <button class="octave-btn" data-shift="3">+3</button>
                         </div>
                     </div>
                     <div class="space-y-2">
-                        <label class="block text-sm font-medium">Octave Range Upward</label>
-                        <div id="octave-range-buttons" class="flex flex-wrap gap-2">
-                            <button data-range="1">1</button>
-                            <button data-range="2">2</button>
-                            <button data-range="3">3</button>
-                            <button data-range="4">4</button>
-                            <button data-range="5">5</button>
+                        <label class="block text-sm font-medium">Octave Layers <span
+                                class="text-xs text-gray-400 font-normal">(1 = base only)</span></label>
+                        <div id="octave-range-buttons" class="flex flex-wrap justify-center gap-2">
+                            <button class="octave-btn" data-range="1">1</button>
+                            <button class="octave-btn" data-range="2">2</button>
+                            <button class="octave-btn" data-range="3">3</button>
+                            <button class="octave-btn" data-range="4">4</button>
+                            <button class="octave-btn" data-range="5">5</button>
                         </div>
                     </div>
                 </div>
