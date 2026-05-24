@@ -125,6 +125,13 @@ async function startAudio() {
 // --- DOMContentLoaded: Main Setup ---
 document.addEventListener('DOMContentLoaded', () => {
 
+    // Prevent the browser from restoring a previous scroll position and ensure
+    // the page always starts at the very top on every load/refresh.
+    if (history.scrollRestoration) {
+        history.scrollRestoration = 'manual';
+    }
+    window.scrollTo(0, 0);
+
     // --- DOM Elements ---
     const playStopButton = document.getElementById('play-stop');
 
