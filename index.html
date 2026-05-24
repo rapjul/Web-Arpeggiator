@@ -92,6 +92,7 @@
                             <label for="notes" class="block text-sm font-medium">Notes <span
                                     class="text-xs text-gray-400 font-normal">e.g., C4 E4 G4 C#4 Eb5</span></label>
                             <button id="randomize-notes"
+                                title="Generates a random, musically coherent sequence of 4–6 notes. When Scale Quantization is enabled, notes are drawn strictly from the active scale. When disabled, a random root note and scale mode are also chosen automatically."
                                 class="text-xs font-bold py-1 px-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded transition-all flex items-center gap-1 shadow-md">
                                 <span>🎲</span> Randomize
                             </button>
@@ -100,6 +101,8 @@
                             autocomplete="off"
                             class="w-full p-2 bg-gray-800 border border-gray-600 rounded-md text-gray-100"
                             onkeydown="return filterNoteInput(event);">
+                        <!-- Note Step Indicator: highlights the currently playing note during playback -->
+                        <div id="note-step-indicator" aria-hidden="true"></div>
                     </div>
                     <div class="space-y-2">
                         <label class="block text-sm font-medium mb-1">Pattern Direction</label>

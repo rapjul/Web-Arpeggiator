@@ -220,6 +220,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Randomize Notes Button
     const randomizeNotesButton = document.getElementById('randomize-notes');
 
+    // Note Step Indicator
+    const noteStepIndicator = document.getElementById('note-step-indicator');
+
     // Real-time Recording card
     const recordButton = document.getElementById('record-button');
     const recordStatus = document.getElementById('record-status') || document.getElementById('realtime-record-status');
@@ -349,6 +352,8 @@ document.addEventListener('DOMContentLoaded', () => {
         createOrUpdatePatternFromModule();
         // Sync local arpPattern from the pattern generator's window.arpPattern
         arpPattern = window.arpPattern;
+        // Rebuild the note step indicator pips to match the new note count
+        rebuildNoteStepIndicator();
     }
 
     /**
@@ -360,6 +365,68 @@ document.addEventListener('DOMContentLoaded', () => {
         window.__WEB_ARP_TEST__ = window.__WEB_ARP_TEST__ || {};
         Object.assign(window.__WEB_ARP_TEST__, updates);
     }
+
+    // ==================================================================
+    //    Note Step Indicator
+    // ==================================================================
+
+    /**
+     * Tracks the currently highlighted pip index for the step indicator.
+     * @type {number}
+     */
+    let currentStepIndex = -1;
+
+    /**
+     * Cache array containing the note step indicator DOM element pips.
+     * @type {HTMLElement[]}
+     */
+    let noteStepPips = [];
+
+    /**
+     * Rebuilds the step indicator pips to match the current base note count.
+     * Call whenever notes or pattern settings change.
+     * @returns {void}
+     */
+    function rebuildNoteStepIndicator() {
+        if (!noteStepIndicator) return;
+        const count = currentNotes.length;
+        noteStepIndicator.innerHTML = '';
+        noteStepPips = [];
+        for (let i = 0; i < count; i++) {
+            const pip = document.createElement('div');
+            pip.className = 'note-step-pip';
+            pip.setAttribute('aria-label', currentNotes[i] || '');
+            noteStepIndicator.appendChild(pip);
+            noteStepPips.push(pip);
+        }
+        currentStepIndex = -1;
+    }
+
+    /**
+     * Highlights the pip at the given index, removing the highlight from all others.
+     * Intended to be called from the pattern callback on each note trigger.
+     * Runs in O(1) time by leveraging the noteStepPips element cache.
+     * @param {number} index - Zero-based index of the currently playing note.
+     * @returns {void}
+     */
+    function highlightNoteStep(index) {
+        if (!noteStepIndicator || noteStepPips.length === 0) return;
+        
+        // Remove active class from previous step
+        if (currentStepIndex >= 0 && currentStepIndex < noteStepPips.length) {
+            noteStepPips[currentStepIndex].classList.remove('active');
+        }
+        
+        // Add active class to new step
+        if (index >= 0 && index < noteStepPips.length) {
+            noteStepPips[index].classList.add('active');
+        }
+        
+        currentStepIndex = index;
+    }
+
+    // Expose for the pattern generator module (which runs in window scope)
+    window.__WEB_ARP_STEP_HIGHLIGHT__ = highlightNoteStep;
 
     /**
      * Returns the currently selected pattern direction value.
@@ -859,6 +926,9 @@ document.addEventListener('DOMContentLoaded', () => {
             visualizer.startUiLoop();
         } else {
             visualizer.stopUiLoop();
+            // Clear the note step indicator when stopped
+            noteStepPips.forEach(p => p.classList.remove('active'));
+            currentStepIndex = -1;
         }
     });
 
