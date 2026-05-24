@@ -437,7 +437,7 @@ Potential areas for expansion:
 
 When modifying the codebase:
 
-1. **Maintain Single-File Architecture**: Keep all code in the HTML file
+1. **Maintain Modular ES Module Architecture**: Keep logic separated into focused modules under the `js/` directory
 2. **Test Audio Initialization**: Verify autoplay policy compliance
 3. **Validate Presets**: Ensure all parameters save/load correctly
 4. **Check Responsive Design**: Test on mobile and desktop
@@ -454,4 +454,4 @@ This is a living document. Major architectural changes are tracked in:
 
 ---
 
-**For AI Coding Agents**: This document provides the architectural context needed to understand, modify, and extend the Web Arpeggiator application. All code is contained in a single HTML file with inline JavaScript and CSS for portability and ease of deployment.
+**For AI Coding Agents**: This document provides the architectural context needed to understand, modify, and extend the Web Arpeggiator application. The application follows a modular architecture using ES modules located in the `js/` folder, with styling managed in `styles.css` and the entry point in `index.html`.
