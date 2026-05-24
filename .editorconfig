@@ -3,28 +3,33 @@ root = true
 
 [*]
 indent_style = space
-indent_size = 4
-tab_width = 4
+indent_size = 2
+tab_width = 2
 end_of_line = lf # To allow compiling code on CI.
 charset = utf-8
 trim_trailing_whitespace = true
 insert_final_newline = true
 
-[*.md]
+[*.{html,js}]
+indent_style = space
+indent_size = 4
+tab_width = 4
+
+[*.{py,md}]
 indent_style = tab
 indent_size = 4
 tab_width = 4
 trim_trailing_whitespace = false
 
 # JSON and SVG files benefit from 2 spaces for better readability and do not require a final newline.
-[*.json,*.svg]
+[*.{json,svg}]
 indent_style = space
 indent_size = 2
 tab_width = 2
 insert_final_newline = false
 
 # YAML files
-[*.yaml,*.yml]
+[*.{yaml,yml}]
 indent_style = space
 indent_size = 2
 tab_width = 2
