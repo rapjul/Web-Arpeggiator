@@ -21,6 +21,7 @@ export function createSettingsManager(context) {
         const notesWithOctaves = actions.getArpeggioNotes(baseNotes, state.currentOctaveRange, state.currentOctaveShift);
 
         return {
+            // Transport
             bpm: parseInt(dom.bpmSlider.value),
             swing: parseFloat(dom.swingSlider.value),
             postGain: parseFloat(dom.postGainSlider.value),
@@ -29,18 +30,28 @@ export function createSettingsManager(context) {
             notes: notesWithOctaves,
             direction: actions.getSelectedPatternDirection(),
             interval: dom.intervalSelect.value,
+            octaveShift: state.currentOctaveShift,
+            octaveRange: state.currentOctaveRange,
+            // Scale
             scaleQuantize: dom.scaleQuantizeToggle.checked,
             scaleRoot: dom.scaleRootSelect.value,
             scaleType: dom.scaleTypeSelect.value,
+            // Synth
             synthType: dom.synthTypeSelect.value,
             waveform: state.currentWaveform,
             harmonicity: parseFloat(dom.harmonicitySlider.value),
             modulationIndex: parseFloat(dom.modIndexSlider.value),
-            octaveShift: state.currentOctaveShift,
-            octaveRange: state.currentOctaveRange,
+            dutyCycle: parseFloat(dom.dutySlider.value),
             gateRatio: parseFloat(dom.gateSlider.value),
+            // Envelope (ADSR)
+            envAttack: parseFloat(dom.envAttackSlider.value),
+            envDecay: parseFloat(dom.envDecaySlider.value),
+            envSustain: parseFloat(dom.envSustainSlider.value),
+            envRelease: parseFloat(dom.envReleaseSlider.value),
+            // Filter
             filterCutoff: parseFloat(dom.filterCutoffSlider.value),
             filterResonance: parseFloat(dom.filterResonanceSlider.value),
+            // Effects
             delayMix: parseFloat(dom.delayMixSlider.value),
             reverbMix: parseFloat(dom.reverbMixSlider.value),
             loopCount: parseInt(dom.loopCountInput.value)
@@ -98,6 +109,30 @@ export function createSettingsManager(context) {
             }
 
             actions.setSynth(settings.synthType);
+
+            // Restore duty cycle
+            if (settings.dutyCycle !== undefined && dom.dutySlider) {
+                dom.dutySlider.value = settings.dutyCycle;
+                dom.dutyValue.textContent = settings.dutyCycle.toFixed(2);
+            }
+
+            // Restore ADSR envelope
+            if (settings.envAttack !== undefined && dom.envAttackSlider) {
+                dom.envAttackSlider.value = settings.envAttack;
+                dom.envAttackValue.textContent = settings.envAttack.toFixed(2);
+            }
+            if (settings.envDecay !== undefined && dom.envDecaySlider) {
+                dom.envDecaySlider.value = settings.envDecay;
+                dom.envDecayValue.textContent = settings.envDecay.toFixed(2);
+            }
+            if (settings.envSustain !== undefined && dom.envSustainSlider) {
+                dom.envSustainSlider.value = settings.envSustain;
+                dom.envSustainValue.textContent = settings.envSustain.toFixed(2);
+            }
+            if (settings.envRelease !== undefined && dom.envReleaseSlider) {
+                dom.envReleaseSlider.value = settings.envRelease;
+                dom.envReleaseValue.textContent = settings.envRelease.toFixed(2);
+            }
 
             state.currentOctaveShift = settings.octaveShift;
             state.currentOctaveRange = settings.octaveRange;

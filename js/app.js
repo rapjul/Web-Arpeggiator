@@ -544,6 +544,9 @@ document.addEventListener('DOMContentLoaded', () => {
             scaleQuantizeToggle, scaleRootSelect, scaleTypeSelect,
             synthTypeSelect, harmonicitySlider, harmonicityValue,
             modIndexSlider, modIndexValue, gateSlider, gateValue,
+            dutySlider, dutyValue,
+            envAttackSlider, envDecaySlider, envSustainSlider, envReleaseSlider,
+            envAttackValue, envDecayValue, envSustainValue, envReleaseValue,
             filterCutoffSlider, filterCutoffValue, filterResonanceSlider, filterResonanceValue,
             delayMixSlider, delayMixValue, reverbMixSlider, reverbMixValue,
             loopCountInput, octaveShiftButtons, octaveRangeButtons
@@ -861,19 +864,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- ADSR Listeners ---
     envAttackSlider.addEventListener('input', () => {
-        envAttackValue.textContent = envAttackSlider.value;
+        envAttackValue.textContent = parseFloat(envAttackSlider.value).toFixed(2);
         audioEngine.updateEnvelope();
     });
     envDecaySlider.addEventListener('input', () => {
-        envDecayValue.textContent = envDecaySlider.value;
+        envDecayValue.textContent = parseFloat(envDecaySlider.value).toFixed(2);
         audioEngine.updateEnvelope();
     });
     envSustainSlider.addEventListener('input', () => {
-        envSustainValue.textContent = envSustainSlider.value;
+        envSustainValue.textContent = parseFloat(envSustainSlider.value).toFixed(2);
         audioEngine.updateEnvelope();
     });
     envReleaseSlider.addEventListener('input', () => {
-        envReleaseValue.textContent = envReleaseSlider.value;
+        envReleaseValue.textContent = parseFloat(envReleaseSlider.value).toFixed(2);
         audioEngine.updateEnvelope();
     });
 
@@ -1051,7 +1054,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Duty Cycle ---
     dutySlider.addEventListener('input', () => {
-        dutyValue.textContent = dutySlider.value;
+        dutyValue.textContent = parseFloat(dutySlider.value).toFixed(2);
         if (audioEngine.activeSynth && audioEngine.activeSynth.oscillator &&
             audioEngine.currentWaveform === 'square') {
             audioEngine.activeSynth.oscillator.width.value = parseFloat(dutySlider.value);
