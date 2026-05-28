@@ -6,7 +6,7 @@
  */
 (() => {
     const manifest = {
-        cacheVersion: 'phase3-2026-05-23-3',
+        cacheVersion: 'phase3-2026-05-28-3',
         appShell: './index.html',
         navigationFallback: './index.html',
         assets: [

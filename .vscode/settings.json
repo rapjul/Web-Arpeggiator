@@ -11,12 +11,8 @@
   "css.format.newlineBetweenRules": false,
   "css.format.newlineBetweenSelectors": false,
   "css.format.braceStyle": "collapse",
-  "[json]": {
-    "editor.indentSize": 2,
-    "files.insertFinalNewline": false
-  },
   "specstory.cloudSync.enabled": "never",
   "harper.workspaceDictPath": "./harper-dictionary.txt",
   "languageToolLinter.languageTool.disabledCategories": "COMMA_PARENTHESIS_WHITESPACE,WHITESPACE_RULE",
-  "languageToolLinter.languageTool.disabledRules": "COMMA_PARENTHESIS_WHITESPACE"
+  "languageToolLinter.languageTool.disabledRules": "COMMA_PARENTHESIS_WHITESPACE,WHITESPACE_RULE"
 }
