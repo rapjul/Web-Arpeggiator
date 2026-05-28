@@ -1128,6 +1128,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (playStopButton) {
             playStopButton.disabled = false;
             playStopButton.textContent = 'Start Audio';
+            playStopButton.setAttribute('aria-label', 'Press to play arpeggio');
             playStopButton.classList.remove('opacity-50', 'cursor-not-allowed', 'bg-gray-600');
             playStopButton.classList.add('bg-blue-600', 'hover:bg-blue-700');
         }
@@ -1159,6 +1160,7 @@ document.addEventListener('DOMContentLoaded', () => {
             Tone.Transport.stop();
             if (arpPattern) arpPattern.stop();
             playStopButton.textContent = 'Restart Audio';
+            playStopButton.setAttribute('aria-label', 'Press to restart arpeggio');
             playStopButton.classList.remove('bg-yellow-600', 'hover:bg-yellow-700');
             playStopButton.classList.add('bg-blue-600', 'hover:bg-blue-700');
             isPlaying = false;
@@ -1167,6 +1169,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (arpPattern) arpPattern.start();
             Tone.Transport.start();
             playStopButton.textContent = 'Stop Audio';
+            playStopButton.setAttribute('aria-label', 'Press to stop arpeggio');
             playStopButton.classList.add('bg-yellow-600', 'hover:bg-yellow-700');
             playStopButton.classList.remove('bg-blue-600', 'hover:bg-blue-700');
             isPlaying = true;

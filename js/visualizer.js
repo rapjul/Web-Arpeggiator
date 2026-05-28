@@ -2,8 +2,9 @@
  * Visualizer Module
  *
  * Owns the waveform canvas rendering, the 30 Hz UI update loop, and the
- * visualizer toggle.  Exposes a factory function so the caller (app.js) can
- * inject the analyser node, DOM references, and shared state.
+ * visualizer toggle.
+ * Exposes a factory function so the caller (app.js) can
+ * inject the analyzer node, DOM references, and shared state.
  *
  * @module visualizer
  */
@@ -11,7 +12,7 @@
 /**
  * Creates the waveform visualizer and UI update loop.
  *
- * @param {object}   context                            - Injected app context.
+ * @param {object}   context                             - Injected app context.
  * @param {object}   context.dom                         - DOM element references.
  * @param {HTMLCanvasElement} context.dom.visualizerCanvas  - Canvas element.
  * @param {HTMLElement}       context.dom.toggleVisualizerButton - Toggle button.
@@ -61,10 +62,11 @@ export function createVisualizer(context) {
     resizeCanvas();
 
     /**
-     * Main UI update callback.  Runs at ~30 Hz while the transport is
-     * playing or recording.
+     * Main UI update callback.
      *
-     * - Draws the waveform from the analyser when the visualizer is on.
+     * Runs at ~30 Hz while the transport is playing or recording.
+     *
+     * - Draws the waveform from the analyzer when the visualizer is on.
      * - Updates the recording timer display when recording.
      *
      * @returns {void}
@@ -190,12 +192,15 @@ export function createVisualizer(context) {
         // --- Recording Timer Display ---
         if (state.isRecording) {
             const elapsed = Tone.now() - state.recordingStartTime;
-            state.recordButton.textContent = `Stop Recording (${actions.formatTime(elapsed)})`;
+            const timeStr = actions.formatTime(elapsed);
+            state.recordButton.textContent = `Stop Recording (${timeStr})`;
+            state.recordButton.setAttribute('aria-label', `Stop recording (current elapsed time ${timeStr})`);
         }
     }
 
     /**
      * Starts the requestAnimationFrame loop used for UI (visualizer + timer) updates.
+     *
      * Only runs when visualizer is enabled or recording is active.
      *
      * @returns {void}

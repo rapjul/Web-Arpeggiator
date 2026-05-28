@@ -79,6 +79,7 @@ export function createRecorderManager(context) {
      */
     function onRecordingStop() {
         dom.recordButton.textContent = 'Record';
+        dom.recordButton.setAttribute('aria-label', 'Start recording');
         dom.recordButton.classList.remove('recording');
         dom.recordStatus.textContent = "Recording stopped. Ready to export.";
         dom.exportControls.classList.remove('hidden');
@@ -196,6 +197,7 @@ export function createRecorderManager(context) {
             dom.recordStatus.textContent = "Recording... Click again to stop.";
             recordingStartTime = Tone.now();
             dom.recordButton.textContent = 'Stop Recording (00:00.0)';
+            dom.recordButton.setAttribute('aria-label', 'Stop recording (current elapsed time 00:00.0)');
             isRecording = true;
         }
 
