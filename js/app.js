@@ -246,6 +246,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const presetNameInput = document.getElementById('preset-name-input');
     const savedPresetSelect = document.getElementById('saved-preset-select');
     const savePresetButton = document.getElementById('save-preset-button');
+    const sharePresetButton = document.getElementById('share-preset-button');
     const loadPresetButton = document.getElementById('load-preset-button');
     const loadSavedPresetButton = document.getElementById('load-saved-preset-button');
     const clearSavedPresetButton = document.getElementById('clear-saved-preset-button');
@@ -918,6 +919,200 @@ document.addEventListener('DOMContentLoaded', () => {
         createOrUpdatePattern();
     });
 
+    /**
+     * Serializes current settings to URL search parameters, writes the URL to the clipboard,
+     * and registers the URL on the global test hook for automated verification.
+     * @returns {void}
+     */
+    function sharePresetAsUrl() {
+        const settings = getAllSettings();
+        const params = new URLSearchParams();
+
+        params.set('notes', settings.baseNotes.join(' '));
+        params.set('bpm', settings.bpm.toString());
+        params.set('swing', settings.swing.toFixed(2));
+        params.set('gain', settings.postGain.toFixed(0));
+        params.set('dir', settings.direction);
+        params.set('int', settings.interval);
+        params.set('quant', settings.scaleQuantize ? 'true' : 'false');
+        params.set('root', settings.scaleRoot);
+        params.set('scale', settings.scaleType);
+        params.set('synth', settings.synthType);
+        params.set('wave', settings.waveform);
+        params.set('harm', settings.harmonicity.toFixed(1));
+        params.set('mod', settings.modulationIndex.toFixed(1));
+        params.set('duty', settings.dutyCycle.toFixed(2));
+        params.set('gate', settings.gateRatio.toFixed(2));
+        params.set('shift', settings.octaveShift.toString());
+        params.set('range', settings.octaveRange.toString());
+        params.set('attack', settings.envAttack.toFixed(2));
+        params.set('decay', settings.envDecay.toFixed(2));
+        params.set('sustain', settings.envSustain.toFixed(2));
+        params.set('release', settings.envRelease.toFixed(2));
+        params.set('cutoff', settings.filterCutoff.toFixed(0));
+        params.set('res', settings.filterResonance.toFixed(1));
+        params.set('delay', settings.delayMix.toFixed(2));
+        params.set('reverb', settings.reverbMix.toFixed(2));
+        params.set('loop', settings.loopCount.toString());
+
+        const shareUrl = `${window.location.origin}${window.location.pathname}?${params.toString()}`;
+
+        // Test Hook: register the last shared URL
+        if (!window.__WEB_ARP_TEST__) {
+            window.__WEB_ARP_TEST__ = {};
+        }
+        window.__WEB_ARP_TEST__.lastSharedUrl = shareUrl;
+
+        navigator.clipboard.writeText(shareUrl)
+            .then(() => {
+                showToast('Share link copied to clipboard!', 'success');
+            })
+            .catch((err) => {
+                console.error('Failed to copy share link:', err);
+                showToast('Failed to copy link. Generated URL: ' + shareUrl, 'error');
+            });
+    }
+
+    /**
+     * Parses the current URL search parameters, validates each value against strict boundaries,
+     * and loads them into the application via loadAllSettings.
+     * @returns {void}
+     */
+    function loadPresetFromUrl() {
+        const params = new URLSearchParams(window.location.search);
+        if ([...params.keys()].length === 0) return;
+
+        const settings = getAllSettings(); // start with current as fallback default
+
+        // 1. notes
+        if (params.has('notes')) {
+            const rawNotes = params.get('notes');
+            const notesRegex = /^[A-G][b#]?[0-9](\s+[A-G][b#]?[0-9])*$/;
+            if (notesRegex.test(rawNotes)) {
+                settings.baseNotes = rawNotes.split(/\s+/).filter(Boolean);
+            }
+        }
+
+        // Helper to parse clamp integers
+        /**
+         * Parses and clamps an integer value.
+         * @param {string} val - String value.
+         * @param {number} min - Minimum limit.
+         * @param {number} max - Maximum limit.
+         * @param {number} fallback - Fallback default.
+         * @returns {number} The validated integer.
+         */
+        const clampInt = (val, min, max, fallback) => {
+            const parsed = parseInt(val, 10);
+            if (isNaN(parsed)) return fallback;
+            return Math.min(Math.max(parsed, min), max);
+        };
+
+        // Helper to parse clamp floats
+        /**
+         * Parses and clamps a float value.
+         * @param {string} val - String value.
+         * @param {number} min - Minimum limit.
+         * @param {number} max - Maximum limit.
+         * @param {number} fallback - Fallback default.
+         * @returns {number} The validated float.
+         */
+        const clampFloat = (val, min, max, fallback) => {
+            const parsed = parseFloat(val);
+            if (isNaN(parsed)) return fallback;
+            return Math.min(Math.max(parsed, min), max);
+        };
+
+        if (params.has('bpm')) settings.bpm = clampInt(params.get('bpm'), 40, 240, settings.bpm);
+        if (params.has('swing')) settings.swing = clampFloat(params.get('swing'), 0.0, 1.0, settings.swing);
+        if (params.has('gain')) settings.postGain = clampFloat(params.get('gain'), -40.0, 0.0, settings.postGain);
+
+        // dir
+        if (params.has('dir')) {
+            const allowedDirs = [
+                'up', 'down', 'upDown', 'downUp', 'upDownRepeat', 'downUpRepeat',
+                'random', 'octaveCycle', 'octaveCycleReverse', 'octaveCyclePingPong',
+                'randomWalk', 'randomWalkDrunk'
+            ];
+            const dir = params.get('dir');
+            if (allowedDirs.includes(dir)) {
+                settings.direction = dir;
+            }
+        }
+
+        // int
+        if (params.has('int')) {
+            const allowedInts = ['64n', '32n', '16n', '8n', '4n', '2n'];
+            const interval = params.get('int');
+            if (allowedInts.includes(interval)) {
+                settings.interval = interval;
+            }
+        }
+
+        // quant
+        if (params.has('quant')) {
+            settings.scaleQuantize = params.get('quant') === 'true';
+        }
+
+        // root
+        if (params.has('root')) {
+            const allowedRoots = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+            const root = params.get('root');
+            if (allowedRoots.includes(root)) {
+                settings.scaleRoot = root;
+            }
+        }
+
+        // scale
+        if (params.has('scale')) {
+            const allowedScales = [
+                'major', 'minor', 'harmonic minor', 'melodic minor', 'dorian',
+                'phrygian', 'lydian', 'mixolydian', 'locrian', 'blues', 'chromatic'
+            ];
+            const scale = params.get('scale');
+            if (allowedScales.includes(scale)) {
+                settings.scaleType = scale;
+            }
+        }
+
+        // synth
+        if (params.has('synth')) {
+            const allowedSynths = ['synth', 'fmSynth', 'amSynth'];
+            const synth = params.get('synth');
+            if (allowedSynths.includes(synth)) {
+                settings.synthType = synth;
+            }
+        }
+
+        // wave
+        if (params.has('wave')) {
+            const allowedWaves = ['sine', 'square', 'sawtooth', 'triangle', 'pulse'];
+            const wave = params.get('wave');
+            if (allowedWaves.includes(wave)) {
+                settings.waveform = wave;
+            }
+        }
+
+        if (params.has('harm')) settings.harmonicity = clampFloat(params.get('harm'), 0.5, 10.0, settings.harmonicity);
+        if (params.has('mod')) settings.modulationIndex = clampFloat(params.get('mod'), 1.0, 50.0, settings.modulationIndex);
+        if (params.has('duty')) settings.dutyCycle = clampFloat(params.get('duty'), 0.01, 0.99, settings.dutyCycle);
+        if (params.has('gate')) settings.gateRatio = clampFloat(params.get('gate'), 0.05, 1.0, settings.gateRatio);
+        if (params.has('shift')) settings.octaveShift = clampInt(params.get('shift'), -3, 3, settings.octaveShift);
+        if (params.has('range')) settings.octaveRange = clampInt(params.get('range'), 1, 5, settings.octaveRange);
+        if (params.has('attack')) settings.envAttack = clampFloat(params.get('attack'), 0.0, 2.0, settings.envAttack);
+        if (params.has('decay')) settings.envDecay = clampFloat(params.get('decay'), 0.0, 2.0, settings.envDecay);
+        if (params.has('sustain')) settings.envSustain = clampFloat(params.get('sustain'), 0.0, 1.0, settings.envSustain);
+        if (params.has('release')) settings.envRelease = clampFloat(params.get('release'), 0.0, 5.0, settings.envRelease);
+        if (params.has('cutoff')) settings.filterCutoff = clampFloat(params.get('cutoff'), 100.0, 10000.0, settings.filterCutoff);
+        if (params.has('res')) settings.filterResonance = clampFloat(params.get('res'), 0.0, 20.0, settings.filterResonance);
+        if (params.has('delay')) settings.delayMix = clampFloat(params.get('delay'), 0.0, 1.0, settings.delayMix);
+        if (params.has('reverb')) settings.reverbMix = clampFloat(params.get('reverb'), 0.0, 1.0, settings.reverbMix);
+        if (params.has('loop')) settings.loopCount = clampInt(params.get('loop'), 1, 100, settings.loopCount);
+
+        loadAllSettings(settings);
+        showToast('Preset loaded from URL link!', 'success');
+    }
+
     // --- Start Overlay ---
     /**
      * Handles clicks on the start overlay to initialize the AudioContext
@@ -939,6 +1134,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             await startAudio();
+            loadPresetFromUrl();
         } catch (err) {
             console.warn("AudioContext failed to start on overlay click:", err);
         }
@@ -1370,6 +1566,11 @@ document.addEventListener('DOMContentLoaded', () => {
     //    Preset Management
     // ==================================================================
 
+    sharePresetButton.addEventListener('click', () => {
+        log("Share preset button clicked.");
+        sharePresetAsUrl();
+    });
+
     savePresetButton.addEventListener('click', async () => {
         log("Save preset button clicked.");
         const settings = getAllSettings();
@@ -1661,7 +1862,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     log("Arpeggiator initialized and ready.");
     void refreshSavedPresetList();
-    void restoreLastSession();
+    restoreLastSession().then(() => {
+        loadPresetFromUrl();
+    });
 });
 
 // Expose handlers still referenced by inline HTML attributes and external checks.
