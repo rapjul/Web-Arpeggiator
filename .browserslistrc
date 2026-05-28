@@ -1,0 +1,46 @@
+# ==============================================================================
+# Browserslist Configuration File (.browserslistrc)
+# ==============================================================================
+#
+# WHAT IS THIS FILE?
+# Browserslist is a standard tool used in frontend development to share target
+# browser configurations across different build, lint, and optimization tools.
+#
+# This file is automatically detected and used by tools such as:
+#   - Webhint / HTML Hint (compatibility checks for tags like 'theme-color')
+#   - Autoprefixer (adds vendor prefixes to CSS automatically)
+#   - Babel / SWC (transpiles modern JS into backward-compatible versions)
+#   - ESLint-plugin-compat (warns you if you use a JS API unsupported by your targets)
+#   - PostCSS & Stylelint (styles compilation and linting)
+#
+# WHY DO WE USE IT?
+# By declaring our target browsers here, linters and compilers know exactly which
+# browsers we support. This prevents false-positive warnings (like theme-color
+# compatibility messages) while keeping build outputs lean (preventing unnecessary
+# polyfills/prefixes for extremely outdated browsers).
+#
+# QUERY BREAKDOWN:
+#   - "> 0.5%": Target browser versions that have global usage statistics
+#     greater than 0.5%.
+#   - "last 2 versions": Include the last two releases of all major browsers
+#     (Chrome, Safari, Firefox, Edge, Opera, iOS Safari, Android Chrome, etc.).
+#   - "Firefox ESR": Include Firefox Extended Support Release (commonly used
+#     in corporate, enterprise, and educational environments).
+#   - "not dead": Exclude "dead" browsers that no longer receive official
+#     security or feature updates (such as Internet Explorer).
+#
+# WHERE TO GET MORE INFO & TOOLS:
+#   - Official Repository & Syntax Guide:
+#     https://github.com/browserslist/browserslist
+#
+#   - Browserslist Playground (Visualizes exactly which browsers your query targets):
+#     https://browsersl.ist
+#
+#   - Browser Feature & Compatibility Database:
+#     https://caniuse.com
+# ==============================================================================
+
+> 0.5%
+last 2 versions
+Firefox ESR
+not dead
