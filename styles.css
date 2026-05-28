@@ -1,7 +1,7 @@
-/*
- * Custom app styles extracted from the main HTML shell.
- * Keep only app-specific CSS here; Tailwind utilities stay in the markup.
- */
+/* Card section container configuration for Container Queries */
+section {
+  container-type: inline-size;
+}
 
 /* Custom styles for better-looking sliders */
 input[type="range"] {
@@ -220,6 +220,26 @@ button:disabled {
   stroke-width: 2;
 }
 
+/* Pattern buttons grid layout (4 columns on desktop/tablet, wrapping on tight spaces based on section width) */
+#pattern-buttons {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.5rem;
+  width: 100%;
+}
+
+@container (max-width: 300px) {
+  #pattern-buttons {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@container (max-width: 200px) {
+  #pattern-buttons {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 /* Octave buttons: compact single-row layout */
 .octave-btn {
   min-width: 40px;
@@ -259,15 +279,17 @@ button:disabled {
 /* KEYBOARD VISUAL CONTAINER - Overall Wrapper (renamed from #keyboard-visual) */
 #keyboard-main-wrapper {
   display: flex;
-  /* Use flex for horizontal layout of octaves, and wrap on small screens */
-  flex-wrap: nowrap;
-  /* Default to no wrapping, for desktop */
-  /* gap: 1.5rem; */
+  /* Allow wrapping when there is not enough space, stacking higher octave above lower */
+  flex-wrap: wrap-reverse;
+  gap: 0.5rem;
   /* Space between octaves */
   justify-content: center;
   /* Center the keyboard horizontally */
   align-items: flex-start;
   /* Align octaves at the top */
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
   height: auto;
   /* Let content define height */
   overflow: visible;
@@ -378,14 +400,6 @@ button:disabled {
 /* Responsive breakpoint for keyboard split */
 @media (max-width: 768px) {
   /* Adjust breakpoint as needed */
-  #keyboard-main-wrapper {
-    flex-direction: column-reverse;
-    /* Stack octaves vertically */
-    align-items: center;
-    /* Center octaves when stacked */
-    gap: 0.5rem;
-    /* Reduce gap between stacked octaves */
-  }
   .piano-octave {
     width: min-content;
     /* Adjust octave width to content on small screens */
@@ -432,4 +446,17 @@ details[open].card-details > summary::after {
 details.card-details > div {
   padding-top: 1rem;
   /* pt-4 */
+}
+
+/* Screen reader only utility class for accessibility */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
 }

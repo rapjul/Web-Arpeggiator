@@ -47,11 +47,14 @@
         </div>
     </div>
 
-    <div class="w-full max-w-3xl bg-gray-800 rounded-2xl shadow-2xl p-6 md:p-8 space-y-6">
-        <h1 class="text-3xl font-bold text-center text-blue-400">Web Arpeggiator</h1>
+    <main class="w-full max-w-4xl bg-gray-800 rounded-2xl shadow-2xl p-6 md:p-8 grid grid-cols-1 md:grid-cols-6 gap-6">
+        <h1 class="col-span-full text-3xl font-bold text-center text-blue-400">Web Arpeggiator</h1>
+
+        <!-- Visually hidden screen reader announcements live region -->
+        <div id="sr-announcements" role="status" aria-live="polite" class="sr-only"></div>
 
         <!-- Main Controls -->
-        <div class="grid grid-cols-2 gap-6">
+        <div class="col-span-full grid grid-cols-2 gap-6">
             <!-- `onclick` attribute to start the synth -->
             <button id="play-stop"
                 class="col-span-2 text-lg font-bold py-3 px-6 bg-gray-600 rounded-lg shadow-lg transition-all opacity-50 cursor-not-allowed">
@@ -59,174 +62,171 @@
             </button>
         </div>
 
-        <!-- Section: Transport & Pattern -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <!-- Transport Controls -->
-            <div class="bg-gray-700 p-4 rounded-lg shadow-inner">
-                <h2 class="text-xl font-semibold mb-3 text-blue-300">Transport</h2>
-                <div class="space-y-4">
-                    <div>
-                        <label for="post-gain" class="block text-sm font-medium mb-1">Post Gain: <span
-                                id="post-gain-value">100</span>%</label>
-                        <input type="range" id="post-gain" min="-40" max="0" value="0" step="1">
-                    </div>
-                    <div>
-                        <label for="bpm" class="block text-sm font-medium mb-1">BPM: <span
-                                id="bpm-value">120</span></label>
-                        <input type="range" id="bpm" min="40" max="240" value="120" step="1">
-                    </div>
-                    <div>
-                        <label for="swing" class="block text-sm font-medium mb-1">Swing: <span
-                                id="swing-value">0.00</span></label>
-                        <input type="range" id="swing" min="0" max="1" value="0" step="0.01">
-                    </div>
+        <!-- Section: Transport -->
+        <section class="bg-gray-700 p-4 rounded-lg shadow-inner md:col-span-3 col-span-full" aria-labelledby="transport-title">
+            <h2 id="transport-title" class="text-xl font-semibold mb-3 text-blue-300">Transport</h2>
+            <div class="space-y-4">
+                <div>
+                    <label for="post-gain" class="block text-sm font-medium mb-1">Post Gain: <span
+                            id="post-gain-value">100</span>%</label>
+                    <input type="range" id="post-gain" min="-40" max="0" value="0" step="1">
+                </div>
+                <div>
+                    <label for="bpm" class="block text-sm font-medium mb-1">BPM: <span
+                            id="bpm-value">120</span></label>
+                    <input type="range" id="bpm" min="40" max="240" value="120" step="1">
+                </div>
+                <div>
+                    <label for="swing" class="block text-sm font-medium mb-1">Swing: <span
+                            id="swing-value">0.00</span></label>
+                    <input type="range" id="swing" min="0" max="1" value="0" step="0.01">
                 </div>
             </div>
+        </section>
 
-            <!-- Pattern Controls -->
-            <div class="bg-gray-700 p-4 rounded-lg shadow-inner">
-                <h2 class="text-xl font-semibold mb-3 text-blue-300">Pattern</h2>
-                <div class="space-y-4">
-                    <div>
-                        <div class="flex justify-between items-center mb-1">
-                            <label for="notes" class="block text-sm font-medium">Notes <span
-                                    class="text-xs text-gray-400 font-normal">e.g., C4 E4 G4 C#4 Eb5</span></label>
-                            <button id="randomize-notes"
-                                title="Generates a random, musically coherent sequence of 4–6 notes. When Scale Quantization is enabled, notes are drawn strictly from the active scale. When disabled, a random root note and scale mode are also chosen automatically."
-                                class="text-xs font-bold py-1 px-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded transition-all flex items-center gap-1 shadow-md">
-                                <span>🎲</span> Randomize
-                            </button>
-                        </div>
-                        <input type="text" id="notes" value="C4 E4 G4" placeholder="e.g., C4 E4 G4 C#4 Eb5"
-                            autocomplete="off"
-                            class="w-full p-2 bg-gray-800 border border-gray-600 rounded-md text-gray-100"
-                            onkeydown="return filterNoteInput(event);">
-                        <!-- Note Step Indicator: highlights the currently playing note during playback -->
-                        <div id="note-step-indicator" aria-hidden="true"></div>
+        <!-- Section: Pattern -->
+        <section class="bg-gray-700 p-4 rounded-lg shadow-inner md:col-span-3 col-span-full" aria-labelledby="pattern-title">
+            <h2 id="pattern-title" class="text-xl font-semibold mb-3 text-blue-300">Pattern</h2>
+            <div class="space-y-4">
+                <div>
+                    <div class="flex justify-between items-center mb-1">
+                        <label for="notes" class="block text-sm font-medium">Notes <span
+                                class="text-xs text-gray-300 font-normal">e.g., C4 E4 G4 C#4 Eb5</span></label>
+                        <button id="randomize-notes"
+                            title="Generates a random, musically coherent sequence of 4–6 notes. When Scale Quantization is enabled, notes are drawn strictly from the active scale. When disabled, a random root note and scale mode are also chosen automatically."
+                            class="text-xs font-bold py-1 px-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded transition-all flex items-center gap-1 shadow-md">
+                            <span>🎲</span> Randomize
+                        </button>
                     </div>
-                    <div class="space-y-2">
-                        <label class="block text-sm font-medium mb-1">Pattern Direction</label>
-                        <div id="pattern-buttons" class="flex flex-wrap gap-2">
-                            <button class="pattern-btn selected" data-pattern="up">
-                                <svg class="stroke-current" fill="none" viewBox="0 0 32 32"
-                                    xmlns="http://www.w3.org/2000/svg">
-                                    <path d="M2 16 L30 2" stroke-linecap="round" stroke-linejoin="round" />
-                                </svg>
-                                <span class="text-xs font-medium">Up</span>
-                            </button>
-                            <button class="pattern-btn" data-pattern="down">
-                                <svg class="stroke-current" fill="none" viewBox="0 0 32 32"
-                                    xmlns="http://www.w3.org/2000/svg">
-                                    <path d="M30 16 L2 2" stroke-linecap="round" stroke-linejoin="round" />
-                                </svg>
-                                <span class="text-xs font-medium">Down</span>
-                            </button>
-                            <button class="pattern-btn" data-pattern="upDown">
-                                <svg class="stroke-current" fill="none" viewBox="0 0 32 32"
-                                    xmlns="http://www.w3.org/2000/svg">
-                                    <path d="M2 16 L16 2 L30 16" stroke-linecap="round" stroke-linejoin="round" />
-                                </svg>
-                                <span class="text-xs font-medium">Up-Down</span>
-                            </button>
-                            <button class="pattern-btn" data-pattern="downUp">
-                                <svg class="stroke-current" fill="none" viewBox="0 0 32 32"
-                                    xmlns="http://www.w3.org/2000/svg">
-                                    <path d="M30 2L16 16 2 2" stroke-linecap="round" stroke-linejoin="round" />
-                                </svg>
-                                <span class="text-xs font-medium">Down-Up</span>
-                            </button>
-                            <button class="pattern-btn" data-pattern="upDownRepeat">
-                                <svg class="stroke-current" fill="none" viewBox="0 0 32 32"
-                                    xmlns="http://www.w3.org/2000/svg">
-                                    <path d="M2 16L10 2l2.0-.0 6 14 2.54.0 8.0-14 1.5-.0" stroke-linecap="round"
-                                        stroke-linejoin="round" />
-                                </svg>
-                                <span class="text-xs font-medium">Up-Down (Repeated)</span>
-                            </button>
-                            <button class="pattern-btn" data-pattern="downUpRepeat">
-                                <svg class="stroke-current" fill="none" viewBox="0 0 32 32"
-                                    xmlns="http://www.w3.org/2000/svg">
-                                    <path d="M2 2 l8 14 2.57.00 L18 2l2.50.0 8.0 14 1.01.0" stroke-linecap="round"
-                                        stroke-linejoin="round" />
-                                </svg>
-                                <span class="text-xs font-medium">Down-Up (Repeated)</span>
-                            </button>
-                            <button class="pattern-btn" data-pattern="random">
-                                <svg class="stroke-current" fill="none" viewBox="0 0 32 32"
-                                    xmlns="http://www.w3.org/2000/svg">
-                                    <path d="M2 2 l8 14 2.57.00 L18 2 l2.5 0.0 8.0 14 1.01.0" stroke-linecap="round"
-                                        stroke-linejoin="round" />
-                                </svg>
-                                <span class="text-xs font-medium">Random</span>
-                            </button>
-                            <button class="pattern-btn" data-pattern="octaveCycle">
-                                <svg class="stroke-current" fill="none" viewBox="0 0 32 32"
-                                    xmlns="http://www.w3.org/2000/svg">
-                                    <circle cx="8" cy="24" r="3" fill="#38bdf8" />
-                                    <circle cx="16" cy="16" r="3" fill="#38bdf8" />
-                                    <circle cx="24" cy="8" r="3" fill="#38bdf8" />
-                                </svg>
-                                <span class="text-xs font-medium">Octave<br />Cycle</span>
-                            </button>
-                            <button class="pattern-btn" data-pattern="octaveCycleReverse">
-                                <svg class="stroke-current" fill="none" viewBox="0 0 32 32"
-                                    xmlns="http://www.w3.org/2000/svg">
-                                    <circle cx="8" cy="8" r="3" fill="#38bdf8" />
-                                    <circle cx="16" cy="16" r="3" fill="#38bdf8" />
-                                    <circle cx="24" cy="24" r="3" fill="#38bdf8" />
-                                </svg>
-                                <span class="text-xs font-medium">Reversed Octaves</span>
-                            </button>
-                            <button class="pattern-btn" data-pattern="octaveCyclePingPong">
-                                <svg class="stroke-current" fill="none" viewBox="0 0 32 32"
-                                    xmlns="http://www.w3.org/2000/svg">
-                                    <circle cx="4" cy="24" r="2.5" fill="#38bdf8" />
-                                    <circle cx="10" cy="16" r="2.5" fill="#38bdf8" />
-                                    <circle cx="16" cy="8" r="2.5" fill="#38bdf8" />
-                                    <circle cx="22" cy="16" r="2.5" fill="#38bdf8" />
-                                    <circle cx="28" cy="24" r="2.5" fill="#38bdf8" />
-                                </svg>
-                                <span class="text-xs font-medium">Ping-Pong Octaves</span>
-                            </button>
-                            <button class="pattern-btn" data-pattern="randomWalk">
-                                <svg class="stroke-current" fill="none" viewBox="0 0 32 32"
-                                    xmlns="http://www.w3.org/2000/svg">
-                                    <path d="M2 16 Q6 12, 10 16 T18 12 T24 16 T30 12" stroke-linecap="round"
-                                        stroke-linejoin="round" />
-                                </svg>
-                                <span class="text-xs font-medium">Random Walk</span>
-                            </button>
-                            <button class="pattern-btn" data-pattern="randomWalkDrunk">
-                                <svg class="stroke-current" fill="none" viewBox="0 0 32 32"
-                                    xmlns="http://www.w3.org/2000/svg">
-                                    <path d="M2 16 Q8 2, 12 7 T22 4 T30 24" stroke-linecap="round"
-                                        stroke-linejoin="round" />
-                                </svg>
-                                <span class="text-xs font-medium">Drunkard's Walk</span>
-                            </button>
-                        </div>
-                    </div>
-                    <div>
-                        <label for="interval" class="block text-sm font-medium mb-1">Note Duration</label>
-                        <select id="interval"
-                            class="w-full p-2 bg-gray-800 border border-gray-600 rounded-md text-gray-100">
-                            <option value="32n">32nd</option>
-                            <option value="16n" selected>16th</option>
-                            <option value="8n">8th</option>
-                            <option value="4n">Quarter</option>
-                            <option value="2n">Half</option>
-                        </select>
+                    <input type="text" id="notes" value="C4 E4 G4" placeholder="e.g., C4 E4 G4 C#4 Eb5"
+                        autocomplete="off"
+                        class="w-full p-2 bg-gray-800 border border-gray-600 rounded-md text-gray-100"
+                        onkeydown="return filterNoteInput(event);">
+                    <!-- Note Step Indicator: highlights the currently playing note during playback -->
+                    <div id="note-step-indicator" aria-hidden="true"></div>
+                </div>
+                <div class="space-y-2">
+                    <label class="block text-sm font-medium mb-1">Pattern Direction</label>
+                    <div id="pattern-buttons" role="group" aria-label="Pattern Direction">
+                        <button class="pattern-btn selected" data-pattern="up">
+                            <svg class="stroke-current" fill="none" viewBox="0 0 32 32"
+                                xmlns="http://www.w3.org/2000/svg">
+                                <path d="M2 16 L30 2" stroke-linecap="round" stroke-linejoin="round" />
+                            </svg>
+                            <span class="text-xs font-medium">Up</span>
+                        </button>
+                        <button class="pattern-btn" data-pattern="down">
+                            <svg class="stroke-current" fill="none" viewBox="0 0 32 32"
+                                xmlns="http://www.w3.org/2000/svg">
+                                <path d="M30 16 L2 2" stroke-linecap="round" stroke-linejoin="round" />
+                            </svg>
+                            <span class="text-xs font-medium">Down</span>
+                        </button>
+                        <button class="pattern-btn" data-pattern="upDown">
+                            <svg class="stroke-current" fill="none" viewBox="0 0 32 32"
+                                xmlns="http://www.w3.org/2000/svg">
+                                <path d="M2 16 L16 2 L30 16" stroke-linecap="round" stroke-linejoin="round" />
+                            </svg>
+                            <span class="text-xs font-medium">Up-Down</span>
+                        </button>
+                        <button class="pattern-btn" data-pattern="downUp">
+                            <svg class="stroke-current" fill="none" viewBox="0 0 32 32"
+                                xmlns="http://www.w3.org/2000/svg">
+                                <path d="M30 2L16 16 2 2" stroke-linecap="round" stroke-linejoin="round" />
+                            </svg>
+                            <span class="text-xs font-medium">Down-Up</span>
+                        </button>
+                        <button class="pattern-btn" data-pattern="upDownRepeat">
+                            <svg class="stroke-current" fill="none" viewBox="0 0 32 32"
+                                xmlns="http://www.w3.org/2000/svg">
+                                <path d="M2 16L10 2l2.0-.0 6 14 2.54.0 8.0-14 1.5-.0" stroke-linecap="round"
+                                    stroke-linejoin="round" />
+                            </svg>
+                            <span class="text-xs font-medium">Up-Down (Repeated)</span>
+                        </button>
+                        <button class="pattern-btn" data-pattern="downUpRepeat">
+                            <svg class="stroke-current" fill="none" viewBox="0 0 32 32"
+                                xmlns="http://www.w3.org/2000/svg">
+                                <path d="M2 2 l8 14 2.57.00 L18 2l2.50.0 8.0 14 1.01.0" stroke-linecap="round"
+                                    stroke-linejoin="round" />
+                            </svg>
+                            <span class="text-xs font-medium">Down-Up (Repeated)</span>
+                        </button>
+                        <button class="pattern-btn" data-pattern="random">
+                            <svg class="stroke-current" fill="none" viewBox="0 0 32 32"
+                                xmlns="http://www.w3.org/2000/svg">
+                                <path d="M2 2 l8 14 2.57.00 L18 2 l2.5 0.0 8.0 14 1.01.0" stroke-linecap="round"
+                                    stroke-linejoin="round" />
+                            </svg>
+                            <span class="text-xs font-medium">Random</span>
+                        </button>
+                        <button class="pattern-btn" data-pattern="octaveCycle">
+                            <svg class="stroke-current" fill="none" viewBox="0 0 32 32"
+                                xmlns="http://www.w3.org/2000/svg">
+                                <circle cx="8" cy="24" r="3" fill="#38bdf8" />
+                                <circle cx="16" cy="16" r="3" fill="#38bdf8" />
+                                <circle cx="24" cy="8" r="3" fill="#38bdf8" />
+                            </svg>
+                            <span class="text-xs font-medium">Octave<br />Cycle</span>
+                        </button>
+                        <button class="pattern-btn" data-pattern="octaveCycleReverse">
+                            <svg class="stroke-current" fill="none" viewBox="0 0 32 32"
+                                xmlns="http://www.w3.org/2000/svg">
+                                <circle cx="8" cy="8" r="3" fill="#38bdf8" />
+                                <circle cx="16" cy="16" r="3" fill="#38bdf8" />
+                                <circle cx="24" cy="24" r="3" fill="#38bdf8" />
+                            </svg>
+                            <span class="text-xs font-medium">Reversed Octaves</span>
+                        </button>
+                        <button class="pattern-btn" data-pattern="octaveCyclePingPong">
+                            <svg class="stroke-current" fill="none" viewBox="0 0 32 32"
+                                xmlns="http://www.w3.org/2000/svg">
+                                <circle cx="4" cy="24" r="2.5" fill="#38bdf8" />
+                                <circle cx="10" cy="16" r="2.5" fill="#38bdf8" />
+                                <circle cx="16" cy="8" r="2.5" fill="#38bdf8" />
+                                <circle cx="22" cy="16" r="2.5" fill="#38bdf8" />
+                                <circle cx="28" cy="24" r="2.5" fill="#38bdf8" />
+                            </svg>
+                            <span class="text-xs font-medium">Ping-Pong Octaves</span>
+                        </button>
+                        <button class="pattern-btn" data-pattern="randomWalk">
+                            <svg class="stroke-current" fill="none" viewBox="0 0 32 32"
+                                xmlns="http://www.w3.org/2000/svg">
+                                <path d="M2 16 Q6 12, 10 16 T18 12 T24 16 T30 12" stroke-linecap="round"
+                                    stroke-linejoin="round" />
+                            </svg>
+                            <span class="text-xs font-medium">Random Walk</span>
+                        </button>
+                        <button class="pattern-btn" data-pattern="randomWalkDrunk">
+                            <svg class="stroke-current" fill="none" viewBox="0 0 32 32"
+                                xmlns="http://www.w3.org/2000/svg">
+                                <path d="M2 16 Q8 2, 12 7 T22 4 T30 24" stroke-linecap="round"
+                                    stroke-linejoin="round" />
+                            </svg>
+                            <span class="text-xs font-medium">Drunkard's Walk</span>
+                        </button>
                     </div>
                 </div>
+                <div>
+                    <label for="interval" class="block text-sm font-medium mb-1">Note Duration</label>
+                    <select id="interval"
+                        class="w-full p-2 bg-gray-800 border border-gray-600 rounded-md text-gray-100">
+                        <option value="32n">32nd</option>
+                        <option value="16n" selected>16th</option>
+                        <option value="8n">8th</option>
+                        <option value="4n">Quarter</option>
+                        <option value="2n">Half</option>
+                    </select>
+                </div>
             </div>
-        </div>
+        </section>
 
 
         <!-- Scale Quantization Card - Reverted to original layout position -->
-        <div class="bg-gray-700 p-4 rounded-lg shadow-inner md:col-span-2">
+        <section class="bg-gray-700 p-4 rounded-lg shadow-inner md:col-span-3 col-span-full" aria-labelledby="scale-quantization-title">
             <details class="card-details">
                 <summary>
-                    <h2 class="text-xl font-semibold text-blue-300 inline">🎼 Scale Quantization</h2>
+                    <h2 id="scale-quantization-title" class="text-xl font-semibold text-blue-300 inline">🎼 Scale Quantization</h2>
                 </summary>
                 <div id="quantizer-card" class="mt-4">
                     <div class="flex items-center justify-between mb-3">
@@ -277,13 +277,13 @@
                     </div>
                 </div>
             </details>
-        </div>
+        </section>
 
         <!-- Keyboard Control -->
-        <div class="bg-gray-700 p-4 rounded-lg shadow-inner md:col-span-2">
+        <section class="bg-gray-700 p-4 rounded-lg shadow-inner md:col-span-3 col-span-full" aria-labelledby="keyboard-title">
             <details id="keyboard-details" class="card-details">
                 <summary>
-                    <h2 class="text-xl font-semibold text-blue-300 inline">⌨️ Keyboard Control</h2>
+                    <h2 id="keyboard-title" class="text-xl font-semibold text-blue-300 inline">⌨️ Keyboard Control</h2>
                 </summary>
                 <div class="flex items-center justify-between mb-3 mt-4">
                     <p id="keyboard-description" class="text-xs text-gray-400 mb-2 text-left align-middle">Press keys on
@@ -301,14 +301,12 @@
                     </div>
                 </div>
             </details>
-        </div>
+        </section>
 
         <!-- ***** NEW LAYOUT ***** -->
-        <!-- Synth, Octave, Filter, Effects -->
-        <div class="grid grid-cols-1 md:grid-cols-5 gap-6">
-            <!-- Synth Controls -->
-            <div class="md:col-span-3 bg-gray-700 p-4 rounded-lg shadow-inner">
-                <h2 class="text-xl font-semibold mb-3 text-blue-300">Synth</h2>
+        <!-- Synth Controls -->
+        <section class="md:col-span-3 col-span-full bg-gray-700 p-4 rounded-lg shadow-inner" aria-labelledby="synth-title">
+            <h2 id="synth-title" class="text-xl font-semibold mb-3 text-blue-300">Synth</h2>
                 <div class="space-y-4">
                     <!-- Synth Type selector -->
                     <div>
@@ -406,11 +404,11 @@
                         <input type="range" id="gate" min="0.05" max="1.0" value="0.8" step="0.01">
                     </div>
                 </div>
-            </div>
+            </section>
 
             <!-- NEW: Envelope (ADSR) Card -->
-            <div class="md:col-span-2 bg-gray-700 p-4 rounded-lg shadow-inner">
-                <h2 class="text-xl font-semibold mb-3 text-blue-300">Envelope (ADSR)</h2>
+            <section class="md:col-span-3 col-span-full bg-gray-700 p-4 rounded-lg shadow-inner" aria-labelledby="envelope-title">
+                <h2 id="envelope-title" class="text-xl font-semibold mb-3 text-blue-300">Envelope (ADSR)</h2>
                 <div class="space-y-4">
                     <div>
                         <label for="env-attack" class="block text-sm font-medium mb-1">Attack: <span
@@ -433,11 +431,11 @@
                         <input type="range" id="env-release" min="0" max="5" value="0.5" step="0.01">
                     </div>
                 </div>
-            </div>
+            </section>
 
             <!-- NEW Octave Card -->
-            <div class="md:col-span-3 bg-gray-700 p-4 rounded-lg shadow-inner">
-                <h2 class="text-xl font-semibold mb-3 text-blue-300">Octave</h2>
+            <section class="md:col-span-2 col-span-full bg-gray-700 p-4 rounded-lg shadow-inner" aria-labelledby="octave-title">
+                <h2 id="octave-title" class="text-xl font-semibold mb-3 text-blue-300">Octave</h2>
                 <div class="space-y-4">
                     <div class="space-y-2">
                         <label class="block text-sm font-medium">Octave Shift <span
@@ -464,11 +462,11 @@
                         </div>
                     </div>
                 </div>
-            </div>
+            </section>
 
             <!-- Filter Controls -->
-            <div class="md:col-span-2 bg-gray-700 p-4 rounded-lg shadow-inner">
-                <h2 class="text-xl font-semibold mb-3 text-blue-300">Filter</h2>
+            <section class="md:col-span-2 col-span-full bg-gray-700 p-4 rounded-lg shadow-inner" aria-labelledby="filter-title">
+                <h2 id="filter-title" class="text-xl font-semibold mb-3 text-blue-300">Filter</h2>
                 <div class="space-y-4">
                     <div>
                         <label for="filter-cutoff" class="block text-sm font-medium mb-1">Cutoff: <span
@@ -481,11 +479,11 @@
                         <input type="range" id="filter-resonance" min="0" max="20" value="1.0" step="0.1">
                     </div>
                 </div>
-            </div>
+            </section>
 
             <!-- Effects Controls -->
-            <div class="md:col-span-2 bg-gray-700 p-4 rounded-lg shadow-inner">
-                <h2 class="text-xl font-semibold mb-3 text-blue-300">Effects</h2>
+            <section class="md:col-span-2 col-span-full bg-gray-700 p-4 rounded-lg shadow-inner" aria-labelledby="effects-title">
+                <h2 id="effects-title" class="text-xl font-semibold mb-3 text-blue-300">Effects</h2>
                 <div class="space-y-4">
                     <div>
                         <label for="delay-mix" class="block text-sm font-medium mb-1">Delay Mix: <span
@@ -498,15 +496,14 @@
                         <input type="range" id="reverb-mix" min="0" max="1" value="0.3" step="0.01">
                     </div>
                 </div>
-            </div>
-        </div>
+            </section>
         <!-- ***** END NEW LAYOUT ***** -->
 
         <!-- Utilities card/section -->
-        <div class="bg-gray-700 p-4 rounded-lg shadow-inner">
+        <section class="bg-gray-700 p-4 rounded-lg shadow-inner col-span-full" aria-labelledby="utilities-title">
             <details class="card-details">
                 <summary>
-                    <h2 class="text-xl font-semibold text-blue-300 inline">Utilities</h2>
+                    <h2 id="utilities-title" class="text-xl font-semibold text-blue-300 inline">Utilities</h2>
                 </summary>
                 <div class="mt-4">
                     <div class="space-y-4">
@@ -518,78 +515,75 @@
                     </div>
                 </div>
             </details>
-        </div>
+        </section>
 
-        <!-- Recording & Export -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <!-- Real-time Recording -->
-            <div class="bg-gray-700 p-4 rounded-lg shadow-inner">
-                <h2 class="text-xl font-semibold mb-3 text-blue-300">Real-time Recording</h2>
-                <div class="space-y-4">
-                    <button id="record-button"
-                        class="w-full text-lg font-bold py-2 px-4 bg-green-600 hover:bg-green-700 rounded-lg shadow-lg transition-all">
-                        Record
-                    </button>
-                    <p id="realtime-record-status" class="text-sm text-center text-gray-400">Record your live parameter
-                        changes.</p>
+        <!-- Real-time Recording -->
+        <section class="bg-gray-700 p-4 rounded-lg shadow-inner md:col-span-3 col-span-full" aria-labelledby="realtime-recording-title">
+            <h2 id="realtime-recording-title" class="text-xl font-semibold mb-3 text-blue-300">Real-time Recording</h2>
+            <div class="space-y-4">
+                <button id="record-button"
+                    class="w-full text-lg font-bold py-2 px-4 bg-green-600 hover:bg-green-700 rounded-lg shadow-lg transition-all">
+                    Record
+                </button>
+                <p id="realtime-record-status" class="text-sm text-center text-gray-400">Record your live parameter
+                    changes.</p>
 
-                    <div id="realtime-export-controls" class="hidden space-y-3">
-                        <h3 class="text-lg font-semibold text-center">Export Recording</h3>
-                        <div class="flex justify-center gap-6">
-                            <label class="flex items-center space-x-2 cursor-pointer">
-                                <input type="checkbox" id="realtime-export-wav" checked
-                                    class="h-5 w-5 rounded bg-gray-800 border-gray-600 text-blue-500 focus:ring-blue-600">
-                                <span>WAV</span>
-                            </label>
-                            <label class="flex items-center space-x-2 cursor-pointer">
-                                <input type="checkbox" id="realtime-export-mp3" checked
-                                    class="h-5 w-5 rounded bg-gray-800 border-gray-600 text-blue-500 focus:ring-blue-600">
-                                <span>MP3</span>
-                            </label>
-                        </div>
-                        <button id="realtime-export-button"
-                            class="w-full text-lg font-bold py-2 px-4 bg-blue-600 hover:bg-blue-700 rounded-lg shadow-lg transition-all">
-                            Export Files
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Offline Export -->
-            <div class="bg-gray-700 p-4 rounded-lg shadow-inner">
-                <h2 class="text-xl font-semibold mb-3 text-blue-300">Offline Export (Perfect Loop)</h2>
-                <div class="space-y-4">
-                    <div class="flex items-center gap-4">
-                        <label for="loop-count" class="text-sm font-medium whitespace-nowrap">Number of Loops:</label>
-                        <input type="number" id="loop-count" value="4" min="1" max="100"
-                            class="w-20 p-2 bg-gray-800 border border-gray-600 rounded-md text-gray-100"
-                            onkeydown="return filterNumericInput(event);">
-                    </div>
+                <div id="realtime-export-controls" class="hidden space-y-3">
+                    <h3 class="text-lg font-semibold text-center">Export Recording</h3>
                     <div class="flex justify-center gap-6">
                         <label class="flex items-center space-x-2 cursor-pointer">
-                            <input type="checkbox" id="offline-export-wav" checked
+                            <input type="checkbox" id="realtime-export-wav" checked
                                 class="h-5 w-5 rounded bg-gray-800 border-gray-600 text-blue-500 focus:ring-blue-600">
                             <span>WAV</span>
                         </label>
                         <label class="flex items-center space-x-2 cursor-pointer">
-                            <input type="checkbox" id="offline-export-mp3" checked
+                            <input type="checkbox" id="realtime-export-mp3" checked
                                 class="h-5 w-5 rounded bg-gray-800 border-gray-600 text-blue-500 focus:ring-blue-600">
                             <span>MP3</span>
                         </label>
                     </div>
-                    <button id="offline-export-button"
-                        class="w-full text-lg font-bold py-2 px-4 bg-purple-600 hover:bg-purple-700 rounded-lg shadow-lg transition-all">
-                        Generate & Export
+                    <button id="realtime-export-button"
+                        class="w-full text-lg font-bold py-2 px-4 bg-blue-600 hover:bg-blue-700 rounded-lg shadow-lg transition-all">
+                        Export Files
                     </button>
-                    <p id="offline-export-status" class="text-sm text-center text-gray-400">Generate a perfect loop of
-                        the current settings.</p>
                 </div>
             </div>
-        </div>
+        </section>
+
+        <!-- Offline Export -->
+        <section class="bg-gray-700 p-4 rounded-lg shadow-inner md:col-span-3 col-span-full" aria-labelledby="offline-export-title">
+            <h2 id="offline-export-title" class="text-xl font-semibold mb-3 text-blue-300">Offline Export (Perfect Loop)</h2>
+            <div class="space-y-4">
+                <div class="flex items-center gap-4">
+                    <label for="loop-count" class="text-sm font-medium whitespace-nowrap">Number of Loops:</label>
+                    <input type="number" id="loop-count" value="4" min="1" max="100"
+                        class="w-20 p-2 bg-gray-800 border border-gray-600 rounded-md text-gray-100"
+                        onkeydown="return filterNumericInput(event);">
+                </div>
+                <div class="flex justify-center gap-6">
+                    <label class="flex items-center space-x-2 cursor-pointer">
+                        <input type="checkbox" id="offline-export-wav" checked
+                            class="h-5 w-5 rounded bg-gray-800 border-gray-600 text-blue-500 focus:ring-blue-600">
+                        <span>WAV</span>
+                    </label>
+                    <label class="flex items-center space-x-2 cursor-pointer">
+                        <input type="checkbox" id="offline-export-mp3" checked
+                            class="h-5 w-5 rounded bg-gray-800 border-gray-600 text-blue-500 focus:ring-blue-600">
+                        <span>MP3</span>
+                    </label>
+                </div>
+                <button id="offline-export-button"
+                    class="w-full text-lg font-bold py-2 px-4 bg-purple-600 hover:bg-purple-700 rounded-lg shadow-lg transition-all">
+                    Generate & Export
+                </button>
+                <p id="offline-export-status" class="text-sm text-center text-gray-400">Generate a perfect loop of
+                    the current settings.</p>
+            </div>
+        </section>
 
         <!-- Preset Management Card -->
-        <div class="bg-gray-700 p-4 rounded-lg shadow-inner">
-            <h2 class="text-xl font-semibold mb-3 text-blue-300">Preset Management</h2>
+        <section class="bg-gray-700 p-4 rounded-lg shadow-inner col-span-full" aria-labelledby="preset-management-title">
+            <h2 id="preset-management-title" class="text-xl font-semibold mb-3 text-blue-300">Preset Management</h2>
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <label class="sm:col-span-3">
                     <span class="block text-sm font-medium mb-1">Preset Name</span>
@@ -628,10 +622,10 @@
                 <p class="text-xs text-center text-gray-400 sm:col-span-3">JSON export/import stays available. Saved
                     presets also persist in the browser for offline use.</p>
             </div>
-        </div>
-    </div>
+        </section>
+    </main>
 
-    <!-- NEW TOAST CONTAINER -->
+    <!-- TOAST CONTAINER -->
     <div id="toast-container"></div>
 
     <!-- Hidden state mirror used by browser automation checks without affecting the visible UI. -->

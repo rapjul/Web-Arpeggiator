@@ -828,6 +828,57 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     /**
+     * Announces a message to screen readers using the visually hidden aria-live region.
+     * @param {string} message - The message text to announce.
+     * @returns {void}
+     */
+    function announce(message) {
+        const liveRegion = document.getElementById('sr-announcements');
+        if (liveRegion) {
+            liveRegion.textContent = '';
+            setTimeout(() => {
+                liveRegion.textContent = message;
+            }, 100);
+        }
+    }
+
+    /**
+     * Sets up arrow key keyboard navigation for a group of buttons.
+     * Allows using Left/Right or Up/Down arrows to move focus within the group.
+     * @param {HTMLElement} container - The container element holding the buttons.
+     * @param {string} buttonSelector - CSS selector to identify the focusable buttons.
+     * @returns {void}
+     */
+    function setupKeyboardNavigation(container, buttonSelector) {
+        if (!container) return;
+        container.addEventListener('keydown', (event) => {
+            const buttons = Array.from(container.querySelectorAll(buttonSelector));
+            const activeEl = document.activeElement;
+            const index = buttons.indexOf(activeEl);
+
+            if (index === -1) return;
+
+            let nextIndex = index;
+            if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+                nextIndex = (index + 1) % buttons.length;
+                event.preventDefault();
+            } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+                nextIndex = (index - 1 + buttons.length) % buttons.length;
+                event.preventDefault();
+            }
+
+            if (nextIndex !== index) {
+                buttons[nextIndex].focus();
+            }
+        });
+    }
+
+    setupKeyboardNavigation(patternButtons, 'button.pattern-btn');
+    setupKeyboardNavigation(waveformButtons, 'button.waveform-btn');
+    setupKeyboardNavigation(octaveShiftButtons, 'button.octave-btn');
+    setupKeyboardNavigation(octaveRangeButtons, 'button.octave-btn');
+
+    /**
      * Displays a stacking toast message for a few seconds.
      * @param {string} message - The text to display.
      * @param {string} type - 'success', 'info', or 'error'.
@@ -842,6 +893,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         toastContainer.appendChild(toast);
         requestAnimationFrame(() => { toast.classList.add('show'); });
+
+        // Announce the toast message to screen readers
+        announce(message);
 
         setTimeout(() => {
             toast.classList.remove('show');
