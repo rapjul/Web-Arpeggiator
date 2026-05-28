@@ -588,6 +588,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     window.activeSynth = audioEngine.activeSynth;
     window.currentWaveform = audioEngine.currentWaveform;
+    window.audioEngine = audioEngine;
 
     // 2. Visualizer — canvas rendering, UI loop, toggle
     const visualizer = createVisualizer({
@@ -932,22 +933,46 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    /**
+     * Creates a debounced function that delays invoking the callback.
+     * @param {Function} func - The callback function to debounce.
+     * @param {number} wait - The delay in milliseconds.
+     * @returns {Function} The debounced function.
+     */
+    function debounce(func, wait) {
+        let timeout;
+        return function (...args) {
+            clearTimeout(timeout);
+            timeout = setTimeout(() => {
+                func.apply(this, args);
+            }, wait);
+        };
+    }
+
+    /**
+     * Debounced wrapper to update the synth envelope.
+     * @type {Function}
+     */
+    const debouncedUpdateEnvelope = debounce(() => {
+        audioEngine.updateEnvelope();
+    }, 16);
+
     // --- ADSR Listeners ---
     envAttackSlider.addEventListener('input', () => {
         envAttackValue.textContent = parseFloat(envAttackSlider.value).toFixed(2);
-        audioEngine.updateEnvelope();
+        debouncedUpdateEnvelope();
     });
     envDecaySlider.addEventListener('input', () => {
         envDecayValue.textContent = parseFloat(envDecaySlider.value).toFixed(2);
-        audioEngine.updateEnvelope();
+        debouncedUpdateEnvelope();
     });
     envSustainSlider.addEventListener('input', () => {
         envSustainValue.textContent = parseFloat(envSustainSlider.value).toFixed(2);
-        audioEngine.updateEnvelope();
+        debouncedUpdateEnvelope();
     });
     envReleaseSlider.addEventListener('input', () => {
         envReleaseValue.textContent = parseFloat(envReleaseSlider.value).toFixed(2);
-        audioEngine.updateEnvelope();
+        debouncedUpdateEnvelope();
     });
 
     /**
@@ -1053,19 +1078,114 @@ document.addEventListener('DOMContentLoaded', () => {
         return Math.round((db + 40) / 40 * 100);
     }
 
+    /**
+     * Debounced wrapper to set post gain volume.
+     * @type {Function}
+     */
+    const debouncedSetPostGain = debounce((db) => {
+        audioEngine.postGain.volume.value = db;
+    }, 16);
+
+    /**
+     * Debounced wrapper to set BPM.
+     * @type {Function}
+     */
+    const debouncedSetBpm = debounce((val) => {
+        Tone.Transport.bpm.value = val;
+    }, 16);
+
+    /**
+     * Debounced wrapper to set swing.
+     * @type {Function}
+     */
+    const debouncedSetSwing = debounce((val) => {
+        Tone.Transport.swing = val;
+    }, 16);
+
+    /**
+     * Debounced wrapper to set harmonicity.
+     * @type {Function}
+     */
+    const debouncedSetHarmonicity = debounce((val) => {
+        if (audioEngine.activeSynth && audioEngine.activeSynth.harmonicity) {
+            audioEngine.activeSynth.harmonicity.value = val;
+        }
+    }, 16);
+
+    /**
+     * Debounced wrapper to set modulation index.
+     * @type {Function}
+     */
+    const debouncedSetModIndex = debounce((val) => {
+        if (audioEngine.activeSynth && audioEngine.activeSynth.modulationIndex) {
+            audioEngine.activeSynth.modulationIndex.value = val;
+        }
+    }, 16);
+
+    /**
+     * Debounced wrapper to set duty cycle.
+     * @type {Function}
+     */
+    const debouncedSetDuty = debounce((val) => {
+        if (audioEngine.activeSynth && audioEngine.activeSynth.oscillator &&
+            audioEngine.currentWaveform === 'square') {
+            audioEngine.activeSynth.oscillator.width.value = val;
+        }
+    }, 16);
+
+    /**
+     * Debounced wrapper to create or update pattern at 50ms.
+     * @type {Function}
+     */
+    const debouncedCreateOrUpdatePattern50 = debounce(() => {
+        createOrUpdatePattern();
+    }, 50);
+
+    /**
+     * Debounced wrapper to set filter cutoff frequency.
+     * @type {Function}
+     */
+    const debouncedSetFilterCutoff = debounce((val) => {
+        audioEngine.filter.frequency.value = val;
+    }, 16);
+
+    /**
+     * Debounced wrapper to set filter Q.
+     * @type {Function}
+     */
+    const debouncedSetFilterQ = debounce((val) => {
+        audioEngine.filter.Q.value = val;
+    }, 16);
+
+    /**
+     * Debounced wrapper to set delay mix.
+     * @type {Function}
+     */
+    const debouncedSetDelayMix = debounce((val) => {
+        audioEngine.delay.wet.value = val;
+    }, 16);
+
+    /**
+     * Debounced wrapper to set reverb mix.
+     * @type {Function}
+     */
+    const debouncedSetReverbMix = debounce((val) => {
+        audioEngine.reverb.wet.value = val;
+    }, 16);
+
     postGainSlider.addEventListener('input', () => {
         const db = parseFloat(postGainSlider.value);
-        audioEngine.postGain.volume.value = db;
+        debouncedSetPostGain(db);
         postGainValue.textContent = dbToPercent(db);
     });
 
     bpmSlider.addEventListener('input', () => {
-        Tone.Transport.bpm.value = parseInt(bpmSlider.value);
+        debouncedSetBpm(parseInt(bpmSlider.value));
         bpmValue.textContent = bpmSlider.value;
     });
 
     swingSlider.addEventListener('input', () => {
-        Tone.Transport.swing = parseFloat(swingSlider.value);
+        debouncedSetSwing(parseFloat(swingSlider.value));
         swingValue.textContent = parseFloat(swingSlider.value).toFixed(2);
     });
 
@@ -1108,27 +1228,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
     harmonicitySlider.addEventListener('input', () => {
         const val = parseFloat(harmonicitySlider.value);
-        if (audioEngine.activeSynth && audioEngine.activeSynth.harmonicity) {
-            audioEngine.activeSynth.harmonicity.value = val;
-        }
+        debouncedSetHarmonicity(val);
         harmonicityValue.textContent = val.toFixed(1);
     });
 
     modIndexSlider.addEventListener('input', () => {
         const val = parseFloat(modIndexSlider.value);
-        if (audioEngine.activeSynth && audioEngine.activeSynth.modulationIndex) {
-            audioEngine.activeSynth.modulationIndex.value = val;
-        }
+        debouncedSetModIndex(val);
         modIndexValue.textContent = val.toFixed(1);
     });
 
     // --- Duty Cycle ---
     dutySlider.addEventListener('input', () => {
-        dutyValue.textContent = parseFloat(dutySlider.value).toFixed(2);
-        if (audioEngine.activeSynth && audioEngine.activeSynth.oscillator &&
-            audioEngine.currentWaveform === 'square') {
-            audioEngine.activeSynth.oscillator.width.value = parseFloat(dutySlider.value);
-        }
+        const val = parseFloat(dutySlider.value);
+        dutyValue.textContent = val.toFixed(2);
+        debouncedSetDuty(val);
     });
 
     // --- Octave Controls ---
@@ -1153,30 +1267,30 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Gate ---
     gateSlider.addEventListener('input', () => {
         gateValue.textContent = parseFloat(gateSlider.value).toFixed(2);
-        createOrUpdatePattern();
+        debouncedCreateOrUpdatePattern50();
     });
 
     // --- Filter ---
     filterCutoffSlider.addEventListener('input', () => {
         const freq = parseFloat(filterCutoffSlider.value);
-        audioEngine.filter.frequency.value = freq;
+        debouncedSetFilterCutoff(freq);
         filterCutoffValue.textContent = freq.toFixed(0);
     });
     filterResonanceSlider.addEventListener('input', () => {
         const res = parseFloat(filterResonanceSlider.value);
-        audioEngine.filter.Q.value = res;
+        debouncedSetFilterQ(res);
         filterResonanceValue.textContent = res.toFixed(1);
     });
 
     // --- Effects ---
     delayMixSlider.addEventListener('input', () => {
         const mix = parseFloat(delayMixSlider.value);
-        audioEngine.delay.wet.value = mix;
+        debouncedSetDelayMix(mix);
         delayMixValue.textContent = mix.toFixed(2);
     });
     reverbMixSlider.addEventListener('input', () => {
         const mix = parseFloat(reverbMixSlider.value);
-        audioEngine.reverb.wet.value = mix;
+        debouncedSetReverbMix(mix);
         reverbMixValue.textContent = mix.toFixed(2);
     });
 

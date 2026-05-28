@@ -80,6 +80,7 @@ assert_page "
     rel.dispatchEvent(new Event('change'));
 
     // Verify tone envelope directly
+    await new Promise((resolve) => setTimeout(resolve, 50));
     if (!window.activeSynth || !window.activeSynth.envelope) {
         throw new Error('activeSynth envelope is not available on window');
     }
