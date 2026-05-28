@@ -71,19 +71,31 @@ export function initializeKeyboardControls(context) {
             whiteKeyIndexInCurrentOctave = 0;
         }
 
-        const el = document.createElement('div');
+        const el = document.createElement('button');
+        el.type = 'button';
         el.classList.add('piano-key');
         el.dataset.note = keyData.note;
         el.dataset.keylabel = keyData.label.toLowerCase();
-        el.textContent = keyData.label;
+        el.setAttribute('aria-label', `Play note ${keyData.note} (computer key ${keyData.label})`);
+        el.disabled = !dom.keyboardToggle.checked;
+        if (!dom.keyboardToggle.checked) {
+            el.setAttribute('tabindex', '-1');
+        }
 
         if (keyData.type === 'white') {
             el.classList.add('key-white');
             el.style.width = `${whiteKeyWidthPx}px`;
             el.style.height = '4.5rem';
             el.style.zIndex = '0';
-            el.style.marginLeft = '-1px';
+            if (whiteKeyIndexInCurrentOctave > 0) {
+                el.style.marginLeft = '-1px';
+            }
             el.dataset.whiteKeyIndex = whiteKeyIndexInCurrentOctave;
+
+            // Create SVG background shape to handle black key cutout outlines
+            const svgBg = createWhiteKeyBackground(whiteKeyIndexInCurrentOctave);
+            el.appendChild(svgBg);
+
             whiteKeyIndexInCurrentOctave += 1;
         } else {
             el.classList.add('key-black');
@@ -121,7 +133,8 @@ export function initializeKeyboardControls(context) {
             }
 
             const cumulativeMarginOffset = baseWhiteKeyIndexOffset;
-            const leftPosition = (baseWhiteKeyIndexOffset * whiteKeyWidthPx) + whiteKeyWidthPx - (blackKeyWidthPx / 2) - cumulativeMarginOffset;
+            // Subtract 1px to center the black key perfectly over the white key boundary (which is shifted by cumulative margins)
+            const leftPosition = (baseWhiteKeyIndexOffset * whiteKeyWidthPx) + whiteKeyWidthPx - (blackKeyWidthPx / 2) - cumulativeMarginOffset - 1;
             el.style.left = `${leftPosition}px`;
             el.style.pointerEvents = 'auto';
         }
@@ -140,6 +153,44 @@ export function initializeKeyboardControls(context) {
             triggerKey(keyData.note);
         });
         el.addEventListener('touchend', () => releaseKey(keyData.note));
+
+        /**
+         * Handles keyboard keydown event on the piano key button.
+         *
+         * @param {KeyboardEvent} event - The keyboard event.
+         */
+        el.addEventListener('keydown', (event) => {
+            if (event.repeat) return;
+            if (event.key === ' ' || event.key === 'Enter') {
+                event.preventDefault();
+                triggerKey(keyData.note);
+            }
+        });
+
+        /**
+         * Handles keyboard keyup event on the piano key button.
+         *
+         * @param {KeyboardEvent} event - The keyboard event.
+         */
+        el.addEventListener('keyup', (event) => {
+            if (event.key === ' ' || event.key === 'Enter') {
+                event.preventDefault();
+                releaseKey(keyData.note);
+            }
+        });
+
+        /**
+         * Handles blur event to release the note when focus is lost.
+         */
+        el.addEventListener('blur', () => {
+            releaseKey(keyData.note);
+        });
+
+        // Wrap label text in a relative span to ensure it renders on top of the absolute SVG background
+        const labelSpan = document.createElement('span');
+        labelSpan.classList.add('key-label');
+        labelSpan.textContent = keyData.label;
+        el.appendChild(labelSpan);
 
         currentOctaveTarget.appendChild(el);
     });
@@ -235,6 +286,16 @@ export function initializeKeyboardControls(context) {
      */
     function updateKeyboardControlUi() {
         const isEnabled = dom.keyboardToggle.checked;
+        const keys = keyboardMainWrapper.querySelectorAll('.piano-key');
+        keys.forEach((key) => {
+            key.disabled = !isEnabled;
+            if (isEnabled) {
+                key.removeAttribute('tabindex');
+            } else {
+                key.setAttribute('tabindex', '-1');
+            }
+        });
+
         if (isEnabled) {
             keyboardMainWrapper.classList.remove('opacity-60');
             dom.keyboardDescription.classList.remove('opacity-60');
@@ -255,4 +316,47 @@ export function initializeKeyboardControls(context) {
     return {
         updateKeyboardControlUi
     };
+}
+
+/**
+ * Creates an SVG element to serve as the visual shape and border for a white key,
+ * incorporating cutouts for adjacent black keys.
+ *
+ * @param {number} index - The index of the white key in the current octave (0 to 7).
+ * @returns {SVGElement} The constructed SVG element with the proper shape path.
+ */
+function createWhiteKeyBackground(index) {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('viewBox', '0 0 40 72');
+    svg.setAttribute('preserveAspectRatio', 'none');
+    svg.classList.add('key-bg-svg');
+    svg.style.position = 'absolute';
+    svg.style.top = '0';
+    svg.style.left = '0';
+    svg.style.width = '100%';
+    svg.style.height = '100%';
+    svg.style.zIndex = '-1';
+    svg.style.pointerEvents = 'none';
+
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.classList.add('key-bg-path');
+
+    let d = '';
+    if (index === 0 || index === 3) {
+        // C or F: Right cutout (13px wide cutout from X=27 to X=40, starts at Y=0 to align perfectly with black key)
+        d = 'M 0 0 L 27 0 L 27 40 L 40 40 L 40 72 L 0 72 Z';
+    } else if (index === 1 || index === 4 || index === 5) {
+        // D, G, A: Both sides cutout (12px left cutout, 13px right cutout, starts at Y=0 to align perfectly with black keys)
+        d = 'M 12 0 L 27 0 L 27 40 L 40 40 L 40 72 L 0 72 L 0 40 L 12 40 Z';
+    } else if (index === 2 || index === 6) {
+        // E or B: Left cutout (12px left cutout, starts at Y=0 to align perfectly with black key)
+        d = 'M 12 0 L 40 0 L 40 72 L 0 72 L 0 40 L 12 40 Z';
+    } else {
+        // C6 (index 7): Full rectangle (no cutout, starts at Y=0)
+        d = 'M 0 0 L 40 0 L 40 72 L 0 72 Z';
+    }
+
+    path.setAttribute('d', d);
+    svg.appendChild(path);
+    return svg;
 }

@@ -315,11 +315,16 @@ button:disabled {
 
 /* KEYBOARD KEY STYLES - General properties for both white and black keys */
 .piano-key {
+  appearance: none;
+  background: none;
+  border: none;
+  padding: 0;
+  padding-bottom: 0.5rem;
+  box-sizing: border-box;
   display: flex;
   align-items: flex-end;
   /* Align labels at the bottom */
   justify-content: center;
-  padding-bottom: 0.5rem;
   border-radius: 0 0 4px 4px;
   font-size: 0.75rem;
   font-weight: bold;
@@ -329,36 +334,74 @@ button:disabled {
   transition: background-color 0.1s, transform 0.1s;
 }
 
+.key-label {
+  position: relative;
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* Ensure white key labels have maximum contrast (dark text) at all times, even when disabled */
+.key-white .key-label {
+  color: #1a1a1a !important;
+  -webkit-text-fill-color: #1a1a1a !important;
+  font-weight: 800 !important;
+  opacity: 1 !important;
+}
+
+/* Ensure black key labels have maximum contrast (light text) at all times, even when disabled */
+.key-black .key-label {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  font-weight: 800 !important;
+  opacity: 1 !important;
+}
+
+.piano-key:disabled {
+  opacity: 1 !important;
+  cursor: default;
+}
+
+
+
 .key-white {
-  background-color: white;
+  background-color: transparent;
   color: black;
   height: 4.5rem;
   /* White keys are taller */
   width: 40px;
+  flex-shrink: 0;
+  flex-grow: 0;
   /* Explicit width for white keys */
-  border: 1px solid #ccc;
+  border: none;
   z-index: 0;
   margin-left: -1px;
   /* Overlap borders for a continuous look */
+  position: relative;
 }
+
+.key-bg-svg {
+  overflow: visible;
+}
+
+.key-bg-path {
+  fill: #ffffff;
+  stroke: #cccccc;
+  stroke-width: 1px;
+  vector-effect: non-scaling-stroke;
+  transition: fill 0.1s;
+}
+
 /* First white key in an octave should not have left margin */
 .piano-octave .key-white:first-child {
   margin-left: 0;
 }
 
 .key-white.active {
-  background-color: #ddd;
   transform: scale(0.98);
 }
 
-@media (prefers-color-scheme: dark) {
-  .key-white {
-    background-color: white;
-    /* color: black; */
-  }
-  .key-white:active {
-    background-color: #ddd;
-  }
+.key-white.active .key-bg-path {
+  fill: #dddddd;
 }
 
 .key-black {
@@ -367,6 +410,8 @@ button:disabled {
   height: 2.5rem;
   /* Black keys are shorter */
   width: 24px;
+  flex-shrink: 0;
+  flex-grow: 0;
   /* Explicit width for black keys */
   z-index: 10;
   position: absolute;
@@ -459,4 +504,30 @@ details.card-details > div {
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border-width: 0;
+}
+
+/* Focus outlines for all interactive elements to support keyboard navigation */
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+details > summary:focus-visible {
+  outline: 2px solid #38BDF8;
+  outline-offset: 2px;
+}
+
+/* Specific focus outline style inside the piano key boundary to avoid clipping and overlap */
+.key-black:focus-visible {
+  outline: 2px solid #38BDF8;
+  outline-offset: -2px;
+  z-index: 15 !important;
+}
+
+.key-white:focus-visible {
+  outline: none !important;
+  z-index: 5 !important;
+}
+
+.key-white:focus-visible .key-bg-path {
+  stroke: #38BDF8;
+  stroke-width: 2px;
 }
