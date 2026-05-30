@@ -1,7 +1,8 @@
 {
   "name": "Web Arpeggiator",
   "short_name": "Arpeggiator",
-  "description": "A browser-based musical arpeggiator with synthesis, effects, recording, and offline preset storage.",
+  "id": "",
+  "description": "Create patterns instantly with this browser-based, offline-capable musical arpeggiator featuring synthesis, effects, recording, and presets.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
@@ -15,10 +16,50 @@
       "purpose": "any"
     },
     {
+      "src": "./images/icons/pwa-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./images/icons/pwa-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
       "src": "./images/icons/pwa-icon-maskable.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "maskable"
+    },
+    {
+      "src": "./images/icons/pwa-icon-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "./images/icons/pwa-icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "./images/screenshots/desktop.png",
+      "sizes": "1280x800",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Desktop View"
+    },
+    {
+      "src": "./images/screenshots/mobile.png",
+      "sizes": "375x667",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Mobile View (Portrait)"
     }
   ]
 }

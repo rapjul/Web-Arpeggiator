@@ -6,7 +6,7 @@
  */
 (() => {
     const manifest = {
-        cacheVersion: 'phase3-2026-05-30-1',
+        cacheVersion: 'phase3-2026-05-30-2',
         appShell: './index.html',
         navigationFallback: './index.html',
         assets: [
@@ -25,7 +25,11 @@
             './js/visualizer.js',
             './styles.css',
             './images/icons/pwa-icon.svg',
+            './images/icons/pwa-icon-192.png',
+            './images/icons/pwa-icon-512.png',
             './images/icons/pwa-icon-maskable.svg',
+            './images/icons/pwa-icon-maskable-192.png',
+            './images/icons/pwa-icon-maskable-512.png',
             'https://cdn.tailwindcss.com',
             'https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js',
             'https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.1/lame.min.js',
