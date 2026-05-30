@@ -16,6 +16,10 @@
   "languageToolLinter.languageTool.disabledCategories": "COMMA_PARENTHESIS_WHITESPACE,WHITESPACE_RULE",
   "languageToolLinter.languageTool.disabledRules": "COMMA_PARENTHESIS_WHITESPACE,ENGLISH_WORD_REPEAT_RULE,WHITESPACE_RULE",
   "languageToolLinter.languageTool.ignoredWordsInWorkspace": [
-    "arpeggiator"
+    "arpeggiator",
+    "bb",
+    "db",
+    "eb",
+    "harmonicity"
   ]
 }
