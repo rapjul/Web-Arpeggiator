@@ -199,6 +199,10 @@ initialize_audio() {
     run_browser click "#start-overlay"
     run_browser wait --fn "document.getElementById('play-stop')?.disabled === false"
 
+    echo "Setting post gain to -12dB (70%) to reduce volume."
+    run_browser eval "document.querySelector('#post-gain').value = -12"
+    run_browser eval "document.querySelector('#post-gain').dispatchEvent(new Event('input'))"
+
     echo "=========================================================="
     echo " WARNING: Audio is about to play during browser tests."
     echo " Please adjust your system volume to avoid loud output."
