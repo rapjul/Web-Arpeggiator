@@ -14,5 +14,8 @@
   "specstory.cloudSync.enabled": "never",
   "harper.workspaceDictPath": "./harper-dictionary.txt",
   "languageToolLinter.languageTool.disabledCategories": "COMMA_PARENTHESIS_WHITESPACE,WHITESPACE_RULE",
-  "languageToolLinter.languageTool.disabledRules": "COMMA_PARENTHESIS_WHITESPACE,WHITESPACE_RULE"
+  "languageToolLinter.languageTool.disabledRules": "COMMA_PARENTHESIS_WHITESPACE,ENGLISH_WORD_REPEAT_RULE,WHITESPACE_RULE",
+  "languageToolLinter.languageTool.ignoredWordsInWorkspace": [
+    "arpeggiator"
+  ]
 }
