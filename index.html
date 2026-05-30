@@ -705,8 +705,7 @@
     <div id="toast-container" role="status" aria-live="polite"></div>
 
     <!-- Hidden state mirror used by browser automation checks without affecting the visible UI. -->
-    <textarea id="pwa-test-state" aria-label="PWA Test State" readonly tabindex="-1"
-        style="position: absolute; left: -9999px; top: -9999px; width: 1px; height: 1px; opacity: 0; pointer-events:none;"></textarea>
+    <textarea id="pwa-test-state" class="test-state-mirror" aria-label="PWA Test State" readonly tabindex="-1"></textarea>
 
     <script type="module" src="./js/app.js"></script>
 </body>
