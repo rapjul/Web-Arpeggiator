@@ -655,6 +655,10 @@
                     <input type="text" id="preset-name-input" placeholder="Optional saved preset name"
                         class="w-full p-2 bg-gray-800 border border-gray-600 rounded-md text-gray-100">
                 </label>
+                <button type="button" id="save-preset-to-browser-button"
+                    class="w-full text-lg font-bold py-2 px-4 bg-lime-600 hover:bg-lime-700 rounded-lg shadow-lg transition-all">
+                    Save Preset (Browser)
+                </button>
                 <button id="save-preset-button"
                     class="w-full text-lg font-bold py-2 px-4 bg-green-600 hover:bg-green-700 rounded-lg shadow-lg transition-all">
                     Save Preset (JSON)
@@ -663,13 +667,13 @@
                     class="w-full text-lg font-bold py-2 px-4 bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-lg transition-all">
                     Copy Share Link
                 </button>
-                <button id="load-preset-button"
-                    class="w-full text-lg font-bold py-2 px-4 bg-blue-600 hover:bg-blue-700 rounded-lg shadow-lg transition-all">
-                    Load Preset (JSON)
-                </button>
                 <button id="load-saved-preset-button"
                     class="w-full text-lg font-bold py-2 px-4 bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-lg transition-all">
                     Load Saved Preset
+                </button>
+                <button id="load-preset-button"
+                    class="w-full text-lg font-bold py-2 px-4 bg-blue-600 hover:bg-blue-700 rounded-lg shadow-lg transition-all">
+                    Load Preset (JSON)
                 </button>
                 <button id="clear-saved-preset-button"
                     class="w-full text-lg font-bold py-2 px-4 bg-red-600 hover:bg-red-700 rounded-lg shadow-lg transition-all">
@@ -692,7 +696,7 @@
                 <p class="text-xs text-center text-gray-400 sm:col-span-3">JSON export/import stays available. Saved
                     presets also persist in the browser for offline use.</p>
             </div>
-        </section><!-- ***** END LAYOUT ***** -->
+        </section>
     </main>
 
     <!-- TOAST MESSAGES CONTAINER -->

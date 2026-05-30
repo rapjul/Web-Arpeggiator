@@ -246,6 +246,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const presetNameInput = document.getElementById('preset-name-input');
     const savedPresetSelect = document.getElementById('saved-preset-select');
     const savePresetButton = document.getElementById('save-preset-button');
+    const savePresetToBrowserButton = document.getElementById('save-preset-to-browser-button');
     const sharePresetButton = document.getElementById('share-preset-button');
     const loadPresetButton = document.getElementById('load-preset-button');
     const loadSavedPresetButton = document.getElementById('load-saved-preset-button');
@@ -412,17 +413,17 @@ document.addEventListener('DOMContentLoaded', () => {
      */
     function highlightNoteStep(index) {
         if (!noteStepIndicator || noteStepPips.length === 0) return;
-        
+
         // Remove active class from previous step
         if (currentStepIndex >= 0 && currentStepIndex < noteStepPips.length) {
             noteStepPips[currentStepIndex].classList.remove('active');
         }
-        
+
         // Add active class to new step
         if (index >= 0 && index < noteStepPips.length) {
             noteStepPips[index].classList.add('active');
         }
-        
+
         currentStepIndex = index;
     }
 
@@ -1574,38 +1575,79 @@ document.addEventListener('DOMContentLoaded', () => {
         sharePresetAsUrl();
     });
 
-    savePresetButton.addEventListener('click', async () => {
-        log("Save preset button clicked.");
+    /**
+     * Helper function to handle preset serialization, file downloads, test state updates,
+     * and IndexedDB persistence.
+     *
+     * @param {'save'|'download'} source - Action source ('save' for browser storage only, 'download' for JSON download).
+     * @returns {Promise<'success'|'download-only-success'|'download-only-fail'|'store-unavailable'|'save-fail'>} Outcome of the save operation.
+     */
+    async function performPresetSave(source) {
         const settings = getAllSettings();
-        const settingsBlob = new Blob([JSON.stringify(settings, null, 2)], { type: 'application/json' });
         const filename = `${generateFilename(false)}-preset.json`;
         const presetName = presetNameInput?.value.trim() || filename;
         updateTestState({ lastSaveFinished: false });
-        downloadBlob(settingsBlob, filename);
-        if (window.WebArpPresetStore) {
-            try {
-                const record = await window.WebArpPresetStore.save(settings, {
-                    filename,
-                    name: presetName,
-                    source: 'download'
-                });
-                await refreshSavedPresetList(record.id);
-                updateTestState({
-                    lastSavedPreset: settings,
-                    lastSavedPresetRecord: record,
-                    lastSaveFinished: true
-                });
-            } catch (storeError) {
-                console.warn('Failed to save preset to browser storage:', storeError);
-                updateTestState({ lastSaveError: String(storeError), lastSaveFinished: true });
-                showToast('Preset downloaded, but browser save failed.', 'info');
-                return;
-            }
-        } else {
-            updateTestState({ lastSaveError: 'Browser preset storage is unavailable.', lastSaveFinished: true });
+
+        if (source === 'download') {
+            const settingsBlob = new Blob([JSON.stringify(settings, null, 2)], { type: 'application/json' });
+            downloadBlob(settingsBlob, filename);
         }
-        showToast("Preset saved!", "success");
+
+        if (!window.WebArpPresetStore) {
+            updateTestState({ lastSaveError: 'Browser preset storage is unavailable.', lastSaveFinished: true });
+            return source === 'download' ? 'download-only-success' : 'store-unavailable';
+        }
+
+        try {
+            const record = await window.WebArpPresetStore.save(settings, {
+                filename,
+                name: presetName,
+                source
+            });
+            await refreshSavedPresetList(record.id);
+            updateTestState({
+                lastSavedPreset: settings,
+                lastSavedPresetRecord: record,
+                lastSaveFinished: true
+            });
+            return 'success';
+        } catch (storeError) {
+            console.warn('Failed to save preset to browser storage:', storeError);
+            updateTestState({ lastSaveError: String(storeError), lastSaveFinished: true });
+            return source === 'download' ? 'download-only-fail' : 'save-fail';
+        }
+    }
+
+    savePresetButton.addEventListener('click', async () => {
+        log("Save preset button clicked.");
+        const result = await performPresetSave('download');
+        if (result === 'download-only-fail') {
+            showToast('Preset downloaded, but browser save failed.', 'info');
+        } else {
+            showToast("Preset saved!", "success");
+        }
     });
+
+    if (savePresetToBrowserButton) {
+        /**
+         * Event listener for saving the current preset settings to IndexedDB browser storage.
+         *
+         * @param {Event} event - The button click event.
+         * @returns {Promise<void>}
+         */
+        savePresetToBrowserButton.addEventListener('click', async (event) => {
+            event.preventDefault();
+            log("Save to browser preset button clicked.");
+            const result = await performPresetSave('save');
+            if (result === 'success') {
+                showToast("Preset saved to browser!", "success");
+            } else if (result === 'store-unavailable') {
+                showToast('Browser preset storage is unavailable.', 'error');
+            } else {
+                showToast('Browser save failed.', 'error');
+            }
+        });
+    }
 
     loadPresetButton.addEventListener('click', () => {
         log("Load preset button clicked.");
