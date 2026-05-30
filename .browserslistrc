@@ -41,6 +41,9 @@
 # ==============================================================================
 
 > 0.5%
-last 2 versions
+last 3 versions
 Firefox ESR
 not dead
+not and_ff <= 146
+not firefox <= 146
+not opera <= 125
