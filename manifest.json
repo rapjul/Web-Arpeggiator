@@ -1,4 +1,5 @@
 {
+  "$schema": "https://www.schemastore.org/web-manifest-combined.json",
   "name": "Web Arpeggiator",
   "short_name": "Arpeggiator",
   "id": "",
