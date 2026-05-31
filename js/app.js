@@ -237,10 +237,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const offlineExportStatus = document.getElementById('offline-export-status');
 
     // Utility card
-    const visualizerCanvas = document.getElementById('visualizer');
+    const visualizerYAxisCanvas = document.getElementById('visualizer-yaxis');
+    const visualizerViewport = document.getElementById('visualizer-viewport');
+    const visualizerPlotCanvas = document.getElementById('visualizer-plot');
     const toggleVisualizerButton = document.getElementById('toggle-visualizer');
     const visualizerModeSelect = document.getElementById('visualizer-mode');
     const pauseVisualizerButton = document.getElementById('pause-visualizer');
+    const visualizerZoomSlider = document.getElementById('visualizer-zoom');
+    const visualizerZoomValue = document.getElementById('visualizer-zoom-value');
+    const oscilloscopeWindowSelect = document.getElementById('oscilloscope-window');
+    const oscilloscopeWindowContainer = document.getElementById('oscilloscope-window-container');
 
     // Preset Management card
     const presetNameInput = document.getElementById('preset-name-input');
@@ -595,10 +601,16 @@ document.addEventListener('DOMContentLoaded', () => {
     // 2. Visualizer — canvas rendering, UI loop, toggle
     const visualizer = createVisualizer({
         dom: {
-            visualizerCanvas,
+            visualizerYAxisCanvas,
+            visualizerViewport,
+            visualizerPlotCanvas,
             toggleVisualizerButton,
             visualizerModeSelect,
-            pauseVisualizerButton
+            pauseVisualizerButton,
+            visualizerZoomSlider,
+            visualizerZoomValue,
+            oscilloscopeWindowSelect,
+            oscilloscopeWindowContainer
         },
         audio: { analyser: audioEngine.analyser },
         state: {

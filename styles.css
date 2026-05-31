@@ -87,17 +87,60 @@ button:disabled {
   cursor: not-allowed;
 }
 
-/* Style for canvas */
-#visualizer {
+/* Style for visualizer container */
+#visualizer-container {
   width: 100%;
-  height: 250px;
-  /* Increased height for labels and better resolution */
+  height: 350px;
   background-color: #1F2937;
-  /* bg-gray-800 */
-  border-radius: 0.375rem;
-  /* rounded-md */
-  border: 1px solid #4B5563;
-  /* border-gray-600 */
+  display: flex;
+  overflow: hidden;
+}
+
+@container (max-width: 600px) {
+  #visualizer-container {
+    height: 200px;
+  }
+}
+
+#visualizer-yaxis {
+  width: 50px;
+  height: 100%;
+  flex-shrink: 0;
+  background-color: #1F2937;
+  border-right: 1px solid #4B5563;
+}
+
+#visualizer-viewport {
+  flex-grow: 1;
+  height: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  background-color: #1F2937;
+}
+
+#visualizer-plot {
+  display: block;
+  height: 100%;
+  background-color: #1F2937;
+}
+
+#visualizer-controls-footer {
+  border-top: none;
+}
+
+/* Custom scrollbar styling for visualizer viewport */
+#visualizer-viewport::-webkit-scrollbar {
+  height: 8px;
+}
+#visualizer-viewport::-webkit-scrollbar-track {
+  background: #111827;
+}
+#visualizer-viewport::-webkit-scrollbar-thumb {
+  background: #4B5563;
+  border-radius: 9999px;
+}
+#visualizer-viewport::-webkit-scrollbar-thumb:hover {
+  background: #6B7280;
 }
 
 /* Hide file input */

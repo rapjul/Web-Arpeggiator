@@ -2,7 +2,7 @@
  * Visualizer Module
  *
  * Owns the waveform canvas rendering, the 30 Hz UI update loop, and the
- * visualizer mode/pause toggles.
+ * visualizer mode/pause/zoom/time-window controls.
  * Exposes a factory function so the caller (app.js) can
  * inject the analyzer node, DOM references, and shared state.
  *
@@ -12,31 +12,44 @@
 /**
  * Creates the waveform visualizer and UI update loop.
  *
- * @param {object}   context                                  - Injected app context.
- * @param {object}   context.dom                              - DOM element references.
- * @param {HTMLCanvasElement} context.dom.visualizerCanvas       - Canvas element.
- * @param {HTMLElement}       context.dom.toggleVisualizerButton - Toggle button.
- * @param {HTMLSelectElement} context.dom.visualizerModeSelect  - Dropdown select for mode.
+ * @param {object}   context                                     - Injected app context.
+ * @param {object}   context.dom                                 - DOM element references.
+ * @param {HTMLCanvasElement} context.dom.visualizerYAxisCanvas  - Canvas element for Y-axis scale.
+ * @param {HTMLElement}       context.dom.visualizerViewport     - Scrollable viewport container.
+ * @param {HTMLCanvasElement} context.dom.visualizerPlotCanvas   - Canvas element for visualizer drawings.
+ * @param {HTMLElement}       context.dom.toggleVisualizerButton - Toggle visualizer button.
+ * @param {HTMLSelectElement} context.dom.visualizerModeSelect   - Dropdown select for mode.
  * @param {HTMLElement}       context.dom.pauseVisualizerButton  - Pause visualizer button.
- * @param {object}   context.audio                            - Audio-engine references.
- * @param {Tone.Analyser}     context.audio.analyser          - Waveform/FFT analyser.
- * @param {object}   context.state                            - Shared app state.
- * @param {boolean}  context.state.isRecording                - Is recording active.
- * @param {number}   context.state.recordingStartTime         - Recording start time.
- * @param {HTMLElement}       context.state.recordButton      - Record button.
- * @param {boolean}  context.state.isPlaying                  - Is transport playing.
- * @param {Function} context.actions.formatTime               - Time formatting helper.
+ * @param {HTMLInputElement}  context.dom.visualizerZoomSlider   - Zoom slider input range.
+ * @param {HTMLElement}       context.dom.visualizerZoomValue    - Text readout for zoom.
+ * @param {HTMLSelectElement} context.dom.oscilloscopeWindowSelect - Select dropdown for time duration.
+ * @param {HTMLElement}       context.dom.oscilloscopeWindowContainer - Container wrapper for time dropdown.
+ * @param {object}   context.audio                               - Audio-engine references.
+ * @param {Tone.Analyser}     context.audio.analyser             - Waveform/FFT analyser.
+ * @param {object}   context.state                               - Shared app state.
+ * @param {boolean}  context.state.isRecording                   - Is recording active.
+ * @param {number}   context.state.recordingStartTime            - Recording start time.
+ * @param {HTMLElement}       context.state.recordButton         - Record button.
+ * @param {boolean}  context.state.isPlaying                     - Is transport playing.
+ * @param {Function} context.actions.formatTime                  - Time formatting helper.
  * @returns {object} Public API.
  */
 export function createVisualizer(context) {
     const { dom, audio, state, actions } = context;
 
     // --- DOM Elements ---
-    const visualizerCanvas = dom.visualizerCanvas;
-    const visualizerCtx = visualizerCanvas.getContext('2d');
+    const yAxisCanvas = dom.visualizerYAxisCanvas;
+    const yAxisCtx = yAxisCanvas ? yAxisCanvas.getContext('2d') : null;
+    const viewport = dom.visualizerViewport;
+    const plotCanvas = dom.visualizerPlotCanvas;
+    const plotCtx = plotCanvas ? plotCanvas.getContext('2d') : null;
     const toggleVisualizerButton = dom.toggleVisualizerButton;
     const visualizerModeSelect = dom.visualizerModeSelect;
     const pauseVisualizerButton = dom.pauseVisualizerButton;
+    const zoomSlider = dom.visualizerZoomSlider;
+    const zoomValueSpan = dom.visualizerZoomValue;
+    const oscilloscopeWindowSelect = dom.oscilloscopeWindowSelect;
+    const oscilloscopeWindowContainer = dom.oscilloscopeWindowContainer;
     const analyser = audio.analyser;
 
     // --- Internal State ---
@@ -45,6 +58,12 @@ export function createVisualizer(context) {
     let currentMode = 'oscilloscope'; // 'oscilloscope' | 'fft' | 'loopMap'
     let animationFrameId = null;
     let lastTimeStr = '';
+    let zoomFactor = 1.0;
+
+    // --- Rolling Buffer for Oscilloscope ---
+    let rollingBuffer = new Float32Array(0);
+    let rollingBufferCapacity = 0;
+    let writeIndex = 0;
 
     // Static tick coordinate arrays for Oscilloscope / Loop Map
     const yTicks = [-1.5, -1.0, -0.5, 0, 0.5, 1.0, 1.5];
@@ -66,17 +85,39 @@ export function createVisualizer(context) {
     const waveformBuffer = analyser ? new Float32Array(analyser.size) : null;
 
     /**
-     * Resizes the canvas to match its CSS display size, accounting for
-     * high-DPI retina displays to ensure crisp lines.
+     * Resizes the Y-axis and plot canvases based on container size and zoom levels,
+     * accounting for high-DPI retina displays to ensure crisp lines.
      *
      * @returns {void}
      */
     function resizeCanvas() {
+        if (!yAxisCanvas || !plotCanvas || !viewport) return;
+
         const dpr = window.devicePixelRatio || 1;
-        const rect = visualizerCanvas.getBoundingClientRect();
-        visualizerCanvas.width = rect.width * dpr;
-        visualizerCanvas.height = rect.height * dpr;
-        visualizerCtx.scale(dpr, dpr);
+
+        // 1. Size the Y-axis canvas (fixed width 50px)
+        const yAxisRect = yAxisCanvas.getBoundingClientRect();
+        yAxisCanvas.width = yAxisRect.width * dpr;
+        yAxisCanvas.height = yAxisRect.height * dpr;
+        if (yAxisCtx) {
+            yAxisCtx.setTransform(1, 0, 0, 1, 0, 0); // Reset scale
+            yAxisCtx.scale(dpr, dpr);
+        }
+
+        // 2. Size the plot canvas based on viewport width and zoom level
+        const viewportWidth = viewport.clientWidth;
+        const plotWidth = viewportWidth * zoomFactor;
+        const plotHeight = viewport.clientHeight;
+
+        plotCanvas.style.width = `${plotWidth}px`;
+        plotCanvas.style.height = `${plotHeight}px`;
+
+        plotCanvas.width = plotWidth * dpr;
+        plotCanvas.height = plotHeight * dpr;
+        if (plotCtx) {
+            plotCtx.setTransform(1, 0, 0, 1, 0, 0); // Reset scale
+            plotCtx.scale(dpr, dpr);
+        }
 
         // If visualizer is enabled but audio is stopped (static map mode), redraw the static buffer immediately
         if (isVisualizerOn && currentMode === 'loopMap' && !state.isPlaying) {
@@ -86,7 +127,120 @@ export function createVisualizer(context) {
 
     // Bind event listener and do initial sizing
     window.addEventListener('resize', resizeCanvas);
+
+    // Bind event listener to parent details accordion to resize canvas when opened
+    const parentDetails = viewport ? viewport.closest('details') : null;
+    if (parentDetails) {
+        parentDetails.addEventListener('toggle', () => {
+            if (parentDetails.open) {
+                resizeCanvas();
+            }
+        });
+    }
+
     resizeCanvas();
+
+    /**
+     * Updates the size/capacity of the rolling buffer according to the selected timeframe.
+     *
+     * @returns {void}
+     */
+    function updateRollingBufferSize() {
+        if (!oscilloscopeWindowSelect) return;
+        const sampleRate = Tone.context.sampleRate || 48000;
+        const durationSeconds = parseFloat(oscilloscopeWindowSelect.value) / 1000;
+        rollingBufferCapacity = Math.round(sampleRate * durationSeconds);
+        rollingBuffer = new Float32Array(rollingBufferCapacity);
+        writeIndex = 0;
+    }
+
+    /**
+     * Pushes new Float32Array samples into the circular rolling buffer.
+     *
+     * @param {Float32Array} newData - Incoming time domain data samples.
+     * @returns {void}
+     */
+    function pushToRollingBuffer(newData) {
+        if (rollingBufferCapacity === 0) return;
+        for (let i = 0; i < newData.length; i++) {
+            rollingBuffer[writeIndex] = newData[i];
+            writeIndex = (writeIndex + 1) % rollingBufferCapacity;
+        }
+    }
+
+    /**
+     * Reconstructs a chronological sequence of samples from the circular rolling buffer.
+     *
+     * @returns {Float32Array} Ordered array of accumulated waveform samples.
+     */
+    function getChronologicalBuffer() {
+        const buf = new Float32Array(rollingBufferCapacity);
+        const part1 = rollingBuffer.subarray(writeIndex);
+        const part2 = rollingBuffer.subarray(0, writeIndex);
+        buf.set(part1, 0);
+        buf.set(part2, part1.length);
+        return buf;
+    }
+
+    // Initialize rolling buffer size
+    updateRollingBufferSize();
+
+    /**
+     * Sets the visualizer zoom factor, updating the zoom slider UI.
+     *
+     * @param {number} factor - Zoom multiplier (e.g. 1.0 to 8.0).
+     * @returns {void}
+     */
+    function setZoom(factor) {
+        zoomFactor = factor;
+        if (zoomSlider) {
+            zoomSlider.value = factor;
+        }
+        if (zoomValueSpan) {
+            zoomValueSpan.textContent = `${factor.toFixed(1)}x`;
+        }
+        resizeCanvas();
+    }
+
+    /**
+     * Applies the dynamic default zoom for the current mode based on container width.
+     * In loopMap mode, sets a default zoom on narrow screens so notes aren't compressed.
+     *
+     * @returns {void}
+     */
+    function applyDefaultZoom() {
+        if (!viewport) return;
+
+        const width = viewport.clientWidth;
+        if (currentMode === 'loopMap') {
+            if (width < 600) {
+                const neededZoom = Math.max(1.5, 600 / width);
+                setZoom(neededZoom);
+            } else {
+                setZoom(1.0);
+            }
+        } else {
+            setZoom(1.0);
+        }
+    }
+
+    /**
+     * Toggles visibility of the Zoom and Time Window controls based on mode.
+     *
+     * @returns {void}
+     */
+    function updateControlsFooterVisibility() {
+        if (oscilloscopeWindowContainer) {
+            if (currentMode === 'oscilloscope') {
+                oscilloscopeWindowContainer.style.display = 'flex';
+            } else {
+                oscilloscopeWindowContainer.style.display = 'none';
+            }
+        }
+    }
+
+    // Setup initial controls footer state
+    updateControlsFooterVisibility();
 
     /**
      * Updates the pause visualizer button UI state.
@@ -136,21 +290,22 @@ export function createVisualizer(context) {
      * @returns {void}
      */
     function runUiUpdate() {
-        // --- Waveform Rendering ---
-        if (isVisualizerOn && analyser) {
+        if (isVisualizerOn && analyser && plotCanvas && yAxisCanvas && plotCtx && yAxisCtx) {
             try {
                 const dpr = window.devicePixelRatio || 1;
-                const canvasLogicalWidth = visualizerCanvas.width / dpr;
-                const canvasLogicalHeight = visualizerCanvas.height / dpr;
+                const plotLogicalWidth = plotCanvas.width / dpr;
+                const plotLogicalHeight = plotCanvas.height / dpr;
+                const yAxisLogicalWidth = yAxisCanvas.width / dpr;
+                const yAxisLogicalHeight = yAxisCanvas.height / dpr;
 
                 // --- Layout Constants ---
-                const leftPadding = 45; // Wider padding for ±1.5 and FFT dB labels
+                const leftPadding = 5; // Small padding for plot canvas
                 const rightPadding = 15;
                 const topPadding = 20;
                 const bottomPadding = 40;
 
-                const plotWidth = canvasLogicalWidth - leftPadding - rightPadding;
-                const plotHeight = canvasLogicalHeight - topPadding - bottomPadding;
+                const plotWidth = plotLogicalWidth - leftPadding - rightPadding;
+                const plotHeight = plotLogicalHeight - topPadding - bottomPadding;
                 const tickLength = 6;
                 const xLabelOffset = 18;
 
@@ -165,31 +320,41 @@ export function createVisualizer(context) {
                         } else {
                             if (typeof nativeNode.getFloatTimeDomainData === 'function') {
                                 nativeNode.getFloatTimeDomainData(waveformBuffer);
+                                pushToRollingBuffer(waveformBuffer);
                             }
                         }
                     } else if (typeof analyser.getValue === 'function') {
                         const val = analyser.getValue();
-                        if (val) waveformBuffer.set(val);
+                        if (val) {
+                            waveformBuffer.set(val);
+                            if (currentMode === 'oscilloscope') {
+                                pushToRollingBuffer(val);
+                            }
+                        }
                     }
                 }
 
-                // Clear canvas logical frame
-                visualizerCtx.clearRect(0, 0, canvasLogicalWidth, canvasLogicalHeight);
+                // Clear logical frames
+                plotCtx.clearRect(0, 0, plotLogicalWidth, plotLogicalHeight);
+                yAxisCtx.clearRect(0, 0, yAxisLogicalWidth, yAxisLogicalHeight);
 
-                // --- Drawing Mode logic ---
+                // --- Drawing Mode logic (Plot Canvas) ---
                 if (currentMode === 'oscilloscope') {
+                    // Extract chronological data from rolling buffer
+                    const chronBuffer = getChronologicalBuffer();
+
                     // Zero-crossing search (stabilize wave phase by aligning index at ascending zero threshold)
                     let triggerIndex = 0;
-                    const waveformLength = waveformBuffer ? waveformBuffer.length : 0;
-                    for (let i = 0; i < waveformLength / 2; i++) {
-                        if (waveformBuffer[i] < 0 && waveformBuffer[i + 1] >= 0) {
+                    const displayLength = chronBuffer.length;
+                    for (let i = 0; i < displayLength / 2; i++) {
+                        if (chronBuffer[i] < 0 && chronBuffer[i + 1] >= 0) {
                             triggerIndex = i;
                             break;
                         }
                     }
 
                     // Create a vertical gradient to color-code signal headroom (red when > 1.0 or < -1.0)
-                    const lineGrad = visualizerCtx.createLinearGradient(0, topPadding, 0, canvasLogicalHeight - bottomPadding);
+                    const lineGrad = plotCtx.createLinearGradient(0, topPadding, 0, plotLogicalHeight - bottomPadding);
                     lineGrad.addColorStop(0.0, '#EF4444');      // Red at +1.5 (highest headroom)
                     lineGrad.addColorStop(0.166, '#EF4444');    // Red at +1.0 (clipping limit boundary)
                     lineGrad.addColorStop(0.167, '#38BDF8');    // Blue/Cyan inside nominal bounds
@@ -197,34 +362,33 @@ export function createVisualizer(context) {
                     lineGrad.addColorStop(0.834, '#EF4444');    // Red at -1.0 (clipping limit boundary)
                     lineGrad.addColorStop(1.0, '#EF4444');      // Red at -1.5 (lowest headroom)
 
-                    // Render only half the buffer to allow clean zero-crossing alignment shifting
-                    const displayLength = Math.floor(waveformLength / 2);
-                    visualizerCtx.beginPath();
-                    visualizerCtx.strokeStyle = lineGrad;
-                    visualizerCtx.lineWidth = 2;
+                    // Draw the accumulated rolling waveform
+                    plotCtx.beginPath();
+                    plotCtx.strokeStyle = lineGrad;
+                    plotCtx.lineWidth = 2;
 
-                    for (let i = 0; i < displayLength; i++) {
-                        const dataIndex = triggerIndex + i;
-                        const val = waveformBuffer ? waveformBuffer[dataIndex] : 0;
-                        const x = leftPadding + (i / displayLength) * plotWidth;
-                        
+                    const activePoints = displayLength - triggerIndex;
+                    for (let i = 0; i < activePoints; i++) {
+                        const val = chronBuffer[triggerIndex + i];
+                        const x = leftPadding + (i / activePoints) * plotWidth;
+
                         // Map Y coordinates across the ±1.5 range (normalized offset = (val + 1.5) / 3.0)
                         const normalizedY = (val + 1.5) / 3.0;
-                        const y = canvasLogicalHeight - bottomPadding - normalizedY * plotHeight;
+                        const y = plotLogicalHeight - bottomPadding - normalizedY * plotHeight;
 
                         if (i === 0) {
-                            visualizerCtx.moveTo(x, y);
+                            plotCtx.moveTo(x, y);
                         } else {
-                            visualizerCtx.lineTo(x, y);
+                            plotCtx.lineTo(x, y);
                         }
                     }
-                    visualizerCtx.stroke();
+                    plotCtx.stroke();
 
                 } else if (currentMode === 'fft') {
                     // Draw log-mapped FFT spectrum bar graph
                     const barCount = Math.floor(plotWidth / 3.5);
                     const barWidth = 2;
-                    visualizerCtx.fillStyle = '#38BDF8';
+                    plotCtx.fillStyle = '#38BDF8';
 
                     for (let b = 0; b < barCount; b++) {
                         const ratio = b / barCount;
@@ -239,7 +403,7 @@ export function createVisualizer(context) {
                         );
 
                         const db = waveformBuffer ? waveformBuffer[binIndex] : -100;
-                        
+
                         // Normalize dB from [-100, 0] scale
                         const minDb = -100;
                         const maxDb = 0;
@@ -247,9 +411,9 @@ export function createVisualizer(context) {
 
                         const barHeight = normalizedDb * plotHeight;
                         const x = leftPadding + b * (plotWidth / barCount);
-                        const y = canvasLogicalHeight - bottomPadding - barHeight;
+                        const y = plotLogicalHeight - bottomPadding - barHeight;
 
-                        visualizerCtx.fillRect(x, y, barWidth, barHeight);
+                        plotCtx.fillRect(x, y, barWidth, barHeight);
                     }
 
                 } else if (currentMode === 'loopMap' && cachedLoopMapBuffer) {
@@ -257,7 +421,7 @@ export function createVisualizer(context) {
                     const channelData = cachedLoopMapBuffer.getChannelData(0);
                     const bufferLength = channelData.length;
 
-                    const lineGrad = visualizerCtx.createLinearGradient(0, topPadding, 0, canvasLogicalHeight - bottomPadding);
+                    const lineGrad = plotCtx.createLinearGradient(0, topPadding, 0, plotLogicalHeight - bottomPadding);
                     lineGrad.addColorStop(0.0, '#EF4444');      // Red at +1.5 (highest headroom)
                     lineGrad.addColorStop(0.166, '#EF4444');    // Red at +1.0 (clipping limit boundary)
                     lineGrad.addColorStop(0.167, '#38BDF8');    // Blue/Cyan inside nominal bounds
@@ -265,9 +429,9 @@ export function createVisualizer(context) {
                     lineGrad.addColorStop(0.834, '#EF4444');    // Red at -1.0 (clipping limit boundary)
                     lineGrad.addColorStop(1.0, '#EF4444');      // Red at -1.5 (lowest headroom)
 
-                    visualizerCtx.beginPath();
-                    visualizerCtx.strokeStyle = lineGrad;
-                    visualizerCtx.lineWidth = 1.5;
+                    plotCtx.beginPath();
+                    plotCtx.strokeStyle = lineGrad;
+                    plotCtx.lineWidth = 1.5;
 
                     for (let xPixel = 0; xPixel < plotWidth; xPixel++) {
                         const startSample = Math.floor((xPixel / plotWidth) * bufferLength);
@@ -282,98 +446,104 @@ export function createVisualizer(context) {
                         }
 
                         const x = leftPadding + xPixel;
-                        const yMin = canvasLogicalHeight - bottomPadding - ((minVal + 1.5) / 3.0) * plotHeight;
-                        const yMax = canvasLogicalHeight - bottomPadding - ((maxVal + 1.5) / 3.0) * plotHeight;
+                        const yMin = plotLogicalHeight - bottomPadding - ((minVal + 1.5) / 3.0) * plotHeight;
+                        const yMax = plotLogicalHeight - bottomPadding - ((maxVal + 1.5) / 3.0) * plotHeight;
 
-                        visualizerCtx.moveTo(x, yMin);
-                        visualizerCtx.lineTo(x, yMax);
+                        plotCtx.moveTo(x, yMin);
+                        plotCtx.lineTo(x, yMax);
                     }
-                    visualizerCtx.stroke();
+                    plotCtx.stroke();
 
                     // Render vertical markers indicating exact note trigger boundaries
                     cachedLoopMapMarkers.forEach((marker) => {
                         const x = leftPadding + marker.timeRatio * plotWidth;
 
                         // Vertical dotted marker line
-                        visualizerCtx.save();
-                        visualizerCtx.strokeStyle = 'rgba(156, 163, 175, 0.4)'; // gray-400
-                        visualizerCtx.setLineDash([3, 3]);
-                        visualizerCtx.beginPath();
-                        visualizerCtx.moveTo(x, topPadding);
-                        visualizerCtx.lineTo(x, canvasLogicalHeight - bottomPadding);
-                        visualizerCtx.stroke();
-                        visualizerCtx.restore();
+                        plotCtx.save();
+                        plotCtx.strokeStyle = 'rgba(156, 163, 175, 0.4)'; // gray-400
+                        plotCtx.setLineDash([3, 3]);
+                        plotCtx.beginPath();
+                        plotCtx.moveTo(x, topPadding);
+                        plotCtx.lineTo(x, plotLogicalHeight - bottomPadding);
+                        plotCtx.stroke();
+                        plotCtx.restore();
 
                         // Label trigger note name at top
-                        visualizerCtx.fillStyle = '#60A5FA'; // blue-400
-                        visualizerCtx.font = 'bold 9px Arial';
-                        visualizerCtx.textAlign = 'center';
-                        visualizerCtx.textBaseline = 'top';
-                        visualizerCtx.fillText(marker.note, x, topPadding - 12);
+                        plotCtx.fillStyle = '#60A5FA'; // blue-400
+                        plotCtx.font = 'bold 9px Arial';
+                        plotCtx.textAlign = 'center';
+                        plotCtx.textBaseline = 'top';
+                        plotCtx.fillText(marker.note, x, topPadding - 12);
                     });
                 }
 
                 // --- Shared Axes and Labels rendering ---
-                visualizerCtx.strokeStyle = '#4B5563';  // gray-700
-                visualizerCtx.lineWidth = 1;
-                visualizerCtx.font = '10px Arial';
-                visualizerCtx.fillStyle = '#9CA3AF';   // gray-400
+                plotCtx.strokeStyle = '#4B5563';  // gray-700
+                plotCtx.lineWidth = 1;
+                plotCtx.font = '10px Arial';
+                plotCtx.fillStyle = '#9CA3AF';   // gray-400
 
-                // Plot Area border lines
-                visualizerCtx.beginPath();
-                visualizerCtx.moveTo(leftPadding, canvasLogicalHeight - bottomPadding);
-                visualizerCtx.lineTo(canvasLogicalWidth - rightPadding, canvasLogicalHeight - bottomPadding);
-                visualizerCtx.moveTo(leftPadding, topPadding);
-                visualizerCtx.lineTo(leftPadding, canvasLogicalHeight - bottomPadding);
-                visualizerCtx.stroke();
+                // Plot Area border lines (horizontal bounds only; Y-axis border acts as left boundary)
+                plotCtx.beginPath();
+                plotCtx.moveTo(leftPadding, plotLogicalHeight - bottomPadding);
+                plotCtx.lineTo(plotLogicalWidth - rightPadding, plotLogicalHeight - bottomPadding);
+                plotCtx.moveTo(leftPadding, topPadding);
+                plotCtx.lineTo(plotLogicalWidth - rightPadding, topPadding);
+                plotCtx.stroke();
+
+                // Setup Y-axis canvas properties
+                yAxisCtx.strokeStyle = '#4B5563';
+                yAxisCtx.lineWidth = 1;
+                yAxisCtx.font = '10px Arial';
+                yAxisCtx.fillStyle = '#9CA3AF';
 
                 // Y-Axis Ticks
                 if (currentMode === 'fft') {
-                    // FFT mode: render Decibel (dB) ticks on Y-axis
+                    // FFT mode: render Decibel (dB) ticks on Y-axis canvas
                     const dbTicks = [0, -20, -40, -60, -80, -100];
                     dbTicks.forEach((tick) => {
                         const ratio = (tick - (-100)) / 100;
-                        const y = canvasLogicalHeight - bottomPadding - ratio * plotHeight;
+                        const y = yAxisLogicalHeight - bottomPadding - ratio * plotHeight;
 
-                        visualizerCtx.beginPath();
-                        visualizerCtx.moveTo(leftPadding - tickLength, y);
-                        visualizerCtx.lineTo(leftPadding, y);
-                        visualizerCtx.stroke();
+                        yAxisCtx.beginPath();
+                        yAxisCtx.moveTo(yAxisLogicalWidth - tickLength, y);
+                        yAxisCtx.lineTo(yAxisLogicalWidth, y);
+                        yAxisCtx.stroke();
 
-                        visualizerCtx.textAlign = 'right';
-                        visualizerCtx.textBaseline = 'middle';
-                        visualizerCtx.fillText(`${tick}dB`, leftPadding - tickLength - 4, y);
+                        yAxisCtx.textAlign = 'right';
+                        yAxisCtx.textBaseline = 'middle';
+                        yAxisCtx.fillText(`${tick}dB`, yAxisLogicalWidth - tickLength - 4, y);
                     });
                 } else {
-                    // Oscilloscope and Loop Map modes: render ±1.5 scale Y-ticks
+                    // Oscilloscope and Loop Map modes: render ±1.5 scale Y-ticks on Y-axis canvas
                     yTicks.forEach((tick) => {
                         const ratio = (tick + 1.5) / 3.0;
-                        const y = canvasLogicalHeight - bottomPadding - ratio * plotHeight;
+                        const y = yAxisLogicalHeight - bottomPadding - ratio * plotHeight;
 
-                        visualizerCtx.beginPath();
-                        visualizerCtx.moveTo(leftPadding - tickLength, y);
-                        visualizerCtx.lineTo(leftPadding, y);
-                        visualizerCtx.stroke();
+                        yAxisCtx.beginPath();
+                        yAxisCtx.moveTo(yAxisLogicalWidth - tickLength, y);
+                        yAxisCtx.lineTo(yAxisLogicalWidth, y);
+                        yAxisCtx.stroke();
 
-                        visualizerCtx.textAlign = 'right';
-                        visualizerCtx.textBaseline = 'middle';
-                        visualizerCtx.fillText(tick.toFixed(1), leftPadding - tickLength - 4, y);
+                        yAxisCtx.textAlign = 'right';
+                        yAxisCtx.textBaseline = 'middle';
+                        yAxisCtx.fillText(tick.toFixed(1), yAxisLogicalWidth - tickLength - 4, y);
 
-                        // Overlay red dashed guidelines at nominal 1.0 / -1.0 limits (0dB ceiling)
+                        // Overlay red dashed guidelines at nominal 1.0 / -1.0 limits (0dB ceiling) on plot canvas
                         if (tick === 1.0 || tick === -1.0) {
-                            visualizerCtx.save();
-                            visualizerCtx.strokeStyle = 'rgba(239, 68, 68, 0.45)'; // red-500
-                            visualizerCtx.setLineDash([4, 4]);
-                            visualizerCtx.beginPath();
-                            visualizerCtx.moveTo(leftPadding, y);
-                            visualizerCtx.lineTo(canvasLogicalWidth - rightPadding, y);
-                            visualizerCtx.stroke();
-                            visualizerCtx.restore();
+                            plotCtx.save();
+                            plotCtx.strokeStyle = 'rgba(239, 68, 68, 0.45)'; // red-500
+                            plotCtx.setLineDash([4, 4]);
+                            plotCtx.beginPath();
+                            plotCtx.moveTo(leftPadding, y);
+                            plotCtx.lineTo(plotLogicalWidth - rightPadding, y);
+                            plotCtx.stroke();
+                            plotCtx.restore();
                         }
                     });
                 }
 
-                // X-Axis Ticks
+                // X-Axis Ticks (rendered on the plot canvas)
                 if (currentMode === 'fft') {
                     // FFT Logarithmic ticks
                     fftTicks.forEach((freq) => {
@@ -381,63 +551,68 @@ export function createVisualizer(context) {
                         const ratio = (logF - logMin) / (logMax - logMin);
                         const x = leftPadding + ratio * plotWidth;
 
-                        visualizerCtx.beginPath();
-                        visualizerCtx.moveTo(x, canvasLogicalHeight - bottomPadding);
-                        visualizerCtx.lineTo(x, canvasLogicalHeight - bottomPadding + tickLength);
-                        visualizerCtx.stroke();
+                        plotCtx.beginPath();
+                        plotCtx.moveTo(x, plotLogicalHeight - bottomPadding);
+                        plotCtx.lineTo(x, plotLogicalHeight - bottomPadding + tickLength);
+                        plotCtx.stroke();
 
-                        visualizerCtx.textAlign = 'center';
-                        visualizerCtx.textBaseline = 'top';
-                        visualizerCtx.fillText(formatFrequency(freq), x, canvasLogicalHeight - bottomPadding + tickLength + 4);
+                        plotCtx.textAlign = 'center';
+                        plotCtx.textBaseline = 'top';
+                        plotCtx.fillText(formatFrequency(freq), x, plotLogicalHeight - bottomPadding + tickLength + 4);
                     });
 
                     // X-Axis Title
-                    visualizerCtx.textAlign = 'center';
-                    visualizerCtx.textBaseline = 'top';
-                    visualizerCtx.fillText('Frequency', canvasLogicalWidth / 2, canvasLogicalHeight - bottomPadding + xLabelOffset + 6);
+                    plotCtx.textAlign = 'center';
+                    plotCtx.textBaseline = 'top';
+                    plotCtx.fillText('Frequency', plotLogicalWidth / 2, plotLogicalHeight - bottomPadding + xLabelOffset + 6);
 
                 } else if (currentMode === 'loopMap' && cachedLoopMapBuffer) {
                     // Loop Map: draw ticks based on actual buffer duration
                     const dur = cachedLoopMapBuffer.duration;
                     const fractions = [0, 0.25, 0.5, 0.75, 1.0];
-                    
+
                     fractions.forEach((frac) => {
                         const x = leftPadding + frac * plotWidth;
                         const secVal = frac * dur;
 
-                        visualizerCtx.beginPath();
-                        visualizerCtx.moveTo(x, canvasLogicalHeight - bottomPadding);
-                        visualizerCtx.lineTo(x, canvasLogicalHeight - bottomPadding + tickLength);
-                        visualizerCtx.stroke();
+                        plotCtx.beginPath();
+                        plotCtx.moveTo(x, plotLogicalHeight - bottomPadding);
+                        plotCtx.lineTo(x, plotLogicalHeight - bottomPadding + tickLength);
+                        plotCtx.stroke();
 
-                        visualizerCtx.textAlign = 'center';
-                        visualizerCtx.textBaseline = 'top';
-                        visualizerCtx.fillText(`${secVal.toFixed(2)}s`, x, canvasLogicalHeight - bottomPadding + tickLength + 4);
+                        plotCtx.textAlign = 'center';
+                        plotCtx.textBaseline = 'top';
+                        plotCtx.fillText(`${secVal.toFixed(2)}s`, x, plotLogicalHeight - bottomPadding + tickLength + 4);
                     });
 
-                    visualizerCtx.textAlign = 'center';
-                    visualizerCtx.textBaseline = 'top';
-                    visualizerCtx.fillText('Time (Single Loop Cycle)', canvasLogicalWidth / 2, canvasLogicalHeight - bottomPadding + xLabelOffset + 6);
+                    plotCtx.textAlign = 'center';
+                    plotCtx.textBaseline = 'top';
+                    plotCtx.fillText('Time (Single Loop Cycle)', plotLogicalWidth / 2, plotLogicalHeight - bottomPadding + xLabelOffset + 6);
 
                 } else {
-                    // Live Oscilloscope X-ticks
-                    const xTicks = [0, 0.25, 0.5, 0.75, 1.0];
-                    xTicks.forEach((tick) => {
-                        const x = leftPadding + tick * plotWidth;
+                    // Live Oscilloscope X-ticks based on actual chosen duration
+                    const durationMs = oscilloscopeWindowSelect ? parseFloat(oscilloscopeWindowSelect.value) : 50;
+                    const fractions = [0, 0.25, 0.5, 0.75, 1.0];
+                    fractions.forEach((frac) => {
+                        const x = leftPadding + frac * plotWidth;
+                        const timeVal = frac * durationMs;
 
-                        visualizerCtx.beginPath();
-                        visualizerCtx.moveTo(x, canvasLogicalHeight - bottomPadding);
-                        visualizerCtx.lineTo(x, canvasLogicalHeight - bottomPadding + tickLength);
-                        visualizerCtx.stroke();
+                        plotCtx.beginPath();
+                        plotCtx.moveTo(x, plotLogicalHeight - bottomPadding);
+                        plotCtx.lineTo(x, plotLogicalHeight - bottomPadding + tickLength);
+                        plotCtx.stroke();
 
-                        visualizerCtx.textAlign = 'center';
-                        visualizerCtx.textBaseline = 'top';
-                        visualizerCtx.fillText(`${tick}s`, x, canvasLogicalHeight - bottomPadding + tickLength + 4);
+                        plotCtx.textAlign = 'center';
+                        plotCtx.textBaseline = 'top';
+
+                        // Display as seconds if duration is 1.0s, else milliseconds
+                        const labelText = durationMs >= 1000 ? `${(timeVal / 1000).toFixed(1)}s` : `${timeVal.toFixed(0)}ms`;
+                        plotCtx.fillText(labelText, x, plotLogicalHeight - bottomPadding + tickLength + 4);
                     });
 
-                    visualizerCtx.textAlign = 'center';
-                    visualizerCtx.textBaseline = 'top';
-                    visualizerCtx.fillText('Time', canvasLogicalWidth / 2, canvasLogicalHeight - bottomPadding + xLabelOffset + 6);
+                    plotCtx.textAlign = 'center';
+                    plotCtx.textBaseline = 'top';
+                    plotCtx.fillText('Time', plotLogicalWidth / 2, plotLogicalHeight - bottomPadding + xLabelOffset + 6);
                 }
 
             } catch (e) {
@@ -485,7 +660,7 @@ export function createVisualizer(context) {
     }
 
     /**
-     * Toggles the visualizer active state, initializing the loop or clearing canvas.
+     * Toggles the visualizer active state, initializing the loop or clearing canvases.
      *
      * @returns {void}
      */
@@ -497,7 +672,7 @@ export function createVisualizer(context) {
             toggleVisualizerButton.textContent = "Disable Visualizer";
             toggleVisualizerButton.classList.add('bg-yellow-600', 'hover:bg-yellow-700');
             toggleVisualizerButton.classList.remove('bg-green-600', 'hover:bg-green-700');
-            
+
             // Switch Tone.Analyser on-the-fly based on current mode selection
             if (analyser) {
                 analyser.type = currentMode === 'fft' ? 'fft' : 'waveform';
@@ -514,8 +689,9 @@ export function createVisualizer(context) {
             toggleVisualizerButton.textContent = "Enable Visualizer";
             toggleVisualizerButton.classList.remove('bg-yellow-600', 'hover:bg-yellow-700');
             toggleVisualizerButton.classList.add('bg-green-600', 'hover:bg-green-700');
-            
-            visualizerCtx.clearRect(0, 0, visualizerCanvas.width, visualizerCanvas.height);
+
+            if (plotCtx) plotCtx.clearRect(0, 0, plotCanvas.width, plotCanvas.height);
+            if (yAxisCtx) yAxisCtx.clearRect(0, 0, yAxisCanvas.width, yAxisCanvas.height);
             if (!state.isRecording) {
                 stopUiLoop();
             }
@@ -534,6 +710,9 @@ export function createVisualizer(context) {
                 analyser.type = currentMode === 'fft' ? 'fft' : 'waveform';
             }
 
+            applyDefaultZoom();
+            updateControlsFooterVisibility();
+
             // Force repaint or check loop status
             if (isVisualizerOn) {
                 if (currentMode === 'loopMap') {
@@ -544,7 +723,8 @@ export function createVisualizer(context) {
                     startUiLoop();
                 } else {
                     // stopped and not map mode: clear display
-                    visualizerCtx.clearRect(0, 0, visualizerCanvas.width, visualizerCanvas.height);
+                    if (plotCtx) plotCtx.clearRect(0, 0, plotCanvas.width, plotCanvas.height);
+                    if (yAxisCtx) yAxisCtx.clearRect(0, 0, yAxisCanvas.width, yAxisCanvas.height);
                 }
             }
         });
@@ -557,6 +737,27 @@ export function createVisualizer(context) {
 
             isPaused = !isPaused;
             updatePauseButtonState();
+        });
+    }
+
+    // --- Zoom slider event wiring ---
+    if (zoomSlider) {
+        zoomSlider.addEventListener('input', () => {
+            zoomFactor = parseFloat(zoomSlider.value);
+            if (zoomValueSpan) {
+                zoomValueSpan.textContent = `${zoomFactor.toFixed(1)}x`;
+            }
+            resizeCanvas();
+        });
+    }
+
+    // --- Time Window selector event wiring ---
+    if (oscilloscopeWindowSelect) {
+        oscilloscopeWindowSelect.addEventListener('change', () => {
+            updateRollingBufferSize();
+            if (isVisualizerOn) {
+                runUiUpdate();
+            }
         });
     }
 
@@ -577,6 +778,9 @@ export function createVisualizer(context) {
             runUiUpdate();
         }
     }
+
+    // Trigger default zoom configuration
+    applyDefaultZoom();
 
     return {
         runUiUpdate,
