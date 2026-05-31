@@ -105,21 +105,19 @@ var isAudioContextStarted = false;
  * @returns {Promise<void>}
  */
 async function startAudio() {
-    if (isAudioContextStarted) {
-        log("AudioContext already started.");
-        return;
+    if (Tone.context && Tone.context.state !== 'running') {
+        try {
+            await Tone.start();
+            log("AudioContext resumed successfully.");
+            isAudioContextStarted = true;
+            window.dispatchEvent(new CustomEvent('audioReady'));
+        } catch (err) {
+            console.error("AudioContext failed to start/resume:", err);
+            window.dispatchEvent(new CustomEvent('audioFailed'));
+            throw err;
+        }
     }
-
-    try {
-        await Tone.start();
-        log("AudioContext started successfully.");
-        isAudioContextStarted = true;
-        window.dispatchEvent(new CustomEvent('audioReady'));
-    } catch (err) {
-        console.error("AudioContext failed to start:", err);
-        window.dispatchEvent(new CustomEvent('audioFailed'));
-        throw err;
-    }
+    isAudioContextStarted = true;
 }
 
 // --- DOMContentLoaded: Main Setup ---
@@ -241,6 +239,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // Utility card
     const visualizerCanvas = document.getElementById('visualizer');
     const toggleVisualizerButton = document.getElementById('toggle-visualizer');
+    const visualizerModeSelect = document.getElementById('visualizer-mode');
+    const pauseVisualizerButton = document.getElementById('pause-visualizer');
 
     // Preset Management card
     const presetNameInput = document.getElementById('preset-name-input');
@@ -594,7 +594,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 2. Visualizer — canvas rendering, UI loop, toggle
     const visualizer = createVisualizer({
-        dom: { visualizerCanvas, toggleVisualizerButton },
+        dom: {
+            visualizerCanvas,
+            toggleVisualizerButton,
+            visualizerModeSelect,
+            pauseVisualizerButton
+        },
         audio: { analyser: audioEngine.analyser },
         state: {
             get isRecording() { return recorderManager.isRecording; },
@@ -654,7 +659,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const recorderManager = createRecorderManager({
         audio: {
             reverb: audioEngine.reverb,
-            synths: audioEngine.synths
+            synths: audioEngine.synths,
+            createOfflineChain: audioEngine.createOfflineChain
         },
         dom: {
             recordButton,
@@ -1566,6 +1572,14 @@ document.addEventListener('DOMContentLoaded', () => {
         visualizer.toggle();
     });
 
+    if (visualizerModeSelect) {
+        visualizerModeSelect.addEventListener('change', () => {
+            if (visualizerModeSelect.value === 'loopMap') {
+                renderStaticLoop();
+            }
+        });
+    }
+
     // ==================================================================
     //    Preset Management
     // ==================================================================
@@ -1760,11 +1774,187 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    /**
+     * Calculates the exact times when each note triggers within a single arpeggio loop,
+     * normalized as a percentage ratio of the total loop length.
+     *
+     * Heavy Commenting on this process:
+     * 1. This function replicates the note expansion rules of the pattern generator.
+     * 2. First, we expand the base notes across the active octave range and transpose them.
+     * 3. Next, if scale quantization is active, we snap each note to the closest scale degree.
+     * 4. Then, we apply the pattern direction expansion (e.g. reverse for 'down', append mirrored array for 'upDownRepeat').
+     * 5. Finally, we map each note to its time ratio relative to the total step count of the loop cycle.
+     *
+     * @param {object} settings - Active application settings snapshot.
+     * @returns {Array<{note: string, timeRatio: number}>} Normalized note trigger timestamps and pitches.
+     */
+    function calculateNoteMarkers(settings) {
+        let finalNotes = [];
+        let expanded = [];
+
+        // 1. Core octave expansion
+        for (let i = 0; i < settings.baseNotes.length; i++) {
+            const note = settings.baseNotes[i];
+            const parsed = Tonal.Note.get(note);
+            if (!parsed || parsed.midi === undefined) continue;
+            for (let o = 0; o < settings.octaveRange; o++) {
+                const midi = parsed.midi + (o * 12) + (settings.octaveShift * 12);
+                expanded.push(Tonal.Note.fromMidi(midi));
+            }
+        }
+
+        // 2. Scale quantization
+        if (settings.scaleQuantize) {
+            const scale = Tonal.Scale.get(`${settings.scaleRoot} ${settings.scaleType}`);
+            if (scale && scale.notes && scale.notes.length > 0) {
+                const pc = scale.notes.map(n => Tonal.Note.pitchClass(n));
+                const range = [];
+                for (let oct = 2; oct < 7; oct++) {
+                    ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"].forEach(n => range.push(`${n}${oct}`));
+                }
+                const scaleNotes = range.filter(n => pc.includes(Tonal.Note.pitchClass(n)));
+                if (scaleNotes.length > 0) {
+                    expanded = expanded.map(note => {
+                        const m = Tonal.Note.midi(note);
+                        if (m === undefined) return note;
+                        const closest = scaleNotes
+                            .map(Tonal.Note.midi)
+                            .reduce((prev, curr) => Math.abs(curr - m) < Math.abs(prev - m) ? curr : prev);
+                        return Tonal.Note.fromMidi(closest);
+                    });
+                }
+            }
+        }
+
+        // 3. Direction expansions
+        if (settings.direction === 'up') {
+            finalNotes = expanded;
+        } else if (settings.direction === 'down') {
+            finalNotes = [...expanded].reverse();
+        } else if (settings.direction === 'upDown') {
+            const downPart = [...expanded].slice(1, -1).reverse();
+            finalNotes = [...expanded, ...downPart];
+        } else if (settings.direction === 'downUp') {
+            const reversed = [...expanded].reverse();
+            const upPart = [...expanded].slice(1, -1);
+            finalNotes = [...reversed, ...upPart];
+        } else if (settings.direction === 'upDownRepeat') {
+            const reversed = [...expanded].reverse();
+            finalNotes = [...expanded, ...reversed];
+        } else if (settings.direction === 'downUpRepeat') {
+            const reversed = [...expanded].reverse();
+            finalNotes = [...reversed, ...expanded];
+        } else if (settings.direction === 'octaveCycle') {
+            settings.baseNotes.forEach((baseNote) => {
+                const parsed = Tonal.Note.get(baseNote);
+                if (!parsed || parsed.midi === undefined) return;
+                for (let rep = 0; rep < 2; rep++) {
+                    for (let oct = 0; oct < 3; oct++) {
+                        const midi = parsed.midi + (settings.octaveShift * 12) + (oct * 12);
+                        finalNotes.push(Tonal.Note.fromMidi(midi));
+                    }
+                }
+            });
+        } else if (settings.direction === 'octaveCycleReverse') {
+            const reversedIndexed = [...settings.baseNotes].reverse();
+            reversedIndexed.forEach((baseNote) => {
+                const parsed = Tonal.Note.get(baseNote);
+                if (!parsed || parsed.midi === undefined) return;
+                for (let rep = 0; rep < 2; rep++) {
+                    for (let oct = 2; oct >= 0; oct--) {
+                        const midi = parsed.midi + (settings.octaveShift * 12) + (oct * 12);
+                        finalNotes.push(Tonal.Note.fromMidi(midi));
+                    }
+                }
+            });
+        } else if (settings.direction === 'octaveCyclePingPong') {
+            settings.baseNotes.forEach((baseNote) => {
+                const parsed = Tonal.Note.get(baseNote);
+                if (!parsed || parsed.midi === undefined) return;
+                for (let oct = 0; oct < 3; oct++) {
+                    finalNotes.push(Tonal.Note.fromMidi(parsed.midi + (settings.octaveShift * 12) + (oct * 12)));
+                }
+                for (let oct = 1; oct >= 0; oct--) {
+                    finalNotes.push(Tonal.Note.fromMidi(parsed.midi + (settings.octaveShift * 12) + (oct * 12)));
+                }
+                for (let oct = 1; oct < 3; oct++) {
+                    finalNotes.push(Tonal.Note.fromMidi(parsed.midi + (settings.octaveShift * 12) + (oct * 12)));
+                }
+            });
+        } else {
+            // Fallback for random/drunk walk patterns to plot base list
+            finalNotes = expanded;
+        }
+
+        // 4. Map index to percentage of total loop length
+        return finalNotes.map((note, idx) => ({
+            note,
+            timeRatio: idx / finalNotes.length
+        }));
+    }
+
+    /**
+     * Renders exactly one cycle of the arpeggio loop offline, calculates the note trigger markers,
+     * and sends the resulting buffer to the visualizer for rendering.
+     *
+     * @returns {Promise<void>}
+     */
+    async function renderStaticLoop() {
+        if (!isAudioContextStarted) return;
+
+        const settings = getAllSettings();
+        const markers = calculateNoteMarkers(settings);
+
+        if (!markers || markers.length === 0) return;
+
+        // Render exactly 1 loop duration
+        const noteDuration = Tone.Time(settings.interval).toSeconds();
+        const loopDuration = markers.length * noteDuration;
+
+        try {
+            const audioBuffer = await Tone.Offline(async (offlineContext) => {
+                offlineContext.transport.bpm.value = settings.bpm;
+                offlineContext.transport.swing = settings.swing;
+
+                // Recreate offline chain
+                const { offlineSynth } = audioEngine.createOfflineChain(offlineContext, settings);
+
+                // Schedule note triggers at exact intervals
+                const gateLength = settings.gateRatio * noteDuration;
+                markers.forEach((marker, idx) => {
+                    const triggerTime = idx * noteDuration;
+                    offlineSynth.triggerAttackRelease(marker.note, gateLength, triggerTime);
+                });
+
+                offlineContext.transport.start(0);
+            }, loopDuration);
+
+            // Pass buffer and markers to visualizer
+            visualizer.updateStaticLoopMap(audioBuffer, markers);
+        } catch (e) {
+            console.error("Static loop render failed:", e);
+        }
+    }
+
+    /**
+     * Debounced wrapper to trigger the static loop map background render.
+     * @type {Function}
+     */
+    const debouncedRenderStaticLoop = debounce(() => {
+        if (visualizer && visualizer.currentMode === 'loopMap') {
+            renderStaticLoop();
+        }
+    }, 150);
+
     // --- Autosave (on any input/change/click) ---
     document.addEventListener('input', (event) => {
         if (event.target === pwaTestStateField || event.target === presetNameInput) return;
         if (event.target.matches('input, select, textarea')) {
             scheduleLastSessionSave();
+            if (event.target !== loopCountInput) {
+                // Exclude loop count input from debounced render
+                debouncedRenderStaticLoop();
+            }
         }
     });
 
@@ -1773,12 +1963,17 @@ document.addEventListener('DOMContentLoaded', () => {
             event.target === savedPresetSelect || event.target === loadPresetInput) return;
         if (event.target.matches('input, select, textarea')) {
             scheduleLastSessionSave();
+            if (event.target !== loopCountInput) {
+                // Exclude loop count input from debounced render
+                debouncedRenderStaticLoop();
+            }
         }
     });
 
     document.addEventListener('click', (event) => {
         if (event.target.closest('.pattern-btn, .waveform-btn, #octave-shift-buttons button, #octave-range-buttons button')) {
             scheduleLastSessionSave();
+            debouncedRenderStaticLoop();
         }
     });
 
