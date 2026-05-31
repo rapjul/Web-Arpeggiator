@@ -66,13 +66,79 @@ export function float32ToInt16(buffer) {
     return data;
 }
 
+let lameJsPromise = null;
+
 /**
- * Encodes an AudioBuffer to an MP3 Blob using lamejs.
+ * Dynamically loads the lamejs MP3 encoder library from CDN.
+ * Uses a cached promise to ensure it is only fetched once.
+ *
+ * @returns {Promise<object>} Resolves to the window.lamejs object when loaded.
+ */
+export function loadLameJs() {
+    if (window.lamejs) {
+        return Promise.resolve(window.lamejs);
+    }
+    if (lameJsPromise) {
+        return lameJsPromise;
+    }
+    lameJsPromise = new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.1/lame.min.js';
+        script.type = 'text/javascript';
+        script.crossOrigin = 'anonymous';
+        script.referrerPolicy = 'no-referrer';
+        script.onload = () => {
+            if (window.lamejs) {
+                resolve(window.lamejs);
+            } else {
+                reject(new Error('LameJS was loaded but window.lamejs is undefined.'));
+            }
+        };
+        script.onerror = (err) => {
+            lameJsPromise = null;
+            reject(err);
+        };
+        document.head.appendChild(script);
+    });
+    return lameJsPromise;
+}
+
+// Queue LameJS loading when the browser is idle
+if (typeof window !== 'undefined') {
+    /**
+     * Triggers LameJS loading when the browser is idle.
+     * @returns {void}
+     */
+    const triggerIdleLoad = () => {
+        if (typeof requestIdleCallback === 'function') {
+            requestIdleCallback(() => {
+                loadLameJs().catch((err) => console.warn('Background LameJS pre-load failed:', err));
+            });
+        } else {
+            setTimeout(() => {
+                loadLameJs().catch((err) => console.warn('Background LameJS pre-load failed:', err));
+            }, 3000);
+        }
+    };
+
+    // When the page is loaded, trigger LameJS loading.
+    if (document.readyState === 'complete') {
+        triggerIdleLoad();
+    } else {
+        window.addEventListener('load', triggerIdleLoad);
+    }
+}
+
+/**
+ * Encodes an AudioBuffer to an MP3 Blob using LameJS.
  *
  * @param {AudioBuffer} audioBuffer - The AudioBuffer to encode.
  * @returns {Promise<Blob>} MP3 audio data.
  */
 export async function audioBufferToMp3Blob(audioBuffer) {
+    // Wait for LameJS to be loaded, if it's not already loaded.
+    await loadLameJs();
+
     return new Promise((resolve, reject) => {
         try {
             const channels = audioBuffer.numberOfChannels;
