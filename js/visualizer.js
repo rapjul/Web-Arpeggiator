@@ -38,10 +38,18 @@ export function createVisualizer(context) {
     // --- Internal state ---
     let isVisualizerOn = false;
     let animationFrameId = null;
+    let lastTimeStr = ''; // Throttles recording timer DOM writes
+
+    // Static tick coordinates arrays to prevent frame allocations
+    const xTicks = [0, 0.25, 0.5, 0.75, 1.0];
+    const yTicks = [-1, -0.5, 0, 0.5, 1];
 
     const visualizerCanvas = dom.visualizerCanvas;
     const visualizerCtx = visualizerCanvas.getContext('2d');
     const analyser = audio.analyser;
+
+    // Persistent Float32Array buffer for waveform rendering to prevent O(N) array allocation per frame
+    const waveformBuffer = analyser ? new Float32Array(analyser.size) : null;
 
     /**
      * Resizes the canvas to match its CSS-displayed size, accounting for
@@ -75,7 +83,17 @@ export function createVisualizer(context) {
         // --- Waveform Rendering ---
         if (isVisualizerOn && analyser) {
             try {
-                const waveform = analyser.getValue();
+                // Populate the persistent buffer directly from native AnalyserNode if possible to avoid allocations
+                const nativeNode = analyser.analyser || analyser._analyser;
+                if (nativeNode && typeof nativeNode.getFloatTimeDomainData === 'function') {
+                    nativeNode.getFloatTimeDomainData(waveformBuffer);
+                } else if (typeof analyser.getValue === 'function') {
+                    const val = analyser.getValue();
+                    if (val) {
+                        waveformBuffer.set(val);
+                    }
+                }
+
                 const dpr = window.devicePixelRatio || 1;
 
                 visualizerCtx.clearRect(
@@ -105,10 +123,11 @@ export function createVisualizer(context) {
                 visualizerCtx.strokeStyle = '#38BDF8';
                 visualizerCtx.lineWidth = 2;
 
-                for (let i = 0; i < waveform.length; i++) {
-                    const x = leftPadding + (i / waveform.length) * plotWidth;
+                const waveformLength = waveformBuffer ? waveformBuffer.length : 0;
+                for (let i = 0; i < waveformLength; i++) {
+                    const x = leftPadding + (i / waveformLength) * plotWidth;
                     const y = canvasLogicalHeight - bottomPadding -
-                        ((waveform[i] + 1) * plotHeight) / 2;
+                        ((waveformBuffer[i] + 1) * plotHeight) / 2;
                     if (i === 0) {
                         visualizerCtx.moveTo(x, y);
                     } else {
@@ -132,7 +151,6 @@ export function createVisualizer(context) {
                 visualizerCtx.stroke();
 
                 // X-axis ticks
-                const xTicks = [0, 0.25, 0.5, 0.75, 1.0];
                 xTicks.forEach((tick) => {
                     const x = leftPadding + tick * plotWidth;
                     visualizerCtx.beginPath();
@@ -150,7 +168,6 @@ export function createVisualizer(context) {
                 });
 
                 // Y-axis ticks
-                const yTicks = [-1, -0.5, 0, 0.5, 1];
                 yTicks.forEach((tick) => {
                     const normalized = (tick + 1) / 2;
                     const y = canvasLogicalHeight - bottomPadding - normalized * plotHeight;
@@ -193,8 +210,11 @@ export function createVisualizer(context) {
         if (state.isRecording) {
             const elapsed = Tone.now() - state.recordingStartTime;
             const timeStr = actions.formatTime(elapsed);
-            state.recordButton.textContent = `Stop Recording (${timeStr})`;
-            state.recordButton.setAttribute('aria-label', `Stop recording (current elapsed time ${timeStr})`);
+            if (timeStr !== lastTimeStr) {
+                lastTimeStr = timeStr;
+                state.recordButton.textContent = `Stop Recording (${timeStr})`;
+                state.recordButton.setAttribute('aria-label', `Stop recording (current elapsed time ${timeStr})`);
+            }
         }
     }
 
