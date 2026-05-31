@@ -320,65 +320,13 @@ export function createRecorderManager(context) {
         const loopDurationInSeconds = stepsPerLoop * intervalInSeconds;
         const totalDuration = loopDurationInSeconds * settings.loopCount;
 
-        // Fetch ADSR values for the offline render
-        const attack = parseFloat(dom.envAttackSlider.value);
-        const decay = parseFloat(dom.envDecaySlider.value);
-        const sustain = parseFloat(dom.envSustainSlider.value);
-        const release = parseFloat(dom.envReleaseSlider.value);
-
         try {
             const audioBuffer = await Tone.Offline(async (offlineContext) => {
                 offlineContext.transport.bpm.value = settings.bpm;
                 offlineContext.transport.swing = settings.swing;
 
-                // --- Offline effects chain ---
-                let offlineLimiter;
-                try {
-                    offlineLimiter = new Tone.Limiter(0).toDestination();
-                } catch (e) {
-                    // Limiter may not be available in all Tone.js contexts
-                }
-
-                const offlineReverb = new Tone.Reverb({ decay: 1.5, wet: settings.reverbMix });
-                const offlineDelay = new Tone.FeedbackDelay({
-                    delayTime: '8n',
-                    feedback: 0.5,
-                    wet: settings.delayMix
-                }).connect(offlineReverb);
-                const offlineFilter = new Tone.Filter({
-                    type: 'lowpass',
-                    frequency: settings.filterCutoff,
-                    Q: settings.filterResonance
-                }).connect(offlineDelay);
-
-                // --- Offline synth ---
-                let offlineSynth;
-                if (settings.synthType === 'fmSynth') {
-                    offlineSynth = new Tone.FMSynth(audio.synths.fmSynth.get());
-                    offlineSynth.harmonicity.value = settings.harmonicity;
-                    offlineSynth.modulationIndex.value = settings.modulationIndex;
-                } else if (settings.synthType === 'amSynth') {
-                    offlineSynth = new Tone.AMSynth(audio.synths.amSynth.get());
-                    offlineSynth.harmonicity.value = settings.harmonicity;
-                } else {
-                    offlineSynth = new Tone.Synth(audio.synths.synth.get());
-                }
-                offlineSynth.oscillator.type = settings.waveform;
-                offlineSynth.connect(offlineFilter);
-
-                // Apply ADSR
-                if (offlineSynth.envelope) {
-                    offlineSynth.envelope.attack = attack;
-                    offlineSynth.envelope.decay = decay;
-                    offlineSynth.envelope.sustain = sustain;
-                    offlineSynth.envelope.release = release;
-                }
-
-                if (offlineLimiter) {
-                    offlineReverb.connect(offlineLimiter);
-                } else {
-                    offlineReverb.connect(offlineContext.destination);
-                }
+                // Recreate the synth + effects graph using the shared audio engine helper
+                const { offlineSynth } = audio.createOfflineChain(offlineContext, settings);
 
                 // --- Pattern for offline ---
                 const gateLength = settings.gateRatio * Tone.Time(settings.interval).toSeconds();

@@ -202,6 +202,70 @@ export function createAudioEngine(context) {
         return s ? s.get() : null;
     }
 
+    /**
+     * Recreates and connects the synthesizer and effects chain inside a Tone.Offline context.
+     * This ensures the offline render output perfectly matches the live output routing and settings.
+     *
+     * @param {object} offlineContext - The Tone.Offline context.
+     * @param {object} settings - Snapshot of the active settings.
+     * @returns {object} Reference to the created offline synth and final output node.
+     */
+    function createOfflineChain(offlineContext, settings) {
+        // 1. Recreate Limiter inside the virtual context (if supported)
+        let offlineLimiter;
+        try {
+            offlineLimiter = new Tone.Limiter(0).toDestination();
+        } catch (e) {
+            // Fallback if context doesn't support limiters
+        }
+
+        // 2. Recreate Effects (reverb, delay, filter) connected to each other
+        const offlineReverb = new Tone.Reverb({ decay: 1.5, wet: settings.reverbMix });
+        const offlineDelay = new Tone.FeedbackDelay({
+            delayTime: '8n',
+            feedback: 0.5,
+            wet: settings.delayMix
+        }).connect(offlineReverb);
+
+        const offlineFilter = new Tone.Filter({
+            type: 'lowpass',
+            frequency: settings.filterCutoff,
+            Q: settings.filterResonance
+        }).connect(offlineDelay);
+
+        // 3. Recreate Synth based on type (Basic, FM, or AM Synth) using base configurations
+        let offlineSynth;
+        if (settings.synthType === 'fmSynth') {
+            offlineSynth = new Tone.FMSynth(getSynthConfig('fmSynth'));
+            offlineSynth.harmonicity.value = settings.harmonicity;
+            offlineSynth.modulationIndex.value = settings.modulationIndex;
+        } else if (settings.synthType === 'amSynth') {
+            offlineSynth = new Tone.AMSynth(getSynthConfig('amSynth'));
+            offlineSynth.harmonicity.value = settings.harmonicity;
+        } else {
+            offlineSynth = new Tone.Synth(getSynthConfig('synth'));
+        }
+        offlineSynth.oscillator.type = settings.waveform;
+        offlineSynth.connect(offlineFilter);
+
+        // Apply active ADSR Envelope settings
+        if (offlineSynth.envelope) {
+            offlineSynth.envelope.attack = settings.envAttack;
+            offlineSynth.envelope.decay = settings.envDecay;
+            offlineSynth.envelope.sustain = settings.envSustain;
+            offlineSynth.envelope.release = settings.envRelease;
+        }
+
+        // 4. Connect final output to the virtual destination
+        if (offlineLimiter) {
+            offlineReverb.connect(offlineLimiter);
+        } else {
+            offlineReverb.connect(offlineContext.destination);
+        }
+
+        return { offlineSynth, offlineOutput: offlineReverb };
+    }
+
     // Set default synth
     setSynth('synth');
 
@@ -218,6 +282,7 @@ export function createAudioEngine(context) {
         set currentWaveform(val) { currentWaveform = val; },
         setSynth,
         updateEnvelope,
-        getSynthConfig
+        getSynthConfig,
+        createOfflineChain
     };
 }
