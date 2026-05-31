@@ -112,3 +112,6 @@ _previous-versions/*
 ## Ignore AI Agents ##
 _agent/
 .specstory/
+
+# Test snapshots
+tests/visualizer-snapshots/
