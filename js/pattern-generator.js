@@ -1,3 +1,6 @@
+import * as Tone from 'tone';
+import * as Tonal from 'tonal';
+
 // Pattern generator module.
 // Keeps arpeggio note expansion and Tone.Pattern creation separate from app.js.
 
@@ -11,7 +14,7 @@
  */
 export function quantizeToScale(baseNotes, root, scaleType) {
     try {
-        if (!root || !scaleType || !window.Tonal) return baseNotes.slice();
+        if (!root || !scaleType || !Tonal) return baseNotes.slice();
 
         const scale = Tonal.Scale.get(`${root} ${scaleType}`);
         if (!scale || !scale.notes || scale.notes.length === 0) return baseNotes.slice();
@@ -286,15 +289,17 @@ export function createOrUpdatePattern() {
             window.arpPattern = null;
         }
 
+        // Calculate note duration in seconds once outside the scheduling callback to avoid timing warnings
+        const durationSeconds = Tone.Time(interval).toSeconds() * gate;
+
         // Create Tone.Pattern with direction mapping (use Tone.Pattern for sequences)
         const patternInstance = new Tone.Pattern((time, note) => {
             const synth = window.activeSynth || null;
             if (synth && synth.triggerAttackRelease) {
-                const dur = Tone.Time(interval).toSeconds() * gate;
                 try {
-                    synth.triggerAttackRelease(note, dur, time);
+                    synth.triggerAttackRelease(note, durationSeconds, time);
                 } catch (e) {
-                    try { synth.triggerAttackRelease(note, dur); } catch (_) { }
+                    try { synth.triggerAttackRelease(note, durationSeconds); } catch (_) { }
                 }
             }
 

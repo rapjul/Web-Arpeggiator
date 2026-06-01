@@ -13,6 +13,8 @@
  * @module audio-engine
  */
 
+import * as Tone from 'tone';
+
 /**
  * Creates the audio engine and all Tone.js nodes.
  *
@@ -25,24 +27,31 @@
  * @param {HTMLElement} context.dom.dutyControl         - Duty-cycle control wrapper.
  * @param {HTMLElement} context.dom.basicSynthParams    - Basic synth params wrapper.
  * @param {HTMLElement} context.dom.waveformButtons     - Waveform button container.
- * @param {HTMLElement} context.dom.harmonicitySlider   - Harmonicity <input>.
- * @param {HTMLElement} context.dom.modIndexSlider      - Modulation-index <input>.
+ * @param {HTMLInputElement} context.dom.harmonicitySlider   - Harmonicity <input>.
+ * @param {HTMLInputElement} context.dom.modIndexSlider      - Modulation-index <input>.
+ * @param {HTMLInputElement} context.dom.envAttackSlider     - Envelope Attack <input>.
+ * @param {HTMLInputElement} context.dom.envDecaySlider      - Envelope Decay <input>.
+ * @param {HTMLInputElement} context.dom.envSustainSlider    - Envelope Sustain <input>.
+ * @param {HTMLInputElement} context.dom.envReleaseSlider    - Envelope Release <input>.
  * @param {object}   context.actions                   - App action callbacks.
  * @param {Function} context.actions.syncPatternModuleState - Syncs pattern state.
  * @param {Function} context.actions.showToast          - Toast notification.
- * @returns {object} Public API.
- * @returns {Tone.Analyser}        return.analyser        - Waveform analyser node.
- * @returns {Tone.Filter}          return.filter          - Low-pass filter.
- * @returns {Tone.FeedbackDelay}   return.delay           - Feedback delay.
- * @returns {Tone.Reverb}          return.reverb          - Convolution reverb.
- * @returns {Tone.Volume}          return.postGain        - Post gain node.
- * @returns {Tone.Limiter}         return.limiter         - Master limiter.
- * @returns {object}               return.synths          - { synth, fmSynth, amSynth }.
- * @returns {string}               return.currentWaveform - Active waveform type (get/set).
- * @returns {Tone.Synth|Tone.FMSynth|Tone.AMSynth} return.activeSynth - Currently selected synth.
- * @returns {Function}             return.setSynth        - Switches active synth.
- * @returns {Function}             return.updateEnvelope  - Applies ADSR slider values.
- * @returns {Function}             return.getSynthConfig  - Returns synth config for offline render.
+ * @typedef {object} AudioEngine
+ * @property {Tone.Analyser} analyser - Waveform analyser node.
+ * @property {Tone.Filter} filter - Low-pass filter.
+ * @property {Tone.FeedbackDelay} delay - Feedback delay.
+ * @property {Tone.Reverb} reverb - Convolution reverb.
+ * @property {Tone.Volume} postGain - Post gain node.
+ * @property {Tone.Limiter} [limiter] - Master limiter.
+ * @property {object} synths - Synth options: { synth, fmSynth, amSynth }.
+ * @property {string} currentWaveform - Active waveform type (get/set).
+ * @property {Tone.Synth|Tone.FMSynth|Tone.AMSynth} activeSynth - Currently selected synth.
+ * @property {Function} setSynth - Switches active synth.
+ * @property {Function} updateEnvelope - Applies ADSR slider values.
+ * @property {Function} getSynthConfig - Returns synth config for offline render.
+ * @property {Function} createOfflineChain - Recreates offline context graph.
+ *
+ * @returns {AudioEngine} Public API.
  */
 export function createAudioEngine(context) {
     const { dom, actions } = context;

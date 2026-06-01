@@ -1,3 +1,5 @@
+import * as Tone from 'tone';
+
 /**
  * Settings serialization, restoration, and naming helpers.
  */

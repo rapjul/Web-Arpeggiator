@@ -9,6 +9,7 @@
  * @module recorder
  */
 
+import * as Tone from 'tone';
 import {
     audioBufferToMp3Blob,
     audioBufferToWav,
@@ -22,43 +23,47 @@ import {
  * @param {object}   context.audio                          - Audio-engine references.
  * @param {Tone.Reverb}     context.audio.reverb            - Reverb node (signal tap point).
  * @param {object}          context.audio.synths            - { synth, fmSynth, amSynth } for offline config.
+ * @param {Function}        context.audio.createOfflineChain - Offline routing creation callback.
  * @param {object}   context.dom                            - DOM element references.
- * @param {HTMLElement}     context.dom.recordButton        - Record start/stop button.
- * @param {HTMLElement}     context.dom.recordStatus        - Recording status display.
- * @param {HTMLElement}     context.dom.exportControls      - Export controls wrapper.
- * @param {HTMLElement}     context.dom.realtimeExportWavCheck - Real-time WAV checkbox.
- * @param {HTMLElement}     context.dom.realtimeExportMp3Check - Real-time MP3 checkbox.
- * @param {HTMLElement}     context.dom.exportButton        - Real-time export button.
- * @param {HTMLElement}     context.dom.offlineExportWavCheck - Offline WAV checkbox.
- * @param {HTMLElement}     context.dom.offlineExportMp3Check - Offline MP3 checkbox.
- * @param {HTMLElement}     context.dom.offlineExportButton - Offline export trigger button.
- * @param {HTMLElement}     context.dom.offlineExportStatus - Offline export status display.
- * @param {HTMLElement}     context.dom.loopCountInput      - Loop count <input>.
- * @param {HTMLElement}     context.dom.envAttackSlider     - ADSR Attack slider.
- * @param {HTMLElement}     context.dom.envDecaySlider      - ADSR Decay slider.
- * @param {HTMLElement}     context.dom.envSustainSlider    - ADSR Sustain slider.
- * @param {HTMLElement}     context.dom.envReleaseSlider    - ADSR Release slider.
- * @param {object}   context.state                          - Shared mutable state.
- * @param {boolean}  context.state.isAudioContextStarted    - Audio context started (read).
- * @param {boolean}  context.state.isPlaying                - Transport playing (read).
- * @param {object}   context.actions                        - Action callbacks.
- * @param {Function} context.actions.showToast              - Toast notification.
- * @param {Function} context.actions.startUiLoop            - Start Tone.Loop.
- * @param {Function} context.actions.stopUiLoop             - Stop Tone.Loop.
- * @param {Function} context.actions.getAllSettings         - Current settings snapshot.
- * @param {Function} context.actions.generateFilename       - Timestamped filename.
- * @param {Function} context.actions.formatTime             - Time formatting helper.
- * @returns {object} Public API.
- * @returns {Function} return.initRecorder          - Creates recorder instance (lazy, called once).
- * @returns {Function} return.toggleRecording       - Start/stop recording.
- * @returns {Function} return.exportRealtime        - Export recorded blob as WAV/MP3.
- * @returns {Function} return.exportOffline         - Tone.Offline render + export.
- * @returns {boolean}  return.isRecording           - Whether recording is active.
- * @returns {number}   return.recordingStartTime    - Timestamp when recording started.
- * @returns {Function} return.setRecorderBlob       - Sets liveRecordedWavBlob (called by event).
- */
+  * @param {HTMLElement}     context.dom.recordButton        - Record start/stop button.
+  * @param {HTMLElement}     context.dom.recordStatus        - Recording status display.
+  * @param {HTMLElement}     context.dom.exportControls      - Export controls wrapper.
+  * @param {HTMLElement}     context.dom.realtimeExportWavCheck - Real-time WAV checkbox.
+  * @param {HTMLElement}     context.dom.realtimeExportMp3Check - Real-time MP3 checkbox.
+  * @param {HTMLElement}     context.dom.exportButton        - Real-time export button.
+  * @param {HTMLElement}     context.dom.offlineExportWavCheck - Offline WAV checkbox.
+  * @param {HTMLElement}     context.dom.offlineExportMp3Check - Offline MP3 checkbox.
+  * @param {HTMLElement}     context.dom.offlineExportButton - Offline export trigger button.
+  * @param {HTMLElement}     context.dom.offlineExportStatus - Offline export status display.
+  * @param {HTMLElement}     context.dom.loopCountInput      - Loop count <input>.
+  * @param {HTMLElement}     context.dom.envAttackSlider     - ADSR Attack slider.
+  * @param {HTMLElement}     context.dom.envDecaySlider      - ADSR Decay slider.
+  * @param {HTMLElement}     context.dom.envSustainSlider    - ADSR Sustain slider.
+  * @param {HTMLElement}     context.dom.envReleaseSlider    - ADSR Release slider.
+  * @param {object}   context.state                          - Shared mutable state.
+  * @param {boolean}  context.state.isAudioContextStarted    - Audio context started (read).
+  * @param {boolean}  context.state.isPlaying                - Transport playing (read).
+  * @param {object}   context.actions                        - Action callbacks.
+  * @param {Function} context.actions.showToast              - Toast notification.
+  * @param {Function} context.actions.startUiLoop            - Start Tone.Loop.
+  * @param {Function} context.actions.stopUiLoop             - Stop Tone.Loop.
+  * @param {Function} context.actions.getAllSettings         - Current settings snapshot.
+  * @param {Function} context.actions.generateFilename       - Timestamped filename.
+  * @param {Function} context.actions.formatTime             - Time formatting helper.
+  * @typedef {object} RecorderManager
+  * @property {Function} initRecorder - Creates recorder instance (lazy, called once).
+  * @property {Function} toggleRecording - Start/stop recording.
+  * @property {Function} exportRealtime - Export recorded blob as WAV/MP3.
+  * @property {Function} exportOffline - Tone.Offline render + export.
+  * @property {boolean} isRecording - Whether recording is active.
+  * @property {number} recordingStartTime - Timestamp when recording started.
+  * @property {Function} setRecorderBlob - Sets liveRecordedWavBlob (called by event).
+  *
+  * @returns {RecorderManager} Public API.
+  */
 export function createRecorderManager(context) {
-    const { audio, dom, state, actions } = context;
+    const { audio, state, actions } = context;
+    const dom = /** @type {any} */ (context.dom);
 
     // --- Internal recorder state ---
     let recorder = null;
@@ -116,7 +121,8 @@ export function createRecorderManager(context) {
             // Fall back to MediaRecorder (HTTPS only)
             if (window.isSecureContext && typeof MediaRecorder !== 'undefined') {
                 try {
-                    const dest = Tone.getContext().rawContext.createMediaStreamDestination();
+                    const rawCtx = /** @type {AudioContext} */ (Tone.getContext().rawContext);
+                    const dest = rawCtx.createMediaStreamDestination();
                     audio.reverb.connect(dest);
                     recorder = new MediaRecorder(dest.stream);
                     recorderType = 'MediaRecorder';
@@ -321,7 +327,7 @@ export function createRecorderManager(context) {
         const totalDuration = loopDurationInSeconds * settings.loopCount;
 
         try {
-            const audioBuffer = await Tone.Offline(async (offlineContext) => {
+            const toneAudioBuffer = await Tone.Offline(async (offlineContext) => {
                 offlineContext.transport.bpm.value = settings.bpm;
                 offlineContext.transport.swing = settings.swing;
 
@@ -357,8 +363,10 @@ export function createRecorderManager(context) {
                 offlineContext.transport.start(0);
             }, totalDuration + 2.0); // Extra 2 s for reverb tail
 
+            const nativeBuffer = /** @type {AudioBuffer} */ (typeof toneAudioBuffer.get === 'function' ? toneAudioBuffer.get() : toneAudioBuffer);
+
             // Validate buffer
-            if (audioBuffer.length < 1000) {
+            if (nativeBuffer.length < 1000) {
                 actions.showToast("Offline generation failed! No audio was created.", "error");
                 dom.offlineExportStatus.textContent = "Offline rendering failed.";
                 dom.offlineExportButton.disabled = false;
@@ -370,7 +378,7 @@ export function createRecorderManager(context) {
             if (dom.offlineExportWavCheck.checked) {
                 dom.offlineExportStatus.textContent = "Exporting WAV...";
                 actions.showToast("Exporting WAV...", "info");
-                const wavBlob = audioBufferToWav(audioBuffer);
+                const wavBlob = audioBufferToWav(nativeBuffer);
                 downloadBlob(wavBlob, `${filename}.wav`);
 
                 if (dom.offlineExportMp3Check.checked) {
@@ -382,7 +390,7 @@ export function createRecorderManager(context) {
             if (dom.offlineExportMp3Check.checked) {
                 dom.offlineExportStatus.textContent = "Encoding MP3...";
                 actions.showToast("Encoding MP3...", "info");
-                const mp3Blob = await audioBufferToMp3Blob(audioBuffer);
+                const mp3Blob = await audioBufferToMp3Blob(nativeBuffer);
                 downloadBlob(mp3Blob, `${filename}.mp3`);
             }
 

@@ -1,6 +1,7 @@
 /**
  * Virtual keyboard DOM and interaction controller.
  */
+import * as Tone from 'tone';
 
 /**
  * Initializes the virtual keyboard against the live app state.
@@ -90,7 +91,7 @@ export function initializeKeyboardControls(context) {
             if (whiteKeyIndexInCurrentOctave > 0) {
                 el.style.marginLeft = '-1px';
             }
-            el.dataset.whiteKeyIndex = whiteKeyIndexInCurrentOctave;
+            el.dataset.whiteKeyIndex = String(whiteKeyIndexInCurrentOctave);
 
             // Create SVG background shape to handle black key cutout outlines
             const svgBg = createWhiteKeyBackground(whiteKeyIndexInCurrentOctave);
@@ -247,7 +248,7 @@ export function initializeKeyboardControls(context) {
     }
 
     window.addEventListener('keydown', (event) => {
-        if (event.repeat || event.target.tagName === 'INPUT' || !dom.keyboardToggle.checked) return;
+        if (event.repeat || (event.target instanceof HTMLElement && event.target.tagName === 'INPUT') || !dom.keyboardToggle.checked) return;
         const key = event.key.toLowerCase();
         const note = keyboardMapping[key];
         if (note) {

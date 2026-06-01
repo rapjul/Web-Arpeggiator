@@ -15,8 +15,9 @@ const DEBUG = true;
 
 // Fix for audio session not working on Mobile Safari if in "Silent Mode"
 // [237322 – webaudio api is muted when the iOS ringer is muted](https://bugs.webkit.org/show_bug.cgi?id=237322)
-if (navigator.audioSession && navigator.audioSession.type !== undefined) {
-    navigator.audioSession.type = "playback";
+const nav = /** @type {any} */ (navigator);
+if (nav.audioSession && nav.audioSession.type !== undefined) {
+    nav.audioSession.type = "playback";
 }
 
 /**
@@ -30,6 +31,8 @@ function log(...args) {
 }
 
 // --- Module Imports ---
+import * as Tone from 'tone';
+import * as Tonal from 'tonal';
 import { createAudioEngine } from './audio-engine.js';
 import { createVisualizer } from './visualizer.js';
 import { createRecorderManager } from './recorder.js';
@@ -121,8 +124,12 @@ async function startAudio() {
 }
 
 // --- DOMContentLoaded: Main Setup ---
-document.addEventListener('DOMContentLoaded', () => {
-
+/**
+ * Initializes the arpeggiator application, sets up event listeners,
+ * restores sessions, and wires up all UI controls.
+ * @returns {void}
+ */
+function initializeApp() {
     // Prevent the browser from restoring a previous scroll position and ensure
     // the page always starts at the very top on every load/refresh.
     if (history.scrollRestoration) {
@@ -131,22 +138,22 @@ document.addEventListener('DOMContentLoaded', () => {
     window.scrollTo(0, 0);
 
     // --- DOM Elements ---
-    const playStopButton = document.getElementById('play-stop');
+    const playStopButton = /** @type {HTMLButtonElement | null} */ (document.getElementById('play-stop'));
 
     const startOverlay = document.getElementById('start-overlay');
     const pwaTestStateField = document.getElementById('pwa-test-state');
 
-    const bpmSlider = document.getElementById('bpm');
+    const bpmSlider = /** @type {HTMLInputElement} */ (document.getElementById('bpm'));
     const bpmValue = document.getElementById('bpm-value');
-    const postGainSlider = document.getElementById('post-gain');
+    const postGainSlider = /** @type {HTMLInputElement} */ (document.getElementById('post-gain'));
     const postGainValue = document.getElementById('post-gain-value');
-    const swingSlider = document.getElementById('swing');
+    const swingSlider = /** @type {HTMLInputElement} */ (document.getElementById('swing'));
     const swingValue = document.getElementById('swing-value');
-    const notesInput = document.getElementById('notes');
-    const intervalSelect = document.getElementById('interval');
+    const notesInput = /** @type {HTMLInputElement} */ (document.getElementById('notes'));
+    const intervalSelect = /** @type {HTMLSelectElement} */ (document.getElementById('interval'));
 
     // Synth Card Elements
-    const synthTypeSelect = document.getElementById('synth-type');
+    const synthTypeSelect = /** @type {HTMLSelectElement} */ (document.getElementById('synth-type'));
 
     // Waveform Elements
     const waveformButtonsContainer = document.getElementById('waveform-buttons-container');
@@ -159,27 +166,27 @@ document.addEventListener('DOMContentLoaded', () => {
     // Basic Synth Params
     const basicSynthParams = document.getElementById('basic-synth-params');
     const dutyControl = document.getElementById('duty-control');
-    const dutySlider = document.getElementById('duty-cycle');
+    const dutySlider = /** @type {HTMLInputElement} */ (document.getElementById('duty-cycle'));
     const dutyValue = document.getElementById('duty-value');
 
     // Advanced Synth Params
     const advancedSynthParams = document.getElementById('advanced-synth-params');
     const harmonicityControl = document.getElementById('harmonicity-control');
     const modIndexControl = document.getElementById('mod-index-control');
-    const harmonicitySlider = document.getElementById('harmonicity');
+    const harmonicitySlider = /** @type {HTMLInputElement} */ (document.getElementById('harmonicity'));
     const harmonicityValue = document.getElementById('harmonicity-value');
-    const modIndexSlider = document.getElementById('modulation-index');
+    const modIndexSlider = /** @type {HTMLInputElement} */ (document.getElementById('modulation-index'));
     const modIndexValue = document.getElementById('modulation-index-value');
 
     // Gate Parameter
-    const gateSlider = document.getElementById('gate');
+    const gateSlider = /** @type {HTMLInputElement} */ (document.getElementById('gate'));
     const gateValue = document.getElementById('gate-value');
 
     // ADSR Envelope Controls
-    const envAttackSlider = document.getElementById('env-attack');
-    const envDecaySlider = document.getElementById('env-decay');
-    const envSustainSlider = document.getElementById('env-sustain');
-    const envReleaseSlider = document.getElementById('env-release');
+    const envAttackSlider = /** @type {HTMLInputElement} */ (document.getElementById('env-attack'));
+    const envDecaySlider = /** @type {HTMLInputElement} */ (document.getElementById('env-decay'));
+    const envSustainSlider = /** @type {HTMLInputElement} */ (document.getElementById('env-sustain'));
+    const envReleaseSlider = /** @type {HTMLInputElement} */ (document.getElementById('env-release'));
     const envAttackValue = document.getElementById('env-attack-value');
     const envDecayValue = document.getElementById('env-decay-value');
     const envSustainValue = document.getElementById('env-sustain-value');
@@ -187,7 +194,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Keyboard Controls
     const keyboardVisual = document.getElementById('keyboard-visual');
-    const keyboardToggle = document.getElementById('keyboard-toggle');
+    const keyboardToggle = /** @type {HTMLInputElement} */ (document.getElementById('keyboard-toggle'));
     const keyboardToggleStatus = document.getElementById('keyboard-toggle-status');
     const keyboardDescription = document.getElementById('keyboard-description');
 
@@ -198,21 +205,21 @@ document.addEventListener('DOMContentLoaded', () => {
     // Scale Quantizer card
     const quantizerCard = document.getElementById('quantizer-card');
     const quantizerControls = document.getElementById('quantizer-controls');
-    const scaleQuantizeToggle = document.getElementById('scale-quantize-toggle');
+    const scaleQuantizeToggle = /** @type {HTMLInputElement} */ (document.getElementById('scale-quantize-toggle'));
     const scaleQuantizeToggleStatus = document.getElementById('scale-quantize-toggle-status');
-    const scaleRootSelect = document.getElementById('scale-root');
-    const scaleTypeSelect = document.getElementById('scale-type');
+    const scaleRootSelect = /** @type {HTMLSelectElement} */ (document.getElementById('scale-root'));
+    const scaleTypeSelect = /** @type {HTMLSelectElement} */ (document.getElementById('scale-type'));
 
     // Filter card
-    const filterCutoffSlider = document.getElementById('filter-cutoff');
+    const filterCutoffSlider = /** @type {HTMLInputElement} */ (document.getElementById('filter-cutoff'));
     const filterCutoffValue = document.getElementById('filter-cutoff-value');
-    const filterResonanceSlider = document.getElementById('filter-resonance');
+    const filterResonanceSlider = /** @type {HTMLInputElement} */ (document.getElementById('filter-resonance'));
     const filterResonanceValue = document.getElementById('filter-resonance-value');
 
     // Effects card
-    const delayMixSlider = document.getElementById('delay-mix');
+    const delayMixSlider = /** @type {HTMLInputElement} */ (document.getElementById('delay-mix'));
     const delayMixValue = document.getElementById('delay-mix-value');
-    const reverbMixSlider = document.getElementById('reverb-mix');
+    const reverbMixSlider = /** @type {HTMLInputElement} */ (document.getElementById('reverb-mix'));
     const reverbMixValue = document.getElementById('reverb-mix-value');
 
     // Randomize Notes Button
@@ -237,20 +244,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const offlineExportStatus = document.getElementById('offline-export-status');
 
     // Utility card
-    const visualizerYAxisCanvas = document.getElementById('visualizer-yaxis');
+    const visualizerYAxisCanvas = /** @type {HTMLCanvasElement | null} */ (document.getElementById('visualizer-yaxis'));
     const visualizerViewport = document.getElementById('visualizer-viewport');
-    const visualizerPlotCanvas = document.getElementById('visualizer-plot');
+    const visualizerPlotCanvas = /** @type {HTMLCanvasElement | null} */ (document.getElementById('visualizer-plot'));
     const toggleVisualizerButton = document.getElementById('toggle-visualizer');
-    const visualizerModeSelect = document.getElementById('visualizer-mode');
-    const pauseVisualizerButton = document.getElementById('pause-visualizer');
-    const visualizerZoomSlider = document.getElementById('visualizer-zoom');
+    const visualizerModeSelect = /** @type {HTMLSelectElement | null} */ (document.getElementById('visualizer-mode'));
+    const pauseVisualizerButton = /** @type {HTMLButtonElement | null} */ (document.getElementById('pause-visualizer'));
+    const visualizerZoomSlider = /** @type {HTMLInputElement | null} */ (document.getElementById('visualizer-zoom'));
     const visualizerZoomValue = document.getElementById('visualizer-zoom-value');
-    const oscilloscopeWindowSelect = document.getElementById('oscilloscope-window');
+    const oscilloscopeWindowSelect = /** @type {HTMLSelectElement | null} */ (document.getElementById('oscilloscope-window'));
     const oscilloscopeWindowContainer = document.getElementById('oscilloscope-window-container');
 
     // Preset Management card
-    const presetNameInput = document.getElementById('preset-name-input');
-    const savedPresetSelect = document.getElementById('saved-preset-select');
+    const presetNameInput = /** @type {HTMLInputElement | null} */ (document.getElementById('preset-name-input'));
+    const savedPresetSelect = /** @type {HTMLSelectElement | null} */ (document.getElementById('saved-preset-select'));
     const savePresetButton = document.getElementById('save-preset-button');
     const savePresetToBrowserButton = document.getElementById('save-preset-to-browser-button');
     const sharePresetButton = document.getElementById('share-preset-button');
@@ -258,7 +265,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const loadSavedPresetButton = document.getElementById('load-saved-preset-button');
     const clearSavedPresetButton = document.getElementById('clear-saved-preset-button');
     const deleteSavedPresetButton = document.getElementById('delete-saved-preset-button');
-    const loadPresetInput = document.getElementById('load-preset-input');
+    const loadPresetInput = /** @type {HTMLInputElement | null} */ (document.getElementById('load-preset-input'));
 
     // Toast
     const toastContainer = document.getElementById('toast-container');
@@ -872,8 +879,8 @@ document.addEventListener('DOMContentLoaded', () => {
     function setupKeyboardNavigation(container, buttonSelector) {
         if (!container) return;
         container.addEventListener('keydown', (event) => {
-            const buttons = Array.from(container.querySelectorAll(buttonSelector));
-            const activeEl = document.activeElement;
+            const buttons = /** @type {HTMLElement[]} */ (Array.from(container.querySelectorAll(buttonSelector)));
+            const activeEl = /** @type {HTMLElement | null} */ (document.activeElement);
             const index = buttons.indexOf(activeEl);
 
             if (index === -1) return;
@@ -931,7 +938,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Pattern Button Selection ---
     patternButtons.addEventListener('click', (e) => {
-        const btn = e.target.closest('button.pattern-btn');
+        const btn = /** @type {Element} */ (e.target).closest('button.pattern-btn');
         if (!btn) return;
         patternButtons.querySelectorAll('button').forEach(b => b.classList.remove('selected'));
         btn.classList.add('selected');
@@ -1448,7 +1455,7 @@ document.addEventListener('DOMContentLoaded', () => {
     postGainSlider.addEventListener('input', () => {
         const db = parseFloat(postGainSlider.value);
         debouncedSetPostGain(db);
-        postGainValue.textContent = dbToPercent(db);
+        postGainValue.textContent = String(dbToPercent(db));
     });
 
     bpmSlider.addEventListener('input', () => {
@@ -1490,10 +1497,10 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     waveformButtons.addEventListener('click', (e) => {
-        const btn = e.target.closest('button.waveform-btn');
+        const btn = /** @type {Element} */ (e.target).closest('button.waveform-btn');
         if (!btn) return;
 
-        audioEngine.currentWaveform = btn.getAttribute('data-wave');
+        audioEngine.currentWaveform = btn.getAttribute('data-wave') || 'sine';
         updateWaveformButtons(audioEngine.currentWaveform);
         audioEngine.setSynth(synthTypeSelect.value);
     });
@@ -1519,8 +1526,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Octave Controls ---
     octaveShiftButtons.addEventListener('click', (e) => {
-        if (e.target.tagName === 'BUTTON') {
-            currentOctaveShift = parseInt(e.target.getAttribute('data-shift'));
+        const target = /** @type {Element} */ (e.target);
+        if (target.tagName === 'BUTTON') {
+            currentOctaveShift = parseInt(target.getAttribute('data-shift') || '0');
             syncPatternModuleState();
             updateButtonGroup(octaveShiftButtons, currentOctaveShift, 'data-shift');
             createOrUpdatePattern();
@@ -1528,8 +1536,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     octaveRangeButtons.addEventListener('click', (e) => {
-        if (e.target.tagName === 'BUTTON') {
-            currentOctaveRange = parseInt(e.target.getAttribute('data-range'));
+        const target = /** @type {Element} */ (e.target);
+        if (target.tagName === 'BUTTON') {
+            currentOctaveRange = parseInt(target.getAttribute('data-range') || '1');
             syncPatternModuleState();
             updateButtonGroup(octaveRangeButtons, currentOctaveRange, 'data-range');
             createOrUpdatePattern();
@@ -1681,27 +1690,31 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     loadPresetInput.addEventListener('change', (event) => {
-        const file = event.target.files[0];
+        const target = /** @type {HTMLInputElement} */ (event.target);
+        const file = target.files ? target.files[0] : null;
         if (!file) return;
         const reader = new FileReader();
         reader.onload = (e) => {
-            try {
-                const settings = JSON.parse(e.target.result);
-                loadAllSettings(settings);
-                updateTestState({ lastImportedPreset: settings });
-                if (window.WebArpPresetStore) {
-                    window.WebArpPresetStore.save(settings, { filename: file.name, name: file.name, source: 'import' })
-                        .then((record) => refreshSavedPresetList(record.id))
-                        .catch((er) => console.warn('Failed to save imported preset:', er));
+            const fileReaderTarget = /** @type {FileReader} */ (e.target);
+            if (fileReaderTarget && typeof fileReaderTarget.result === 'string') {
+                try {
+                    const settings = JSON.parse(fileReaderTarget.result);
+                    loadAllSettings(settings);
+                    updateTestState({ lastImportedPreset: settings });
+                    if (window.WebArpPresetStore) {
+                        window.WebArpPresetStore.save(settings, { filename: file.name, name: file.name, source: 'import' })
+                            .then((record) => refreshSavedPresetList(record.id))
+                            .catch((er) => console.warn('Failed to save imported preset:', er));
+                    }
+                    showToast("Preset loaded!", "success");
+                } catch (err) {
+                    console.error("Failed to load preset:", err);
+                    showToast("Failed to load preset.", "error");
                 }
-                showToast("Preset loaded!", "success");
-            } catch (err) {
-                console.error("Failed to load preset:", err);
-                showToast("Failed to load preset.", "error");
             }
         };
         reader.readAsText(file);
-        event.target.value = null;
+        target.value = '';
     });
 
     if (loadSavedPresetButton) {
@@ -1960,10 +1973,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Autosave (on any input/change/click) ---
     document.addEventListener('input', (event) => {
-        if (event.target === pwaTestStateField || event.target === presetNameInput) return;
-        if (event.target.matches('input, select, textarea')) {
+        const target = /** @type {Element} */ (event.target);
+        if (target === pwaTestStateField || target === presetNameInput) return;
+        if (target.matches('input, select, textarea')) {
             scheduleLastSessionSave();
-            if (event.target !== loopCountInput) {
+            if (target !== loopCountInput) {
                 // Exclude loop count input from debounced render
                 debouncedRenderStaticLoop();
             }
@@ -1971,11 +1985,12 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     document.addEventListener('change', (event) => {
-        if (event.target === pwaTestStateField || event.target === presetNameInput ||
-            event.target === savedPresetSelect || event.target === loadPresetInput) return;
-        if (event.target.matches('input, select, textarea')) {
+        const target = /** @type {Element} */ (event.target);
+        if (target === pwaTestStateField || target === presetNameInput ||
+            target === savedPresetSelect || target === loadPresetInput) return;
+        if (target.matches('input, select, textarea')) {
             scheduleLastSessionSave();
-            if (event.target !== loopCountInput) {
+            if (target !== loopCountInput) {
                 // Exclude loop count input from debounced render
                 debouncedRenderStaticLoop();
             }
@@ -1983,7 +1998,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     document.addEventListener('click', (event) => {
-        if (event.target.closest('.pattern-btn, .waveform-btn, #octave-shift-buttons button, #octave-range-buttons button')) {
+        const target = /** @type {Element} */ (event.target);
+        if (target && target.closest('.pattern-btn, .waveform-btn, #octave-shift-buttons button, #octave-range-buttons button')) {
             scheduleLastSessionSave();
             debouncedRenderStaticLoop();
         }
@@ -2117,7 +2133,13 @@ document.addEventListener('DOMContentLoaded', () => {
     restoreLastSession().then(() => {
         loadPresetFromUrl();
     });
-});
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeApp);
+} else {
+    initializeApp();
+}
 
 // Expose handlers still referenced by inline HTML attributes and external checks.
 window.filterNoteInput = filterNoteInput;

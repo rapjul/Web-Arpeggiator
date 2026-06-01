@@ -8,6 +8,7 @@
  *
  * @module visualizer
  */
+import * as Tone from 'tone';
 
 /**
  * Creates the waveform visualizer and UI update loop.
@@ -19,7 +20,7 @@
  * @param {HTMLCanvasElement} context.dom.visualizerPlotCanvas   - Canvas element for visualizer drawings.
  * @param {HTMLElement}       context.dom.toggleVisualizerButton - Toggle visualizer button.
  * @param {HTMLSelectElement} context.dom.visualizerModeSelect   - Dropdown select for mode.
- * @param {HTMLElement}       context.dom.pauseVisualizerButton  - Pause visualizer button.
+ * @param {HTMLButtonElement}  context.dom.pauseVisualizerButton  - Pause visualizer button.
  * @param {HTMLInputElement}  context.dom.visualizerZoomSlider   - Zoom slider input range.
  * @param {HTMLElement}       context.dom.visualizerZoomValue    - Text readout for zoom.
  * @param {HTMLSelectElement} context.dom.oscilloscopeWindowSelect - Select dropdown for time duration.
@@ -31,6 +32,7 @@
  * @param {number}   context.state.recordingStartTime            - Recording start time.
  * @param {HTMLElement}       context.state.recordButton         - Record button.
  * @param {boolean}  context.state.isPlaying                     - Is transport playing.
+ * @param {object}   context.actions                             - Injected action helpers.
  * @param {Function} context.actions.formatTime                  - Time formatting helper.
  * @returns {object} Public API.
  */
@@ -194,7 +196,7 @@ export function createVisualizer(context) {
     function setZoom(factor) {
         zoomFactor = factor;
         if (zoomSlider) {
-            zoomSlider.value = factor;
+            zoomSlider.value = String(factor);
         }
         if (zoomValueSpan) {
             zoomValueSpan.textContent = `${factor.toFixed(1)}x`;
@@ -311,7 +313,7 @@ export function createVisualizer(context) {
 
                 // Only grab/refresh the audio buffers if the visualizer is NOT paused and we are in a live mode
                 if (!isPaused && (currentMode === 'oscilloscope' || currentMode === 'fft')) {
-                    const nativeNode = analyser.analyser || analyser._analyser;
+                    const nativeNode = /** @type {any} */ (analyser)?.analyser || /** @type {any} */ (analyser)?._analyser;
                     if (nativeNode) {
                         if (currentMode === 'fft') {
                             if (typeof nativeNode.getFloatFrequencyData === 'function') {
@@ -325,7 +327,7 @@ export function createVisualizer(context) {
                         }
                     } else if (typeof analyser.getValue === 'function') {
                         const val = analyser.getValue();
-                        if (val) {
+                        if (val instanceof Float32Array) {
                             waveformBuffer.set(val);
                             if (currentMode === 'oscilloscope') {
                                 pushToRollingBuffer(val);

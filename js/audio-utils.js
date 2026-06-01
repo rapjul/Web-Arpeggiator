@@ -69,7 +69,7 @@ export function float32ToInt16(buffer) {
 let lameJsPromise = null;
 
 /**
- * Dynamically loads the lamejs MP3 encoder library from CDN.
+ * Dynamically loads the lamejs MP3 encoder library from the npm package.
  * Uses a cached promise to ensure it is only fetched once.
  *
  * @returns {Promise<object>} Resolves to the window.lamejs object when loaded.
@@ -81,25 +81,15 @@ export function loadLameJs() {
     if (lameJsPromise) {
         return lameJsPromise;
     }
-    lameJsPromise = new Promise((resolve, reject) => {
-        const script = document.createElement('script');
-        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.1/lame.min.js';
-        script.type = 'text/javascript';
-        script.crossOrigin = 'anonymous';
-        script.referrerPolicy = 'no-referrer';
-        script.onload = () => {
-            if (window.lamejs) {
-                resolve(window.lamejs);
-            } else {
-                reject(new Error('LameJS was loaded but window.lamejs is undefined.'));
-            }
-        };
-        script.onerror = (err) => {
+    lameJsPromise = import('@breezystack/lamejs')
+        .then((module) => {
+            window.lamejs = module.default || module;
+            return window.lamejs;
+        })
+        .catch((err) => {
             lameJsPromise = null;
-            reject(err);
-        };
-        document.head.appendChild(script);
-    });
+            throw err;
+        });
     return lameJsPromise;
 }
 
