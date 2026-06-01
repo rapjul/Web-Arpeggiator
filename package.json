@@ -1,0 +1,25 @@
+{
+  "name": "web-arpeggiator",
+  "version": "1.0.0",
+  "description": "A browser-based musical arpeggiator application built with JavaScript, Tone.js, Tonal.js, and Tailwind CSS.",
+  "type": "module",
+  "scripts": {
+    "postinstall": "rm -rf node_modules/.vite",
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "preview:pwa": "bun run build && bun run preview"
+  },
+  "dependencies": {
+    "@breezystack/lamejs": "^1.2.7",
+    "tonal": "^6.4.2",
+    "tone": "^14.8.49"
+  },
+  "devDependencies": {
+    "vite": "^5.2.0",
+    "vite-plugin-pwa": "^0.19.0",
+    "tailwindcss": "^4.0.0",
+    "@tailwindcss/vite": "^4.0.0",
+    "typescript": "^5.4.0"
+  }
+}

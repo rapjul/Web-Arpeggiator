@@ -1,3 +1,5 @@
+@import "tailwindcss";
+
 /* Card section container configuration for Container Queries */
 section {
   container-type: inline-size;

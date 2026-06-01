@@ -5,13 +5,15 @@
  * It precaches the app shell, handles cache-first/static and network-first/navigation
  * requests, and exposes small message-based utilities for development tests.
  */
-importScripts('./js/asset-manifest.js');
-
-const manifest = self.__WEB_ARP_ASSET_MANIFEST__ || {
-    cacheVersion: 'dev',
+// self.__WB_MANIFEST is injected by Workbox during build
+const precachedEntries = self.__WB_MANIFEST || [];
+const manifest = {
+    cacheVersion: precachedEntries.length > 0 
+        ? precachedEntries.map(e => e.revision || '').join('-').slice(0, 16)
+        : 'dev',
     appShell: './index.html',
     navigationFallback: './index.html',
-    assets: []
+    assets: precachedEntries.map(entry => typeof entry === 'string' ? entry : entry.url)
 };
 
 const CACHE_NAME = `web-arpeggiator-${manifest.cacheVersion || 'dev'}`;

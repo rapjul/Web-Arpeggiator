@@ -42,6 +42,32 @@
             return null;
         }
 
+        // Unregister service worker in development mode to prevent HMR and routing issues
+        // Allow testing the service worker in dev mode by appending ?pwa=true to the URL
+        const urlParams = new URLSearchParams(location.search);
+        const forcePwa = urlParams.get('pwa') === 'true';
+        const isDev = (location.hostname === 'localhost' || location.hostname === '127.0.0.1') && !forcePwa;
+        if (isDev) {
+            try {
+                const registrations = await navigator.serviceWorker.getRegistrations();
+                let unregisteredAny = false;
+                for (const reg of registrations) {
+                    await reg.unregister();
+                    unregisteredAny = true;
+                }
+                if (unregisteredAny) {
+                    console.log('Development mode: Unregistered existing service workers. Reloading page.');
+                    // Force a reload to clear interceptors and establish normal dev server connection
+                    location.reload();
+                }
+            } catch (error) {
+                console.warn('Failed to clean up service workers in dev mode:', error);
+            }
+            state.serviceWorkerRegistered = false;
+            state.serviceWorkerError = 'disabled-in-development';
+            return null;
+        }
+
         try {
             const swUrl = getServiceWorkerUrl();
             registration = await navigator.serviceWorker.register(swUrl, { scope: './' });
@@ -56,9 +82,9 @@
                 }
 
                 installingWorker.addEventListener('statechange', () => {
-                    if (installingWorker.state === 'installed' && navigator.serviceWorker.controller && typeof showToast === 'function') {
+                    if (installingWorker.state === 'installed' && navigator.serviceWorker.controller && typeof window.showToast === 'function') {
                         state.hasWaitingWorker = Boolean(registration.waiting);
-                        showToast('App cache updated. Reload to use the latest assets.', 'info');
+                        window.showToast('App cache updated. Reload to use the latest assets.', 'info');
                     }
                 });
             });

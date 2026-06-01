@@ -6,28 +6,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Web Arpeggiator</title>
     <meta name="description" content="A simple web arpeggiator for creating musical patterns.">
-    <link rel="manifest" href="./manifest.json">
     <!-- Icon images -->
-    <link rel="icon" type="image/svg+xml" href="./images/icons/pwa-icon.svg">
-    <link rel="icon" type="image/png" sizes="192x192" href="./images/icons/pwa-icon-192.png">
-    <link rel="icon" type="image/png" sizes="512x512" href="./images/icons/pwa-icon-512.png">
-    <link rel="apple-touch-icon" href="./images/icons/pwa-icon-192.png">
+    <link rel="icon" type="image/svg+xml" href="/images/icons/pwa-icon.svg">
+    <link rel="icon" type="image/png" sizes="192x192" href="/images/icons/pwa-icon-192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="/images/icons/pwa-icon-512.png">
+    <link rel="apple-touch-icon" href="/images/icons/pwa-icon-192.png">
     <meta name="theme-color" content="#0f172a">
-    <!-- Load asset manifest -->
-    <script src="./js/asset-manifest.js" type="text/javascript" defer></script>
     <!-- Load presets store -->
-    <script src="./js/presets-store.js" type="text/javascript" defer></script>
+    <script src="./js/presets-store.js" type="module"></script>
     <!-- Load PWA -->
-    <script src="./js/pwa.js" type="text/javascript" defer></script>
-    <!-- Load Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com" type="text/javascript"></script>
-    <!-- Load Tone.js (added crossorigin for better error reporting) -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js" type="text/javascript"
-        crossorigin="anonymous" referrerpolicy="no-referrer" defer></script>
-
-    <!-- Load Tonal.js -->
-    <script src="https://cdn.jsdelivr.net/npm/tonal@6.4.2/browser/tonal.min.js" type="text/javascript"
-        crossorigin="anonymous" referrerpolicy="no-referrer" defer></script>
+    <script src="./js/pwa.js" type="module"></script>
     <link rel="stylesheet" href="./styles.css">
 
 </head>
