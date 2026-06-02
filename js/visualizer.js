@@ -73,6 +73,9 @@ export function createVisualizer(context) {
     // FFT frequency tick values (Hz) to plot logarithmically
     const fftTicks = [100, 500, 1000, 5000, 10000];
 
+    // Tick fractions used for rendering axes ticks
+    const TICK_FRACTIONS = [0, 0.25, 0.5, 0.75, 1.0];
+
     // Logarithmic frequency bounds for FFT mode
     const minFreq = 40;
     const maxFreq = 16000;
@@ -83,8 +86,36 @@ export function createVisualizer(context) {
     let cachedLoopMapBuffer = null;
     let cachedLoopMapMarkers = [];
 
+    // Cache for linear gradient elements to avoid allocations on every frame
+    let cachedGradient = null;
+    let cachedGradientHeight = 0;
+
     // Persistent buffer for waveform / FFT values to prevent memory allocations
     const waveformBuffer = analyser ? new Float32Array(analyser.size) : null;
+
+    /**
+     * Helper to get or build the linear vertical gradient based on logical height.
+     *
+     * @param {CanvasRenderingContext2D} ctx - Context to create the gradient in.
+     * @param {number} top - Top padding offset.
+     * @param {number} height - Logical height boundary.
+     * @returns {CanvasGradient} The cached or newly created gradient.
+     */
+    function getVerticalGradient(ctx, top, height) {
+        if (cachedGradient && cachedGradientHeight === height) {
+            return cachedGradient;
+        }
+        const grad = ctx.createLinearGradient(0, top, 0, height);
+        grad.addColorStop(0.0, '#EF4444');      // Red at +1.5 (highest headroom)
+        grad.addColorStop(0.166, '#EF4444');    // Red at +1.0 (clipping limit boundary)
+        grad.addColorStop(0.167, '#38BDF8');    // Blue/Cyan inside nominal bounds
+        grad.addColorStop(0.833, '#38BDF8');    // Blue/Cyan inside nominal bounds
+        grad.addColorStop(0.834, '#EF4444');    // Red at -1.0 (clipping limit boundary)
+        grad.addColorStop(1.0, '#EF4444');      // Red at -1.5 (lowest headroom)
+        cachedGradient = grad;
+        cachedGradientHeight = height;
+        return grad;
+    }
 
     /**
      * Resizes the Y-axis and plot canvases based on container size and zoom levels,
@@ -94,6 +125,10 @@ export function createVisualizer(context) {
      */
     function resizeCanvas() {
         if (!yAxisCanvas || !plotCanvas || !viewport) return;
+
+        // Invalidate cached gradient because the heights are changing
+        cachedGradient = null;
+        cachedGradientHeight = 0;
 
         const dpr = window.devicePixelRatio || 1;
 
@@ -355,14 +390,8 @@ export function createVisualizer(context) {
                         }
                     }
 
-                    // Create a vertical gradient to color-code signal headroom (red when > 1.0 or < -1.0)
-                    const lineGrad = plotCtx.createLinearGradient(0, topPadding, 0, plotLogicalHeight - bottomPadding);
-                    lineGrad.addColorStop(0.0, '#EF4444');      // Red at +1.5 (highest headroom)
-                    lineGrad.addColorStop(0.166, '#EF4444');    // Red at +1.0 (clipping limit boundary)
-                    lineGrad.addColorStop(0.167, '#38BDF8');    // Blue/Cyan inside nominal bounds
-                    lineGrad.addColorStop(0.833, '#38BDF8');    // Blue/Cyan inside nominal bounds
-                    lineGrad.addColorStop(0.834, '#EF4444');    // Red at -1.0 (clipping limit boundary)
-                    lineGrad.addColorStop(1.0, '#EF4444');      // Red at -1.5 (lowest headroom)
+                    // Get cached or updated linear gradient
+                    const lineGrad = getVerticalGradient(plotCtx, topPadding, plotLogicalHeight - bottomPadding);
 
                     // Draw the accumulated rolling waveform
                     plotCtx.beginPath();
@@ -423,13 +452,7 @@ export function createVisualizer(context) {
                     const channelData = cachedLoopMapBuffer.getChannelData(0);
                     const bufferLength = channelData.length;
 
-                    const lineGrad = plotCtx.createLinearGradient(0, topPadding, 0, plotLogicalHeight - bottomPadding);
-                    lineGrad.addColorStop(0.0, '#EF4444');      // Red at +1.5 (highest headroom)
-                    lineGrad.addColorStop(0.166, '#EF4444');    // Red at +1.0 (clipping limit boundary)
-                    lineGrad.addColorStop(0.167, '#38BDF8');    // Blue/Cyan inside nominal bounds
-                    lineGrad.addColorStop(0.833, '#38BDF8');    // Blue/Cyan inside nominal bounds
-                    lineGrad.addColorStop(0.834, '#EF4444');    // Red at -1.0 (clipping limit boundary)
-                    lineGrad.addColorStop(1.0, '#EF4444');      // Red at -1.5 (lowest headroom)
+                    const lineGrad = getVerticalGradient(plotCtx, topPadding, plotLogicalHeight - bottomPadding);
 
                     plotCtx.beginPath();
                     plotCtx.strokeStyle = lineGrad;
@@ -571,9 +594,8 @@ export function createVisualizer(context) {
                 } else if (currentMode === 'loopMap' && cachedLoopMapBuffer) {
                     // Loop Map: draw ticks based on actual buffer duration
                     const dur = cachedLoopMapBuffer.duration;
-                    const fractions = [0, 0.25, 0.5, 0.75, 1.0];
 
-                    fractions.forEach((frac) => {
+                    TICK_FRACTIONS.forEach((frac) => {
                         const x = leftPadding + frac * plotWidth;
                         const secVal = frac * dur;
 
@@ -594,8 +616,7 @@ export function createVisualizer(context) {
                 } else {
                     // Live Oscilloscope X-ticks based on actual chosen duration
                     const durationMs = oscilloscopeWindowSelect ? parseFloat(oscilloscopeWindowSelect.value) : 50;
-                    const fractions = [0, 0.25, 0.5, 0.75, 1.0];
-                    fractions.forEach((frac) => {
+                    TICK_FRACTIONS.forEach((frac) => {
                         const x = leftPadding + frac * plotWidth;
                         const timeVal = frac * durationMs;
 

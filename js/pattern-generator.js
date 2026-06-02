@@ -5,6 +5,29 @@ import * as Tonal from 'tonal';
 // Keeps arpeggio note expansion and Tone.Pattern creation separate from app.js.
 
 /**
+ * The standard 12 pitch classes in chromatic order starting from C.
+ * Used as the base for building octave-specific pitch lists.
+ * @type {ReadonlyArray<string>}
+ */
+const CHROMATIC_PITCHES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+
+/**
+ * A pre-calculated range of chromatic notes from C0 to B8.
+ * Used during scale quantization to map note names to nearest matches across octaves,
+ * supporting extreme octave shifts and range settings.
+ * @type {ReadonlyArray<string>}
+ */
+const CHROMATIC_RANGE = (() => {
+    const range = [];
+    for (let octave = 0; octave < 9; octave++) {
+        for (const note of CHROMATIC_PITCHES) {
+            range.push(`${note}${octave}`);
+        }
+    }
+    return range;
+})();
+
+/**
  * Quantizes notes to the nearest pitch in a Tonal.js scale.
  *
  * @param {string[]} baseNotes - Notes to quantize.
@@ -21,23 +44,19 @@ export function quantizeToScale(baseNotes, root, scaleType) {
 
         const scalePitchClasses = scale.notes.map(n => Tonal.Note.pitchClass(n));
 
-        const chromaticPitches = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
-        const chromaticRange = [];
-        for (let octave = 2; octave < 7; octave++) {
-            for (const note of chromaticPitches) chromaticRange.push(`${note}${octave}`);
-        }
-
-        const scaleNotes = chromaticRange.filter(note => scalePitchClasses.includes(Tonal.Note.pitchClass(note)));
+        const scaleNotes = CHROMATIC_RANGE.filter(note => scalePitchClasses.includes(Tonal.Note.pitchClass(note)));
         if (!scaleNotes.length) return baseNotes.slice();
+
+        const scaleMidis = scaleNotes.map(Tonal.Note.midi);
 
         return baseNotes.map(note => {
             try {
                 const noteMidi = Tonal.Note.midi(note);
                 if (noteMidi === undefined) return note;
 
-                const closest = scaleNotes
-                    .map(Tonal.Note.midi)
-                    .reduce((prev, curr) => Math.abs(curr - noteMidi) < Math.abs(prev - noteMidi) ? curr : prev);
+                const closest = scaleMidis.reduce((prev, curr) =>
+                    Math.abs(curr - noteMidi) < Math.abs(prev - noteMidi) ? curr : prev
+                );
 
                 return Tonal.Note.fromMidi(closest);
             } catch (_) {

@@ -802,59 +802,6 @@ function initializeApp() {
     }
 
     /**
-     * Quantizes note names to the nearest note in a given scale.
-     * @param {string[]} baseNotes - Array of note strings (e.g. ['C4', 'E4']).
-     * @param {string} root - Scale root (e.g. 'C', 'D#').
-     * @param {string} scaleType - Scale type (e.g. 'major', 'minor').
-     * @returns {string[]} Quantized note strings.
-     */
-    function quantizeNotes(baseNotes, root, scaleType) {
-        if (!scaleQuantizeToggle.checked) return baseNotes;
-        try {
-            const scaleName = `${root} ${scaleType}`;
-            const scale = Tonal.Scale.get(scaleName);
-            const scalePitchClasses = scale.notes;
-            const chromaticPitches = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
-
-            // Generate a wide range of notes (C2 to C7)
-            const chromaticRange = [];
-            for (let octave = 2; octave < 7; octave++) {
-                for (const note of chromaticPitches) {
-                    chromaticRange.push(`${note}${octave}`);
-                }
-            }
-
-            const scaleNotes = chromaticRange.filter(note => {
-                if (Tonal && Tonal.Note && Tonal.Note.pitchClass) {
-                    return scalePitchClasses.includes(Tonal.Note.pitchClass(note));
-                }
-                const noteName = note.replace(/\d+$/, '');
-                return scalePitchClasses.some(sc => {
-                    return noteName === sc || (noteName.length === 1 && sc.startsWith(noteName));
-                });
-            });
-
-            const quantizedNotes = baseNotes.map(note => {
-                try {
-                    const noteMidi = Tonal.Note.midi(note);
-                    if (noteMidi === undefined) return note;
-                    const closestMidi = scaleNotes.map(Tonal.Note.midi).reduce((prev, curr) => {
-                        return (Math.abs(curr - noteMidi) < Math.abs(prev - noteMidi) ? curr : prev);
-                    });
-                    return Tonal.Note.fromMidi(closestMidi);
-                } catch (e) {
-                    return note;
-                }
-            });
-
-            return quantizedNotes;
-        } catch (e) {
-            console.warn("Scale quantize failed, returning original notes.", e);
-            return baseNotes;
-        }
-    }
-
-    /**
      * Announces a message to screen readers using the visually hidden aria-live region.
      * @param {string} message - The message text to announce.
      * @returns {void}
