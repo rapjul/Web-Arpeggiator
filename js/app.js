@@ -1000,33 +1000,50 @@ function initializeApp() {
     }
 
     /**
+     * The set of URL parameter keys that represent recognized preset fields.
+     * The `pwa` key is intentionally omitted — it is a dev-only flag used by the
+     * service worker and should never trigger a preset load.
+     * @type {ReadonlySet<string>}
+     */
+    const PRESET_URL_KEYS = new Set([
+        'bpm', 'swing', 'gain',
+        'notes', 'dir', 'int', 'quant', 'root', 'scale',
+        'synth', 'wave', 'harm', 'mod', 'duty', 'gate',
+        'shift', 'range',
+        'attack', 'decay', 'sustain', 'release',
+        'cutoff', 'res',
+        'delay', 'reverb', 'loop',
+    ]);
+
+    /**
      * Parses the current URL search parameters, validates each value against strict boundaries,
      * and loads them into the application via loadAllSettings.
+     *
+     * The toast notification is only shown when at least one recognized preset parameter was
+     * found, validated successfully, AND its value actually differs from the current setting.
      * @returns {void}
      */
     function loadPresetFromUrl() {
         const params = new URLSearchParams(window.location.search);
-        if ([...params.keys()].length === 0) return;
 
-        const settings = getAllSettings(); // start with current as fallback default
+        // Bail out immediately when no recognized preset key is present in the URL.
+        // This also silently ignores unknown/dev parameters like `?pwa=true`.
+        if (![...params.keys()].some(k => PRESET_URL_KEYS.has(k))) return;
 
-        // 1. notes
-        if (params.has('notes')) {
-            const rawNotes = params.get('notes');
-            const notesRegex = /^[A-G][b#]?[0-9](\s+[A-G][b#]?[0-9])*$/;
-            if (notesRegex.test(rawNotes)) {
-                settings.baseNotes = rawNotes.split(/\s+/).filter(Boolean);
-            }
-        }
+        /** The current application settings, used both as the fallback default and for change-detection. */
+        const current = getAllSettings();
 
-        // Helper to parse clamp integers
+        // A working copy of the settings object that will be mutated as URL params are applied.
+        // Only fields that pass validation get overwritten.
+        const settings = getAllSettings();
+
         /**
-         * Parses and clamps an integer value.
-         * @param {string} val - String value.
-         * @param {number} min - Minimum limit.
-         * @param {number} max - Maximum limit.
-         * @param {number} fallback - Fallback default.
-         * @returns {number} The validated integer.
+         * Helper to parse and clamp an integer value.
+         * @param {string} val - Raw string value from the URL.
+         * @param {number} min - Inclusive minimum.
+         * @param {number} max - Inclusive maximum.
+         * @param {number} fallback - Value to return when parsing fails.
+         * @returns {number} The validated, clamped integer.
          */
         const clampInt = (val, min, max, fallback) => {
             const parsed = parseInt(val, 10);
@@ -1034,20 +1051,28 @@ function initializeApp() {
             return Math.min(Math.max(parsed, min), max);
         };
 
-        // Helper to parse clamp floats
         /**
-         * Parses and clamps a float value.
-         * @param {string} val - String value.
-         * @param {number} min - Minimum limit.
-         * @param {number} max - Maximum limit.
-         * @param {number} fallback - Fallback default.
-         * @returns {number} The validated float.
+         * Helper to parse and clamp a float value.
+         * @param {string} val - Raw string value from the URL.
+         * @param {number} min - Inclusive minimum.
+         * @param {number} max - Inclusive maximum.
+         * @param {number} fallback - Value to return when parsing fails.
+         * @returns {number} The validated, clamped float.
          */
         const clampFloat = (val, min, max, fallback) => {
             const parsed = parseFloat(val);
             if (isNaN(parsed)) return fallback;
             return Math.min(Math.max(parsed, min), max);
         };
+
+        // notes
+        if (params.has('notes')) {
+            const rawNotes = params.get('notes');
+            const notesRegex = /^[A-G][b#]?[0-9](\s+[A-G][b#]?[0-9])*$/;
+            if (notesRegex.test(rawNotes)) {
+                settings.baseNotes = rawNotes.split(/\s+/).filter(Boolean);
+            }
+        }
 
         if (params.has('bpm')) settings.bpm = clampInt(params.get('bpm'), 40, 240, settings.bpm);
         if (params.has('swing')) settings.swing = clampFloat(params.get('swing'), 0.0, 1.0, settings.swing);
@@ -1061,18 +1086,14 @@ function initializeApp() {
                 'randomWalk', 'randomWalkDrunk'
             ];
             const dir = params.get('dir');
-            if (allowedDirs.includes(dir)) {
-                settings.direction = dir;
-            }
+            if (allowedDirs.includes(dir)) settings.direction = dir;
         }
 
         // int
         if (params.has('int')) {
             const allowedInts = ['64n', '32n', '16n', '8n', '4n', '2n'];
             const interval = params.get('int');
-            if (allowedInts.includes(interval)) {
-                settings.interval = interval;
-            }
+            if (allowedInts.includes(interval)) settings.interval = interval;
         }
 
         // quant
@@ -1084,9 +1105,7 @@ function initializeApp() {
         if (params.has('root')) {
             const allowedRoots = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
             const root = params.get('root');
-            if (allowedRoots.includes(root)) {
-                settings.scaleRoot = root;
-            }
+            if (allowedRoots.includes(root)) settings.scaleRoot = root;
         }
 
         // scale
@@ -1096,27 +1115,21 @@ function initializeApp() {
                 'phrygian', 'lydian', 'mixolydian', 'locrian', 'blues', 'chromatic'
             ];
             const scale = params.get('scale');
-            if (allowedScales.includes(scale)) {
-                settings.scaleType = scale;
-            }
+            if (allowedScales.includes(scale)) settings.scaleType = scale;
         }
 
         // synth
         if (params.has('synth')) {
             const allowedSynths = ['synth', 'fmSynth', 'amSynth'];
             const synth = params.get('synth');
-            if (allowedSynths.includes(synth)) {
-                settings.synthType = synth;
-            }
+            if (allowedSynths.includes(synth)) settings.synthType = synth;
         }
 
         // wave
         if (params.has('wave')) {
             const allowedWaves = ['sine', 'square', 'sawtooth', 'triangle', 'pulse'];
             const wave = params.get('wave');
-            if (allowedWaves.includes(wave)) {
-                settings.waveform = wave;
-            }
+            if (allowedWaves.includes(wave)) settings.waveform = wave;
         }
 
         if (params.has('harm')) settings.harmonicity = clampFloat(params.get('harm'), 0.5, 10.0, settings.harmonicity);
@@ -1134,6 +1147,45 @@ function initializeApp() {
         if (params.has('delay')) settings.delayMix = clampFloat(params.get('delay'), 0.0, 1.0, settings.delayMix);
         if (params.has('reverb')) settings.reverbMix = clampFloat(params.get('reverb'), 0.0, 1.0, settings.reverbMix);
         if (params.has('loop')) settings.loopCount = clampInt(params.get('loop'), 1, 100, settings.loopCount);
+
+        /**
+         * Compares the mutated settings object against the snapshot taken before parsing.
+         * For numeric fields a small epsilon (1e-9) is used to avoid floating-point false-positives.
+         * The baseNotes array is compared as a space-joined string.
+         * @returns {boolean} True when at least one setting value has actually changed.
+         */
+        const hasChanges = () => {
+            const eps = 1e-9;
+            if (settings.baseNotes.join(' ') !== current.baseNotes.join(' ')) return true;
+            if (settings.direction !== current.direction) return true;
+            if (settings.interval !== current.interval) return true;
+            if (settings.synthType !== current.synthType) return true;
+            if (settings.waveform !== current.waveform) return true;
+            if (settings.scaleRoot !== current.scaleRoot) return true;
+            if (settings.scaleType !== current.scaleType) return true;
+            if (settings.scaleQuantize !== current.scaleQuantize) return true;
+            if (Math.abs(settings.bpm - current.bpm) > eps) return true;
+            if (Math.abs(settings.swing - current.swing) > eps) return true;
+            if (Math.abs(settings.postGain - current.postGain) > eps) return true;
+            if (Math.abs(settings.harmonicity - current.harmonicity) > eps) return true;
+            if (Math.abs(settings.modulationIndex - current.modulationIndex) > eps) return true;
+            if (Math.abs(settings.dutyCycle - current.dutyCycle) > eps) return true;
+            if (Math.abs(settings.gateRatio - current.gateRatio) > eps) return true;
+            if (settings.octaveShift !== current.octaveShift) return true;
+            if (settings.octaveRange !== current.octaveRange) return true;
+            if (Math.abs(settings.envAttack - current.envAttack) > eps) return true;
+            if (Math.abs(settings.envDecay - current.envDecay) > eps) return true;
+            if (Math.abs(settings.envSustain - current.envSustain) > eps) return true;
+            if (Math.abs(settings.envRelease - current.envRelease) > eps) return true;
+            if (Math.abs(settings.filterCutoff - current.filterCutoff) > eps) return true;
+            if (Math.abs(settings.filterResonance - current.filterResonance) > eps) return true;
+            if (Math.abs(settings.delayMix - current.delayMix) > eps) return true;
+            if (Math.abs(settings.reverbMix - current.reverbMix) > eps) return true;
+            if (settings.loopCount !== current.loopCount) return true;
+            return false;
+        };
+
+        if (!hasChanges()) return;
 
         loadAllSettings(settings);
         showToast('Preset loaded from URL link!', 'success');
@@ -1386,7 +1438,7 @@ function initializeApp() {
      * @type {Function}
      */
     const debouncedSetHarmonicity = debounce((val) => {
-        if (audioEngine.activeSynth && audioEngine.activeSynth.harmonicity) {
+        if (audioEngine.activeSynth && 'harmonicity' in audioEngine.activeSynth) {
             audioEngine.activeSynth.harmonicity.value = val;
         }
     }, 16);
@@ -1396,7 +1448,7 @@ function initializeApp() {
      * @type {Function}
      */
     const debouncedSetModIndex = debounce((val) => {
-        if (audioEngine.activeSynth && audioEngine.activeSynth.modulationIndex) {
+        if (audioEngine.activeSynth && 'modulationIndex' in audioEngine.activeSynth) {
             audioEngine.activeSynth.modulationIndex.value = val;
         }
     }, 16);
