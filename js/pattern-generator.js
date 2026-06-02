@@ -314,11 +314,25 @@ export function createOrUpdatePattern() {
         // Create Tone.Pattern with direction mapping (use Tone.Pattern for sequences)
         const patternInstance = new Tone.Pattern((time, note) => {
             const synth = window.activeSynth || null;
-            if (synth && synth.triggerAttackRelease) {
+            if (synth) {
                 try {
-                    synth.triggerAttackRelease(note, durationSeconds, time);
+                    // Split triggerAttackRelease into separate calls referencing 'time' to satisfy Tone.js timing requirements
+                    // and prevent "Events scheduled inside of scheduled callbacks should use the passed in scheduling time" warnings.
+                    if (typeof synth.triggerAttack === 'function' && typeof synth.triggerRelease === 'function') {
+                        synth.triggerAttack(note, time);
+                        synth.triggerRelease(time + durationSeconds);
+                    } else if (typeof synth.triggerAttackRelease === 'function') {
+                        synth.triggerAttackRelease(note, durationSeconds, time);
+                    }
                 } catch (e) {
-                    try { synth.triggerAttackRelease(note, durationSeconds); } catch (_) { }
+                    try {
+                        if (typeof synth.triggerAttack === 'function' && typeof synth.triggerRelease === 'function') {
+                            synth.triggerAttack(note);
+                            synth.triggerRelease(`+${durationSeconds}`);
+                        } else if (typeof synth.triggerAttackRelease === 'function') {
+                            synth.triggerAttackRelease(note, durationSeconds);
+                        }
+                    } catch (_) { }
                 }
             }
 

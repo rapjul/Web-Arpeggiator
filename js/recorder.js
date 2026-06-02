@@ -352,7 +352,13 @@ export function createRecorderManager(context) {
 
                 const offlinePattern = new Tone.Pattern(
                     (time, note) => {
-                        offlineSynth.triggerAttackRelease(note, gateLength, time);
+                        // Split triggerAttackRelease to ensure exact scheduling reference time is used
+                        if (typeof offlineSynth.triggerAttack === 'function' && typeof offlineSynth.triggerRelease === 'function') {
+                            offlineSynth.triggerAttack(note, time);
+                            offlineSynth.triggerRelease(time + gateLength);
+                        } else {
+                            offlineSynth.triggerAttackRelease(note, gateLength, time);
+                        }
                     },
                     patternNotes,
                     patternType
