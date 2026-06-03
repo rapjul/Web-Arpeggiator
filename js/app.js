@@ -2010,6 +2010,7 @@ function initializeApp() {
 
     window.__WEB_ARP_TEST__ = window.__WEB_ARP_TEST__ || {};
     Object.assign(window.__WEB_ARP_TEST__, {
+        Tone,
         getCurrentSettings: () => getAllSettings(),
 
         savePreset: async (settings = null, metadata = {}) => {
