@@ -1,0 +1,24 @@
+# Dependabot configuration file.
+#
+# Please see the documentation for all configuration options:
+# https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+
+version: 2
+updates:
+  # Maintain dependencies in package.json using Bun
+  - package-ecosystem: "bun"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    # Delay updates to reduce noise and allow time to check for community issues
+    cooldown:
+      default-days: 2
+
+  # Keep GitHub Actions workflows up to date
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    # Delay action updates as well
+    cooldown:
+      default-days: 2
