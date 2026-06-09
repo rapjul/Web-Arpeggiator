@@ -7,7 +7,7 @@
       "dependencies": {
         "@breezystack/lamejs": "^1.2.7",
         "tonal": "^6.4.2",
-        "tone": "^14.8.49",
+        "tone": "^15.1.22",
       },
       "devDependencies": {
         "@tailwindcss/vite": "^4.0.0",
@@ -855,7 +855,7 @@
 
     "tonal": ["tonal@6.4.3", "", { "dependencies": { "@tonaljs/abc-notation": "4.9.1", "@tonaljs/array": "4.8.4", "@tonaljs/chord": "6.1.2", "@tonaljs/chord-type": "5.1.1", "@tonaljs/collection": "4.9.0", "@tonaljs/core": "5.0.2", "@tonaljs/duration-value": "4.9.0", "@tonaljs/interval": "5.1.0", "@tonaljs/key": "4.11.2", "@tonaljs/midi": "4.10.2", "@tonaljs/mode": "4.9.2", "@tonaljs/note": "4.12.1", "@tonaljs/pcset": "4.10.1", "@tonaljs/progression": "4.9.2", "@tonaljs/range": "4.9.2", "@tonaljs/rhythm-pattern": "1.0.0", "@tonaljs/roman-numeral": "4.9.1", "@tonaljs/scale": "4.13.4", "@tonaljs/scale-type": "4.9.2", "@tonaljs/time-signature": "4.9.0", "@tonaljs/voice-leading": "5.1.2", "@tonaljs/voicing": "5.1.3", "@tonaljs/voicing-dictionary": "5.1.3" } }, "sha512-p+0kwBBma3Ko2xtHVq8oYa+IAGRozkAkBk03swRvcEfxYa8Ktr0yrBYW1fsZlywaerEu346oebghrS8jDQmBsA=="],
 
-    "tone": ["tone@14.9.17", "", { "dependencies": { "standardized-audio-context": "^25.3.70", "tslib": "^2.3.1" } }, "sha512-+Qb7M4NMua+tb5Z52+MEVmjye0fjJuIFBePx423pqr9E6/lHDqZAG+fUAvo+Ujm48q0s9bVLRAyT1ETJJglNtg=="],
+    "tone": ["tone@15.1.22", "", { "dependencies": { "standardized-audio-context": "^25.3.70", "tslib": "^2.3.1" } }, "sha512-TCScAGD4sLsama5DjvTUXlLDXSqPealhL64nsdV1hhr6frPWve0DeSo63AKnSJwgfg55fhvxj0iPPRwPN5o0ag=="],
 
     "tr46": ["tr46@1.0.1", "", { "dependencies": { "punycode": "^2.1.0" } }, "sha512-dTpowEjclQ7Kgx5SdBkqRzVhERQXov8/l9Ft9dVM9fmg0W0KQSVaXX9T4i6twCPNtYiZM53lpSSUAwJbFPOHxA=="],
 
