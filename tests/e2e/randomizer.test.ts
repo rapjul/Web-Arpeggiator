@@ -1,6 +1,6 @@
 import { test, expect, beforeAll, afterAll } from "bun:test";
-import { spawn, type Subprocess } from "bun";
-import { startTestServer, runBrowser, waitForPwaReady, initializeAudio, resetBrowserState, cleanupProcesses } from "./test-helpers";
+import { type Subprocess } from "bun";
+import { startTestServer, runBrowser, waitForPwaReady, initializeAudio, resetBrowserState, cleanupProcesses, closeBrowser } from "../test-helpers";
 
 /**
  * References the background server process.
@@ -21,16 +21,12 @@ const PORT: number = 4178;
 const APP_URL: string = `http://127.0.0.1:${PORT}/index.html`;
 
 beforeAll(async (): Promise<void> => {
-    // Clean up any stale browser processes from previous runs to release connection locks
-    await spawn(["pkill", "-9", "-f", "agent-browser-chrome"]).exited;
-    await spawn(["pkill", "-9", "-f", "agent-browser"]).exited;
     serverProcess = await startTestServer(PORT);
 });
 
 afterAll(async (): Promise<void> => {
+    await closeBrowser();
     cleanupProcesses();
-    await spawn(["pkill", "-9", "-f", "agent-browser-chrome"]).exited;
-    await spawn(["pkill", "-9", "-f", "agent-browser"]).exited;
 });
 
 test("Randomize Notes Integration Suite", async (): Promise<void> => {

@@ -11,7 +11,9 @@
     "preview:pwa": "bun run build && bun run preview",
     "test:unit": "bun test tests/unit",
     "test:coverage": "bun test --coverage tests/unit",
-    "test": "bun run test:unit"
+    "test:e2e": "bun run build && bun test --timeout 60000 tests/e2e",
+    "test": "bun run test:unit",
+    "test:all": "bun run test:unit && bun run test:e2e"
   },
   "dependencies": {
     "@breezystack/lamejs": "^1.2.7",

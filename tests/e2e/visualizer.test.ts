@@ -1,6 +1,6 @@
 import { test, expect, beforeAll, afterAll } from "bun:test";
-import { spawn, type Subprocess } from "bun";
-import { startTestServer, runBrowser, waitForPwaReady, initializeAudio, resetBrowserState, cleanupProcesses } from "./test-helpers";
+import { type Subprocess } from "bun";
+import { startTestServer, runBrowser, waitForPwaReady, initializeAudio, resetBrowserState, cleanupProcesses, closeBrowser } from "../test-helpers";
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 
@@ -29,17 +29,13 @@ const APP_URL: string = `http://127.0.0.1:${PORT}/index.html`;
 const SNAPSHOTS_DIR: string = join(import.meta.dir, "visualizer-snapshots");
 
 beforeAll(async (): Promise<void> => {
-    // Clean up any stale browser processes from previous runs to release connection locks
-    await spawn(["pkill", "-9", "-f", "agent-browser-chrome"]).exited;
-    await spawn(["pkill", "-9", "-f", "agent-browser"]).exited;
     await mkdir(SNAPSHOTS_DIR, { recursive: true });
     serverProcess = await startTestServer(PORT);
 });
 
 afterAll(async (): Promise<void> => {
+    await closeBrowser();
     cleanupProcesses();
-    await spawn(["pkill", "-9", "-f", "agent-browser-chrome"]).exited;
-    await spawn(["pkill", "-9", "-f", "agent-browser"]).exited;
 });
 
 /**

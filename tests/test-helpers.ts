@@ -57,6 +57,19 @@ export async function runBrowser(args: string[]): Promise<string> {
 }
 
 /**
+ * Gracefully closes the agent-browser instance for the current test.
+ *
+ * @returns {Promise<void>}
+ */
+export async function closeBrowser(): Promise<void> {
+    try {
+        await runBrowser(["close"]);
+    } catch (_) {
+        // Ignore if browser is already closed
+    }
+}
+
+/**
  * Forcefully kills all currently active background processes spawned by the helpers.
  *
  * @returns {void}
