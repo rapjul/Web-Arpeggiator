@@ -9,7 +9,9 @@
     "build": "vite build",
     "preview": "vite preview",
     "preview:pwa": "bun run build && bun run preview",
-    "test": "bun run build && bun test"
+    "test:unit": "bun test tests/unit",
+    "test:coverage": "bun test --coverage tests/unit",
+    "test": "bun run test:unit"
   },
   "dependencies": {
     "@breezystack/lamejs": "^1.2.7",
