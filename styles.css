@@ -47,14 +47,14 @@ input[type="range"]::-moz-range-thumb {
 }
 
 /* Custom style for recording button */
-.recording {
-  background-color: #DC2626 !important;
+#record-button.recording {
+  background-color: #DC2626;
   /* bg-red-600 */
   animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
-.recording:hover {
-  background-color: #B91C1C !important;
+#record-button.recording:hover {
+  background-color: #B91C1C;
   /* bg-red-700 */
 }
 
@@ -387,22 +387,22 @@ button:disabled {
 
 /* Ensure white key labels have maximum contrast (dark text) at all times, even when disabled */
 .key-white .key-label {
-  color: #1a1a1a !important;
-  -webkit-text-fill-color: #1a1a1a !important;
-  font-weight: 800 !important;
-  opacity: 1 !important;
+  color: #1a1a1a;
+  -webkit-text-fill-color: #1a1a1a;
+  font-weight: 800;
+  opacity: 1;
 }
 
 /* Ensure black key labels have maximum contrast (light text) at all times, even when disabled */
 .key-black .key-label {
-  color: #ffffff !important;
-  -webkit-text-fill-color: #ffffff !important;
-  font-weight: 800 !important;
-  opacity: 1 !important;
+  color: #ffffff;
+  -webkit-text-fill-color: #ffffff;
+  font-weight: 800;
+  opacity: 1;
 }
 
 .piano-key:disabled {
-  opacity: 1 !important;
+  opacity: 1;
   cursor: default;
 }
 
@@ -564,12 +564,12 @@ details > summary:focus-visible {
 .key-black:focus-visible {
   outline: 2px solid #38BDF8;
   outline-offset: -2px;
-  z-index: 15 !important;
+  z-index: 15;
 }
 
 .key-white:focus-visible {
-  outline: none !important;
-  z-index: 5 !important;
+  outline: none;
+  z-index: 5;
 }
 
 .key-white:focus-visible .key-bg-path {
