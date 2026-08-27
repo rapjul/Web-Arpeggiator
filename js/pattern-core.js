@@ -466,7 +466,10 @@ export function calculateNoteMarkers(settings) {
             }
         });
     } else if (direction === "octaveCyclePingPong") {
-        baseNotes.forEach((baseNote) => {
+        const cycleBaseNotes = scaleQuantize
+            ? quantizeToScale(baseNotes, scaleRoot, scaleType)
+            : baseNotes;
+        cycleBaseNotes.forEach((baseNote) => {
             const parsed = Tonal.Note.get(baseNote);
             if (!parsed || parsed.midi === undefined) return;
             for (let oct = 0; oct < 3; oct++) {
