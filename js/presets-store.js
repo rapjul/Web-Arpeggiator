@@ -37,7 +37,7 @@
         return new Promise((resolve, reject) => {
             request.addEventListener("success", () => resolve(request.result));
             request.addEventListener("error", () =>
-                reject(request.error || new Error("IndexedDB request failed"))
+                reject(request.error || new Error("IndexedDB request failed")),
             );
         });
     }
@@ -52,10 +52,10 @@
         return new Promise((resolve, reject) => {
             transaction.addEventListener("complete", () => resolve());
             transaction.addEventListener("error", () =>
-                reject(transaction.error || new Error("IndexedDB transaction failed"))
+                reject(transaction.error || new Error("IndexedDB transaction failed")),
             );
             transaction.addEventListener("abort", () =>
-                reject(transaction.error || new Error("IndexedDB transaction aborted"))
+                reject(transaction.error || new Error("IndexedDB transaction aborted")),
             );
         });
     }
@@ -78,16 +78,16 @@
                     const database = request.result;
                     if (!database.objectStoreNames.contains(STORE_NAME)) {
                         const store = database.createObjectStore(STORE_NAME, {
-                            keyPath: "id"
+                            keyPath: "id",
                         });
                         store.createIndex("savedAt", "savedAt", {
-                            unique: false
+                            unique: false,
                         });
                     }
 
                     if (!database.objectStoreNames.contains(LAST_SESSION_STORE_NAME)) {
                         database.createObjectStore(LAST_SESSION_STORE_NAME, {
-                            keyPath: "id"
+                            keyPath: "id",
                         });
                     }
                 });
@@ -122,7 +122,7 @@
             savedAt: now,
             filename: metadata.filename || null,
             source: metadata.source || "manual",
-            settings: settingsSnapshot
+            settings: settingsSnapshot,
         };
 
         const transaction = database.transaction(STORE_NAME, "readwrite");
@@ -179,7 +179,7 @@
         const records = await requestToPromise(request);
         await transactionToPromise(transaction);
         return records.sort((a, b) =>
-            String(b.savedAt || "").localeCompare(String(a.savedAt || ""))
+            String(b.savedAt || "").localeCompare(String(a.savedAt || "")),
         );
     }
 
@@ -220,7 +220,7 @@
         const record = {
             id: LAST_SESSION_ID,
             savedAt: new Date().toISOString(),
-            settings: settingsSnapshot
+            settings: settingsSnapshot,
         };
 
         const transaction = database.transaction(LAST_SESSION_STORE_NAME, "readwrite");
@@ -253,6 +253,6 @@
         clear,
         saveLastSession,
         loadLastSession,
-        dbName: DB_NAME
+        dbName: DB_NAME,
     };
 })();

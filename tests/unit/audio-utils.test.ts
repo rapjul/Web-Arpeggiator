@@ -46,7 +46,7 @@ describe("Audio Utils Domain Module", () => {
             view.getUint8(4),
             view.getUint8(5),
             view.getUint8(6),
-            view.getUint8(7)
+            view.getUint8(7),
         );
 
         expect(text).toBe("RIFFWAVE");
@@ -56,7 +56,7 @@ describe("Audio Utils Domain Module", () => {
         const mockAudioBuffer = {
             numberOfChannels: 1,
             sampleRate: 44100,
-            getChannelData: (ch: number) => new Float32Array([0.0, 0.5, -0.5, 0.0])
+            getChannelData: (ch: number) => new Float32Array([0.0, 0.5, -0.5, 0.0]),
         } as unknown as AudioBuffer;
 
         const wavBlob = audioBufferToWav(mockAudioBuffer);
@@ -71,13 +71,13 @@ describe("Audio Utils Domain Module", () => {
             view.getUint8(0),
             view.getUint8(1),
             view.getUint8(2),
-            view.getUint8(3)
+            view.getUint8(3),
         );
         const waveFormat = String.fromCharCode(
             view.getUint8(8),
             view.getUint8(9),
             view.getUint8(10),
-            view.getUint8(11)
+            view.getUint8(11),
         );
 
         expect(riffHeader).toBe("RIFF");

@@ -60,7 +60,7 @@ describe("Randomizer Domain Module", () => {
             minCount: 5,
             maxCount: 5,
             octaves: [4],
-            rng: mockRng
+            rng: mockRng,
         });
 
         expect(notes.length).toBe(5);

@@ -7,7 +7,7 @@
         cacheVersion: "dev",
         appShell: "./index.html",
         navigationFallback: "./index.html",
-        assets: []
+        assets: [],
     };
 
     const state = (window.__WEB_ARP_PWA_STATE__ = window.__WEB_ARP_PWA_STATE__ || {
@@ -15,7 +15,7 @@
         serviceWorkerRegistered: false,
         serviceWorkerUrl: null,
         serviceWorkerError: null,
-        hasWaitingWorker: false
+        hasWaitingWorker: false,
     });
 
     let registration = null;
@@ -58,7 +58,7 @@
                 }
                 if (unregisteredAny) {
                     console.log(
-                        "Development mode: Unregistered existing service workers. Reloading page."
+                        "Development mode: Unregistered existing service workers. Reloading page.",
                     );
                     // Force a reload to clear interceptors and establish normal dev server connection
                     location.reload();
@@ -74,7 +74,7 @@
         try {
             const swUrl = getServiceWorkerUrl();
             registration = await navigator.serviceWorker.register(swUrl, {
-                scope: "./"
+                scope: "./",
             });
             state.serviceWorkerRegistered = true;
             state.serviceWorkerUrl = swUrl;
@@ -95,7 +95,7 @@
                         state.hasWaitingWorker = Boolean(registration.waiting);
                         window.showToast(
                             "App cache updated. Reload to use the latest assets.",
-                            "info"
+                            "info",
                         );
                     }
                 });
@@ -266,7 +266,7 @@
             () => {
                 void registerServiceWorker();
             },
-            { once: true }
+            { once: true },
         );
     }
 
@@ -288,7 +288,7 @@
          *
          * @returns {object} Current PWA state snapshot.
          */
-        getState: () => ({ ...state })
+        getState: () => ({ ...state }),
     };
 
     // Test hooks intentionally mirror public helpers for headless browser checks.
@@ -303,7 +303,7 @@
         refreshServiceWorker,
         activateWaitingWorker,
         clearCaches,
-        listCaches
+        listCaches,
     });
 
     init();

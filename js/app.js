@@ -38,7 +38,7 @@ import { createRecorderManager } from "./recorder.js";
 import {
     createOrUpdatePattern as createOrUpdatePatternFromModule,
     getArpeggioNotes as getArpeggioNotesFromModule,
-    calculateNoteMarkers
+    calculateNoteMarkers,
 } from "./pattern-generator.js";
 import { audioBufferToMp3Blob, audioBufferToWav, downloadBlob } from "./audio-utils.js";
 import { createSettingsManager } from "./settings-manager.js";
@@ -47,7 +47,7 @@ import { generateRandomNotes } from "./randomizer.js";
 import {
     serializePresetToUrlParams,
     parsePresetFromUrlParams,
-    hasPresetChanges
+    hasPresetChanges,
 } from "./url-preset.js";
 import { createToastManager } from "./ui-feedback.js";
 
@@ -397,7 +397,7 @@ function initializeApp() {
         },
         set isAudioContextStarted(value) {
             isAudioContextStarted = value;
-        }
+        },
     };
 
     // --- Pattern Helpers ---
@@ -431,7 +431,7 @@ function initializeApp() {
     function getArpeggioNotes(baseNotes, range, shift) {
         return getArpeggioNotesFromModule(baseNotes, {
             octaveRange: range,
-            octaveShift: shift
+            octaveShift: shift,
         });
     }
 
@@ -536,7 +536,7 @@ function initializeApp() {
     function setSelectedPatternDirection(direction) {
         const nextDirection = direction || "up";
         let selectedButton = patternButtons.querySelector(
-            `.pattern-btn[data-pattern="${nextDirection}"]`
+            `.pattern-btn[data-pattern="${nextDirection}"]`,
         );
         if (!selectedButton) {
             selectedButton = patternButtons.querySelector('.pattern-btn[data-pattern="up"]');
@@ -602,7 +602,7 @@ function initializeApp() {
             const record = await window.WebArpPresetStore.saveLastSession(getAllSettings());
             updateTestState({
                 lastSessionId: record.id,
-                lastSessionSavedAt: record.savedAt
+                lastSessionSavedAt: record.savedAt,
             });
         } catch (error) {
             console.warn("Failed to save last session:", error);
@@ -671,12 +671,12 @@ function initializeApp() {
             envAttackSlider,
             envDecaySlider,
             envSustainSlider,
-            envReleaseSlider
+            envReleaseSlider,
         },
         actions: {
             syncPatternModuleState,
-            showToast: (msg, type) => showToast(msg, type)
-        }
+            showToast: (msg, type) => showToast(msg, type),
+        },
     });
     window.activeSynth = audioEngine.activeSynth;
     window.currentWaveform = audioEngine.currentWaveform;
@@ -694,7 +694,7 @@ function initializeApp() {
             visualizerZoomSlider,
             visualizerZoomValue,
             oscilloscopeWindowSelect,
-            oscilloscopeWindowContainer
+            oscilloscopeWindowContainer,
         },
         audio: { analyser: audioEngine.analyser },
         state: {
@@ -707,15 +707,15 @@ function initializeApp() {
             get isPlaying() {
                 return isPlaying;
             },
-            recordButton
+            recordButton,
         },
         actions: {
             formatTime:
                 formatTime ||
                 ((s) => {
                     return s;
-                })
-        }
+                }),
+        },
     });
 
     // 3. Settings Manager — serialization / restoration (no deps on recorder)
@@ -760,7 +760,7 @@ function initializeApp() {
             reverbMixValue,
             loopCountInput,
             octaveShiftButtons,
-            octaveRangeButtons
+            octaveRangeButtons,
         },
         actions: {
             getArpeggioNotes,
@@ -772,14 +772,14 @@ function initializeApp() {
             updateButtonGroup,
             syncPatternModuleState,
             createOrUpdatePattern,
-            showToast
+            showToast,
         },
         audio: {
             filter: audioEngine.filter,
             delay: audioEngine.delay,
             reverb: audioEngine.reverb,
-            postGain: audioEngine.postGain
-        }
+            postGain: audioEngine.postGain,
+        },
     });
 
     const { getAllSettings, loadAllSettings, generateFilename } = settingsManager;
@@ -791,8 +791,8 @@ function initializeApp() {
             keyboardVisual,
             keyboardToggle,
             keyboardToggleStatus,
-            keyboardDescription
-        }
+            keyboardDescription,
+        },
     });
     const { updateKeyboardControlUi } = keyboardControls;
 
@@ -801,7 +801,7 @@ function initializeApp() {
         audio: {
             reverb: audioEngine.reverb,
             synths: audioEngine.synths,
-            createOfflineChain: audioEngine.createOfflineChain
+            createOfflineChain: audioEngine.createOfflineChain,
         },
         dom: {
             recordButton,
@@ -818,7 +818,7 @@ function initializeApp() {
             envAttackSlider,
             envDecaySlider,
             envSustainSlider,
-            envReleaseSlider
+            envReleaseSlider,
         },
         state: {
             get isAudioContextStarted() {
@@ -826,7 +826,7 @@ function initializeApp() {
             },
             get isPlaying() {
                 return isPlaying;
-            }
+            },
         },
         actions: {
             showToast,
@@ -834,8 +834,8 @@ function initializeApp() {
             stopUiLoop: visualizer.stopUiLoop,
             getAllSettings,
             generateFilename,
-            formatTime
-        }
+            formatTime,
+        },
     });
 
     // ==================================================================
@@ -930,7 +930,7 @@ function initializeApp() {
     const toastManager = createToastManager({
         toastContainer,
         liveRegion: document.getElementById("sr-announcements"),
-        logger: log
+        logger: log,
     });
     const { showToast, announce } = toastManager;
 
@@ -1469,7 +1469,7 @@ function initializeApp() {
 
         if (source === "download") {
             const settingsBlob = new Blob([JSON.stringify(settings, null, 2)], {
-                type: "application/json"
+                type: "application/json",
             });
             downloadBlob(settingsBlob, filename);
         }
@@ -1477,7 +1477,7 @@ function initializeApp() {
         if (!window.WebArpPresetStore) {
             updateTestState({
                 lastSaveError: "Browser preset storage is unavailable.",
-                lastSaveFinished: true
+                lastSaveFinished: true,
             });
             return source === "download" ? "download-only-success" : "store-unavailable";
         }
@@ -1486,20 +1486,20 @@ function initializeApp() {
             const record = await window.WebArpPresetStore.save(settings, {
                 filename,
                 name: presetName,
-                source
+                source,
             });
             await refreshSavedPresetList(record.id);
             updateTestState({
                 lastSavedPreset: settings,
                 lastSavedPresetRecord: record,
-                lastSaveFinished: true
+                lastSaveFinished: true,
             });
             return "success";
         } catch (storeError) {
             console.warn("Failed to save preset to browser storage:", storeError);
             updateTestState({
                 lastSaveError: String(storeError),
-                lastSaveFinished: true
+                lastSaveFinished: true,
             });
             return source === "download" ? "download-only-fail" : "save-fail";
         }
@@ -1557,7 +1557,7 @@ function initializeApp() {
                         window.WebArpPresetStore.save(settings, {
                             filename: file.name,
                             name: file.name,
-                            source: "import"
+                            source: "import",
                         })
                             .then((record) => refreshSavedPresetList(record.id))
                             .catch((er) => console.warn("Failed to save imported preset:", er));
@@ -1580,7 +1580,7 @@ function initializeApp() {
             if (!window.WebArpPresetStore) {
                 updateTestState({
                     lastLoadError: "Browser preset storage is unavailable.",
-                    lastLoadFinished: true
+                    lastLoadFinished: true,
                 });
                 showToast("Browser preset storage is unavailable.", "error");
                 return;
@@ -1593,7 +1593,7 @@ function initializeApp() {
                 if (!record) {
                     updateTestState({
                         lastLoadedPreset: null,
-                        lastLoadFinished: true
+                        lastLoadFinished: true,
                     });
                     showToast("No saved preset found yet.", "info");
                     return;
@@ -1604,14 +1604,14 @@ function initializeApp() {
                 updateTestState({
                     lastLoadedPreset: record.settings || record,
                     lastLoadedPresetRecord: record,
-                    lastLoadFinished: true
+                    lastLoadFinished: true,
                 });
                 showToast("Loaded saved preset from browser storage.", "success");
             } catch (error) {
                 console.error("Failed to load saved preset:", error);
                 updateTestState({
                     lastLoadError: String(error),
-                    lastLoadFinished: true
+                    lastLoadFinished: true,
                 });
                 showToast("Failed to load saved preset.", "error");
             }
@@ -1625,7 +1625,7 @@ function initializeApp() {
             if (!window.WebArpPresetStore) {
                 updateTestState({
                     lastClearError: "Browser preset storage is unavailable.",
-                    lastClearFinished: true
+                    lastClearFinished: true,
                 });
                 showToast("Browser preset storage is unavailable.", "error");
                 return;
@@ -1639,7 +1639,7 @@ function initializeApp() {
                 console.error("Failed to clear saved presets:", error);
                 updateTestState({
                     lastClearError: String(error),
-                    lastClearFinished: true
+                    lastClearFinished: true,
                 });
                 showToast("Failed to clear saved presets.", "error");
             }
@@ -1653,7 +1653,7 @@ function initializeApp() {
             if (!window.WebArpPresetStore) {
                 updateTestState({
                     lastDeleteError: "Browser preset storage is unavailable.",
-                    lastDeleteFinished: true
+                    lastDeleteFinished: true,
                 });
                 showToast("Browser preset storage is unavailable.", "error");
                 return;
@@ -1662,7 +1662,7 @@ function initializeApp() {
             if (!selectedId) {
                 updateTestState({
                     lastDeleteError: "No saved preset selected.",
-                    lastDeleteFinished: true
+                    lastDeleteFinished: true,
                 });
                 showToast("No saved preset selected.", "info");
                 return;
@@ -1672,14 +1672,14 @@ function initializeApp() {
                 await refreshSavedPresetList();
                 updateTestState({
                     lastDeletedPresetId: selectedId,
-                    lastDeleteFinished: true
+                    lastDeleteFinished: true,
                 });
                 showToast("Deleted saved preset.", "success");
             } catch (error) {
                 console.error("Failed to delete saved preset:", error);
                 updateTestState({
                     lastDeleteError: String(error),
-                    lastDeleteFinished: true
+                    lastDeleteFinished: true,
                 });
                 showToast("Failed to delete saved preset.", "error");
             }
@@ -1775,7 +1775,7 @@ function initializeApp() {
         if (
             target &&
             target.closest(
-                ".pattern-btn, .waveform-btn, #octave-shift-buttons button, #octave-range-buttons button"
+                ".pattern-btn, .waveform-btn, #octave-shift-buttons button, #octave-range-buttons button",
             )
         ) {
             scheduleLastSessionSave();
@@ -1797,13 +1797,13 @@ function initializeApp() {
                 throw new Error("Browser preset storage is unavailable.");
             const record = await window.WebArpPresetStore.save(
                 settings || getAllSettings(),
-                metadata
+                metadata,
             );
             await refreshSavedPresetList(record.id);
             updateTestState({
                 lastSavedPreset: record.settings,
                 lastSavedPresetRecord: record,
-                lastSaveFinished: true
+                lastSaveFinished: true,
             });
             return record;
         },
@@ -1829,7 +1829,7 @@ function initializeApp() {
             if (!record) {
                 updateTestState({
                     lastLoadedPreset: null,
-                    lastLoadFinished: true
+                    lastLoadFinished: true,
                 });
                 return null;
             }
@@ -1838,7 +1838,7 @@ function initializeApp() {
             updateTestState({
                 lastLoadedPreset: record.settings || record,
                 lastLoadedPresetRecord: record,
-                lastLoadFinished: true
+                lastLoadFinished: true,
             });
             return record;
         },
@@ -1850,7 +1850,7 @@ function initializeApp() {
             await refreshSavedPresetList();
             updateTestState({
                 lastDeletedPresetId: id,
-                lastDeleteFinished: true
+                lastDeleteFinished: true,
             });
         },
 
@@ -1858,7 +1858,7 @@ function initializeApp() {
             if (!window.WebArpPresetStore) {
                 updateTestState({
                     lastClearError: "Browser preset storage is unavailable.",
-                    lastClearFinished: true
+                    lastClearFinished: true,
                 });
                 return;
             }
@@ -1884,7 +1884,7 @@ function initializeApp() {
                 await new Promise((resolve) => setTimeout(resolve, 250));
             }
             return !isPlaying;
-        }
+        },
     });
 
     // ==================================================================

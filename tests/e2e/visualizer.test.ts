@@ -7,7 +7,7 @@ import {
     initializeAudio,
     resetBrowserState,
     cleanupProcesses,
-    closeBrowser
+    closeBrowser,
 } from "../test-helpers";
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
@@ -61,7 +61,7 @@ async function scrollVisualizerIntoView(): Promise<void> {
             const det = container.closest('details');
             if (det) det.open = true;
         }
-    })()`
+    })()`,
     ]);
     await new Promise((resolve) => setTimeout(resolve, 500));
 
@@ -97,7 +97,7 @@ async function testVisualizerMode(mode: string): Promise<void> {
             zoomInput.dispatchEvent(new Event('input'));
             zoomInput.dispatchEvent(new Event('change'));
         }
-    })()`
+    })()`,
     ]);
     await new Promise((resolve) => setTimeout(resolve, 800));
     await runBrowser(["screenshot", join(SNAPSHOTS_DIR, `${mode}_1x.png`)]);
@@ -114,7 +114,7 @@ async function testVisualizerMode(mode: string): Promise<void> {
             zoomInput.dispatchEvent(new Event('input'));
             zoomInput.dispatchEvent(new Event('change'));
         }
-    })()`
+    })()`,
     ]);
     await new Promise((resolve) => setTimeout(resolve, 800));
     await runBrowser(["screenshot", join(SNAPSHOTS_DIR, `${mode}_4x.png`)]);
@@ -130,7 +130,7 @@ async function testVisualizerMode(mode: string): Promise<void> {
             zoomInput.dispatchEvent(new Event('input'));
             zoomInput.dispatchEvent(new Event('change'));
         }
-    })()`
+    })()`,
     ]);
     await new Promise((resolve) => setTimeout(resolve, 500));
 }
@@ -159,7 +159,7 @@ test("Canvas Visualizer Suite", async (): Promise<void> => {
             const det = toggleBtn.closest('details');
             if (det) det.open = true;
         }
-    })()`
+    })()`,
     ]);
     await new Promise((resolve) => setTimeout(resolve, 500));
 

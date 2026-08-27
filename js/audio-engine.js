@@ -79,19 +79,19 @@ export function createAudioEngine(context) {
     const delay = new Tone.FeedbackDelay({
         delayTime: "8n",
         feedback: 0.5,
-        wet: 0.2
+        wet: 0.2,
     }).connect(reverb);
     const filter = new Tone.Filter({
         type: "lowpass",
         frequency: 4000,
-        Q: 1
+        Q: 1,
     }).connect(delay);
 
     // --- Synthesizers ---
     const synths = {
         synth: new Tone.Synth({
             oscillator: { type: "sine" },
-            envelope: { attack: 0.01, decay: 0.1, sustain: 0.3, release: 0.5 }
+            envelope: { attack: 0.01, decay: 0.1, sustain: 0.3, release: 0.5 },
         }),
         fmSynth: new Tone.FMSynth({
             harmonicity: 3,
@@ -104,8 +104,8 @@ export function createAudioEngine(context) {
                 attack: 0.01,
                 decay: 0,
                 sustain: 1,
-                release: 0.5
-            }
+                release: 0.5,
+            },
         }),
         amSynth: new Tone.AMSynth({
             harmonicity: 3,
@@ -117,9 +117,9 @@ export function createAudioEngine(context) {
                 attack: 0.01,
                 decay: 0,
                 sustain: 1,
-                release: 0.5
-            }
-        })
+                release: 0.5,
+            },
+        }),
     };
 
     // Connect synths → filter (start of effects chain)
@@ -241,18 +241,18 @@ export function createAudioEngine(context) {
         // 2. Recreate Effects (reverb, delay, filter) connected to each other
         const offlineReverb = new Tone.Reverb({
             decay: 1.5,
-            wet: settings.reverbMix
+            wet: settings.reverbMix,
         });
         const offlineDelay = new Tone.FeedbackDelay({
             delayTime: "8n",
             feedback: 0.5,
-            wet: settings.delayMix
+            wet: settings.delayMix,
         }).connect(offlineReverb);
 
         const offlineFilter = new Tone.Filter({
             type: "lowpass",
             frequency: settings.filterCutoff,
-            Q: settings.filterResonance
+            Q: settings.filterResonance,
         }).connect(offlineDelay);
 
         // 3. Recreate Synth based on type (Basic, FM, or AM Synth) using base configurations
@@ -311,6 +311,6 @@ export function createAudioEngine(context) {
         setSynth,
         updateEnvelope,
         getSynthConfig,
-        createOfflineChain
+        createOfflineChain,
     };
 }

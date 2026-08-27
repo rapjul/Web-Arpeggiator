@@ -23,7 +23,7 @@ export function createToastManager(context = {}) {
         liveRegion = typeof document !== "undefined"
             ? document.getElementById("sr-announcements")
             : null,
-        logger = () => {}
+        logger = () => {},
     } = context;
 
     /**
@@ -82,6 +82,6 @@ export function createToastManager(context = {}) {
 
     return {
         showToast,
-        announce
+        announce,
     };
 }

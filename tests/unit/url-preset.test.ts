@@ -6,7 +6,7 @@ import {
     clampInt,
     clampFloat,
     PRESET_URL_KEYS,
-    NOTES_REGEX
+    NOTES_REGEX,
 } from "../../js/url-preset.js";
 
 describe("URL Preset Domain Module", () => {
@@ -36,7 +36,7 @@ describe("URL Preset Domain Module", () => {
         filterResonance: 1.0,
         delayMix: 0.2,
         reverbMix: 0.3,
-        loopCount: 2
+        loopCount: 2,
     };
 
     test("clampInt correctly clamps values between bounds and handles invalid inputs", () => {
@@ -115,8 +115,8 @@ describe("URL Preset Domain Module", () => {
         expect(
             hasPresetChanges(defaultSettings, {
                 ...defaultSettings,
-                baseNotes: ["D4", "F4"]
-            })
+                baseNotes: ["D4", "F4"],
+            }),
         ).toBe(true);
 
         // BPM change
@@ -126,16 +126,16 @@ describe("URL Preset Domain Module", () => {
         expect(
             hasPresetChanges(defaultSettings, {
                 ...defaultSettings,
-                swing: 0.00000000001
-            })
+                swing: 0.00000000001,
+            }),
         ).toBe(false);
 
         // Waveform change
         expect(
             hasPresetChanges(defaultSettings, {
                 ...defaultSettings,
-                waveform: "square"
-            })
+                waveform: "square",
+            }),
         ).toBe(true);
     });
 });

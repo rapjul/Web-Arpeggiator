@@ -38,8 +38,8 @@ export const PRESET_URL_KEYS = Object.freeze(
         "res",
         "delay",
         "reverb",
-        "loop"
-    ])
+        "loop",
+    ]),
 );
 
 /**
@@ -58,7 +58,7 @@ export const ALLOWED_DIRECTIONS = Object.freeze([
     "octaveCycleReverse",
     "octaveCyclePingPong",
     "randomWalk",
-    "randomWalkDrunk"
+    "randomWalkDrunk",
 ]);
 
 /**
@@ -83,7 +83,7 @@ export const ALLOWED_ROOTS = Object.freeze([
     "G#",
     "A",
     "A#",
-    "B"
+    "B",
 ]);
 
 /**
@@ -101,7 +101,7 @@ export const ALLOWED_SCALES = Object.freeze([
     "mixolydian",
     "locrian",
     "blues",
-    "chromatic"
+    "chromatic",
 ]);
 
 /**
@@ -278,7 +278,7 @@ export function parsePresetFromUrlParams(searchParams, currentSettings) {
             params.get("mod"),
             1.0,
             50.0,
-            settings.modulationIndex
+            settings.modulationIndex,
         );
     if (params.has("duty"))
         settings.dutyCycle = clampFloat(params.get("duty"), 0.01, 0.99, settings.dutyCycle);
@@ -301,14 +301,14 @@ export function parsePresetFromUrlParams(searchParams, currentSettings) {
             params.get("cutoff"),
             100.0,
             10000.0,
-            settings.filterCutoff
+            settings.filterCutoff,
         );
     if (params.has("res"))
         settings.filterResonance = clampFloat(
             params.get("res"),
             0.0,
             20.0,
-            settings.filterResonance
+            settings.filterResonance,
         );
     if (params.has("delay"))
         settings.delayMix = clampFloat(params.get("delay"), 0.0, 1.0, settings.delayMix);

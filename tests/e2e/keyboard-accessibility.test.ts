@@ -6,7 +6,7 @@ import {
     waitForPwaReady,
     resetBrowserState,
     cleanupProcesses,
-    closeBrowser
+    closeBrowser,
 } from "../test-helpers";
 
 /**
@@ -102,7 +102,7 @@ test("UI Keyboard Arrow Accessibility Navigation Suite", async (): Promise<void>
         }
         
         return 'success';
-    })()`
+    })()`,
     ]);
     expect(patternA11yResult).toBe('"success"');
 
@@ -125,7 +125,7 @@ test("UI Keyboard Arrow Accessibility Navigation Suite", async (): Promise<void>
         }
         
         return 'success';
-    })()`
+    })()`,
     ]);
     expect(waveA11yResult).toBe('"success"');
 
@@ -148,7 +148,7 @@ test("UI Keyboard Arrow Accessibility Navigation Suite", async (): Promise<void>
         }
         
         return 'success';
-    })()`
+    })()`,
     ]);
     expect(shiftA11yResult).toBe('"success"');
 
@@ -171,7 +171,7 @@ test("UI Keyboard Arrow Accessibility Navigation Suite", async (): Promise<void>
         }
         
         return 'success';
-    })()`
+    })()`,
     ]);
     expect(rangeA11yResult).toBe('"success"');
 

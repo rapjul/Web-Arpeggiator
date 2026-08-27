@@ -7,7 +7,7 @@ import {
     initializeAudio,
     resetBrowserState,
     cleanupProcesses,
-    closeBrowser
+    closeBrowser,
 } from "../test-helpers";
 
 /**
@@ -71,7 +71,7 @@ test("Synthesizer & Audio Effects Chain Suite", async (): Promise<void> => {
             return 'incorrect-synth-type: ' + window.__WEB_ARP_TEST__.getCurrentSettings().synthType;
         }
         return 'success';
-    })()`
+    })()`,
     ]);
     expect(switchSynthResult).toBe('"success"');
 
@@ -99,7 +99,7 @@ test("Synthesizer & Audio Effects Chain Suite", async (): Promise<void> => {
             return 'incorrect-mod-index: ' + settings.modulationIndex;
         }
         return 'success';
-    })()`
+    })()`,
     ]);
     expect(synthesisResult).toBe('"success"');
 
@@ -130,7 +130,7 @@ test("Synthesizer & Audio Effects Chain Suite", async (): Promise<void> => {
             return 'release-mismatch: ' + window.activeSynth.envelope.release;
         }
         return 'success';
-    })()`
+    })()`,
     ]);
     expect(envelopeResult).toBe('"success"');
 
@@ -158,7 +158,7 @@ test("Synthesizer & Audio Effects Chain Suite", async (): Promise<void> => {
             return 'incorrect-delay-mix: ' + settings.delayMix;
         }
         return 'success';
-    })()`
+    })()`,
     ]);
     expect(filterDelayResult).toBe('"success"');
 

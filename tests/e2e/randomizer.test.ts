@@ -7,7 +7,7 @@ import {
     initializeAudio,
     resetBrowserState,
     cleanupProcesses,
-    closeBrowser
+    closeBrowser,
 } from "../test-helpers";
 
 /**
@@ -88,7 +88,7 @@ test("Randomize Notes Integration Suite", async (): Promise<void> => {
         }
 
         return 'success';
-    })()`
+    })()`,
     ]);
     expect(unquantizedResult).toBe('"success"');
 
@@ -142,7 +142,7 @@ test("Randomize Notes Integration Suite", async (): Promise<void> => {
         }
 
         return 'success';
-    })()`
+    })()`,
     ]);
     expect(quantizedResult).toBe('"success"');
 

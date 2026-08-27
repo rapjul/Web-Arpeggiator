@@ -6,7 +6,7 @@ import {
     waitForPwaReady,
     resetBrowserState,
     cleanupProcesses,
-    closeBrowser
+    closeBrowser,
 } from "../test-helpers";
 
 /**
@@ -73,7 +73,7 @@ test("Preset Sharing and Parameter Restoration Integration Suite", async (): Pro
         }
         
         return 'success';
-    })()`
+    })()`,
     ]);
     expect(serializationResult).toBe('"success"');
 
@@ -87,7 +87,7 @@ test("Preset Sharing and Parameter Restoration Integration Suite", async (): Pro
     await runBrowser([
         "wait",
         "--fn",
-        "window.__WEB_ARP_TEST__?.lastSessionRestoreFinished === true"
+        "window.__WEB_ARP_TEST__?.lastSessionRestoreFinished === true",
     ]);
 
     console.log("Clicking overlay to initialize AudioContext...");
@@ -122,7 +122,7 @@ test("Preset Sharing and Parameter Restoration Integration Suite", async (): Pro
         // Also check if Tone is defined on window before checking (which it isn't in Vite scoped build)
         // But the internal app state must have been updated.
         return 'success';
-    })()`
+    })()`,
     ]);
     expect(restorationResult).toBe('"success"');
 
@@ -136,7 +136,7 @@ test("Preset Sharing and Parameter Restoration Integration Suite", async (): Pro
     await runBrowser([
         "wait",
         "--fn",
-        "window.__WEB_ARP_TEST__?.lastSessionRestoreFinished === true"
+        "window.__WEB_ARP_TEST__?.lastSessionRestoreFinished === true",
     ]);
 
     console.log("Clicking overlay to initialize AudioContext...");
@@ -161,7 +161,7 @@ test("Preset Sharing and Parameter Restoration Integration Suite", async (): Pro
         }
         
         return 'success';
-    })()`
+    })()`,
     ]);
     expect(clampingResult).toBe('"success"');
 

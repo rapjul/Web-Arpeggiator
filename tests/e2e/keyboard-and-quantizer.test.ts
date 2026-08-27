@@ -7,7 +7,7 @@ import {
     initializeAudio,
     resetBrowserState,
     cleanupProcesses,
-    closeBrowser
+    closeBrowser,
 } from "../test-helpers";
 
 /**
@@ -85,7 +85,7 @@ test("Keyboard Controls & Scale Quantizer Suite", async (): Promise<void> => {
         }
 
         return 'success';
-    })()`
+    })()`,
     ]);
     expect(keyboardResult).toBe('"success"');
 
@@ -133,7 +133,7 @@ test("Keyboard Controls & Scale Quantizer Suite", async (): Promise<void> => {
         }
 
         return 'success';
-    })()`
+    })()`,
     ]);
     expect(quantizerResult).toBe('"success"');
 

@@ -7,7 +7,7 @@ import {
     initializeAudio,
     resetBrowserState,
     cleanupProcesses,
-    closeBrowser
+    closeBrowser,
 } from "../test-helpers";
 
 /**
@@ -68,7 +68,7 @@ test("Audio Recording, Exports, & Preset Management Suite", async (): Promise<vo
 
         // Trigger save
         savePresetButton.click();
-    })()`
+    })()`,
     ]);
 
     // Wait for the async IndexedDB save to finish
@@ -83,7 +83,7 @@ test("Audio Recording, Exports, & Preset Management Suite", async (): Promise<vo
             return 'not-saved';
         }
         return 'success';
-    })()`
+    })()`,
     ]);
     expect(checkPresetSaved).toBe('"success"');
 
@@ -104,7 +104,7 @@ test("Audio Recording, Exports, & Preset Management Suite", async (): Promise<vo
             return 'record-btn-missing-recording-class';
         }
         return 'success';
-    })()`
+    })()`,
     ]);
     expect(startRecordResult).toBe('"success"');
 
@@ -117,7 +117,7 @@ test("Audio Recording, Exports, & Preset Management Suite", async (): Promise<vo
         `(async () => {
         const recordBtn = document.getElementById('record-button');
         recordBtn.click();
-    })()`
+    })()`,
     ]);
     await new Promise((resolve) => setTimeout(resolve, 500));
 
@@ -130,7 +130,7 @@ test("Audio Recording, Exports, & Preset Management Suite", async (): Promise<vo
             return 'export-controls-hidden';
         }
         return 'success';
-    })()`
+    })()`,
     ]);
     expect(checkExportControls).toBe('"success"');
 
@@ -151,14 +151,14 @@ test("Audio Recording, Exports, & Preset Management Suite", async (): Promise<vo
 
         // Click offline render
         offlineBtn.click();
-    })()`
+    })()`,
     ]);
 
     // Wait for rendering to complete (status text changes to 'Offline export complete!')
     await runBrowser([
         "wait",
         "--fn",
-        "document.getElementById('offline-export-status')?.textContent.includes('Offline export complete!')"
+        "document.getElementById('offline-export-status')?.textContent.includes('Offline export complete!')",
     ]);
 
     console.log("Recording and Presets Integration Suite complete!");

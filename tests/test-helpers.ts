@@ -21,7 +21,7 @@ export async function startTestServer(port: number): Promise<Subprocess> {
         "--port",
         String(port),
         "--host",
-        "127.0.0.1"
+        "127.0.0.1",
     ]);
     activeProcesses.push(serverProcess);
 
@@ -51,7 +51,7 @@ export async function runBrowser(args: string[]): Promise<string> {
 
     if (exitCode !== 0) {
         throw new Error(
-            `agent-browser ${args.join(" ")} failed with exit code ${exitCode}. Output: ${output.trim()}`
+            `agent-browser ${args.join(" ")} failed with exit code ${exitCode}. Output: ${output.trim()}`,
         );
     }
 
@@ -109,7 +109,7 @@ export async function waitForPwaReady(url: string): Promise<void> {
     await runBrowser([
         "wait",
         "--fn",
-        "window.__WEB_ARP_PWA_STATE__?.serviceWorkerRegistered === true"
+        "window.__WEB_ARP_PWA_STATE__?.serviceWorkerRegistered === true",
     ]);
 
     console.log("  [PWA Ready] Waiting for SW controller not null...");
@@ -123,7 +123,7 @@ export async function waitForPwaReady(url: string): Promise<void> {
     await runBrowser([
         "wait",
         "--fn",
-        "navigator.serviceWorker?.controller !== null && document.getElementById('notes') !== null && window.__WEB_ARP_TEST__?.lastSessionRestoreFinished === true"
+        "navigator.serviceWorker?.controller !== null && document.getElementById('notes') !== null && window.__WEB_ARP_TEST__?.lastSessionRestoreFinished === true",
     ]);
     console.log("  [PWA Ready] Done!");
 }
@@ -144,7 +144,7 @@ export async function initializeAudio(): Promise<void> {
     await runBrowser(["eval", "document.querySelector('#post-gain').value = -12"]);
     await runBrowser([
         "eval",
-        "document.querySelector('#post-gain').dispatchEvent(new Event('input'))"
+        "document.querySelector('#post-gain').dispatchEvent(new Event('input'))",
     ]);
 
     // Start playback
@@ -152,7 +152,7 @@ export async function initializeAudio(): Promise<void> {
     await runBrowser([
         "wait",
         "--fn",
-        "document.getElementById('play-stop')?.textContent === 'Stop Audio'"
+        "document.getElementById('play-stop')?.textContent === 'Stop Audio'",
     ]);
 }
 
@@ -190,6 +190,6 @@ export async function resetBrowserState(): Promise<void> {
             };
             req.onerror = () => reject(req.error);
         })
-    `
+    `,
     ]);
 }

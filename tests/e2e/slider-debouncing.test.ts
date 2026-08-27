@@ -7,7 +7,7 @@ import {
     initializeAudio,
     resetBrowserState,
     cleanupProcesses,
-    closeBrowser
+    closeBrowser,
 } from "../test-helpers";
 
 /**
@@ -81,7 +81,7 @@ test("UI Slider Debouncing Verification Suite", async (): Promise<void> => {
         }
         
         return 'success';
-    })()`
+    })()`,
     ]);
     expect(filterDebounceResult).toBe('"success"');
 
@@ -119,7 +119,7 @@ test("UI Slider Debouncing Verification Suite", async (): Promise<void> => {
         }
         
         return 'success';
-    })()`
+    })()`,
     ]);
     expect(bpmDebounceResult).toBe('"success"');
 
@@ -153,7 +153,7 @@ test("UI Slider Debouncing Verification Suite", async (): Promise<void> => {
         }
         
         return 'success';
-    })()`
+    })()`,
     ]);
     expect(gateDebounceResult).toBe('"success"');
 

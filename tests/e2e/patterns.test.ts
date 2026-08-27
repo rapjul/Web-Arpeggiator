@@ -7,7 +7,7 @@ import {
     initializeAudio,
     resetBrowserState,
     cleanupProcesses,
-    closeBrowser
+    closeBrowser,
 } from "../test-helpers";
 
 /**
@@ -64,7 +64,7 @@ test("Arpeggiator Pattern Direction Verification Suite", async (): Promise<void>
         "octaveCycleReverse",
         "octaveCyclePingPong",
         "randomWalk",
-        "randomWalkDrunk"
+        "randomWalkDrunk",
     ];
 
     // 4. Sequentially trigger each pattern and verify the Tone.Pattern remains active
@@ -88,7 +88,7 @@ test("Arpeggiator Pattern Direction Verification Suite", async (): Promise<void>
                 return 'pattern-not-started: ' + window.arpPattern.state;
             }
             return 'success';
-        })()`
+        })()`,
         ]);
         expect(patternState).toBe('"success"');
     }

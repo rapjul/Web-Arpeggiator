@@ -19,7 +19,7 @@ export const DEFAULT_SCALE_FALLBACKS = Object.freeze([
     "majorPentatonic",
     "minorPentatonic",
     "dorian",
-    "mixolydian"
+    "mixolydian",
 ]);
 
 /**
@@ -46,7 +46,7 @@ export function generateRandomNotes(root, scaleType, options = {}) {
         minCount = 4,
         maxCount = 6,
         scaleFallbacks = DEFAULT_SCALE_FALLBACKS,
-        rng = Math.random
+        rng = Math.random,
     } = options;
 
     const effectiveRoot = root || "C";

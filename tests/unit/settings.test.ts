@@ -42,7 +42,7 @@ describe("Settings Manager Domain Module", () => {
             delayMixValue: {},
             reverbMixValue: {},
             octaveShiftButtons: {},
-            octaveRangeButtons: {}
+            octaveRangeButtons: {},
         };
 
         const mockState = {
@@ -50,7 +50,7 @@ describe("Settings Manager Domain Module", () => {
             currentOctaveShift: 1,
             currentOctaveRange: 2,
             currentWaveform: "sawtooth",
-            activeSynth: null
+            activeSynth: null,
         };
 
         const mockActions = {
@@ -60,7 +60,7 @@ describe("Settings Manager Domain Module", () => {
                 "F5",
                 "F6",
                 "A5",
-                "A6"
+                "A6",
             ],
             getSelectedPatternDirection: () => "upDown",
             setSelectedPatternDirection: () => {},
@@ -70,21 +70,21 @@ describe("Settings Manager Domain Module", () => {
             updateButtonGroup: () => {},
             syncPatternModuleState: () => {},
             createOrUpdatePattern: () => {},
-            showToast: () => {}
+            showToast: () => {},
         };
 
         const mockAudio = {
             filter: { frequency: { value: 0 }, Q: { value: 0 } },
             delay: { wet: { value: 0 } },
             reverb: { wet: { value: 0 } },
-            postGain: { volume: { value: 0 } }
+            postGain: { volume: { value: 0 } },
         };
 
         const manager = createSettingsManager({
             state: mockState as any,
             dom: mockDom as any,
             actions: mockActions as any,
-            audio: mockAudio as any
+            audio: mockAudio as any,
         });
 
         const settings = manager.getAllSettings();

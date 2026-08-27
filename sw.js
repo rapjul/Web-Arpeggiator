@@ -17,7 +17,7 @@ const manifest = {
             : "dev",
     appShell: "./index.html",
     navigationFallback: "./index.html",
-    assets: precachedEntries.map((entry) => (typeof entry === "string" ? entry : entry.url))
+    assets: precachedEntries.map((entry) => (typeof entry === "string" ? entry : entry.url)),
 };
 
 const CACHE_NAME = `web-arpeggiator-${manifest.cacheVersion || "dev"}`;
@@ -41,7 +41,7 @@ async function cacheResources(cache, urls) {
             } catch (error) {
                 console.warn("Failed to cache resource:", url, error);
             }
-        })
+        }),
     );
 }
 
@@ -104,7 +104,7 @@ self.addEventListener("install", (event) => {
             const cache = await caches.open(CACHE_NAME);
             await cacheResources(cache, manifest.assets || []);
             await self.skipWaiting();
-        })()
+        })(),
     );
 });
 
@@ -120,10 +120,10 @@ self.addEventListener("activate", (event) => {
                     }
 
                     return Promise.resolve();
-                })
+                }),
             );
             await self.clients.claim();
-        })()
+        })(),
     );
 });
 
@@ -153,7 +153,7 @@ self.addEventListener("message", (event) => {
                     await postMessageResponse(event, {
                         messageId,
                         ok: true,
-                        type: "SKIP_WAITING_COMPLETE"
+                        type: "SKIP_WAITING_COMPLETE",
                     });
                     return;
                 }
@@ -164,7 +164,9 @@ self.addEventListener("message", (event) => {
                         messageId,
                         ok: true,
                         type: "listCachesResult",
-                        caches: cacheNames.filter((cacheName) => cacheName.startsWith(CACHE_PREFIX))
+                        caches: cacheNames.filter((cacheName) =>
+                            cacheName.startsWith(CACHE_PREFIX),
+                        ),
                     });
                     return;
                 }
@@ -182,14 +184,14 @@ self.addEventListener("message", (event) => {
                             if (deleted) {
                                 deletedCaches.push(cacheName);
                             }
-                        })
+                        }),
                     );
 
                     await postMessageResponse(event, {
                         messageId,
                         ok: true,
                         type: "clearCachesResult",
-                        caches: deletedCaches
+                        caches: deletedCaches,
                     });
                 }
             } catch (error) {
@@ -197,10 +199,10 @@ self.addEventListener("message", (event) => {
                     messageId,
                     ok: false,
                     type: "serviceWorkerMessageError",
-                    error: error?.message || String(error)
+                    error: error?.message || String(error),
                 });
             }
-        })()
+        })(),
     );
 });
 

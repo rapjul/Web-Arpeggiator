@@ -7,7 +7,7 @@ import {
     initializeAudio,
     resetBrowserState,
     cleanupProcesses,
-    closeBrowser
+    closeBrowser,
 } from "../test-helpers";
 
 /**
@@ -54,7 +54,7 @@ test("PWA Shell Integration Suite", async (): Promise<void> => {
         `(async () => {
         const manifest = await fetch('./manifest.webmanifest').then((res) => res.json());
         return Boolean(manifest.name && manifest.start_url && manifest.display === 'standalone' && Array.isArray(manifest.icons) && manifest.icons.length > 0);
-    })()`
+    })()`,
     ]);
     expect(manifestValid).toBe("true");
 
@@ -71,7 +71,7 @@ test("PWA Shell Integration Suite", async (): Promise<void> => {
         await window.__WEB_ARP_TEST__.clearPresets();
         const emptyPresets = await window.__WEB_ARP_TEST__.listPresets();
         return emptyPresets.length === 0;
-    })()`
+    })()`,
     ]);
     expect(emptyCheck).toBe("true");
 
@@ -85,7 +85,7 @@ test("PWA Shell Integration Suite", async (): Promise<void> => {
         const record = await window.__WEB_ARP_TEST__.savePreset(settings, { name: '__test__' });
         const records = await window.__WEB_ARP_TEST__.listPresets();
         return records.some((item) => item.id === record.id && item.name === '__test__');
-    })()`
+    })()`,
     ]);
     expect(saveCheck).toBe("true");
 
@@ -98,7 +98,7 @@ test("PWA Shell Integration Suite", async (): Promise<void> => {
         await window.__WEB_ARP_TEST__.loadPreset(latest.id);
         const notes = document.getElementById('notes').value;
         return notes === 'C4 D4 F4';
-    })()`
+    })()`,
     ]);
     expect(loadCheck).toBe("true");
 
@@ -111,7 +111,7 @@ test("PWA Shell Integration Suite", async (): Promise<void> => {
         await window.__WEB_ARP_TEST__.removePreset(latest.id);
         const afterDelete = await window.__WEB_ARP_TEST__.listPresets();
         return afterDelete.length === 0;
-    })()`
+    })()`,
     ]);
     expect(deleteCheck).toBe("true");
 
@@ -124,7 +124,7 @@ test("PWA Shell Integration Suite", async (): Promise<void> => {
         settings.baseNotes = ['E4', 'G4', 'B4'];
         await window.WebArpPresetStore.saveLastSession(settings);
         return true;
-    })()`
+    })()`,
     ]);
     expect(sessionCheck).toBe("true");
 
@@ -134,11 +134,11 @@ test("PWA Shell Integration Suite", async (): Promise<void> => {
     await runBrowser([
         "wait",
         "--fn",
-        "window.__WEB_ARP_TEST__?.lastSessionRestoreFinished === true"
+        "window.__WEB_ARP_TEST__?.lastSessionRestoreFinished === true",
     ]);
     const sessionRestored: string = await runBrowser([
         "eval",
-        "document.getElementById('notes').value === 'E4 G4 B4'"
+        "document.getElementById('notes').value === 'E4 G4 B4'",
     ]);
     expect(sessionRestored).toBe("true");
 
@@ -149,11 +149,11 @@ test("PWA Shell Integration Suite", async (): Promise<void> => {
     await runBrowser([
         "wait",
         "--fn",
-        "document.getElementById('notes') !== null && window.__WEB_ARP_TEST__?.lastSessionRestoreFinished === true"
+        "document.getElementById('notes') !== null && window.__WEB_ARP_TEST__?.lastSessionRestoreFinished === true",
     ]);
     const offlineRendered: string = await runBrowser([
         "eval",
-        "Boolean(document.getElementById('visualizer-plot') && document.getElementById('play-stop'))"
+        "Boolean(document.getElementById('visualizer-plot') && document.getElementById('play-stop'))",
     ]);
     expect(offlineRendered).toBe("true");
 
@@ -182,7 +182,7 @@ test("PWA Shell Integration Suite", async (): Promise<void> => {
             return 'clear-failed';
         }
         return 'success';
-    })()`
+    })()`,
     ]);
     expect(cacheResult).toBe('"success"');
     console.log("PWA Shell Integration Suite complete!");

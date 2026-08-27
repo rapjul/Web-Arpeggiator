@@ -15,7 +15,7 @@ import {
     buildPatternNotesAndMap,
     calculateNoteMarkers,
     CHROMATIC_PITCHES,
-    CHROMATIC_RANGE
+    CHROMATIC_RANGE,
 } from "./pattern-core.js";
 
 // Re-export pure domain helpers for backwards compatibility
@@ -26,7 +26,7 @@ export {
     buildPatternNotesAndMap,
     calculateNoteMarkers,
     CHROMATIC_PITCHES,
-    CHROMATIC_RANGE
+    CHROMATIC_RANGE,
 };
 
 /**
@@ -88,18 +88,18 @@ export function createOrUpdatePattern() {
         const quantizeOpts = {
             enabled: quantizeToggle ? quantizeToggle.checked : false,
             root: quantizeRoot,
-            scale: quantizeType
+            scale: quantizeType,
         };
 
         const {
             finalNotes,
             stepToBaseIndexMap: computedMap,
-            finalDirection
+            finalDirection,
         } = buildPatternSequence(baseNotes, {
             direction,
             octaveRange,
             octaveShift,
-            quantize: quantizeOpts
+            quantize: quantizeOpts,
         });
 
         stepToBaseIndexMap = computedMap;
@@ -162,7 +162,7 @@ export function createOrUpdatePattern() {
                 }
             },
             finalNotes,
-            finalDirection
+            finalDirection,
         );
 
         window.arpPattern = patternInstance;

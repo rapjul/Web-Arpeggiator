@@ -25,49 +25,49 @@ export default defineConfig({
                     {
                         src: "images/icons/pwa-icon-192.png",
                         sizes: "192x192",
-                        type: "image/png"
+                        type: "image/png",
                     },
                     {
                         src: "images/icons/pwa-icon-512.png",
                         sizes: "512x512",
-                        type: "image/png"
+                        type: "image/png",
                     },
                     {
                         src: "images/icons/pwa-icon-maskable.svg",
                         sizes: "512x512",
                         type: "image/svg+xml",
-                        purpose: "maskable"
+                        purpose: "maskable",
                     },
                     {
                         src: "images/icons/pwa-icon-maskable-192.png",
                         sizes: "192x192",
                         type: "image/png",
-                        purpose: "maskable"
+                        purpose: "maskable",
                     },
                     {
                         src: "images/icons/pwa-icon-maskable-512.png",
                         sizes: "512x512",
                         type: "image/png",
-                        purpose: "maskable"
-                    }
-                ]
+                        purpose: "maskable",
+                    },
+                ],
             },
             injectManifest: {
-                globPatterns: ["**/*.{js,css,html,ico,png,svg,json}"]
-            }
-        })
+                globPatterns: ["**/*.{js,css,html,ico,png,svg,json}"],
+            },
+        }),
     ],
     server: {
         hmr: {
             host: "localhost",
-            protocol: "ws"
-        }
+            protocol: "ws",
+        },
     },
     build: {
         rollupOptions: {
             input: {
-                main: "index.html"
-            }
-        }
-    }
+                main: "index.html",
+            },
+        },
+    },
 });

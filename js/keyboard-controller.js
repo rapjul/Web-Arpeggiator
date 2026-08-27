@@ -37,7 +37,7 @@ export function initializeKeyboardControls(context) {
         y: "A5",
         7: "A#5",
         u: "B5",
-        i: "C6"
+        i: "C6",
     };
 
     const visualKeysData = [
@@ -65,7 +65,7 @@ export function initializeKeyboardControls(context) {
         { note: "A5", label: "Y", type: "white" },
         { note: "A#5", label: "7", type: "black" },
         { note: "B5", label: "U", type: "white" },
-        { note: "C6", label: "I", type: "white" }
+        { note: "C6", label: "I", type: "white" },
     ];
 
     const keyboardMainWrapper = dom.keyboardVisual;
@@ -75,7 +75,7 @@ export function initializeKeyboardControls(context) {
         "justify-center",
         "items-start",
         "h-20",
-        "select-none"
+        "select-none",
     );
 
     const octave1Wrapper = document.createElement("div");
@@ -354,7 +354,7 @@ export function initializeKeyboardControls(context) {
     }
 
     return {
-        updateKeyboardControlUi
+        updateKeyboardControlUi,
     };
 }
 
