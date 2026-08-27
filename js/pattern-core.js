@@ -451,7 +451,10 @@ export function calculateNoteMarkers(settings) {
             }
         });
     } else if (direction === "octaveCycleReverse") {
-        const reversedIndexed = [...baseNotes].reverse();
+        const cycleBaseNotes = scaleQuantize
+            ? quantizeToScale(baseNotes, scaleRoot, scaleType)
+            : baseNotes;
+        const reversedIndexed = [...cycleBaseNotes].reverse();
         reversedIndexed.forEach((baseNote) => {
             const parsed = Tonal.Note.get(baseNote);
             if (!parsed || parsed.midi === undefined) return;
