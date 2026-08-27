@@ -221,7 +221,7 @@ export function audioBufferToWav(audioBuffer) {
  * @param {string} text - ASCII text to write.
  * @returns {void}
  */
-function writeString(view, offset, text) {
+export function writeString(view, offset, text) {
     for (let i = 0; i < text.length; i += 1) {
         view.setUint8(offset + i, text.charCodeAt(i));
     }
@@ -234,7 +234,7 @@ function writeString(view, offset, text) {
  * @param {Float32Array} inputR - Right channel samples.
  * @returns {Float32Array} Interleaved stereo samples.
  */
-function interleave(inputL, inputR) {
+export function interleave(inputL, inputR) {
     const length = inputL.length + inputR.length;
     const result = new Float32Array(length);
     let index = 0;

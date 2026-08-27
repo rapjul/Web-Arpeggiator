@@ -30,16 +30,18 @@ function log(...args) {
     }
 }
 
-// --- Module Imports ---
 import * as Tone from 'tone';
 import * as Tonal from 'tonal';
 import { createAudioEngine } from './audio-engine.js';
 import { createVisualizer } from './visualizer.js';
 import { createRecorderManager } from './recorder.js';
-import { createOrUpdatePattern as createOrUpdatePatternFromModule, getArpeggioNotes as getArpeggioNotesFromModule } from './pattern-generator.js';
+import { createOrUpdatePattern as createOrUpdatePatternFromModule, getArpeggioNotes as getArpeggioNotesFromModule, calculateNoteMarkers } from './pattern-generator.js';
 import { audioBufferToMp3Blob, audioBufferToWav, downloadBlob } from './audio-utils.js';
 import { createSettingsManager } from './settings-manager.js';
 import { initializeKeyboardControls } from './keyboard-controller.js';
+import { generateRandomNotes } from './randomizer.js';
+import { serializePresetToUrlParams, parsePresetFromUrlParams, hasPresetChanges } from './url-preset.js';
+import { createToastManager } from './ui-feedback.js';
 
 /**
  * Filters keydown events for the notes input.
@@ -801,20 +803,12 @@ function initializeApp() {
         }
     }
 
-    /**
-     * Announces a message to screen readers using the visually hidden aria-live region.
-     * @param {string} message - The message text to announce.
-     * @returns {void}
-     */
-    function announce(message) {
-        const liveRegion = document.getElementById('sr-announcements');
-        if (liveRegion) {
-            liveRegion.textContent = '';
-            setTimeout(() => {
-                liveRegion.textContent = message;
-            }, 100);
-        }
-    }
+    const toastManager = createToastManager({
+        toastContainer,
+        liveRegion: document.getElementById('sr-announcements'),
+        logger: log
+    });
+    const { showToast, announce } = toastManager;
 
     /**
      * Sets up arrow key keyboard navigation for a group of buttons.
@@ -852,33 +846,6 @@ function initializeApp() {
     setupKeyboardNavigation(octaveShiftButtons, 'button.octave-btn');
     setupKeyboardNavigation(octaveRangeButtons, 'button.octave-btn');
 
-    /**
-     * Displays a stacking toast message for a few seconds.
-     * @param {string} message - The text to display.
-     * @param {string} type - 'success', 'info', or 'error'.
-     * @returns {void}
-     */
-    function showToast(message, type = 'info') {
-        if (!toastContainer) return;
-        log(`TOAST (${type}): ${message}`);
-        const toast = document.createElement('div');
-        toast.textContent = message;
-        toast.className = `toast-message toast-${type}`;
-
-        toastContainer.appendChild(toast);
-        requestAnimationFrame(() => { toast.classList.add('show'); });
-
-        // Announce the toast message to screen readers
-        announce(message);
-
-        setTimeout(() => {
-            toast.classList.remove('show');
-            toast.classList.add('hide');
-        }, 3000);
-
-        setTimeout(() => { toast.remove(); }, 3300);
-    }
-
     // ==================================================================
     //    Event Listeners
     // ==================================================================
@@ -899,35 +866,7 @@ function initializeApp() {
      */
     function sharePresetAsUrl() {
         const settings = getAllSettings();
-        const params = new URLSearchParams();
-
-        params.set('notes', settings.baseNotes.join(' '));
-        params.set('bpm', settings.bpm.toString());
-        params.set('swing', settings.swing.toFixed(2));
-        params.set('gain', settings.postGain.toFixed(0));
-        params.set('dir', settings.direction);
-        params.set('int', settings.interval);
-        params.set('quant', settings.scaleQuantize ? 'true' : 'false');
-        params.set('root', settings.scaleRoot);
-        params.set('scale', settings.scaleType);
-        params.set('synth', settings.synthType);
-        params.set('wave', settings.waveform);
-        params.set('harm', settings.harmonicity.toFixed(1));
-        params.set('mod', settings.modulationIndex.toFixed(1));
-        params.set('duty', settings.dutyCycle.toFixed(2));
-        params.set('gate', settings.gateRatio.toFixed(2));
-        params.set('shift', settings.octaveShift.toString());
-        params.set('range', settings.octaveRange.toString());
-        params.set('attack', settings.envAttack.toFixed(2));
-        params.set('decay', settings.envDecay.toFixed(2));
-        params.set('sustain', settings.envSustain.toFixed(2));
-        params.set('release', settings.envRelease.toFixed(2));
-        params.set('cutoff', settings.filterCutoff.toFixed(0));
-        params.set('res', settings.filterResonance.toFixed(1));
-        params.set('delay', settings.delayMix.toFixed(2));
-        params.set('reverb', settings.reverbMix.toFixed(2));
-        params.set('loop', settings.loopCount.toString());
-
+        const params = serializePresetToUrlParams(settings);
         const shareUrl = `${window.location.origin}${window.location.pathname}?${params.toString()}`;
 
         // Test Hook: register the last shared URL
@@ -947,22 +886,6 @@ function initializeApp() {
     }
 
     /**
-     * The set of URL parameter keys that represent recognized preset fields.
-     * The `pwa` key is intentionally omitted — it is a dev-only flag used by the
-     * service worker and should never trigger a preset load.
-     * @type {ReadonlySet<string>}
-     */
-    const PRESET_URL_KEYS = new Set([
-        'bpm', 'swing', 'gain',
-        'notes', 'dir', 'int', 'quant', 'root', 'scale',
-        'synth', 'wave', 'harm', 'mod', 'duty', 'gate',
-        'shift', 'range',
-        'attack', 'decay', 'sustain', 'release',
-        'cutoff', 'res',
-        'delay', 'reverb', 'loop',
-    ]);
-
-    /**
      * Parses the current URL search parameters, validates each value against strict boundaries,
      * and loads them into the application via loadAllSettings.
      *
@@ -971,172 +894,14 @@ function initializeApp() {
      * @returns {void}
      */
     function loadPresetFromUrl() {
-        const params = new URLSearchParams(window.location.search);
-
-        // Bail out immediately when no recognized preset key is present in the URL.
-        // This also silently ignores unknown/dev parameters like `?pwa=true`.
-        if (![...params.keys()].some(k => PRESET_URL_KEYS.has(k))) return;
-
-        /** The current application settings, used both as the fallback default and for change-detection. */
         const current = getAllSettings();
-
-        // A working copy of the settings object that will be mutated as URL params are applied.
-        // Only fields that pass validation get overwritten.
-        const settings = getAllSettings();
-
-        /**
-         * Helper to parse and clamp an integer value.
-         * @param {string} val - Raw string value from the URL.
-         * @param {number} min - Inclusive minimum.
-         * @param {number} max - Inclusive maximum.
-         * @param {number} fallback - Value to return when parsing fails.
-         * @returns {number} The validated, clamped integer.
-         */
-        const clampInt = (val, min, max, fallback) => {
-            const parsed = parseInt(val, 10);
-            if (isNaN(parsed)) return fallback;
-            return Math.min(Math.max(parsed, min), max);
-        };
-
-        /**
-         * Helper to parse and clamp a float value.
-         * @param {string} val - Raw string value from the URL.
-         * @param {number} min - Inclusive minimum.
-         * @param {number} max - Inclusive maximum.
-         * @param {number} fallback - Value to return when parsing fails.
-         * @returns {number} The validated, clamped float.
-         */
-        const clampFloat = (val, min, max, fallback) => {
-            const parsed = parseFloat(val);
-            if (isNaN(parsed)) return fallback;
-            return Math.min(Math.max(parsed, min), max);
-        };
-
-        // notes
-        if (params.has('notes')) {
-            const rawNotes = params.get('notes');
-            const notesRegex = /^[A-G][b#]?[0-9](\s+[A-G][b#]?[0-9])*$/;
-            if (notesRegex.test(rawNotes)) {
-                settings.baseNotes = rawNotes.split(/\s+/).filter(Boolean);
-            }
-        }
-
-        if (params.has('bpm')) settings.bpm = clampInt(params.get('bpm'), 40, 240, settings.bpm);
-        if (params.has('swing')) settings.swing = clampFloat(params.get('swing'), 0.0, 1.0, settings.swing);
-        if (params.has('gain')) settings.postGain = clampFloat(params.get('gain'), -40.0, 0.0, settings.postGain);
-
-        // dir
-        if (params.has('dir')) {
-            const allowedDirs = [
-                'up', 'down', 'upDown', 'downUp', 'upDownRepeat', 'downUpRepeat',
-                'random', 'octaveCycle', 'octaveCycleReverse', 'octaveCyclePingPong',
-                'randomWalk', 'randomWalkDrunk'
-            ];
-            const dir = params.get('dir');
-            if (allowedDirs.includes(dir)) settings.direction = dir;
-        }
-
-        // int
-        if (params.has('int')) {
-            const allowedInts = ['64n', '32n', '16n', '8n', '4n', '2n'];
-            const interval = params.get('int');
-            if (allowedInts.includes(interval)) settings.interval = interval;
-        }
-
-        // quant
-        if (params.has('quant')) {
-            settings.scaleQuantize = params.get('quant') === 'true';
-        }
-
-        // root
-        if (params.has('root')) {
-            const allowedRoots = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-            const root = params.get('root');
-            if (allowedRoots.includes(root)) settings.scaleRoot = root;
-        }
-
-        // scale
-        if (params.has('scale')) {
-            const allowedScales = [
-                'major', 'minor', 'harmonic minor', 'melodic minor', 'dorian',
-                'phrygian', 'lydian', 'mixolydian', 'locrian', 'blues', 'chromatic'
-            ];
-            const scale = params.get('scale');
-            if (allowedScales.includes(scale)) settings.scaleType = scale;
-        }
-
-        // synth
-        if (params.has('synth')) {
-            const allowedSynths = ['synth', 'fmSynth', 'amSynth'];
-            const synth = params.get('synth');
-            if (allowedSynths.includes(synth)) settings.synthType = synth;
-        }
-
-        // wave
-        if (params.has('wave')) {
-            const allowedWaves = ['sine', 'square', 'sawtooth', 'triangle', 'pulse'];
-            const wave = params.get('wave');
-            if (allowedWaves.includes(wave)) settings.waveform = wave;
-        }
-
-        if (params.has('harm')) settings.harmonicity = clampFloat(params.get('harm'), 0.5, 10.0, settings.harmonicity);
-        if (params.has('mod')) settings.modulationIndex = clampFloat(params.get('mod'), 1.0, 50.0, settings.modulationIndex);
-        if (params.has('duty')) settings.dutyCycle = clampFloat(params.get('duty'), 0.01, 0.99, settings.dutyCycle);
-        if (params.has('gate')) settings.gateRatio = clampFloat(params.get('gate'), 0.05, 1.0, settings.gateRatio);
-        if (params.has('shift')) settings.octaveShift = clampInt(params.get('shift'), -3, 3, settings.octaveShift);
-        if (params.has('range')) settings.octaveRange = clampInt(params.get('range'), 1, 5, settings.octaveRange);
-        if (params.has('attack')) settings.envAttack = clampFloat(params.get('attack'), 0.0, 2.0, settings.envAttack);
-        if (params.has('decay')) settings.envDecay = clampFloat(params.get('decay'), 0.0, 2.0, settings.envDecay);
-        if (params.has('sustain')) settings.envSustain = clampFloat(params.get('sustain'), 0.0, 1.0, settings.envSustain);
-        if (params.has('release')) settings.envRelease = clampFloat(params.get('release'), 0.0, 5.0, settings.envRelease);
-        if (params.has('cutoff')) settings.filterCutoff = clampFloat(params.get('cutoff'), 100.0, 10000.0, settings.filterCutoff);
-        if (params.has('res')) settings.filterResonance = clampFloat(params.get('res'), 0.0, 20.0, settings.filterResonance);
-        if (params.has('delay')) settings.delayMix = clampFloat(params.get('delay'), 0.0, 1.0, settings.delayMix);
-        if (params.has('reverb')) settings.reverbMix = clampFloat(params.get('reverb'), 0.0, 1.0, settings.reverbMix);
-        if (params.has('loop')) settings.loopCount = clampInt(params.get('loop'), 1, 100, settings.loopCount);
-
-        /**
-         * Compares the mutated settings object against the snapshot taken before parsing.
-         * For numeric fields a small epsilon (1e-9) is used to avoid floating-point false-positives.
-         * The baseNotes array is compared as a space-joined string.
-         * @returns {boolean} True when at least one setting value has actually changed.
-         */
-        const hasChanges = () => {
-            const eps = 1e-9;
-            if (settings.baseNotes.join(' ') !== current.baseNotes.join(' ')) return true;
-            if (settings.direction !== current.direction) return true;
-            if (settings.interval !== current.interval) return true;
-            if (settings.synthType !== current.synthType) return true;
-            if (settings.waveform !== current.waveform) return true;
-            if (settings.scaleRoot !== current.scaleRoot) return true;
-            if (settings.scaleType !== current.scaleType) return true;
-            if (settings.scaleQuantize !== current.scaleQuantize) return true;
-            if (Math.abs(settings.bpm - current.bpm) > eps) return true;
-            if (Math.abs(settings.swing - current.swing) > eps) return true;
-            if (Math.abs(settings.postGain - current.postGain) > eps) return true;
-            if (Math.abs(settings.harmonicity - current.harmonicity) > eps) return true;
-            if (Math.abs(settings.modulationIndex - current.modulationIndex) > eps) return true;
-            if (Math.abs(settings.dutyCycle - current.dutyCycle) > eps) return true;
-            if (Math.abs(settings.gateRatio - current.gateRatio) > eps) return true;
-            if (settings.octaveShift !== current.octaveShift) return true;
-            if (settings.octaveRange !== current.octaveRange) return true;
-            if (Math.abs(settings.envAttack - current.envAttack) > eps) return true;
-            if (Math.abs(settings.envDecay - current.envDecay) > eps) return true;
-            if (Math.abs(settings.envSustain - current.envSustain) > eps) return true;
-            if (Math.abs(settings.envRelease - current.envRelease) > eps) return true;
-            if (Math.abs(settings.filterCutoff - current.filterCutoff) > eps) return true;
-            if (Math.abs(settings.filterResonance - current.filterResonance) > eps) return true;
-            if (Math.abs(settings.delayMix - current.delayMix) > eps) return true;
-            if (Math.abs(settings.reverbMix - current.reverbMix) > eps) return true;
-            if (settings.loopCount !== current.loopCount) return true;
-            return false;
-        };
-
-        if (!hasChanges()) return;
+        const settings = parsePresetFromUrlParams(window.location.search, current);
+        if (!settings || !hasPresetChanges(settings, current)) return;
 
         loadAllSettings(settings);
         showToast('Preset loaded from URL link!', 'success');
     }
+
 
     // --- Start Overlay ---
     /**
@@ -1252,57 +1017,6 @@ function initializeApp() {
         envReleaseValue.textContent = parseFloat(envReleaseSlider.value).toFixed(2);
         debouncedUpdateEnvelope();
     });
-
-    /**
-     * Generates a random, ascending sequence of 4 to 6 unique notes.
-     * Uses Tonal.js to query the current scale pitches from the selected root and scale type.
-     * Falls back to C major pentatonic if the scale query fails or returns empty notes.
-     *
-     * @param {string} root - The scale root note (e.g., "C", "F#").
-     * @param {string} scaleType - The scale type/mode (e.g., "minor", "mixolydian").
-     * @returns {string[]} An array of note names in Tone.js format (e.g. ["C4", "E4", "G4"]).
-     */
-    function generateRandomNotes(root, scaleType) {
-        let activeScaleType = scaleType;
-        if (activeScaleType === 'chromatic') {
-            const scaleTypes = ['major', 'minor', 'majorPentatonic', 'minorPentatonic', 'dorian', 'mixolydian'];
-            activeScaleType = scaleTypes[Math.floor(Math.random() * scaleTypes.length)];
-        }
-
-        const scaleName = `${root} ${activeScaleType}`;
-        const scale = Tonal.Scale.get(scaleName);
-        let scalePitchClasses = scale.notes;
-
-        if (!scalePitchClasses || scalePitchClasses.length === 0) {
-            scalePitchClasses = ['C', 'D', 'E', 'G', 'A'];
-        }
-
-        const notesPool = [];
-        const octaves = [3, 4, 5];
-        scalePitchClasses.forEach((pc) => {
-            // Simplify double accidentals to standard flat/sharp pitch representations.
-            const simplifiedPc = Tonal.Note.simplify(pc) || pc;
-            octaves.forEach((oct) => {
-                notesPool.push(`${simplifiedPc}${oct}`);
-            });
-        });
-
-        const count = Math.floor(Math.random() * 3) + 4; // 4, 5, or 6 notes
-        const selected = [];
-        const tempPool = [...notesPool];
-        for (let i = 0; i < count && tempPool.length > 0; i++) {
-            const idx = Math.floor(Math.random() * tempPool.length);
-            selected.push(tempPool.splice(idx, 1)[0]);
-        }
-
-        selected.sort((a, b) => {
-            const aMidi = Tonal.Note.midi(a) || 0;
-            const bMidi = Tonal.Note.midi(b) || 0;
-            return aMidi - bMidi;
-        });
-
-        return selected;
-    }
 
     // --- Randomize Notes ---
     randomizeNotesButton.addEventListener('click', () => {
@@ -1798,124 +1512,6 @@ function initializeApp() {
         });
     }
 
-    /**
-     * Calculates the exact times when each note triggers within a single arpeggio loop,
-     * normalized as a percentage ratio of the total loop length.
-     *
-     * Heavy Commenting on this process:
-     * 1. This function replicates the note expansion rules of the pattern generator.
-     * 2. First, we expand the base notes across the active octave range and transpose them.
-     * 3. Next, if scale quantization is active, we snap each note to the closest scale degree.
-     * 4. Then, we apply the pattern direction expansion (e.g. reverse for 'down', append mirrored array for 'upDownRepeat').
-     * 5. Finally, we map each note to its time ratio relative to the total step count of the loop cycle.
-     *
-     * @param {object} settings - Active application settings snapshot.
-     * @returns {Array<{note: string, timeRatio: number}>} Normalized note trigger timestamps and pitches.
-     */
-    function calculateNoteMarkers(settings) {
-        let finalNotes = [];
-        let expanded = [];
-
-        // 1. Core octave expansion
-        for (let i = 0; i < settings.baseNotes.length; i++) {
-            const note = settings.baseNotes[i];
-            const parsed = Tonal.Note.get(note);
-            if (!parsed || parsed.midi === undefined) continue;
-            for (let o = 0; o < settings.octaveRange; o++) {
-                const midi = parsed.midi + (o * 12) + (settings.octaveShift * 12);
-                expanded.push(Tonal.Note.fromMidi(midi));
-            }
-        }
-
-        // 2. Scale quantization
-        if (settings.scaleQuantize) {
-            const scale = Tonal.Scale.get(`${settings.scaleRoot} ${settings.scaleType}`);
-            if (scale && scale.notes && scale.notes.length > 0) {
-                const pc = scale.notes.map(n => Tonal.Note.pitchClass(n));
-                const range = [];
-                for (let oct = 2; oct < 7; oct++) {
-                    ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"].forEach(n => range.push(`${n}${oct}`));
-                }
-                const scaleNotes = range.filter(n => pc.includes(Tonal.Note.pitchClass(n)));
-                if (scaleNotes.length > 0) {
-                    expanded = expanded.map(note => {
-                        const m = Tonal.Note.midi(note);
-                        if (m === undefined) return note;
-                        const closest = scaleNotes
-                            .map(Tonal.Note.midi)
-                            .reduce((prev, curr) => Math.abs(curr - m) < Math.abs(prev - m) ? curr : prev);
-                        return Tonal.Note.fromMidi(closest);
-                    });
-                }
-            }
-        }
-
-        // 3. Direction expansions
-        if (settings.direction === 'up') {
-            finalNotes = expanded;
-        } else if (settings.direction === 'down') {
-            finalNotes = [...expanded].reverse();
-        } else if (settings.direction === 'upDown') {
-            const downPart = [...expanded].slice(1, -1).reverse();
-            finalNotes = [...expanded, ...downPart];
-        } else if (settings.direction === 'downUp') {
-            const reversed = [...expanded].reverse();
-            const upPart = [...expanded].slice(1, -1);
-            finalNotes = [...reversed, ...upPart];
-        } else if (settings.direction === 'upDownRepeat') {
-            const reversed = [...expanded].reverse();
-            finalNotes = [...expanded, ...reversed];
-        } else if (settings.direction === 'downUpRepeat') {
-            const reversed = [...expanded].reverse();
-            finalNotes = [...reversed, ...expanded];
-        } else if (settings.direction === 'octaveCycle') {
-            settings.baseNotes.forEach((baseNote) => {
-                const parsed = Tonal.Note.get(baseNote);
-                if (!parsed || parsed.midi === undefined) return;
-                for (let rep = 0; rep < 2; rep++) {
-                    for (let oct = 0; oct < 3; oct++) {
-                        const midi = parsed.midi + (settings.octaveShift * 12) + (oct * 12);
-                        finalNotes.push(Tonal.Note.fromMidi(midi));
-                    }
-                }
-            });
-        } else if (settings.direction === 'octaveCycleReverse') {
-            const reversedIndexed = [...settings.baseNotes].reverse();
-            reversedIndexed.forEach((baseNote) => {
-                const parsed = Tonal.Note.get(baseNote);
-                if (!parsed || parsed.midi === undefined) return;
-                for (let rep = 0; rep < 2; rep++) {
-                    for (let oct = 2; oct >= 0; oct--) {
-                        const midi = parsed.midi + (settings.octaveShift * 12) + (oct * 12);
-                        finalNotes.push(Tonal.Note.fromMidi(midi));
-                    }
-                }
-            });
-        } else if (settings.direction === 'octaveCyclePingPong') {
-            settings.baseNotes.forEach((baseNote) => {
-                const parsed = Tonal.Note.get(baseNote);
-                if (!parsed || parsed.midi === undefined) return;
-                for (let oct = 0; oct < 3; oct++) {
-                    finalNotes.push(Tonal.Note.fromMidi(parsed.midi + (settings.octaveShift * 12) + (oct * 12)));
-                }
-                for (let oct = 1; oct >= 0; oct--) {
-                    finalNotes.push(Tonal.Note.fromMidi(parsed.midi + (settings.octaveShift * 12) + (oct * 12)));
-                }
-                for (let oct = 1; oct < 3; oct++) {
-                    finalNotes.push(Tonal.Note.fromMidi(parsed.midi + (settings.octaveShift * 12) + (oct * 12)));
-                }
-            });
-        } else {
-            // Fallback for random/drunk walk patterns to plot base list
-            finalNotes = expanded;
-        }
-
-        // 4. Map index to percentage of total loop length
-        return finalNotes.map((note, idx) => ({
-            note,
-            timeRatio: idx / finalNotes.length
-        }));
-    }
 
     /**
      * Renders exactly one cycle of the arpeggio loop offline, calculates the note trigger markers,
