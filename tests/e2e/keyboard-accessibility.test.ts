@@ -1,6 +1,13 @@
 import { test, expect, beforeAll, afterAll } from "bun:test";
 import { type Subprocess } from "bun";
-import { startTestServer, runBrowser, waitForPwaReady, resetBrowserState, cleanupProcesses, closeBrowser } from "../test-helpers";
+import {
+    startTestServer,
+    runBrowser,
+    waitForPwaReady,
+    resetBrowserState,
+    cleanupProcesses,
+    closeBrowser
+} from "../test-helpers";
 
 /**
  * References the background server process.
@@ -31,11 +38,11 @@ afterAll(async (): Promise<void> => {
 
 test("UI Keyboard Arrow Accessibility Navigation Suite", async (): Promise<void> => {
     console.log("Starting Keyboard Accessibility Integration Suite...");
-    
+
     // 1. Wait for PWA page and registration to complete
     console.log("Step 1: Waiting for PWA ready...");
     await waitForPwaReady(APP_URL);
-    
+
     console.log("Step 1b: Resetting browser state...");
     await resetBrowserState();
 
@@ -46,7 +53,9 @@ test("UI Keyboard Arrow Accessibility Navigation Suite", async (): Promise<void>
 
     // 3. Verify Arrow Navigation in Pattern Buttons Group
     console.log("Step 3: Testing keyboard arrow navigation in Pattern Buttons group...");
-    const patternA11yResult: string = await runBrowser(["eval", `(async () => {
+    const patternA11yResult: string = await runBrowser([
+        "eval",
+        `(async () => {
         const patternGroup = document.getElementById('pattern-buttons');
         const buttons = Array.from(patternGroup.querySelectorAll('button.pattern-btn'));
         
@@ -93,12 +102,15 @@ test("UI Keyboard Arrow Accessibility Navigation Suite", async (): Promise<void>
         }
         
         return 'success';
-    })()`]);
+    })()`
+    ]);
     expect(patternA11yResult).toBe('"success"');
 
     // 4. Verify Arrow Navigation in Waveform Buttons Group
     console.log("Step 4: Testing keyboard arrow navigation in Waveform Buttons group...");
-    const waveA11yResult: string = await runBrowser(["eval", `(async () => {
+    const waveA11yResult: string = await runBrowser([
+        "eval",
+        `(async () => {
         const waveGroup = document.getElementById('waveform-buttons');
         const buttons = Array.from(waveGroup.querySelectorAll('button.waveform-btn'));
         
@@ -113,12 +125,15 @@ test("UI Keyboard Arrow Accessibility Navigation Suite", async (): Promise<void>
         }
         
         return 'success';
-    })()`]);
+    })()`
+    ]);
     expect(waveA11yResult).toBe('"success"');
 
     // 5. Verify Arrow Navigation in Octave Shift Group
     console.log("Step 5: Testing keyboard arrow navigation in Octave Shift group...");
-    const shiftA11yResult: string = await runBrowser(["eval", `(async () => {
+    const shiftA11yResult: string = await runBrowser([
+        "eval",
+        `(async () => {
         const shiftGroup = document.getElementById('octave-shift-buttons');
         const buttons = Array.from(shiftGroup.querySelectorAll('button.octave-btn'));
         
@@ -133,12 +148,15 @@ test("UI Keyboard Arrow Accessibility Navigation Suite", async (): Promise<void>
         }
         
         return 'success';
-    })()`]);
+    })()`
+    ]);
     expect(shiftA11yResult).toBe('"success"');
 
     // 6. Verify Arrow Navigation in Octave Range Group
     console.log("Step 6: Testing keyboard arrow navigation in Octave Range group...");
-    const rangeA11yResult: string = await runBrowser(["eval", `(async () => {
+    const rangeA11yResult: string = await runBrowser([
+        "eval",
+        `(async () => {
         const rangeGroup = document.getElementById('octave-range-buttons');
         const buttons = Array.from(rangeGroup.querySelectorAll('button.octave-btn'));
         
@@ -153,8 +171,9 @@ test("UI Keyboard Arrow Accessibility Navigation Suite", async (): Promise<void>
         }
         
         return 'success';
-    })()`]);
+    })()`
+    ]);
     expect(rangeA11yResult).toBe('"success"');
-    
+
     console.log("Keyboard Accessibility Integration Suite complete!");
 }, 30000);

@@ -1,4 +1,4 @@
-import * as Tone from 'tone';
+import * as Tone from "tone";
 
 /**
  * Settings serialization, restoration, and naming helpers.
@@ -20,7 +20,11 @@ export function createSettingsManager(context) {
      */
     function getAllSettings() {
         const baseNotes = state.currentNotes;
-        const notesWithOctaves = actions.getArpeggioNotes(baseNotes, state.currentOctaveRange, state.currentOctaveShift);
+        const notesWithOctaves = actions.getArpeggioNotes(
+            baseNotes,
+            state.currentOctaveRange,
+            state.currentOctaveShift
+        );
 
         return {
             // Transport
@@ -78,12 +82,12 @@ export function createSettingsManager(context) {
             // Restore post gain
             if (settings.postGain !== undefined && dom.postGainSlider) {
                 dom.postGainSlider.value = settings.postGain;
-                const pct = Math.round((settings.postGain + 40) / 40 * 100);
+                const pct = Math.round(((settings.postGain + 40) / 40) * 100);
                 dom.postGainValue.textContent = pct;
                 if (audio.postGain) audio.postGain.volume.value = settings.postGain;
             }
 
-            dom.notesInput.value = settings.baseNotes.join(' ');
+            dom.notesInput.value = settings.baseNotes.join(" ");
             state.currentNotes = settings.baseNotes;
             actions.setSelectedPatternDirection(settings.direction);
             dom.intervalSelect.value = settings.interval;
@@ -138,8 +142,16 @@ export function createSettingsManager(context) {
 
             state.currentOctaveShift = settings.octaveShift;
             state.currentOctaveRange = settings.octaveRange;
-            actions.updateButtonGroup(dom.octaveShiftButtons, state.currentOctaveShift, 'data-shift');
-            actions.updateButtonGroup(dom.octaveRangeButtons, state.currentOctaveRange, 'data-range');
+            actions.updateButtonGroup(
+                dom.octaveShiftButtons,
+                state.currentOctaveShift,
+                "data-shift"
+            );
+            actions.updateButtonGroup(
+                dom.octaveRangeButtons,
+                state.currentOctaveRange,
+                "data-range"
+            );
 
             const gateRatio = settings.gateRatio || 0.8;
             dom.gateSlider.value = gateRatio;
@@ -164,8 +176,8 @@ export function createSettingsManager(context) {
             actions.syncPatternModuleState();
             actions.createOrUpdatePattern();
         } catch (error) {
-            console.error('Failed to parse preset:', error);
-            alert('Error loading preset. File may be corrupt or from an older version.');
+            console.error("Failed to parse preset:", error);
+            alert("Error loading preset. File may be corrupt or from an older version.");
         }
     }
 
@@ -177,7 +189,7 @@ export function createSettingsManager(context) {
      */
     function generateFilename(isRealtime) {
         const date = new Date();
-        const timestamp = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}_${date.getHours().toString().padStart(2, '0')}-${date.getMinutes().toString().padStart(2, '0')}-${date.getSeconds().toString().padStart(2, '0')}`;
+        const timestamp = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, "0")}-${date.getDate().toString().padStart(2, "0")}_${date.getHours().toString().padStart(2, "0")}-${date.getMinutes().toString().padStart(2, "0")}-${date.getSeconds().toString().padStart(2, "0")}`;
 
         if (isRealtime) {
             return `arp-realtime-${timestamp}`;
@@ -185,24 +197,26 @@ export function createSettingsManager(context) {
 
         const settings = getAllSettings();
         const notesString = settings.baseNotes
-            .join('')
-            .replace(/#/g, 's')
-            .replace(/b/g, 'f')
-            .replace(/\d/g, '');
+            .join("")
+            .replace(/#/g, "s")
+            .replace(/b/g, "f")
+            .replace(/\d/g, "");
 
-        let baseName = '';
-        const scaleQuantize = settings.scaleQuantize ? `${settings.scaleRoot}-${settings.scaleType}` : 'noScale';
+        let baseName = "";
+        const scaleQuantize = settings.scaleQuantize
+            ? `${settings.scaleRoot}-${settings.scaleType}`
+            : "noScale";
 
-        if (settings.synthType === 'synth') {
+        if (settings.synthType === "synth") {
             baseName = `arp-${settings.bpm}bpm-basicSynth-${settings.synthType}-${settings.waveform}-${settings.interval}-${notesString}-${scaleQuantize}`;
-        } else if (settings.synthType === 'fmSynth' || settings.synthType === 'amSynth') {
+        } else if (settings.synthType === "fmSynth" || settings.synthType === "amSynth") {
             baseName = `arp-${settings.bpm}bpm-${settings.direction}-${settings.synthType}-${settings.interval}-${notesString}-${scaleQuantize}`;
         } else {
-            actions.showToast(`Unknown synth type: ${settings.synthType}.`, 'error');
+            actions.showToast(`Unknown synth type: ${settings.synthType}.`, "error");
             baseName = `arp-${settings.bpm}bpm-${settings.direction}-${settings.synthType}-${settings.interval}-${notesString}-${scaleQuantize}`;
         }
 
-        baseName = baseName.replace(/[^A-Za-z0-9-_#]/g, '');
+        baseName = baseName.replace(/[^A-Za-z0-9-_#]/g, "");
 
         return `${baseName}-${timestamp}`;
     }

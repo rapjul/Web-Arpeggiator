@@ -7,19 +7,19 @@
  * @module randomizer
  */
 
-import * as Tonal from 'tonal';
+import * as Tonal from "tonal";
 
 /**
  * Default scale types selected when picking a musical scale for chromatic mode.
  * @type {ReadonlyArray<string>}
  */
 export const DEFAULT_SCALE_FALLBACKS = Object.freeze([
-    'major',
-    'minor',
-    'majorPentatonic',
-    'minorPentatonic',
-    'dorian',
-    'mixolydian'
+    "major",
+    "minor",
+    "majorPentatonic",
+    "minorPentatonic",
+    "dorian",
+    "mixolydian"
 ]);
 
 /**
@@ -49,12 +49,12 @@ export function generateRandomNotes(root, scaleType, options = {}) {
         rng = Math.random
     } = options;
 
-    const effectiveRoot = root || 'C';
-    let activeScaleType = scaleType || 'major';
+    const effectiveRoot = root || "C";
+    let activeScaleType = scaleType || "major";
 
-    if (activeScaleType === 'chromatic') {
+    if (activeScaleType === "chromatic") {
         const pickedIdx = Math.floor(rng() * scaleFallbacks.length);
-        activeScaleType = scaleFallbacks[pickedIdx] || 'major';
+        activeScaleType = scaleFallbacks[pickedIdx] || "major";
     }
 
     const scaleName = `${effectiveRoot} ${activeScaleType}`;
@@ -62,7 +62,7 @@ export function generateRandomNotes(root, scaleType, options = {}) {
     let scalePitchClasses = scale?.notes;
 
     if (!scalePitchClasses || scalePitchClasses.length === 0) {
-        scalePitchClasses = ['C', 'D', 'E', 'G', 'A'];
+        scalePitchClasses = ["C", "D", "E", "G", "A"];
     }
 
     const notesPool = [];

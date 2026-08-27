@@ -1,6 +1,13 @@
 import { test, expect, beforeAll, afterAll } from "bun:test";
 import { type Subprocess } from "bun";
-import { startTestServer, runBrowser, waitForPwaReady, resetBrowserState, cleanupProcesses, closeBrowser } from "../test-helpers";
+import {
+    startTestServer,
+    runBrowser,
+    waitForPwaReady,
+    resetBrowserState,
+    cleanupProcesses,
+    closeBrowser
+} from "../test-helpers";
 
 /**
  * References the background server process.
@@ -31,17 +38,19 @@ afterAll(async (): Promise<void> => {
 
 test("Preset Sharing and Parameter Restoration Integration Suite", async (): Promise<void> => {
     console.log("Starting Preset Sharing Integration Suite...");
-    
+
     // 1. Wait for PWA page and registration to complete
     console.log("Step 1: Waiting for PWA ready...");
     await waitForPwaReady(APP_URL);
-    
+
     console.log("Step 1b: Resetting browser state...");
     await resetBrowserState();
 
     // 2. Verify Preset Sharing Link Serialization
     console.log("Step 2: Testing preset sharing serialization (clicking 'Copy Share Link')...");
-    const serializationResult: string = await runBrowser(["eval", `(async () => {
+    const serializationResult: string = await runBrowser([
+        "eval",
+        `(async () => {
         const shareBtn = document.getElementById('share-preset-button');
         if (!shareBtn) {
             return 'missing-button';
@@ -64,23 +73,30 @@ test("Preset Sharing and Parameter Restoration Integration Suite", async (): Pro
         }
         
         return 'success';
-    })()`]);
+    })()`
+    ]);
     expect(serializationResult).toBe('"success"');
 
     // 3. Verify Deserialization and Restoration from URL
     console.log("Step 3: Testing restoration of preset from custom URL query parameters...");
     const customUrl = `${APP_URL}?pwa=true&bpm=195&notes=D4%20F4%20A4&synth=fmSynth&wave=square&harm=2.5&mod=15.0&quant=true&root=D&scale=minor`;
-    
+
     console.log(`Navigating to: ${customUrl}`);
     await runBrowser(["open", customUrl]);
     await runBrowser(["wait", "--load", "networkidle"]);
-    await runBrowser(["wait", "--fn", "window.__WEB_ARP_TEST__?.lastSessionRestoreFinished === true"]);
-    
+    await runBrowser([
+        "wait",
+        "--fn",
+        "window.__WEB_ARP_TEST__?.lastSessionRestoreFinished === true"
+    ]);
+
     console.log("Clicking overlay to initialize AudioContext...");
     await runBrowser(["click", "#start-overlay"]);
     await runBrowser(["wait", "--fn", "document.getElementById('play-stop')?.disabled === false"]);
 
-    const restorationResult: string = await runBrowser(["eval", `(async () => {
+    const restorationResult: string = await runBrowser([
+        "eval",
+        `(async () => {
         const bpmSlider = document.getElementById('bpm');
         const notesInput = document.getElementById('notes');
         const synthTypeSelect = document.getElementById('synth-type');
@@ -106,23 +122,30 @@ test("Preset Sharing and Parameter Restoration Integration Suite", async (): Pro
         // Also check if Tone is defined on window before checking (which it isn't in Vite scoped build)
         // But the internal app state must have been updated.
         return 'success';
-    })()`]);
+    })()`
+    ]);
     expect(restorationResult).toBe('"success"');
 
     // 4. Verify Out-of-Bounds Parameter Clamping
     console.log("Step 4: Testing parameter boundary clamping...");
     const clampUrl = `${APP_URL}?pwa=true&bpm=999&gain=100&harm=99.9&range=10`;
-    
+
     console.log(`Navigating to: ${clampUrl}`);
     await runBrowser(["open", clampUrl]);
     await runBrowser(["wait", "--load", "networkidle"]);
-    await runBrowser(["wait", "--fn", "window.__WEB_ARP_TEST__?.lastSessionRestoreFinished === true"]);
-    
+    await runBrowser([
+        "wait",
+        "--fn",
+        "window.__WEB_ARP_TEST__?.lastSessionRestoreFinished === true"
+    ]);
+
     console.log("Clicking overlay to initialize AudioContext...");
     await runBrowser(["click", "#start-overlay"]);
     await runBrowser(["wait", "--fn", "document.getElementById('play-stop')?.disabled === false"]);
 
-    const clampingResult: string = await runBrowser(["eval", `(async () => {
+    const clampingResult: string = await runBrowser([
+        "eval",
+        `(async () => {
         const bpmSlider = document.getElementById('bpm');
         const postGainSlider = document.getElementById('post-gain');
         const harmonicitySlider = document.getElementById('harmonicity');
@@ -138,8 +161,9 @@ test("Preset Sharing and Parameter Restoration Integration Suite", async (): Pro
         }
         
         return 'success';
-    })()`]);
+    })()`
+    ]);
     expect(clampingResult).toBe('"success"');
-    
+
     console.log("Preset Sharing Integration Suite complete!");
 }, 30000);

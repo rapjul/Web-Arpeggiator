@@ -76,7 +76,8 @@ describe("URL Preset Domain Module", () => {
     });
 
     test("parses and clamps URL search parameters correctly", () => {
-        const query = "?bpm=300&gain=-60&notes=F#4%20A4%20C#5&dir=downUpRepeat&int=8n&quant=true&root=F#&scale=minor&synth=fmSynth&harm=4.5&mod=25.0&shift=2&range=3&attack=0.25&decay=0.5&sustain=0.75&release=1.5&cutoff=8000&res=12.0&delay=0.4&reverb=0.6&loop=150";
+        const query =
+            "?bpm=300&gain=-60&notes=F#4%20A4%20C#5&dir=downUpRepeat&int=8n&quant=true&root=F#&scale=minor&synth=fmSynth&harm=4.5&mod=25.0&shift=2&range=3&attack=0.25&decay=0.5&sustain=0.75&release=1.5&cutoff=8000&res=12.0&delay=0.4&reverb=0.6&loop=150";
 
         const parsed = parsePresetFromUrlParams(query, defaultSettings);
         expect(parsed).not.toBeNull();
@@ -111,15 +112,30 @@ describe("URL Preset Domain Module", () => {
         expect(hasPresetChanges(defaultSettings, copy)).toBe(false);
 
         // Note change
-        expect(hasPresetChanges(defaultSettings, { ...defaultSettings, baseNotes: ["D4", "F4"] })).toBe(true);
+        expect(
+            hasPresetChanges(defaultSettings, {
+                ...defaultSettings,
+                baseNotes: ["D4", "F4"]
+            })
+        ).toBe(true);
 
         // BPM change
         expect(hasPresetChanges(defaultSettings, { ...defaultSettings, bpm: 130 })).toBe(true);
 
         // Float precision within epsilon
-        expect(hasPresetChanges(defaultSettings, { ...defaultSettings, swing: 0.00000000001 })).toBe(false);
+        expect(
+            hasPresetChanges(defaultSettings, {
+                ...defaultSettings,
+                swing: 0.00000000001
+            })
+        ).toBe(false);
 
         // Waveform change
-        expect(hasPresetChanges(defaultSettings, { ...defaultSettings, waveform: "square" })).toBe(true);
+        expect(
+            hasPresetChanges(defaultSettings, {
+                ...defaultSettings,
+                waveform: "square"
+            })
+        ).toBe(true);
     });
 });

@@ -53,7 +53,12 @@ describe("Pattern Core - Scale Quantization & Octave Expansion", () => {
         expect(getArpeggioNotes(base, { octaveRange: 1, octaveShift: 0 })).toEqual(["C4", "E4"]);
 
         // 2 octaves, 0 shift
-        expect(getArpeggioNotes(base, { octaveRange: 2, octaveShift: 0 })).toEqual(["C4", "C5", "E4", "E5"]);
+        expect(getArpeggioNotes(base, { octaveRange: 2, octaveShift: 0 })).toEqual([
+            "C4",
+            "C5",
+            "E4",
+            "E5"
+        ]);
 
         // 1 octave, +1 shift
         expect(getArpeggioNotes(base, { octaveRange: 1, octaveShift: 1 })).toEqual(["C5", "E5"]);
@@ -102,19 +107,25 @@ describe("Pattern Core - All 12 Pattern Directions", () => {
     });
 
     test("builds 'upDownRepeat' and 'downUpRepeat'", () => {
-        const upDownRep = buildPatternSequence(base, { direction: "upDownRepeat" });
+        const upDownRep = buildPatternSequence(base, {
+            direction: "upDownRepeat"
+        });
         expect(upDownRep.finalNotes).toEqual(["C4", "E4", "G4", "G4", "E4", "C4"]);
         expect(upDownRep.stepToBaseIndexMap).toEqual([0, 1, 2, 2, 1, 0]);
         expect(upDownRep.finalDirection).toBe("up");
 
-        const downUpRep = buildPatternSequence(base, { direction: "downUpRepeat" });
+        const downUpRep = buildPatternSequence(base, {
+            direction: "downUpRepeat"
+        });
         expect(downUpRep.finalNotes).toEqual(["G4", "E4", "C4", "C4", "E4", "G4"]);
         expect(downUpRep.stepToBaseIndexMap).toEqual([2, 1, 0, 0, 1, 2]);
         expect(downUpRep.finalDirection).toBe("up");
     });
 
     test("builds 'octaveCycle' across 3 octaves repeated twice", () => {
-        const octCycle = buildPatternSequence(["C4", "G4"], { direction: "octaveCycle" });
+        const octCycle = buildPatternSequence(["C4", "G4"], {
+            direction: "octaveCycle"
+        });
         // C4, C5, C6 (rep 1) + C4, C5, C6 (rep 2) -> 6 notes for C, 6 for G = 12 notes total
         expect(octCycle.finalNotes.length).toBe(12);
         expect(octCycle.finalNotes.slice(0, 6)).toEqual(["C4", "C5", "C6", "C4", "C5", "C6"]);
@@ -124,7 +135,9 @@ describe("Pattern Core - All 12 Pattern Directions", () => {
     });
 
     test("builds 'octaveCycleReverse'", () => {
-        const octRev = buildPatternSequence(["C4", "G4"], { direction: "octaveCycleReverse" });
+        const octRev = buildPatternSequence(["C4", "G4"], {
+            direction: "octaveCycleReverse"
+        });
         expect(octRev.finalNotes.length).toBe(12);
         // Reversed base notes: G first, then C. Octaves descending: 6, 5, 4
         expect(octRev.finalNotes.slice(0, 6)).toEqual(["G6", "G5", "G4", "G6", "G5", "G4"]);
@@ -134,7 +147,9 @@ describe("Pattern Core - All 12 Pattern Directions", () => {
     });
 
     test("builds 'octaveCyclePingPong'", () => {
-        const octPingPong = buildPatternSequence(["C4"], { direction: "octaveCyclePingPong" });
+        const octPingPong = buildPatternSequence(["C4"], {
+            direction: "octaveCyclePingPong"
+        });
         // Up: C4, C5, C6; Down: C5, C4; Up: C5, C6 -> 7 notes total
         expect(octPingPong.finalNotes).toEqual(["C4", "C5", "C6", "C5", "C4", "C5", "C6"]);
         expect(octPingPong.stepToBaseIndexMap).toEqual([0, 0, 0, 0, 0, 0, 0]);
@@ -159,17 +174,25 @@ describe("Pattern Core - All 12 Pattern Directions", () => {
     });
 
     test("builds 'upDown', 'downUp', 'random', and 'randomWalk' directions", () => {
-        const upDown = buildPatternSequence(["C4", "E4", "G4"], { direction: "upDown" });
+        const upDown = buildPatternSequence(["C4", "E4", "G4"], {
+            direction: "upDown"
+        });
         expect(upDown.finalDirection).toBe("upDown");
         expect(upDown.finalNotes).toEqual(["C4", "E4", "G4"]);
 
-        const downUp = buildPatternSequence(["C4", "E4", "G4"], { direction: "downUp" });
+        const downUp = buildPatternSequence(["C4", "E4", "G4"], {
+            direction: "downUp"
+        });
         expect(downUp.finalDirection).toBe("downUp");
 
-        const rand = buildPatternSequence(["C4", "E4"], { direction: "random" });
+        const rand = buildPatternSequence(["C4", "E4"], {
+            direction: "random"
+        });
         expect(rand.finalDirection).toBe("random");
 
-        const randWalk = buildPatternSequence(["C4", "E4"], { direction: "randomWalk" });
+        const randWalk = buildPatternSequence(["C4", "E4"], {
+            direction: "randomWalk"
+        });
         expect(randWalk.finalDirection).toBe("randomWalk");
     });
 });
@@ -267,4 +290,3 @@ describe("Pattern Core - Note Marker Calculations", () => {
         expect(calculateNoteMarkers(null as any)).toEqual([]);
     });
 });
-

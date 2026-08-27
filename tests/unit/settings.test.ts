@@ -54,7 +54,14 @@ describe("Settings Manager Domain Module", () => {
         };
 
         const mockActions = {
-            getArpeggioNotes: (notes: string[], range: number, shift: number) => ["D5", "D6", "F5", "F6", "A5", "A6"],
+            getArpeggioNotes: (notes: string[], range: number, shift: number) => [
+                "D5",
+                "D6",
+                "F5",
+                "F6",
+                "A5",
+                "A6"
+            ],
             getSelectedPatternDirection: () => "upDown",
             setSelectedPatternDirection: () => {},
             updateScaleQuantizeUi: () => {},

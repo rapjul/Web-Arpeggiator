@@ -5,8 +5,8 @@
  * scaling (80%) and positioning (25px offset up) to align the content properly.
  */
 
-const fs = require('fs');
-const path = require('path');
+const fs = require("fs");
+const path = require("path");
 
 /**
  * Main execution function that reads the source SVG, applies transformations,
@@ -14,30 +14,30 @@ const path = require('path');
  * @returns {void}
  */
 function main() {
-    const rootDir = path.join(__dirname, '..');
-    const sourcePath = path.join(rootDir, 'images', 'icons', 'pwa-icon.svg');
-    const targetPath = path.join(rootDir, 'images', 'icons', 'pwa-icon-maskable.svg');
+    const rootDir = path.join(__dirname, "..");
+    const sourcePath = path.join(rootDir, "images", "icons", "pwa-icon.svg");
+    const targetPath = path.join(rootDir, "images", "icons", "pwa-icon-maskable.svg");
 
     console.log(`Reading source SVG: ${sourcePath}`);
-    const sourceText = fs.readFileSync(sourcePath, 'utf8');
+    const sourceText = fs.readFileSync(sourcePath, "utf8");
 
     // Extract the contents of the <defs> section
     const defsMatch = sourceText.match(/<defs>([\s\S]*?)<\/defs>/);
     if (!defsMatch) {
-        throw new Error('Could not find <defs> section in source SVG.');
+        throw new Error("Could not find <defs> section in source SVG.");
     }
     const defsContent = defsMatch[1].trim();
 
     // Find the content after </defs> and before the closing </svg>
-    const afterDefsIndex = sourceText.indexOf('</defs>') + '</defs>'.length;
-    const closingSvgIndex = sourceText.lastIndexOf('</svg>');
+    const afterDefsIndex = sourceText.indexOf("</defs>") + "</defs>".length;
+    const closingSvgIndex = sourceText.lastIndexOf("</svg>");
     if (afterDefsIndex === -1 || closingSvgIndex === -1) {
-        throw new Error('Malformed SVG: Missing </defs> or </svg> tags.');
+        throw new Error("Malformed SVG: Missing </defs> or </svg> tags.");
     }
     let innerContent = sourceText.substring(afterDefsIndex, closingSvgIndex).trim();
 
     // Remove the rounded rect background line (matching any variations of the tag)
-    innerContent = innerContent.replace(/<rect[^>]*rx="112"[^>]*\/>\s*/gi, '');
+    innerContent = innerContent.replace(/<rect[^>]*rx="112"[^>]*\/>\s*/gi, "");
 
     // Wrap the remaining graphics content inside a transformed group.
     // - Scale 80% around original center (256, 261)
@@ -49,7 +49,10 @@ function main() {
     - Shifted upwards by 25px (yielding new target center of 256, 231)
   -->
   <g transform="translate(256, 231) scale(0.8) translate(-256, -261)">
-${innerContent.split('\n').map(line => '    ' + line).join('\n')}
+${innerContent
+    .split("\n")
+    .map((line) => "    " + line)
+    .join("\n")}
   </g>`;
 
     // Build the complete maskable SVG with a flat square background
@@ -72,8 +75,8 @@ ${transformGroup}
 `;
 
     console.log(`Writing generated maskable SVG: ${targetPath}`);
-    fs.writeFileSync(targetPath, maskableSvg, 'utf8');
-    console.log('Successfully generated pwa-icon-maskable.svg.');
+    fs.writeFileSync(targetPath, maskableSvg, "utf8");
+    console.log("Successfully generated pwa-icon-maskable.svg.");
 }
 
 main();

@@ -1,6 +1,14 @@
 import { test, expect, beforeAll, afterAll } from "bun:test";
 import { type Subprocess } from "bun";
-import { startTestServer, runBrowser, waitForPwaReady, initializeAudio, resetBrowserState, cleanupProcesses, closeBrowser } from "../test-helpers";
+import {
+    startTestServer,
+    runBrowser,
+    waitForPwaReady,
+    initializeAudio,
+    resetBrowserState,
+    cleanupProcesses,
+    closeBrowser
+} from "../test-helpers";
 
 /**
  * References the background server process.
@@ -31,11 +39,11 @@ afterAll(async (): Promise<void> => {
 
 test("Keyboard Controls & Scale Quantizer Suite", async (): Promise<void> => {
     console.log("Starting Keyboard Controls & Scale Quantizer Integration Suite...");
-    
+
     // 1. Wait for PWA page and registration to complete
     console.log("Step 1: Waiting for PWA ready...");
     await waitForPwaReady(APP_URL);
-    
+
     console.log("Step 1b: Resetting browser state...");
     await resetBrowserState();
 
@@ -45,7 +53,9 @@ test("Keyboard Controls & Scale Quantizer Suite", async (): Promise<void> => {
 
     // 3. Verify Virtual Keyboard UI Interactions
     console.log("Step 3: Testing virtual keyboard controls...");
-    const keyboardResult: string = await runBrowser(["eval", `(async () => {
+    const keyboardResult: string = await runBrowser([
+        "eval",
+        `(async () => {
         const keyboardToggle = document.getElementById('keyboard-toggle');
         
         // Enable the keyboard
@@ -75,12 +85,15 @@ test("Keyboard Controls & Scale Quantizer Suite", async (): Promise<void> => {
         }
 
         return 'success';
-    })()`]);
+    })()`
+    ]);
     expect(keyboardResult).toBe('"success"');
 
     // 4. Verify Scale Quantizer snapping behavior
     console.log("Step 4: Testing scale quantization snapping...");
-    const quantizerResult: string = await runBrowser(["eval", `(async () => {
+    const quantizerResult: string = await runBrowser([
+        "eval",
+        `(async () => {
         const quantizeToggle = document.getElementById('scale-quantize-toggle');
         const scaleRoot = document.getElementById('scale-root');
         const scaleType = document.getElementById('scale-type');
@@ -120,8 +133,9 @@ test("Keyboard Controls & Scale Quantizer Suite", async (): Promise<void> => {
         }
 
         return 'success';
-    })()`]);
+    })()`
+    ]);
     expect(quantizerResult).toBe('"success"');
-    
+
     console.log("Keyboard Controls & Scale Quantizer Integration Suite complete!");
 }, 30000);

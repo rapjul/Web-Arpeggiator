@@ -1,6 +1,14 @@
 import { test, expect, beforeAll, afterAll } from "bun:test";
 import { type Subprocess } from "bun";
-import { startTestServer, runBrowser, waitForPwaReady, initializeAudio, resetBrowserState, cleanupProcesses, closeBrowser } from "../test-helpers";
+import {
+    startTestServer,
+    runBrowser,
+    waitForPwaReady,
+    initializeAudio,
+    resetBrowserState,
+    cleanupProcesses,
+    closeBrowser
+} from "../test-helpers";
 
 /**
  * References the background server process.
@@ -31,11 +39,11 @@ afterAll(async (): Promise<void> => {
 
 test("Synthesizer & Audio Effects Chain Suite", async (): Promise<void> => {
     console.log("Starting Synthesizer and Effects Integration Suite...");
-    
+
     // 1. Wait for PWA page and registration to complete
     console.log("Step 1: Waiting for PWA ready...");
     await waitForPwaReady(APP_URL);
-    
+
     console.log("Step 1b: Resetting browser state...");
     await resetBrowserState();
 
@@ -45,7 +53,9 @@ test("Synthesizer & Audio Effects Chain Suite", async (): Promise<void> => {
 
     // 3. Verify Synthesizer Switching and DOM view updates
     console.log("Step 3: Testing switching synth types...");
-    const switchSynthResult: string = await runBrowser(["eval", `(async () => {
+    const switchSynthResult: string = await runBrowser([
+        "eval",
+        `(async () => {
         const sel = document.getElementById('synth-type');
         const adv = document.getElementById('advanced-synth-params');
         
@@ -61,12 +71,15 @@ test("Synthesizer & Audio Effects Chain Suite", async (): Promise<void> => {
             return 'incorrect-synth-type: ' + window.__WEB_ARP_TEST__.getCurrentSettings().synthType;
         }
         return 'success';
-    })()`]);
+    })()`
+    ]);
     expect(switchSynthResult).toBe('"success"');
 
     // 4. Verify synthesis parameters updates
     console.log("Step 4: Testing synthesis sliders...");
-    const synthesisResult: string = await runBrowser(["eval", `(async () => {
+    const synthesisResult: string = await runBrowser([
+        "eval",
+        `(async () => {
         const harm = document.getElementById('harmonicity');
         harm.value = 5.5;
         harm.dispatchEvent(new Event('input'));
@@ -86,12 +99,15 @@ test("Synthesizer & Audio Effects Chain Suite", async (): Promise<void> => {
             return 'incorrect-mod-index: ' + settings.modulationIndex;
         }
         return 'success';
-    })()`]);
+    })()`
+    ]);
     expect(synthesisResult).toBe('"success"');
 
     // 5. Verify Envelope (ADSR) adjustments and direct Tone.js state propagation
     console.log("Step 5: Testing envelope (ADSR) sliders...");
-    const envelopeResult: string = await runBrowser(["eval", `(async () => {
+    const envelopeResult: string = await runBrowser([
+        "eval",
+        `(async () => {
         const att = document.getElementById('env-attack');
         att.value = 0.45;
         att.dispatchEvent(new Event('input'));
@@ -114,12 +130,15 @@ test("Synthesizer & Audio Effects Chain Suite", async (): Promise<void> => {
             return 'release-mismatch: ' + window.activeSynth.envelope.release;
         }
         return 'success';
-    })()`]);
+    })()`
+    ]);
     expect(envelopeResult).toBe('"success"');
 
     // 6. Verify low-pass filter and audio effects chain updates
     console.log("Step 6: Testing low-pass filter and feedback delay sliders...");
-    const filterDelayResult: string = await runBrowser(["eval", `(async () => {
+    const filterDelayResult: string = await runBrowser([
+        "eval",
+        `(async () => {
         const cutoff = document.getElementById('filter-cutoff');
         cutoff.value = 2500;
         cutoff.dispatchEvent(new Event('input'));
@@ -139,8 +158,9 @@ test("Synthesizer & Audio Effects Chain Suite", async (): Promise<void> => {
             return 'incorrect-delay-mix: ' + settings.delayMix;
         }
         return 'success';
-    })()`]);
+    })()`
+    ]);
     expect(filterDelayResult).toBe('"success"');
-    
+
     console.log("Synthesizer & Audio Effects Chain Integration Suite complete!");
 }, 30000);

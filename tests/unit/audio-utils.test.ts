@@ -8,9 +8,9 @@ describe("Audio Utils Domain Module", () => {
 
         expect(int16Data.length).toBe(5);
         expect(int16Data[0]).toBe(0);
-        expect(int16Data[1]).toBe(0x7FFF); // 32767
+        expect(int16Data[1]).toBe(0x7fff); // 32767
         expect(int16Data[2]).toBe(-0x8000); // -32768
-        expect(int16Data[3]).toBe(Math.floor(0.5 * 0x7FFF));
+        expect(int16Data[3]).toBe(Math.floor(0.5 * 0x7fff));
         expect(int16Data[4]).toBe(Math.floor(-0.5 * 0x8000));
     });
 
@@ -18,7 +18,7 @@ describe("Audio Utils Domain Module", () => {
         const floatData = new Float32Array([1.5, -2.0]);
         const int16Data = float32ToInt16(floatData);
 
-        expect(int16Data[0]).toBe(0x7FFF);
+        expect(int16Data[0]).toBe(0x7fff);
         expect(int16Data[1]).toBe(-0x8000);
     });
 
@@ -39,8 +39,14 @@ describe("Audio Utils Domain Module", () => {
         writeString(view, 4, "WAVE");
 
         const text = String.fromCharCode(
-            view.getUint8(0), view.getUint8(1), view.getUint8(2), view.getUint8(3),
-            view.getUint8(4), view.getUint8(5), view.getUint8(6), view.getUint8(7)
+            view.getUint8(0),
+            view.getUint8(1),
+            view.getUint8(2),
+            view.getUint8(3),
+            view.getUint8(4),
+            view.getUint8(5),
+            view.getUint8(6),
+            view.getUint8(7)
         );
 
         expect(text).toBe("RIFFWAVE");
@@ -61,8 +67,18 @@ describe("Audio Utils Domain Module", () => {
         expect(arrayBuffer.byteLength).toBe(44 + 4 * 2); // 44-byte header + 4 samples * 2 bytes
 
         const view = new DataView(arrayBuffer);
-        const riffHeader = String.fromCharCode(view.getUint8(0), view.getUint8(1), view.getUint8(2), view.getUint8(3));
-        const waveFormat = String.fromCharCode(view.getUint8(8), view.getUint8(9), view.getUint8(10), view.getUint8(11));
+        const riffHeader = String.fromCharCode(
+            view.getUint8(0),
+            view.getUint8(1),
+            view.getUint8(2),
+            view.getUint8(3)
+        );
+        const waveFormat = String.fromCharCode(
+            view.getUint8(8),
+            view.getUint8(9),
+            view.getUint8(10),
+            view.getUint8(11)
+        );
 
         expect(riffHeader).toBe("RIFF");
         expect(waveFormat).toBe("WAVE");

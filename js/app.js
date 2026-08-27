@@ -30,18 +30,26 @@ function log(...args) {
     }
 }
 
-import * as Tone from 'tone';
-import * as Tonal from 'tonal';
-import { createAudioEngine } from './audio-engine.js';
-import { createVisualizer } from './visualizer.js';
-import { createRecorderManager } from './recorder.js';
-import { createOrUpdatePattern as createOrUpdatePatternFromModule, getArpeggioNotes as getArpeggioNotesFromModule, calculateNoteMarkers } from './pattern-generator.js';
-import { audioBufferToMp3Blob, audioBufferToWav, downloadBlob } from './audio-utils.js';
-import { createSettingsManager } from './settings-manager.js';
-import { initializeKeyboardControls } from './keyboard-controller.js';
-import { generateRandomNotes } from './randomizer.js';
-import { serializePresetToUrlParams, parsePresetFromUrlParams, hasPresetChanges } from './url-preset.js';
-import { createToastManager } from './ui-feedback.js';
+import * as Tone from "tone";
+import * as Tonal from "tonal";
+import { createAudioEngine } from "./audio-engine.js";
+import { createVisualizer } from "./visualizer.js";
+import { createRecorderManager } from "./recorder.js";
+import {
+    createOrUpdatePattern as createOrUpdatePatternFromModule,
+    getArpeggioNotes as getArpeggioNotesFromModule,
+    calculateNoteMarkers
+} from "./pattern-generator.js";
+import { audioBufferToMp3Blob, audioBufferToWav, downloadBlob } from "./audio-utils.js";
+import { createSettingsManager } from "./settings-manager.js";
+import { initializeKeyboardControls } from "./keyboard-controller.js";
+import { generateRandomNotes } from "./randomizer.js";
+import {
+    serializePresetToUrlParams,
+    parsePresetFromUrlParams,
+    hasPresetChanges
+} from "./url-preset.js";
+import { createToastManager } from "./ui-feedback.js";
 
 /**
  * Filters keydown events for the notes input.
@@ -54,17 +62,17 @@ function filterNoteInput(event) {
     const keyCode = event.keyCode;
 
     // Allow letters A-G (and a-g)
-    if ((keyCode >= 65 && keyCode <= 71)) {
+    if (keyCode >= 65 && keyCode <= 71) {
         return true;
     }
 
     // Allow numbers 0-9
-    if ((keyCode >= 48 && keyCode <= 57) && !event.shiftKey) {
+    if (keyCode >= 48 && keyCode <= 57 && !event.shiftKey) {
         return true;
     }
 
     // Allow Space, #, b
-    if (key === ' ' || key === '#' || key === 'b') {
+    if (key === " " || key === "#" || key === "b") {
         return true;
     }
 
@@ -93,7 +101,7 @@ function filterNumericInput(event) {
         (event.keyCode >= 48 && event.keyCode <= 57) ||
         (event.keyCode >= 96 && event.keyCode <= 105) ||
         [8, 9, 37, 38, 39, 40, 46].includes(event.keyCode) ||
-        (event.ctrlKey || event.metaKey) && [65, 67, 86, 88].includes(event.keyCode)
+        ((event.ctrlKey || event.metaKey) && [65, 67, 86, 88].includes(event.keyCode))
     ) {
         return true;
     } else {
@@ -110,15 +118,15 @@ var isAudioContextStarted = false;
  * @returns {Promise<void>}
  */
 async function startAudio() {
-    if (Tone.context && Tone.context.state !== 'running') {
+    if (Tone.context && Tone.context.state !== "running") {
         try {
             await Tone.start();
             log("AudioContext resumed successfully.");
             isAudioContextStarted = true;
-            window.dispatchEvent(new CustomEvent('audioReady'));
+            window.dispatchEvent(new CustomEvent("audioReady"));
         } catch (err) {
             console.error("AudioContext failed to start/resume:", err);
-            window.dispatchEvent(new CustomEvent('audioFailed'));
+            window.dispatchEvent(new CustomEvent("audioFailed"));
             throw err;
         }
     }
@@ -135,146 +143,192 @@ function initializeApp() {
     // Prevent the browser from restoring a previous scroll position and ensure
     // the page always starts at the very top on every load/refresh.
     if (history.scrollRestoration) {
-        history.scrollRestoration = 'manual';
+        history.scrollRestoration = "manual";
     }
     window.scrollTo(0, 0);
 
     // --- DOM Elements ---
-    const playStopButton = /** @type {HTMLButtonElement | null} */ (document.getElementById('play-stop'));
+    const playStopButton = /** @type {HTMLButtonElement | null} */ (
+        document.getElementById("play-stop")
+    );
 
-    const startOverlay = document.getElementById('start-overlay');
-    const pwaTestStateField = document.getElementById('pwa-test-state');
+    const startOverlay = document.getElementById("start-overlay");
+    const pwaTestStateField = document.getElementById("pwa-test-state");
 
-    const bpmSlider = /** @type {HTMLInputElement} */ (document.getElementById('bpm'));
-    const bpmValue = document.getElementById('bpm-value');
-    const postGainSlider = /** @type {HTMLInputElement} */ (document.getElementById('post-gain'));
-    const postGainValue = document.getElementById('post-gain-value');
-    const swingSlider = /** @type {HTMLInputElement} */ (document.getElementById('swing'));
-    const swingValue = document.getElementById('swing-value');
-    const notesInput = /** @type {HTMLInputElement} */ (document.getElementById('notes'));
-    const intervalSelect = /** @type {HTMLSelectElement} */ (document.getElementById('interval'));
+    const bpmSlider = /** @type {HTMLInputElement} */ (document.getElementById("bpm"));
+    const bpmValue = document.getElementById("bpm-value");
+    const postGainSlider = /** @type {HTMLInputElement} */ (document.getElementById("post-gain"));
+    const postGainValue = document.getElementById("post-gain-value");
+    const swingSlider = /** @type {HTMLInputElement} */ (document.getElementById("swing"));
+    const swingValue = document.getElementById("swing-value");
+    const notesInput = /** @type {HTMLInputElement} */ (document.getElementById("notes"));
+    const intervalSelect = /** @type {HTMLSelectElement} */ (document.getElementById("interval"));
 
     // Synth Card Elements
-    const synthTypeSelect = /** @type {HTMLSelectElement} */ (document.getElementById('synth-type'));
+    const synthTypeSelect = /** @type {HTMLSelectElement} */ (
+        document.getElementById("synth-type")
+    );
 
     // Waveform Elements
-    const waveformButtonsContainer = document.getElementById('waveform-buttons-container');
-    const waveformButtons = document.getElementById('waveform-buttons');
-    const carrierLabel = document.getElementById('carrier-label');
+    const waveformButtonsContainer = document.getElementById("waveform-buttons-container");
+    const waveformButtons = document.getElementById("waveform-buttons");
+    const carrierLabel = document.getElementById("carrier-label");
 
     // Pattern Buttons
-    const patternButtons = document.getElementById('pattern-buttons');
+    const patternButtons = document.getElementById("pattern-buttons");
 
     // Basic Synth Params
-    const basicSynthParams = document.getElementById('basic-synth-params');
-    const dutyControl = document.getElementById('duty-control');
-    const dutySlider = /** @type {HTMLInputElement} */ (document.getElementById('duty-cycle'));
-    const dutyValue = document.getElementById('duty-value');
+    const basicSynthParams = document.getElementById("basic-synth-params");
+    const dutyControl = document.getElementById("duty-control");
+    const dutySlider = /** @type {HTMLInputElement} */ (document.getElementById("duty-cycle"));
+    const dutyValue = document.getElementById("duty-value");
 
     // Advanced Synth Params
-    const advancedSynthParams = document.getElementById('advanced-synth-params');
-    const harmonicityControl = document.getElementById('harmonicity-control');
-    const modIndexControl = document.getElementById('mod-index-control');
-    const harmonicitySlider = /** @type {HTMLInputElement} */ (document.getElementById('harmonicity'));
-    const harmonicityValue = document.getElementById('harmonicity-value');
-    const modIndexSlider = /** @type {HTMLInputElement} */ (document.getElementById('modulation-index'));
-    const modIndexValue = document.getElementById('modulation-index-value');
+    const advancedSynthParams = document.getElementById("advanced-synth-params");
+    const harmonicityControl = document.getElementById("harmonicity-control");
+    const modIndexControl = document.getElementById("mod-index-control");
+    const harmonicitySlider = /** @type {HTMLInputElement} */ (
+        document.getElementById("harmonicity")
+    );
+    const harmonicityValue = document.getElementById("harmonicity-value");
+    const modIndexSlider = /** @type {HTMLInputElement} */ (
+        document.getElementById("modulation-index")
+    );
+    const modIndexValue = document.getElementById("modulation-index-value");
 
     // Gate Parameter
-    const gateSlider = /** @type {HTMLInputElement} */ (document.getElementById('gate'));
-    const gateValue = document.getElementById('gate-value');
+    const gateSlider = /** @type {HTMLInputElement} */ (document.getElementById("gate"));
+    const gateValue = document.getElementById("gate-value");
 
     // ADSR Envelope Controls
-    const envAttackSlider = /** @type {HTMLInputElement} */ (document.getElementById('env-attack'));
-    const envDecaySlider = /** @type {HTMLInputElement} */ (document.getElementById('env-decay'));
-    const envSustainSlider = /** @type {HTMLInputElement} */ (document.getElementById('env-sustain'));
-    const envReleaseSlider = /** @type {HTMLInputElement} */ (document.getElementById('env-release'));
-    const envAttackValue = document.getElementById('env-attack-value');
-    const envDecayValue = document.getElementById('env-decay-value');
-    const envSustainValue = document.getElementById('env-sustain-value');
-    const envReleaseValue = document.getElementById('env-release-value');
+    const envAttackSlider = /** @type {HTMLInputElement} */ (document.getElementById("env-attack"));
+    const envDecaySlider = /** @type {HTMLInputElement} */ (document.getElementById("env-decay"));
+    const envSustainSlider = /** @type {HTMLInputElement} */ (
+        document.getElementById("env-sustain")
+    );
+    const envReleaseSlider = /** @type {HTMLInputElement} */ (
+        document.getElementById("env-release")
+    );
+    const envAttackValue = document.getElementById("env-attack-value");
+    const envDecayValue = document.getElementById("env-decay-value");
+    const envSustainValue = document.getElementById("env-sustain-value");
+    const envReleaseValue = document.getElementById("env-release-value");
 
     // Keyboard Controls
-    const keyboardVisual = document.getElementById('keyboard-visual');
-    const keyboardToggle = /** @type {HTMLInputElement} */ (document.getElementById('keyboard-toggle'));
-    const keyboardToggleStatus = document.getElementById('keyboard-toggle-status');
-    const keyboardDescription = document.getElementById('keyboard-description');
+    const keyboardVisual = document.getElementById("keyboard-visual");
+    const keyboardToggle = /** @type {HTMLInputElement} */ (
+        document.getElementById("keyboard-toggle")
+    );
+    const keyboardToggleStatus = document.getElementById("keyboard-toggle-status");
+    const keyboardDescription = document.getElementById("keyboard-description");
 
     // Octave card
-    const octaveShiftButtons = document.getElementById('octave-shift-buttons');
-    const octaveRangeButtons = document.getElementById('octave-range-buttons');
+    const octaveShiftButtons = document.getElementById("octave-shift-buttons");
+    const octaveRangeButtons = document.getElementById("octave-range-buttons");
 
     // Scale Quantizer card
-    const quantizerCard = document.getElementById('quantizer-card');
-    const quantizerControls = document.getElementById('quantizer-controls');
-    const scaleQuantizeToggle = /** @type {HTMLInputElement} */ (document.getElementById('scale-quantize-toggle'));
-    const scaleQuantizeToggleStatus = document.getElementById('scale-quantize-toggle-status');
-    const scaleRootSelect = /** @type {HTMLSelectElement} */ (document.getElementById('scale-root'));
-    const scaleTypeSelect = /** @type {HTMLSelectElement} */ (document.getElementById('scale-type'));
+    const quantizerCard = document.getElementById("quantizer-card");
+    const quantizerControls = document.getElementById("quantizer-controls");
+    const scaleQuantizeToggle = /** @type {HTMLInputElement} */ (
+        document.getElementById("scale-quantize-toggle")
+    );
+    const scaleQuantizeToggleStatus = document.getElementById("scale-quantize-toggle-status");
+    const scaleRootSelect = /** @type {HTMLSelectElement} */ (
+        document.getElementById("scale-root")
+    );
+    const scaleTypeSelect = /** @type {HTMLSelectElement} */ (
+        document.getElementById("scale-type")
+    );
 
     // Filter card
-    const filterCutoffSlider = /** @type {HTMLInputElement} */ (document.getElementById('filter-cutoff'));
-    const filterCutoffValue = document.getElementById('filter-cutoff-value');
-    const filterResonanceSlider = /** @type {HTMLInputElement} */ (document.getElementById('filter-resonance'));
-    const filterResonanceValue = document.getElementById('filter-resonance-value');
+    const filterCutoffSlider = /** @type {HTMLInputElement} */ (
+        document.getElementById("filter-cutoff")
+    );
+    const filterCutoffValue = document.getElementById("filter-cutoff-value");
+    const filterResonanceSlider = /** @type {HTMLInputElement} */ (
+        document.getElementById("filter-resonance")
+    );
+    const filterResonanceValue = document.getElementById("filter-resonance-value");
 
     // Effects card
-    const delayMixSlider = /** @type {HTMLInputElement} */ (document.getElementById('delay-mix'));
-    const delayMixValue = document.getElementById('delay-mix-value');
-    const reverbMixSlider = /** @type {HTMLInputElement} */ (document.getElementById('reverb-mix'));
-    const reverbMixValue = document.getElementById('reverb-mix-value');
+    const delayMixSlider = /** @type {HTMLInputElement} */ (document.getElementById("delay-mix"));
+    const delayMixValue = document.getElementById("delay-mix-value");
+    const reverbMixSlider = /** @type {HTMLInputElement} */ (document.getElementById("reverb-mix"));
+    const reverbMixValue = document.getElementById("reverb-mix-value");
 
     // Randomize Notes Button
-    const randomizeNotesButton = document.getElementById('randomize-notes');
+    const randomizeNotesButton = document.getElementById("randomize-notes");
 
     // Note Step Indicator
-    const noteStepIndicator = document.getElementById('note-step-indicator');
+    const noteStepIndicator = document.getElementById("note-step-indicator");
 
     // Real-time Recording card
-    const recordButton = document.getElementById('record-button');
-    const recordStatus = document.getElementById('record-status') || document.getElementById('realtime-record-status');
-    const exportControls = document.getElementById('export-controls') || document.getElementById('realtime-export-controls');
-    const realtimeExportWavCheck = document.getElementById('realtime-export-wav');
-    const realtimeExportMp3Check = document.getElementById('realtime-export-mp3');
-    const exportButton = document.getElementById('realtime-export-button');
+    const recordButton = document.getElementById("record-button");
+    const recordStatus =
+        document.getElementById("record-status") ||
+        document.getElementById("realtime-record-status");
+    const exportControls =
+        document.getElementById("export-controls") ||
+        document.getElementById("realtime-export-controls");
+    const realtimeExportWavCheck = document.getElementById("realtime-export-wav");
+    const realtimeExportMp3Check = document.getElementById("realtime-export-mp3");
+    const exportButton = document.getElementById("realtime-export-button");
 
     // Offline Export card
-    const loopCountInput = document.getElementById('loop-count');
-    const offlineExportWavCheck = document.getElementById('offline-export-wav');
-    const offlineExportMp3Check = document.getElementById('offline-export-mp3');
-    const offlineExportButton = document.getElementById('offline-export-button');
-    const offlineExportStatus = document.getElementById('offline-export-status');
+    const loopCountInput = document.getElementById("loop-count");
+    const offlineExportWavCheck = document.getElementById("offline-export-wav");
+    const offlineExportMp3Check = document.getElementById("offline-export-mp3");
+    const offlineExportButton = document.getElementById("offline-export-button");
+    const offlineExportStatus = document.getElementById("offline-export-status");
 
     // Utility card
-    const visualizerYAxisCanvas = /** @type {HTMLCanvasElement | null} */ (document.getElementById('visualizer-yaxis'));
-    const visualizerViewport = document.getElementById('visualizer-viewport');
-    const visualizerPlotCanvas = /** @type {HTMLCanvasElement | null} */ (document.getElementById('visualizer-plot'));
-    const toggleVisualizerButton = document.getElementById('toggle-visualizer');
-    const visualizerModeSelect = /** @type {HTMLSelectElement | null} */ (document.getElementById('visualizer-mode'));
-    const pauseVisualizerButton = /** @type {HTMLButtonElement | null} */ (document.getElementById('pause-visualizer'));
-    const visualizerZoomSlider = /** @type {HTMLInputElement | null} */ (document.getElementById('visualizer-zoom'));
-    const visualizerZoomValue = document.getElementById('visualizer-zoom-value');
-    const oscilloscopeWindowSelect = /** @type {HTMLSelectElement | null} */ (document.getElementById('oscilloscope-window'));
-    const oscilloscopeWindowContainer = document.getElementById('oscilloscope-window-container');
+    const visualizerYAxisCanvas = /** @type {HTMLCanvasElement | null} */ (
+        document.getElementById("visualizer-yaxis")
+    );
+    const visualizerViewport = document.getElementById("visualizer-viewport");
+    const visualizerPlotCanvas = /** @type {HTMLCanvasElement | null} */ (
+        document.getElementById("visualizer-plot")
+    );
+    const toggleVisualizerButton = document.getElementById("toggle-visualizer");
+    const visualizerModeSelect = /** @type {HTMLSelectElement | null} */ (
+        document.getElementById("visualizer-mode")
+    );
+    const pauseVisualizerButton = /** @type {HTMLButtonElement | null} */ (
+        document.getElementById("pause-visualizer")
+    );
+    const visualizerZoomSlider = /** @type {HTMLInputElement | null} */ (
+        document.getElementById("visualizer-zoom")
+    );
+    const visualizerZoomValue = document.getElementById("visualizer-zoom-value");
+    const oscilloscopeWindowSelect = /** @type {HTMLSelectElement | null} */ (
+        document.getElementById("oscilloscope-window")
+    );
+    const oscilloscopeWindowContainer = document.getElementById("oscilloscope-window-container");
 
     // Preset Management card
-    const presetNameInput = /** @type {HTMLInputElement | null} */ (document.getElementById('preset-name-input'));
-    const savedPresetSelect = /** @type {HTMLSelectElement | null} */ (document.getElementById('saved-preset-select'));
-    const savePresetButton = document.getElementById('save-preset-button');
-    const savePresetToBrowserButton = document.getElementById('save-preset-to-browser-button');
-    const sharePresetButton = document.getElementById('share-preset-button');
-    const loadPresetButton = document.getElementById('load-preset-button');
-    const loadSavedPresetButton = document.getElementById('load-saved-preset-button');
-    const clearSavedPresetButton = document.getElementById('clear-saved-preset-button');
-    const deleteSavedPresetButton = document.getElementById('delete-saved-preset-button');
-    const loadPresetInput = /** @type {HTMLInputElement | null} */ (document.getElementById('load-preset-input'));
+    const presetNameInput = /** @type {HTMLInputElement | null} */ (
+        document.getElementById("preset-name-input")
+    );
+    const savedPresetSelect = /** @type {HTMLSelectElement | null} */ (
+        document.getElementById("saved-preset-select")
+    );
+    const savePresetButton = document.getElementById("save-preset-button");
+    const savePresetToBrowserButton = document.getElementById("save-preset-to-browser-button");
+    const sharePresetButton = document.getElementById("share-preset-button");
+    const loadPresetButton = document.getElementById("load-preset-button");
+    const loadSavedPresetButton = document.getElementById("load-saved-preset-button");
+    const clearSavedPresetButton = document.getElementById("clear-saved-preset-button");
+    const deleteSavedPresetButton = document.getElementById("delete-saved-preset-button");
+    const loadPresetInput = /** @type {HTMLInputElement | null} */ (
+        document.getElementById("load-preset-input")
+    );
 
     // Toast
-    const toastContainer = document.getElementById('toast-container');
+    const toastContainer = document.getElementById("toast-container");
 
     // --- State ---
     let isPlaying = false;
-    let currentNotes = ['C4', 'E4', 'G4'];
+    let currentNotes = ["C4", "E4", "G4"];
     let arpPattern = null;
     let currentOctaveShift = 0;
     let currentOctaveRange = 2;
@@ -291,39 +345,59 @@ function initializeApp() {
 
     // --- App State Object (for injected modules) ---
     const appState = {
-        get isPlaying() { return isPlaying; },
+        get isPlaying() {
+            return isPlaying;
+        },
         set isPlaying(value) {
             isPlaying = value;
             window.isPlaying = value;
         },
-        get currentNotes() { return currentNotes; },
+        get currentNotes() {
+            return currentNotes;
+        },
         set currentNotes(value) {
             currentNotes = value;
             window.currentNotes = value;
         },
-        get currentOctaveShift() { return currentOctaveShift; },
+        get currentOctaveShift() {
+            return currentOctaveShift;
+        },
         set currentOctaveShift(value) {
             currentOctaveShift = value;
             window.currentOctaveShift = value;
         },
-        get currentOctaveRange() { return currentOctaveRange; },
+        get currentOctaveRange() {
+            return currentOctaveRange;
+        },
         set currentOctaveRange(value) {
             currentOctaveRange = value;
             window.currentOctaveRange = value;
         },
-        get activeSynth() { return audioEngine.activeSynth; },
+        get activeSynth() {
+            return audioEngine.activeSynth;
+        },
         set activeSynth(value) {
             // activeSynth is owned by audio-engine; this is a no-op passthrough
         },
-        get currentWaveform() { return audioEngine.currentWaveform; },
+        get currentWaveform() {
+            return audioEngine.currentWaveform;
+        },
         set currentWaveform(value) {
             audioEngine.currentWaveform = value;
             window.currentWaveform = value;
         },
-        get activeNote() { return activeNote; },
-        set activeNote(value) { activeNote = value; },
-        get isAudioContextStarted() { return isAudioContextStarted; },
-        set isAudioContextStarted(value) { isAudioContextStarted = value; }
+        get activeNote() {
+            return activeNote;
+        },
+        set activeNote(value) {
+            activeNote = value;
+        },
+        get isAudioContextStarted() {
+            return isAudioContextStarted;
+        },
+        set isAudioContextStarted(value) {
+            isAudioContextStarted = value;
+        }
     };
 
     // --- Pattern Helpers ---
@@ -407,12 +481,12 @@ function initializeApp() {
     function rebuildNoteStepIndicator() {
         if (!noteStepIndicator) return;
         const count = currentNotes.length;
-        noteStepIndicator.innerHTML = '';
+        noteStepIndicator.innerHTML = "";
         noteStepPips = [];
         for (let i = 0; i < count; i++) {
-            const pip = document.createElement('div');
-            pip.className = 'note-step-pip';
-            pip.setAttribute('aria-label', currentNotes[i] || '');
+            const pip = document.createElement("div");
+            pip.className = "note-step-pip";
+            pip.setAttribute("aria-label", currentNotes[i] || "");
             noteStepIndicator.appendChild(pip);
             noteStepPips.push(pip);
         }
@@ -431,12 +505,12 @@ function initializeApp() {
 
         // Remove active class from previous step
         if (currentStepIndex >= 0 && currentStepIndex < noteStepPips.length) {
-            noteStepPips[currentStepIndex].classList.remove('active');
+            noteStepPips[currentStepIndex].classList.remove("active");
         }
 
         // Add active class to new step
         if (index >= 0 && index < noteStepPips.length) {
-            noteStepPips[index].classList.add('active');
+            noteStepPips[index].classList.add("active");
         }
 
         currentStepIndex = index;
@@ -450,8 +524,8 @@ function initializeApp() {
      * @returns {string} Direction slug (e.g. 'up', 'down').
      */
     function getSelectedPatternDirection() {
-        const selectedPatternButton = patternButtons.querySelector('.pattern-btn.selected');
-        return selectedPatternButton ? selectedPatternButton.getAttribute('data-pattern') : 'up';
+        const selectedPatternButton = patternButtons.querySelector(".pattern-btn.selected");
+        return selectedPatternButton ? selectedPatternButton.getAttribute("data-pattern") : "up";
     }
 
     /**
@@ -460,13 +534,15 @@ function initializeApp() {
      * @returns {void}
      */
     function setSelectedPatternDirection(direction) {
-        const nextDirection = direction || 'up';
-        let selectedButton = patternButtons.querySelector(`.pattern-btn[data-pattern="${nextDirection}"]`);
+        const nextDirection = direction || "up";
+        let selectedButton = patternButtons.querySelector(
+            `.pattern-btn[data-pattern="${nextDirection}"]`
+        );
         if (!selectedButton) {
             selectedButton = patternButtons.querySelector('.pattern-btn[data-pattern="up"]');
         }
-        patternButtons.querySelectorAll('button').forEach(b => b.classList.remove('selected'));
-        selectedButton.classList.add('selected');
+        patternButtons.querySelectorAll("button").forEach((b) => b.classList.remove("selected"));
+        selectedButton.classList.add("selected");
     }
 
     // --- Preset UI Helpers ---
@@ -478,10 +554,9 @@ function initializeApp() {
      */
     function getPresetDisplayName(record) {
         const savedAt = record.savedAt ? new Date(record.savedAt) : null;
-        const savedAtLabel = savedAt && !Number.isNaN(savedAt.getTime())
-            ? savedAt.toLocaleString()
-            : 'unknown date';
-        return `${record.name || record.filename || 'Untitled'} (${savedAtLabel})`;
+        const savedAtLabel =
+            savedAt && !Number.isNaN(savedAt.getTime()) ? savedAt.toLocaleString() : "unknown date";
+        return `${record.name || record.filename || "Untitled"} (${savedAtLabel})`;
     }
 
     /**
@@ -490,30 +565,30 @@ function initializeApp() {
      * @returns {Promise<void>}
      */
     async function refreshSavedPresetList(selectedId) {
-        if (selectedId === undefined) selectedId = savedPresetSelect?.value || '';
+        if (selectedId === undefined) selectedId = savedPresetSelect?.value || "";
         if (!savedPresetSelect) return;
         try {
             const records = await window.WebArpPresetStore.list();
-            savedPresetSelect.innerHTML = '';
+            savedPresetSelect.innerHTML = "";
             if (records.length === 0) {
-                const option = document.createElement('option');
-                option.value = '';
-                option.textContent = '— No saved presets —';
+                const option = document.createElement("option");
+                option.value = "";
+                option.textContent = "— No saved presets —";
                 savedPresetSelect.appendChild(option);
                 return;
             }
             records.forEach((record) => {
-                const option = document.createElement('option');
+                const option = document.createElement("option");
                 option.value = record.id;
                 option.textContent = getPresetDisplayName(record);
                 savedPresetSelect.appendChild(option);
             });
             // Try to re-select the previously selected id
-            if (selectedId && [...savedPresetSelect.options].some(o => o.value === selectedId)) {
+            if (selectedId && [...savedPresetSelect.options].some((o) => o.value === selectedId)) {
                 savedPresetSelect.value = selectedId;
             }
         } catch (error) {
-            console.warn('Failed to refresh saved preset list:', error);
+            console.warn("Failed to refresh saved preset list:", error);
         }
     }
 
@@ -530,7 +605,7 @@ function initializeApp() {
                 lastSessionSavedAt: record.savedAt
             });
         } catch (error) {
-            console.warn('Failed to save last session:', error);
+            console.warn("Failed to save last session:", error);
         }
     }
 
@@ -564,13 +639,13 @@ function initializeApp() {
                 if (getSelectedPatternDirection()) {
                     setSelectedPatternDirection(getSelectedPatternDirection());
                 } else {
-                    setSelectedPatternDirection('up');
+                    setSelectedPatternDirection("up");
                 }
                 isLoadingStoredSettings = false;
             }
         } catch (error) {
             isLoadingStoredSettings = false;
-            console.warn('Failed to restore last session:', error);
+            console.warn("Failed to restore last session:", error);
         } finally {
             updateTestState({ lastSessionRestoreFinished: true });
         }
@@ -623,29 +698,69 @@ function initializeApp() {
         },
         audio: { analyser: audioEngine.analyser },
         state: {
-            get isRecording() { return recorderManager.isRecording; },
-            get recordingStartTime() { return recorderManager.recordingStartTime; },
-            get isPlaying() { return isPlaying; },
+            get isRecording() {
+                return recorderManager.isRecording;
+            },
+            get recordingStartTime() {
+                return recorderManager.recordingStartTime;
+            },
+            get isPlaying() {
+                return isPlaying;
+            },
             recordButton
         },
-        actions: { formatTime: formatTime || ((s) => { return s; }) }
+        actions: {
+            formatTime:
+                formatTime ||
+                ((s) => {
+                    return s;
+                })
+        }
     });
 
     // 3. Settings Manager — serialization / restoration (no deps on recorder)
     const settingsManager = createSettingsManager({
         state: appState,
         dom: {
-            bpmSlider, bpmValue, swingSlider, swingValue, notesInput, intervalSelect,
-            postGainSlider, postGainValue,
-            scaleQuantizeToggle, scaleRootSelect, scaleTypeSelect,
-            synthTypeSelect, harmonicitySlider, harmonicityValue,
-            modIndexSlider, modIndexValue, gateSlider, gateValue,
-            dutySlider, dutyValue,
-            envAttackSlider, envDecaySlider, envSustainSlider, envReleaseSlider,
-            envAttackValue, envDecayValue, envSustainValue, envReleaseValue,
-            filterCutoffSlider, filterCutoffValue, filterResonanceSlider, filterResonanceValue,
-            delayMixSlider, delayMixValue, reverbMixSlider, reverbMixValue,
-            loopCountInput, octaveShiftButtons, octaveRangeButtons
+            bpmSlider,
+            bpmValue,
+            swingSlider,
+            swingValue,
+            notesInput,
+            intervalSelect,
+            postGainSlider,
+            postGainValue,
+            scaleQuantizeToggle,
+            scaleRootSelect,
+            scaleTypeSelect,
+            synthTypeSelect,
+            harmonicitySlider,
+            harmonicityValue,
+            modIndexSlider,
+            modIndexValue,
+            gateSlider,
+            gateValue,
+            dutySlider,
+            dutyValue,
+            envAttackSlider,
+            envDecaySlider,
+            envSustainSlider,
+            envReleaseSlider,
+            envAttackValue,
+            envDecayValue,
+            envSustainValue,
+            envReleaseValue,
+            filterCutoffSlider,
+            filterCutoffValue,
+            filterResonanceSlider,
+            filterResonanceValue,
+            delayMixSlider,
+            delayMixValue,
+            reverbMixSlider,
+            reverbMixValue,
+            loopCountInput,
+            octaveShiftButtons,
+            octaveRangeButtons
         },
         actions: {
             getArpeggioNotes,
@@ -672,7 +787,12 @@ function initializeApp() {
     // 4. Keyboard Controller
     const keyboardControls = initializeKeyboardControls({
         state: appState,
-        dom: { keyboardVisual, keyboardToggle, keyboardToggleStatus, keyboardDescription }
+        dom: {
+            keyboardVisual,
+            keyboardToggle,
+            keyboardToggleStatus,
+            keyboardDescription
+        }
     });
     const { updateKeyboardControlUi } = keyboardControls;
 
@@ -701,8 +821,12 @@ function initializeApp() {
             envReleaseSlider
         },
         state: {
-            get isAudioContextStarted() { return isAudioContextStarted; },
-            get isPlaying() { return isPlaying; }
+            get isAudioContextStarted() {
+                return isAudioContextStarted;
+            },
+            get isPlaying() {
+                return isPlaying;
+            }
         },
         actions: {
             showToast,
@@ -726,13 +850,13 @@ function initializeApp() {
      * @returns {void}
      */
     function updateButtonGroup(container, selectedValue, dataAttribute) {
-        container.querySelectorAll('button').forEach(btn => {
-            btn.classList.remove('selected');
+        container.querySelectorAll("button").forEach((btn) => {
+            btn.classList.remove("selected");
             const btnVal = btn.getAttribute(dataAttribute);
             if (btnVal !== null) {
                 const numVal = parseInt(btnVal, 10);
                 if (numVal === selectedValue) {
-                    btn.classList.add('selected');
+                    btn.classList.add("selected");
                 }
             }
         });
@@ -744,11 +868,11 @@ function initializeApp() {
      * @returns {void}
      */
     function updateWaveformButtons(selectedWave) {
-        waveformButtons.querySelectorAll('button').forEach(btn => {
-            btn.classList.remove('selected');
-            const btnWave = btn.getAttribute('data-wave');
+        waveformButtons.querySelectorAll("button").forEach((btn) => {
+            btn.classList.remove("selected");
+            const btnWave = btn.getAttribute("data-wave");
             if (btnWave === selectedWave) {
-                btn.classList.add('selected');
+                btn.classList.add("selected");
             }
         });
     }
@@ -760,12 +884,12 @@ function initializeApp() {
      */
     function formatTime(seconds) {
         const minutes = Math.floor(seconds / 60);
-        const remainingSeconds = (seconds % 60);
+        const remainingSeconds = seconds % 60;
         const s = Math.floor(remainingSeconds);
         const ms = Math.floor((remainingSeconds - s) * 10);
 
-        const paddedMinutes = minutes.toString().padStart(2, '0');
-        const paddedSeconds = s.toString().padStart(2, '0');
+        const paddedMinutes = minutes.toString().padStart(2, "0");
+        const paddedSeconds = s.toString().padStart(2, "0");
 
         return `${paddedMinutes}:${paddedSeconds}.${ms}`;
     }
@@ -777,11 +901,11 @@ function initializeApp() {
     function updateScaleQuantizeUi() {
         const isEnabled = scaleQuantizeToggle.checked;
         if (isEnabled) {
-            quantizerControls.classList.remove('opacity-50');
+            quantizerControls.classList.remove("opacity-50");
             scaleRootSelect.disabled = false;
             scaleTypeSelect.disabled = false;
         } else {
-            quantizerControls.classList.add('opacity-50');
+            quantizerControls.classList.add("opacity-50");
             scaleRootSelect.disabled = true;
             scaleTypeSelect.disabled = true;
         }
@@ -793,19 +917,19 @@ function initializeApp() {
      */
     function updateScaleQuantizeToggleText() {
         if (scaleQuantizeToggle.checked) {
-            scaleQuantizeToggleStatus.textContent = 'Enabled';
-            scaleQuantizeToggleStatus.classList.remove('text-gray-400');
-            scaleQuantizeToggleStatus.classList.add('text-green-400');
+            scaleQuantizeToggleStatus.textContent = "Enabled";
+            scaleQuantizeToggleStatus.classList.remove("text-gray-400");
+            scaleQuantizeToggleStatus.classList.add("text-green-400");
         } else {
-            scaleQuantizeToggleStatus.textContent = 'Disabled';
-            scaleQuantizeToggleStatus.classList.remove('text-green-400');
-            scaleQuantizeToggleStatus.classList.add('text-gray-400');
+            scaleQuantizeToggleStatus.textContent = "Disabled";
+            scaleQuantizeToggleStatus.classList.remove("text-green-400");
+            scaleQuantizeToggleStatus.classList.add("text-gray-400");
         }
     }
 
     const toastManager = createToastManager({
         toastContainer,
-        liveRegion: document.getElementById('sr-announcements'),
+        liveRegion: document.getElementById("sr-announcements"),
         logger: log
     });
     const { showToast, announce } = toastManager;
@@ -819,18 +943,20 @@ function initializeApp() {
      */
     function setupKeyboardNavigation(container, buttonSelector) {
         if (!container) return;
-        container.addEventListener('keydown', (event) => {
-            const buttons = /** @type {HTMLElement[]} */ (Array.from(container.querySelectorAll(buttonSelector)));
+        container.addEventListener("keydown", (event) => {
+            const buttons = /** @type {HTMLElement[]} */ (
+                Array.from(container.querySelectorAll(buttonSelector))
+            );
             const activeEl = /** @type {HTMLElement | null} */ (document.activeElement);
             const index = buttons.indexOf(activeEl);
 
             if (index === -1) return;
 
             let nextIndex = index;
-            if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+            if (event.key === "ArrowRight" || event.key === "ArrowDown") {
                 nextIndex = (index + 1) % buttons.length;
                 event.preventDefault();
-            } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+            } else if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
                 nextIndex = (index - 1 + buttons.length) % buttons.length;
                 event.preventDefault();
             }
@@ -841,21 +967,21 @@ function initializeApp() {
         });
     }
 
-    setupKeyboardNavigation(patternButtons, 'button.pattern-btn');
-    setupKeyboardNavigation(waveformButtons, 'button.waveform-btn');
-    setupKeyboardNavigation(octaveShiftButtons, 'button.octave-btn');
-    setupKeyboardNavigation(octaveRangeButtons, 'button.octave-btn');
+    setupKeyboardNavigation(patternButtons, "button.pattern-btn");
+    setupKeyboardNavigation(waveformButtons, "button.waveform-btn");
+    setupKeyboardNavigation(octaveShiftButtons, "button.octave-btn");
+    setupKeyboardNavigation(octaveRangeButtons, "button.octave-btn");
 
     // ==================================================================
     //    Event Listeners
     // ==================================================================
 
     // --- Pattern Button Selection ---
-    patternButtons.addEventListener('click', (e) => {
-        const btn = /** @type {Element} */ (e.target).closest('button.pattern-btn');
+    patternButtons.addEventListener("click", (e) => {
+        const btn = /** @type {Element} */ (e.target).closest("button.pattern-btn");
         if (!btn) return;
-        patternButtons.querySelectorAll('button').forEach(b => b.classList.remove('selected'));
-        btn.classList.add('selected');
+        patternButtons.querySelectorAll("button").forEach((b) => b.classList.remove("selected"));
+        btn.classList.add("selected");
         createOrUpdatePattern();
     });
 
@@ -875,13 +1001,14 @@ function initializeApp() {
         }
         window.__WEB_ARP_TEST__.lastSharedUrl = shareUrl;
 
-        navigator.clipboard.writeText(shareUrl)
+        navigator.clipboard
+            .writeText(shareUrl)
             .then(() => {
-                showToast('Share link copied to clipboard!', 'success');
+                showToast("Share link copied to clipboard!", "success");
             })
             .catch((err) => {
-                console.error('Failed to copy share link:', err);
-                showToast('Failed to copy link. Generated URL: ' + shareUrl, 'error');
+                console.error("Failed to copy share link:", err);
+                showToast("Failed to copy link. Generated URL: " + shareUrl, "error");
             });
     }
 
@@ -899,9 +1026,8 @@ function initializeApp() {
         if (!settings || !hasPresetChanges(settings, current)) return;
 
         loadAllSettings(settings);
-        showToast('Preset loaded from URL link!', 'success');
+        showToast("Preset loaded from URL link!", "success");
     }
-
 
     // --- Start Overlay ---
     /**
@@ -912,15 +1038,15 @@ function initializeApp() {
      */
     const handleStartOverlayClick = async () => {
         if (startOverlay) {
-            startOverlay.style.display = 'none';
+            startOverlay.style.display = "none";
         }
 
         if (playStopButton) {
             playStopButton.disabled = false;
-            playStopButton.textContent = 'Start Audio';
-            playStopButton.setAttribute('aria-label', 'Press to play arpeggio');
-            playStopButton.classList.remove('opacity-50', 'cursor-not-allowed', 'bg-gray-600');
-            playStopButton.classList.add('bg-blue-600', 'hover:bg-blue-700');
+            playStopButton.textContent = "Start Audio";
+            playStopButton.setAttribute("aria-label", "Press to play arpeggio");
+            playStopButton.classList.remove("opacity-50", "cursor-not-allowed", "bg-gray-600");
+            playStopButton.classList.add("bg-blue-600", "hover:bg-blue-700");
         }
 
         try {
@@ -932,11 +1058,11 @@ function initializeApp() {
     };
 
     if (startOverlay) {
-        startOverlay.addEventListener('click', handleStartOverlayClick);
+        startOverlay.addEventListener("click", handleStartOverlayClick);
     }
 
     // --- Transport: Play / Stop ---
-    playStopButton.addEventListener('click', async () => {
+    playStopButton.addEventListener("click", async () => {
         await startAudio();
 
         // Lazy-init recorder on first play press
@@ -949,19 +1075,19 @@ function initializeApp() {
         if (isPlaying) {
             Tone.Transport.stop();
             if (arpPattern) arpPattern.stop();
-            playStopButton.textContent = 'Restart Audio';
-            playStopButton.setAttribute('aria-label', 'Press to restart arpeggio');
-            playStopButton.classList.remove('bg-yellow-600', 'hover:bg-yellow-700');
-            playStopButton.classList.add('bg-blue-600', 'hover:bg-blue-700');
+            playStopButton.textContent = "Restart Audio";
+            playStopButton.setAttribute("aria-label", "Press to restart arpeggio");
+            playStopButton.classList.remove("bg-yellow-600", "hover:bg-yellow-700");
+            playStopButton.classList.add("bg-blue-600", "hover:bg-blue-700");
             isPlaying = false;
             syncPatternModuleState();
         } else {
             if (arpPattern) arpPattern.start();
             Tone.Transport.start();
-            playStopButton.textContent = 'Stop Audio';
-            playStopButton.setAttribute('aria-label', 'Press to stop arpeggio');
-            playStopButton.classList.add('bg-yellow-600', 'hover:bg-yellow-700');
-            playStopButton.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+            playStopButton.textContent = "Stop Audio";
+            playStopButton.setAttribute("aria-label", "Press to stop arpeggio");
+            playStopButton.classList.add("bg-yellow-600", "hover:bg-yellow-700");
+            playStopButton.classList.remove("bg-blue-600", "hover:bg-blue-700");
             isPlaying = true;
             syncPatternModuleState();
         }
@@ -971,7 +1097,7 @@ function initializeApp() {
         } else {
             visualizer.stopUiLoop();
             // Clear the note step indicator when stopped
-            noteStepPips.forEach(p => p.classList.remove('active'));
+            noteStepPips.forEach((p) => p.classList.remove("active"));
             currentStepIndex = -1;
         }
     });
@@ -1001,25 +1127,25 @@ function initializeApp() {
     }, 16);
 
     // --- ADSR Listeners ---
-    envAttackSlider.addEventListener('input', () => {
+    envAttackSlider.addEventListener("input", () => {
         envAttackValue.textContent = parseFloat(envAttackSlider.value).toFixed(2);
         debouncedUpdateEnvelope();
     });
-    envDecaySlider.addEventListener('input', () => {
+    envDecaySlider.addEventListener("input", () => {
         envDecayValue.textContent = parseFloat(envDecaySlider.value).toFixed(2);
         debouncedUpdateEnvelope();
     });
-    envSustainSlider.addEventListener('input', () => {
+    envSustainSlider.addEventListener("input", () => {
         envSustainValue.textContent = parseFloat(envSustainSlider.value).toFixed(2);
         debouncedUpdateEnvelope();
     });
-    envReleaseSlider.addEventListener('input', () => {
+    envReleaseSlider.addEventListener("input", () => {
         envReleaseValue.textContent = parseFloat(envReleaseSlider.value).toFixed(2);
         debouncedUpdateEnvelope();
     });
 
     // --- Randomize Notes ---
-    randomizeNotesButton.addEventListener('click', () => {
+    randomizeNotesButton.addEventListener("click", () => {
         let root = scaleRootSelect.value;
         let scaleType = scaleTypeSelect.value;
         const isQuantized = scaleQuantizeToggle.checked;
@@ -1030,33 +1156,35 @@ function initializeApp() {
             const rootOptions = scaleRootSelect.options;
             root = rootOptions[Math.floor(Math.random() * rootOptions.length)].value;
             scaleRootSelect.value = root;
-            scaleRootSelect.dispatchEvent(new Event('change'));
+            scaleRootSelect.dispatchEvent(new Event("change"));
 
             // Select a random scale type from the configured scale type dropdown options (excluding 'chromatic').
             const typeOptions = scaleTypeSelect.options;
             let randomTypeOption;
             do {
-                randomTypeOption = typeOptions[Math.floor(Math.random() * typeOptions.length)].value;
-            } while (randomTypeOption === 'chromatic' && typeOptions.length > 1);
+                randomTypeOption =
+                    typeOptions[Math.floor(Math.random() * typeOptions.length)].value;
+            } while (randomTypeOption === "chromatic" && typeOptions.length > 1);
 
             scaleType = randomTypeOption;
             scaleTypeSelect.value = scaleType;
-            scaleTypeSelect.dispatchEvent(new Event('change'));
+            scaleTypeSelect.dispatchEvent(new Event("change"));
         }
 
         // Determine the actual scale type to use for generation.
         // If quantization is on, respect the user's selected scale; if off, use the newly randomized scale.
-        const activeScaleType = (isQuantized && scaleType === 'chromatic') ? 'chromatic' : scaleType;
+        const activeScaleType = isQuantized && scaleType === "chromatic" ? "chromatic" : scaleType;
         const randomizedNotes = generateRandomNotes(root, activeScaleType);
 
         // Update the notes input field and trigger change events to refresh Tone.Pattern.
-        notesInput.value = randomizedNotes.join(' ');
-        notesInput.dispatchEvent(new Event('change'));
+        notesInput.value = randomizedNotes.join(" ");
+        notesInput.dispatchEvent(new Event("change"));
 
-        const formattedScaleName = activeScaleType === 'chromatic'
-            ? `${root} Chromatic (Random Selection)`
-            : `${root} ${scaleType.charAt(0).toUpperCase() + scaleType.slice(1)}`;
-        showToast(`Randomized notes using ${formattedScaleName}!`, 'success');
+        const formattedScaleName =
+            activeScaleType === "chromatic"
+                ? `${root} Chromatic (Random Selection)`
+                : `${root} ${scaleType.charAt(0).toUpperCase() + scaleType.slice(1)}`;
+        showToast(`Randomized notes using ${formattedScaleName}!`, "success");
     });
 
     // --- Transport & Pattern ---
@@ -1067,7 +1195,7 @@ function initializeApp() {
      * @returns {number} Percentage (0–100).
      */
     function dbToPercent(db) {
-        return Math.round((db + 40) / 40 * 100);
+        return Math.round(((db + 40) / 40) * 100);
     }
 
     /**
@@ -1099,7 +1227,7 @@ function initializeApp() {
      * @type {Function}
      */
     const debouncedSetHarmonicity = debounce((val) => {
-        if (audioEngine.activeSynth && 'harmonicity' in audioEngine.activeSynth) {
+        if (audioEngine.activeSynth && "harmonicity" in audioEngine.activeSynth) {
             audioEngine.activeSynth.harmonicity.value = val;
         }
     }, 16);
@@ -1109,7 +1237,7 @@ function initializeApp() {
      * @type {Function}
      */
     const debouncedSetModIndex = debounce((val) => {
-        if (audioEngine.activeSynth && 'modulationIndex' in audioEngine.activeSynth) {
+        if (audioEngine.activeSynth && "modulationIndex" in audioEngine.activeSynth) {
             audioEngine.activeSynth.modulationIndex.value = val;
         }
     }, 16);
@@ -1119,8 +1247,11 @@ function initializeApp() {
      * @type {Function}
      */
     const debouncedSetDuty = debounce((val) => {
-        if (audioEngine.activeSynth && audioEngine.activeSynth.oscillator &&
-            audioEngine.currentWaveform === 'square') {
+        if (
+            audioEngine.activeSynth &&
+            audioEngine.activeSynth.oscillator &&
+            audioEngine.currentWaveform === "square"
+        ) {
             audioEngine.activeSynth.oscillator.width.value = val;
         }
     }, 16);
@@ -1165,150 +1296,150 @@ function initializeApp() {
         audioEngine.reverb.wet.value = val;
     }, 16);
 
-    postGainSlider.addEventListener('input', () => {
+    postGainSlider.addEventListener("input", () => {
         const db = parseFloat(postGainSlider.value);
         debouncedSetPostGain(db);
         postGainValue.textContent = String(dbToPercent(db));
     });
 
-    bpmSlider.addEventListener('input', () => {
+    bpmSlider.addEventListener("input", () => {
         debouncedSetBpm(parseInt(bpmSlider.value));
         bpmValue.textContent = bpmSlider.value;
     });
 
-    swingSlider.addEventListener('input', () => {
+    swingSlider.addEventListener("input", () => {
         debouncedSetSwing(parseFloat(swingSlider.value));
         swingValue.textContent = parseFloat(swingSlider.value).toFixed(2);
     });
 
-    notesInput.addEventListener('change', () => {
+    notesInput.addEventListener("change", () => {
         currentNotes = notesInput.value.trim().split(/\s+/).filter(Boolean);
-        if (currentNotes.length === 0) currentNotes = ['C4'];
+        if (currentNotes.length === 0) currentNotes = ["C4"];
         syncPatternModuleState();
         createOrUpdatePattern();
     });
-    notesInput.addEventListener('input', () => {
+    notesInput.addEventListener("input", () => {
         currentNotes = notesInput.value.trim().split(/\s+/).filter(Boolean);
-        if (currentNotes.length === 0) currentNotes = ['C4'];
+        if (currentNotes.length === 0) currentNotes = ["C4"];
         syncPatternModuleState();
     });
 
-    scaleQuantizeToggle.addEventListener('change', () => {
+    scaleQuantizeToggle.addEventListener("change", () => {
         updateScaleQuantizeUi();
         createOrUpdatePattern();
         updateScaleQuantizeToggleText();
     });
-    scaleRootSelect.addEventListener('change', createOrUpdatePattern);
-    scaleTypeSelect.addEventListener('change', createOrUpdatePattern);
+    scaleRootSelect.addEventListener("change", createOrUpdatePattern);
+    scaleTypeSelect.addEventListener("change", createOrUpdatePattern);
 
-    intervalSelect.addEventListener('change', createOrUpdatePattern);
+    intervalSelect.addEventListener("change", createOrUpdatePattern);
 
     // --- Synth & Effects ---
-    synthTypeSelect.addEventListener('change', () => {
+    synthTypeSelect.addEventListener("change", () => {
         audioEngine.setSynth(synthTypeSelect.value);
         createOrUpdatePattern();
     });
 
-    waveformButtons.addEventListener('click', (e) => {
-        const btn = /** @type {Element} */ (e.target).closest('button.waveform-btn');
+    waveformButtons.addEventListener("click", (e) => {
+        const btn = /** @type {Element} */ (e.target).closest("button.waveform-btn");
         if (!btn) return;
 
-        audioEngine.currentWaveform = btn.getAttribute('data-wave') || 'sine';
+        audioEngine.currentWaveform = btn.getAttribute("data-wave") || "sine";
         updateWaveformButtons(audioEngine.currentWaveform);
         audioEngine.setSynth(synthTypeSelect.value);
     });
 
-    harmonicitySlider.addEventListener('input', () => {
+    harmonicitySlider.addEventListener("input", () => {
         const val = parseFloat(harmonicitySlider.value);
         debouncedSetHarmonicity(val);
         harmonicityValue.textContent = val.toFixed(1);
     });
 
-    modIndexSlider.addEventListener('input', () => {
+    modIndexSlider.addEventListener("input", () => {
         const val = parseFloat(modIndexSlider.value);
         debouncedSetModIndex(val);
         modIndexValue.textContent = val.toFixed(1);
     });
 
     // --- Duty Cycle ---
-    dutySlider.addEventListener('input', () => {
+    dutySlider.addEventListener("input", () => {
         const val = parseFloat(dutySlider.value);
         dutyValue.textContent = val.toFixed(2);
         debouncedSetDuty(val);
     });
 
     // --- Octave Controls ---
-    octaveShiftButtons.addEventListener('click', (e) => {
+    octaveShiftButtons.addEventListener("click", (e) => {
         const target = /** @type {Element} */ (e.target);
-        if (target.tagName === 'BUTTON') {
-            currentOctaveShift = parseInt(target.getAttribute('data-shift') || '0');
+        if (target.tagName === "BUTTON") {
+            currentOctaveShift = parseInt(target.getAttribute("data-shift") || "0");
             syncPatternModuleState();
-            updateButtonGroup(octaveShiftButtons, currentOctaveShift, 'data-shift');
+            updateButtonGroup(octaveShiftButtons, currentOctaveShift, "data-shift");
             createOrUpdatePattern();
         }
     });
 
-    octaveRangeButtons.addEventListener('click', (e) => {
+    octaveRangeButtons.addEventListener("click", (e) => {
         const target = /** @type {Element} */ (e.target);
-        if (target.tagName === 'BUTTON') {
-            currentOctaveRange = parseInt(target.getAttribute('data-range') || '1');
+        if (target.tagName === "BUTTON") {
+            currentOctaveRange = parseInt(target.getAttribute("data-range") || "1");
             syncPatternModuleState();
-            updateButtonGroup(octaveRangeButtons, currentOctaveRange, 'data-range');
+            updateButtonGroup(octaveRangeButtons, currentOctaveRange, "data-range");
             createOrUpdatePattern();
         }
     });
 
     // --- Gate ---
-    gateSlider.addEventListener('input', () => {
+    gateSlider.addEventListener("input", () => {
         gateValue.textContent = parseFloat(gateSlider.value).toFixed(2);
         debouncedCreateOrUpdatePattern50();
     });
 
     // --- Filter ---
-    filterCutoffSlider.addEventListener('input', () => {
+    filterCutoffSlider.addEventListener("input", () => {
         const freq = parseFloat(filterCutoffSlider.value);
         debouncedSetFilterCutoff(freq);
         filterCutoffValue.textContent = freq.toFixed(0);
     });
-    filterResonanceSlider.addEventListener('input', () => {
+    filterResonanceSlider.addEventListener("input", () => {
         const res = parseFloat(filterResonanceSlider.value);
         debouncedSetFilterQ(res);
         filterResonanceValue.textContent = res.toFixed(1);
     });
 
     // --- Effects ---
-    delayMixSlider.addEventListener('input', () => {
+    delayMixSlider.addEventListener("input", () => {
         const mix = parseFloat(delayMixSlider.value);
         debouncedSetDelayMix(mix);
         delayMixValue.textContent = mix.toFixed(2);
     });
-    reverbMixSlider.addEventListener('input', () => {
+    reverbMixSlider.addEventListener("input", () => {
         const mix = parseFloat(reverbMixSlider.value);
         debouncedSetReverbMix(mix);
         reverbMixValue.textContent = mix.toFixed(2);
     });
 
     // --- Recording Controls ---
-    recordButton.addEventListener('click', () => {
+    recordButton.addEventListener("click", () => {
         recorderManager.toggleRecording();
     });
 
-    exportButton.addEventListener('click', async () => {
+    exportButton.addEventListener("click", async () => {
         await recorderManager.exportRealtime();
     });
 
-    offlineExportButton.addEventListener('click', async () => {
+    offlineExportButton.addEventListener("click", async () => {
         await recorderManager.exportOffline();
     });
 
     // --- Visualizer Toggle ---
-    toggleVisualizerButton.addEventListener('click', () => {
+    toggleVisualizerButton.addEventListener("click", () => {
         visualizer.toggle();
     });
 
     if (visualizerModeSelect) {
-        visualizerModeSelect.addEventListener('change', () => {
-            if (visualizerModeSelect.value === 'loopMap') {
+        visualizerModeSelect.addEventListener("change", () => {
+            if (visualizerModeSelect.value === "loopMap") {
                 renderStaticLoop();
             }
         });
@@ -1318,7 +1449,7 @@ function initializeApp() {
     //    Preset Management
     // ==================================================================
 
-    sharePresetButton.addEventListener('click', () => {
+    sharePresetButton.addEventListener("click", () => {
         log("Share preset button clicked.");
         sharePresetAsUrl();
     });
@@ -1336,14 +1467,19 @@ function initializeApp() {
         const presetName = presetNameInput?.value.trim() || filename;
         updateTestState({ lastSaveFinished: false });
 
-        if (source === 'download') {
-            const settingsBlob = new Blob([JSON.stringify(settings, null, 2)], { type: 'application/json' });
+        if (source === "download") {
+            const settingsBlob = new Blob([JSON.stringify(settings, null, 2)], {
+                type: "application/json"
+            });
             downloadBlob(settingsBlob, filename);
         }
 
         if (!window.WebArpPresetStore) {
-            updateTestState({ lastSaveError: 'Browser preset storage is unavailable.', lastSaveFinished: true });
-            return source === 'download' ? 'download-only-success' : 'store-unavailable';
+            updateTestState({
+                lastSaveError: "Browser preset storage is unavailable.",
+                lastSaveFinished: true
+            });
+            return source === "download" ? "download-only-success" : "store-unavailable";
         }
 
         try {
@@ -1358,19 +1494,22 @@ function initializeApp() {
                 lastSavedPresetRecord: record,
                 lastSaveFinished: true
             });
-            return 'success';
+            return "success";
         } catch (storeError) {
-            console.warn('Failed to save preset to browser storage:', storeError);
-            updateTestState({ lastSaveError: String(storeError), lastSaveFinished: true });
-            return source === 'download' ? 'download-only-fail' : 'save-fail';
+            console.warn("Failed to save preset to browser storage:", storeError);
+            updateTestState({
+                lastSaveError: String(storeError),
+                lastSaveFinished: true
+            });
+            return source === "download" ? "download-only-fail" : "save-fail";
         }
     }
 
-    savePresetButton.addEventListener('click', async () => {
+    savePresetButton.addEventListener("click", async () => {
         log("Save preset button clicked.");
-        const result = await performPresetSave('download');
-        if (result === 'download-only-fail') {
-            showToast('Preset downloaded, but browser save failed.', 'info');
+        const result = await performPresetSave("download");
+        if (result === "download-only-fail") {
+            showToast("Preset downloaded, but browser save failed.", "info");
         } else {
             showToast("Preset saved!", "success");
         }
@@ -1383,41 +1522,45 @@ function initializeApp() {
          * @param {Event} event - The button click event.
          * @returns {Promise<void>}
          */
-        savePresetToBrowserButton.addEventListener('click', async (event) => {
+        savePresetToBrowserButton.addEventListener("click", async (event) => {
             event.preventDefault();
             log("Save to browser preset button clicked.");
-            const result = await performPresetSave('save');
-            if (result === 'success') {
+            const result = await performPresetSave("save");
+            if (result === "success") {
                 showToast("Preset saved to browser!", "success");
-            } else if (result === 'store-unavailable') {
-                showToast('Browser preset storage is unavailable.', 'error');
+            } else if (result === "store-unavailable") {
+                showToast("Browser preset storage is unavailable.", "error");
             } else {
-                showToast('Browser save failed.', 'error');
+                showToast("Browser save failed.", "error");
             }
         });
     }
 
-    loadPresetButton.addEventListener('click', () => {
+    loadPresetButton.addEventListener("click", () => {
         log("Load preset button clicked.");
         loadPresetInput.click();
     });
 
-    loadPresetInput.addEventListener('change', (event) => {
+    loadPresetInput.addEventListener("change", (event) => {
         const target = /** @type {HTMLInputElement} */ (event.target);
         const file = target.files ? target.files[0] : null;
         if (!file) return;
         const reader = new FileReader();
         reader.onload = (e) => {
             const fileReaderTarget = /** @type {FileReader} */ (e.target);
-            if (fileReaderTarget && typeof fileReaderTarget.result === 'string') {
+            if (fileReaderTarget && typeof fileReaderTarget.result === "string") {
                 try {
                     const settings = JSON.parse(fileReaderTarget.result);
                     loadAllSettings(settings);
                     updateTestState({ lastImportedPreset: settings });
                     if (window.WebArpPresetStore) {
-                        window.WebArpPresetStore.save(settings, { filename: file.name, name: file.name, source: 'import' })
+                        window.WebArpPresetStore.save(settings, {
+                            filename: file.name,
+                            name: file.name,
+                            source: "import"
+                        })
                             .then((record) => refreshSavedPresetList(record.id))
-                            .catch((er) => console.warn('Failed to save imported preset:', er));
+                            .catch((er) => console.warn("Failed to save imported preset:", er));
                     }
                     showToast("Preset loaded!", "success");
                 } catch (err) {
@@ -1427,91 +1570,121 @@ function initializeApp() {
             }
         };
         reader.readAsText(file);
-        target.value = '';
+        target.value = "";
     });
 
     if (loadSavedPresetButton) {
-        loadSavedPresetButton.addEventListener('click', async () => {
-            log('Load saved preset button clicked.');
+        loadSavedPresetButton.addEventListener("click", async () => {
+            log("Load saved preset button clicked.");
             updateTestState({ lastLoadFinished: false });
             if (!window.WebArpPresetStore) {
-                updateTestState({ lastLoadError: 'Browser preset storage is unavailable.', lastLoadFinished: true });
-                showToast('Browser preset storage is unavailable.', 'error');
+                updateTestState({
+                    lastLoadError: "Browser preset storage is unavailable.",
+                    lastLoadFinished: true
+                });
+                showToast("Browser preset storage is unavailable.", "error");
                 return;
             }
             try {
-                const selectedId = savedPresetSelect?.value || '';
+                const selectedId = savedPresetSelect?.value || "";
                 const record = selectedId
                     ? await window.WebArpPresetStore.get(selectedId)
                     : await window.WebArpPresetStore.loadLatest();
                 if (!record) {
-                    updateTestState({ lastLoadedPreset: null, lastLoadFinished: true });
-                    showToast('No saved preset found yet.', 'info');
+                    updateTestState({
+                        lastLoadedPreset: null,
+                        lastLoadFinished: true
+                    });
+                    showToast("No saved preset found yet.", "info");
                     return;
                 }
                 loadAllSettings(record.settings || record);
-                if (presetNameInput) presetNameInput.value = record.name || record.filename || '';
+                if (presetNameInput) presetNameInput.value = record.name || record.filename || "";
                 await refreshSavedPresetList(record.id);
-                updateTestState({ lastLoadedPreset: record.settings || record, lastLoadedPresetRecord: record, lastLoadFinished: true });
-                showToast('Loaded saved preset from browser storage.', 'success');
+                updateTestState({
+                    lastLoadedPreset: record.settings || record,
+                    lastLoadedPresetRecord: record,
+                    lastLoadFinished: true
+                });
+                showToast("Loaded saved preset from browser storage.", "success");
             } catch (error) {
-                console.error('Failed to load saved preset:', error);
-                updateTestState({ lastLoadError: String(error), lastLoadFinished: true });
-                showToast('Failed to load saved preset.', 'error');
+                console.error("Failed to load saved preset:", error);
+                updateTestState({
+                    lastLoadError: String(error),
+                    lastLoadFinished: true
+                });
+                showToast("Failed to load saved preset.", "error");
             }
         });
     }
 
     if (clearSavedPresetButton) {
-        clearSavedPresetButton.addEventListener('click', async () => {
-            log('Clear saved presets button clicked.');
+        clearSavedPresetButton.addEventListener("click", async () => {
+            log("Clear saved presets button clicked.");
             updateTestState({ lastClearFinished: false });
             if (!window.WebArpPresetStore) {
-                updateTestState({ lastClearError: 'Browser preset storage is unavailable.', lastClearFinished: true });
-                showToast('Browser preset storage is unavailable.', 'error');
+                updateTestState({
+                    lastClearError: "Browser preset storage is unavailable.",
+                    lastClearFinished: true
+                });
+                showToast("Browser preset storage is unavailable.", "error");
                 return;
             }
             try {
                 await window.WebArpPresetStore.clear();
                 await refreshSavedPresetList();
                 updateTestState({ lastClearFinished: true });
-                showToast('Saved browser presets cleared.', 'success');
+                showToast("Saved browser presets cleared.", "success");
             } catch (error) {
-                console.error('Failed to clear saved presets:', error);
-                updateTestState({ lastClearError: String(error), lastClearFinished: true });
-                showToast('Failed to clear saved presets.', 'error');
+                console.error("Failed to clear saved presets:", error);
+                updateTestState({
+                    lastClearError: String(error),
+                    lastClearFinished: true
+                });
+                showToast("Failed to clear saved presets.", "error");
             }
         });
     }
 
     if (deleteSavedPresetButton) {
-        deleteSavedPresetButton.addEventListener('click', async () => {
-            log('Delete saved preset button clicked.');
+        deleteSavedPresetButton.addEventListener("click", async () => {
+            log("Delete saved preset button clicked.");
             updateTestState({ lastDeleteFinished: false });
             if (!window.WebArpPresetStore) {
-                updateTestState({ lastDeleteError: 'Browser preset storage is unavailable.', lastDeleteFinished: true });
-                showToast('Browser preset storage is unavailable.', 'error');
+                updateTestState({
+                    lastDeleteError: "Browser preset storage is unavailable.",
+                    lastDeleteFinished: true
+                });
+                showToast("Browser preset storage is unavailable.", "error");
                 return;
             }
-            const selectedId = savedPresetSelect?.value || '';
+            const selectedId = savedPresetSelect?.value || "";
             if (!selectedId) {
-                updateTestState({ lastDeleteError: 'No saved preset selected.', lastDeleteFinished: true });
-                showToast('No saved preset selected.', 'info');
+                updateTestState({
+                    lastDeleteError: "No saved preset selected.",
+                    lastDeleteFinished: true
+                });
+                showToast("No saved preset selected.", "info");
                 return;
             }
             try {
                 await window.WebArpPresetStore.remove(selectedId);
                 await refreshSavedPresetList();
-                updateTestState({ lastDeletedPresetId: selectedId, lastDeleteFinished: true });
-                showToast('Deleted saved preset.', 'success');
+                updateTestState({
+                    lastDeletedPresetId: selectedId,
+                    lastDeleteFinished: true
+                });
+                showToast("Deleted saved preset.", "success");
             } catch (error) {
-                console.error('Failed to delete saved preset:', error);
-                updateTestState({ lastDeleteError: String(error), lastDeleteFinished: true });
-                showToast('Failed to delete saved preset.', 'error');
+                console.error("Failed to delete saved preset:", error);
+                updateTestState({
+                    lastDeleteError: String(error),
+                    lastDeleteFinished: true
+                });
+                showToast("Failed to delete saved preset.", "error");
             }
         });
     }
-
 
     /**
      * Renders exactly one cycle of the arpeggio loop offline, calculates the note trigger markers,
@@ -1561,16 +1734,16 @@ function initializeApp() {
      * @type {Function}
      */
     const debouncedRenderStaticLoop = debounce(() => {
-        if (visualizer && visualizer.currentMode === 'loopMap') {
+        if (visualizer && visualizer.currentMode === "loopMap") {
             renderStaticLoop();
         }
     }, 150);
 
     // --- Autosave (on any input/change/click) ---
-    document.addEventListener('input', (event) => {
+    document.addEventListener("input", (event) => {
         const target = /** @type {Element} */ (event.target);
         if (target === pwaTestStateField || target === presetNameInput) return;
-        if (target.matches('input, select, textarea')) {
+        if (target.matches("input, select, textarea")) {
             scheduleLastSessionSave();
             if (target !== loopCountInput) {
                 // Exclude loop count input from debounced render
@@ -1579,11 +1752,16 @@ function initializeApp() {
         }
     });
 
-    document.addEventListener('change', (event) => {
+    document.addEventListener("change", (event) => {
         const target = /** @type {Element} */ (event.target);
-        if (target === pwaTestStateField || target === presetNameInput ||
-            target === savedPresetSelect || target === loadPresetInput) return;
-        if (target.matches('input, select, textarea')) {
+        if (
+            target === pwaTestStateField ||
+            target === presetNameInput ||
+            target === savedPresetSelect ||
+            target === loadPresetInput
+        )
+            return;
+        if (target.matches("input, select, textarea")) {
             scheduleLastSessionSave();
             if (target !== loopCountInput) {
                 // Exclude loop count input from debounced render
@@ -1592,9 +1770,14 @@ function initializeApp() {
         }
     });
 
-    document.addEventListener('click', (event) => {
+    document.addEventListener("click", (event) => {
         const target = /** @type {Element} */ (event.target);
-        if (target && target.closest('.pattern-btn, .waveform-btn, #octave-shift-buttons button, #octave-range-buttons button')) {
+        if (
+            target &&
+            target.closest(
+                ".pattern-btn, .waveform-btn, #octave-shift-buttons button, #octave-range-buttons button"
+            )
+        ) {
             scheduleLastSessionSave();
             debouncedRenderStaticLoop();
         }
@@ -1610,10 +1793,18 @@ function initializeApp() {
         getCurrentSettings: () => getAllSettings(),
 
         savePreset: async (settings = null, metadata = {}) => {
-            if (!window.WebArpPresetStore) throw new Error('Browser preset storage is unavailable.');
-            const record = await window.WebArpPresetStore.save(settings || getAllSettings(), metadata);
+            if (!window.WebArpPresetStore)
+                throw new Error("Browser preset storage is unavailable.");
+            const record = await window.WebArpPresetStore.save(
+                settings || getAllSettings(),
+                metadata
+            );
             await refreshSavedPresetList(record.id);
-            updateTestState({ lastSavedPreset: record.settings, lastSavedPresetRecord: record, lastSaveFinished: true });
+            updateTestState({
+                lastSavedPreset: record.settings,
+                lastSavedPresetRecord: record,
+                lastSaveFinished: true
+            });
             return record;
         },
 
@@ -1629,31 +1820,46 @@ function initializeApp() {
             return window.WebArpPresetStore.get(id);
         },
 
-        loadPreset: async (id = '') => {
-            if (!window.WebArpPresetStore) throw new Error('Browser preset storage is unavailable.');
+        loadPreset: async (id = "") => {
+            if (!window.WebArpPresetStore)
+                throw new Error("Browser preset storage is unavailable.");
             const record = id
                 ? await window.WebArpPresetStore.get(id)
                 : await window.WebArpPresetStore.loadLatest();
             if (!record) {
-                updateTestState({ lastLoadedPreset: null, lastLoadFinished: true });
+                updateTestState({
+                    lastLoadedPreset: null,
+                    lastLoadFinished: true
+                });
                 return null;
             }
             loadAllSettings(record.settings || record);
             await refreshSavedPresetList(record.id);
-            updateTestState({ lastLoadedPreset: record.settings || record, lastLoadedPresetRecord: record, lastLoadFinished: true });
+            updateTestState({
+                lastLoadedPreset: record.settings || record,
+                lastLoadedPresetRecord: record,
+                lastLoadFinished: true
+            });
             return record;
         },
 
         removePreset: async (id) => {
-            if (!window.WebArpPresetStore) throw new Error('Browser preset storage is unavailable.');
+            if (!window.WebArpPresetStore)
+                throw new Error("Browser preset storage is unavailable.");
             await window.WebArpPresetStore.remove(id);
             await refreshSavedPresetList();
-            updateTestState({ lastDeletedPresetId: id, lastDeleteFinished: true });
+            updateTestState({
+                lastDeletedPresetId: id,
+                lastDeleteFinished: true
+            });
         },
 
         clearPresets: async () => {
             if (!window.WebArpPresetStore) {
-                updateTestState({ lastClearError: 'Browser preset storage is unavailable.', lastClearFinished: true });
+                updateTestState({
+                    lastClearError: "Browser preset storage is unavailable.",
+                    lastClearFinished: true
+                });
                 return;
             }
             await window.WebArpPresetStore.clear();
@@ -1685,13 +1891,13 @@ function initializeApp() {
     //    Global Audio Event Listeners
     // ==================================================================
 
-    window.addEventListener('audioReady', () => {
+    window.addEventListener("audioReady", () => {
         if (SHOW_AUDIO_READY_TOAST) {
             showToast("Audio is ready!", "success");
         }
     });
 
-    window.addEventListener('audioFailed', () => {
+    window.addEventListener("audioFailed", () => {
         showToast("Audio failed to start. See console.", "error");
     });
 
@@ -1704,8 +1910,8 @@ function initializeApp() {
     currentNotes = notesInput.value.trim().split(/\s+/).filter(Boolean);
     syncPatternModuleState();
 
-    updateButtonGroup(octaveShiftButtons, currentOctaveShift, 'data-shift');
-    updateButtonGroup(octaveRangeButtons, currentOctaveRange, 'data-range');
+    updateButtonGroup(octaveShiftButtons, currentOctaveShift, "data-shift");
+    updateButtonGroup(octaveRangeButtons, currentOctaveRange, "data-range");
     updateWaveformButtons(audioEngine.currentWaveform);
 
     scaleQuantizeToggle.checked = false;
@@ -1714,7 +1920,7 @@ function initializeApp() {
     updateKeyboardControlUi();
     audioEngine.setSynth(synthTypeSelect.value);
 
-    document.querySelector('.pattern-btn[data-pattern="up"]').classList.add('selected');
+    document.querySelector('.pattern-btn[data-pattern="up"]').classList.add("selected");
     syncPatternModuleState();
     createOrUpdatePattern();
 
@@ -1731,8 +1937,8 @@ function initializeApp() {
     });
 }
 
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initializeApp);
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initializeApp);
 } else {
     initializeApp();
 }

@@ -17,8 +17,12 @@
  */
 export function createToastManager(context = {}) {
     const {
-        toastContainer = typeof document !== 'undefined' ? document.getElementById('toast-container') : null,
-        liveRegion = typeof document !== 'undefined' ? document.getElementById('sr-announcements') : null,
+        toastContainer = typeof document !== "undefined"
+            ? document.getElementById("toast-container")
+            : null,
+        liveRegion = typeof document !== "undefined"
+            ? document.getElementById("sr-announcements")
+            : null,
         logger = () => {}
     } = context;
 
@@ -30,7 +34,7 @@ export function createToastManager(context = {}) {
      */
     function announce(message) {
         if (!liveRegion) return;
-        liveRegion.textContent = '';
+        liveRegion.textContent = "";
         setTimeout(() => {
             if (liveRegion) liveRegion.textContent = message;
         }, 100);
@@ -43,32 +47,32 @@ export function createToastManager(context = {}) {
      * @param {'info'|'success'|'error'} [type='info'] - Notification type level.
      * @returns {void}
      */
-    function showToast(message, type = 'info') {
+    function showToast(message, type = "info") {
         logger(`TOAST (${type}): ${message}`);
 
-        if (typeof document === 'undefined' || !toastContainer) {
+        if (typeof document === "undefined" || !toastContainer) {
             return;
         }
 
-        const toast = document.createElement('div');
+        const toast = document.createElement("div");
         toast.textContent = message;
         toast.className = `toast-message toast-${type}`;
 
         toastContainer.appendChild(toast);
 
-        if (typeof requestAnimationFrame === 'function') {
+        if (typeof requestAnimationFrame === "function") {
             requestAnimationFrame(() => {
-                toast.classList.add('show');
+                toast.classList.add("show");
             });
         } else {
-            toast.classList.add('show');
+            toast.classList.add("show");
         }
 
         announce(message);
 
         setTimeout(() => {
-            toast.classList.remove('show');
-            toast.classList.add('hide');
+            toast.classList.remove("show");
+            toast.classList.add("hide");
         }, 3000);
 
         setTimeout(() => {

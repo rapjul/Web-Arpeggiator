@@ -50,7 +50,9 @@ export async function runBrowser(args: string[]): Promise<string> {
     }
 
     if (exitCode !== 0) {
-        throw new Error(`agent-browser ${args.join(" ")} failed with exit code ${exitCode}. Output: ${output.trim()}`);
+        throw new Error(
+            `agent-browser ${args.join(" ")} failed with exit code ${exitCode}. Output: ${output.trim()}`
+        );
     }
 
     return output.trim();
@@ -104,7 +106,11 @@ export async function waitForPwaReady(url: string): Promise<void> {
 
     // Wait for the app state to report service worker registration
     console.log("  [PWA Ready] Waiting for SW registration state...");
-    await runBrowser(["wait", "--fn", "window.__WEB_ARP_PWA_STATE__?.serviceWorkerRegistered === true"]);
+    await runBrowser([
+        "wait",
+        "--fn",
+        "window.__WEB_ARP_PWA_STATE__?.serviceWorkerRegistered === true"
+    ]);
 
     console.log("  [PWA Ready] Waiting for SW controller not null...");
     await runBrowser(["wait", "--fn", "navigator.serviceWorker?.controller !== null"]);
@@ -136,11 +142,18 @@ export async function initializeAudio(): Promise<void> {
 
     // Set post gain to -12dB (70%) to keep audio output quiet during headless checks
     await runBrowser(["eval", "document.querySelector('#post-gain').value = -12"]);
-    await runBrowser(["eval", "document.querySelector('#post-gain').dispatchEvent(new Event('input'))"]);
+    await runBrowser([
+        "eval",
+        "document.querySelector('#post-gain').dispatchEvent(new Event('input'))"
+    ]);
 
     // Start playback
     await runBrowser(["click", "#play-stop"]);
-    await runBrowser(["wait", "--fn", "document.getElementById('play-stop')?.textContent === 'Stop Audio'"]);
+    await runBrowser([
+        "wait",
+        "--fn",
+        "document.getElementById('play-stop')?.textContent === 'Stop Audio'"
+    ]);
 }
 
 /**
@@ -149,7 +162,9 @@ export async function initializeAudio(): Promise<void> {
  * @returns {Promise<void>}
  */
 export async function resetBrowserState(): Promise<void> {
-    await runBrowser(["eval", `
+    await runBrowser([
+        "eval",
+        `
         new Promise((resolve, reject) => {
             const req = indexedDB.open('web-arpeggiator-presets');
             req.onsuccess = () => {
@@ -175,5 +190,6 @@ export async function resetBrowserState(): Promise<void> {
             };
             req.onerror = () => reject(req.error);
         })
-    `]);
+    `
+    ]);
 }

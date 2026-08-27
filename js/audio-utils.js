@@ -28,11 +28,13 @@ export async function fetchWithBackoff(url, options, maxRetries = 5, baseDelay =
                 throw error;
             }
 
-            await new Promise((resolve) => setTimeout(resolve, baseDelay * Math.pow(2, attempt - 1)));
+            await new Promise((resolve) =>
+                setTimeout(resolve, baseDelay * Math.pow(2, attempt - 1))
+            );
         }
     }
 
-    throw new Error('fetchWithBackoff exhausted retries without a response.');
+    throw new Error("fetchWithBackoff exhausted retries without a response.");
 }
 
 /**
@@ -44,7 +46,7 @@ export async function fetchWithBackoff(url, options, maxRetries = 5, baseDelay =
  */
 export function downloadBlob(blob, filename) {
     const url = URL.createObjectURL(blob);
-    const anchor = document.createElement('a');
+    const anchor = document.createElement("a");
     anchor.download = filename;
     anchor.href = url;
     anchor.click();
@@ -61,7 +63,7 @@ export function float32ToInt16(buffer) {
     const data = new Int16Array(buffer.length);
     for (let i = 0; i < buffer.length; i++) {
         const sample = Math.max(-1, Math.min(1, buffer[i]));
-        data[i] = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
+        data[i] = sample < 0 ? sample * 0x8000 : sample * 0x7fff;
     }
     return data;
 }
@@ -81,7 +83,7 @@ export function loadLameJs() {
     if (lameJsPromise) {
         return lameJsPromise;
     }
-    lameJsPromise = import('@breezystack/lamejs')
+    lameJsPromise = import("@breezystack/lamejs")
         .then((module) => {
             window.lamejs = module.default || module;
             return window.lamejs;
@@ -94,28 +96,32 @@ export function loadLameJs() {
 }
 
 // Queue LameJS loading when the browser is idle
-if (typeof window !== 'undefined') {
+if (typeof window !== "undefined") {
     /**
      * Triggers LameJS loading when the browser is idle.
      * @returns {void}
      */
     const triggerIdleLoad = () => {
-        if (typeof requestIdleCallback === 'function') {
+        if (typeof requestIdleCallback === "function") {
             requestIdleCallback(() => {
-                loadLameJs().catch((err) => console.warn('Background LameJS pre-load failed:', err));
+                loadLameJs().catch((err) =>
+                    console.warn("Background LameJS pre-load failed:", err)
+                );
             });
         } else {
             setTimeout(() => {
-                loadLameJs().catch((err) => console.warn('Background LameJS pre-load failed:', err));
+                loadLameJs().catch((err) =>
+                    console.warn("Background LameJS pre-load failed:", err)
+                );
             }, 3000);
         }
     };
 
     // When the page is loaded, trigger LameJS loading.
-    if (document.readyState === 'complete') {
+    if (document.readyState === "complete") {
         triggerIdleLoad();
     } else {
-        window.addEventListener('load', triggerIdleLoad);
+        window.addEventListener("load", triggerIdleLoad);
     }
 }
 
@@ -160,9 +166,9 @@ export async function audioBufferToMp3Blob(audioBuffer) {
                 mp3Data.push(mp3buf);
             }
 
-            resolve(new Blob(mp3Data, { type: 'audio/mpeg' }));
+            resolve(new Blob(mp3Data, { type: "audio/mpeg" }));
         } catch (error) {
-            console.error('Error during MP3 encoding:', error);
+            console.error("Error during MP3 encoding:", error);
             reject(error);
         }
     });
@@ -180,9 +186,10 @@ export function audioBufferToWav(audioBuffer) {
     const format = 1; // PCM
     const bitDepth = 16;
 
-    const result = numChannels === 2
-        ? interleave(audioBuffer.getChannelData(0), audioBuffer.getChannelData(1))
-        : audioBuffer.getChannelData(0);
+    const result =
+        numChannels === 2
+            ? interleave(audioBuffer.getChannelData(0), audioBuffer.getChannelData(1))
+            : audioBuffer.getChannelData(0);
 
     const dataLength = result.length * (bitDepth / 8);
     const blockAlign = numChannels * (bitDepth / 8);
@@ -190,10 +197,10 @@ export function audioBufferToWav(audioBuffer) {
     const buffer = new ArrayBuffer(44 + dataLength);
     const view = new DataView(buffer);
 
-    writeString(view, 0, 'RIFF');
+    writeString(view, 0, "RIFF");
     view.setUint32(4, 36 + dataLength, true);
-    writeString(view, 8, 'WAVE');
-    writeString(view, 12, 'fmt ');
+    writeString(view, 8, "WAVE");
+    writeString(view, 12, "fmt ");
     view.setUint32(16, 16, true);
     view.setUint16(20, format, true);
     view.setUint16(22, numChannels, true);
@@ -201,16 +208,16 @@ export function audioBufferToWav(audioBuffer) {
     view.setUint32(28, sampleRate * blockAlign, true);
     view.setUint16(32, blockAlign, true);
     view.setUint16(34, bitDepth, true);
-    writeString(view, 36, 'data');
+    writeString(view, 36, "data");
     view.setUint32(40, dataLength, true);
 
     let offset = 44;
     for (let i = 0; i < result.length; i += 1, offset += 2) {
         const sample = Math.max(-1, Math.min(1, result[i]));
-        view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
+        view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7fff, true);
     }
 
-    return new Blob([view], { type: 'audio/wav' });
+    return new Blob([view], { type: "audio/wav" });
 }
 
 /**

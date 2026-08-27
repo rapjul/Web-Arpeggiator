@@ -1,6 +1,14 @@
 import { test, expect, beforeAll, afterAll } from "bun:test";
 import { type Subprocess } from "bun";
-import { startTestServer, runBrowser, waitForPwaReady, initializeAudio, resetBrowserState, cleanupProcesses, closeBrowser } from "../test-helpers";
+import {
+    startTestServer,
+    runBrowser,
+    waitForPwaReady,
+    initializeAudio,
+    resetBrowserState,
+    cleanupProcesses,
+    closeBrowser
+} from "../test-helpers";
 
 /**
  * References the background server process.
@@ -31,11 +39,11 @@ afterAll(async (): Promise<void> => {
 
 test("UI Slider Debouncing Verification Suite", async (): Promise<void> => {
     console.log("Starting Slider Debouncing Integration Suite...");
-    
+
     // 1. Wait for PWA page and registration to complete
     console.log("Step 1: Waiting for PWA ready...");
     await waitForPwaReady(APP_URL);
-    
+
     console.log("Step 1b: Resetting browser state...");
     await resetBrowserState();
 
@@ -45,7 +53,9 @@ test("UI Slider Debouncing Verification Suite", async (): Promise<void> => {
 
     // 3. Verify Filter Cutoff Slider Debouncing (16ms)
     console.log("Step 3: Testing Filter Cutoff slider debouncing...");
-    const filterDebounceResult: string = await runBrowser(["eval", `(async () => {
+    const filterDebounceResult: string = await runBrowser([
+        "eval",
+        `(async () => {
         const slider = document.getElementById('filter-cutoff');
         const label = document.getElementById('filter-cutoff-value');
         
@@ -71,12 +81,15 @@ test("UI Slider Debouncing Verification Suite", async (): Promise<void> => {
         }
         
         return 'success';
-    })()`]);
+    })()`
+    ]);
     expect(filterDebounceResult).toBe('"success"');
 
     // 4. Verify BPM Slider Debouncing (16ms)
     console.log("Step 4: Testing BPM slider debouncing...");
-    const bpmDebounceResult: string = await runBrowser(["eval", `(async () => {
+    const bpmDebounceResult: string = await runBrowser([
+        "eval",
+        `(async () => {
         const slider = document.getElementById('bpm');
         const label = document.getElementById('bpm-value');
         
@@ -106,12 +119,15 @@ test("UI Slider Debouncing Verification Suite", async (): Promise<void> => {
         }
         
         return 'success';
-    })()`]);
+    })()`
+    ]);
     expect(bpmDebounceResult).toBe('"success"');
 
     // 5. Verify Gate Slider Debouncing (50ms)
     console.log("Step 5: Testing Gate slider debouncing (50ms)...");
-    const gateDebounceResult: string = await runBrowser(["eval", `(async () => {
+    const gateDebounceResult: string = await runBrowser([
+        "eval",
+        `(async () => {
         const slider = document.getElementById('gate');
         const label = document.getElementById('gate-value');
         
@@ -137,8 +153,9 @@ test("UI Slider Debouncing Verification Suite", async (): Promise<void> => {
         }
         
         return 'success';
-    })()`]);
+    })()`
+    ]);
     expect(gateDebounceResult).toBe('"success"');
-    
+
     console.log("Slider Debouncing Verification Suite complete!");
 }, 30000);
