@@ -42,7 +42,7 @@
         </div>
 
         <main
-            class="w-full max-w-4xl bg-gray-800 rounded-2xl shadow-2xl p-6 sm:p-8 grid grid-cols-1 sm:grid-cols-6 gap-6"
+            class="w-full max-w-4xl bg-gray-800 rounded-2xl shadow-2xl p-6 sm:p-8 grid grid-cols-1 md:grid-cols-6 gap-6"
         >
             <h1 class="col-span-full text-3xl font-bold text-center text-blue-400">
                 Web Arpeggiator
@@ -65,7 +65,7 @@
 
             <!-- Card: Transport -->
             <section
-                class="bg-gray-700 p-4 rounded-lg shadow-inner sm:col-span-2 col-span-full"
+                class="bg-gray-700 p-4 rounded-lg shadow-inner md:col-span-2 col-span-full"
                 aria-labelledby="transport-title"
             >
                 <h2 id="transport-title" class="text-xl font-semibold mb-3 text-blue-300">
@@ -94,13 +94,13 @@
                     <!-- START: Real-Time Output Peak / VU Meter -->
                     <div id="vu-meter-container" class="relative pt-2 border-t border-gray-600/60">
                         <div class="flex justify-between items-center mb-1 text-sm font-medium">
-                            <div class="flex items-center gap-1.5">
+                            <div class="flex items-center gap-1.5 shrink-0 whitespace-nowrap">
                                 <span class="text-gray-100 font-medium">
                                     Peak:
                                 </span>
                                 <span
                                     id="vu-db-value"
-                                    class="text-sm font-mono tabular-nums text-gray-200"
+                                    class="text-sm font-mono tabular-nums text-gray-200 whitespace-nowrap"
                                 >
                                     -- dB
                                 </span>
@@ -110,7 +110,7 @@
                                     aria-label="Final Audio Output info"
                                     aria-describedby="vu-info-tooltip"
                                     aria-expanded="false"
-                                    class="text-gray-400 hover:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded p-0.5 transition-colors cursor-pointer"
+                                    class="text-gray-400 hover:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded p-0.5 transition-colors cursor-pointer shrink-0"
                                 >
                                     <svg
                                         class="w-3.5 h-3.5"
@@ -134,7 +134,7 @@
                                 title="Click to reset clip indicator"
                                 aria-label="Clipping indicator (click to reset)"
                                 aria-pressed="false"
-                                class="px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wider uppercase transition-colors bg-gray-800 text-gray-400 border border-gray-600 hover:border-gray-500 focus:outline-none focus:ring-2 focus:ring-rose-500 cursor-pointer"
+                                class="px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wider uppercase transition-colors bg-gray-800 text-gray-400 border border-gray-600 hover:border-gray-500 focus:outline-none focus:ring-2 focus:ring-rose-500 cursor-pointer shrink-0 ml-auto"
                             >
                                 CLIP
                             </button>
@@ -186,7 +186,7 @@
 
             <!-- Card: Pattern -->
             <section
-                class="bg-gray-700 p-4 rounded-lg shadow-inner sm:col-span-4 col-span-full"
+                class="bg-gray-700 p-4 rounded-lg shadow-inner md:col-span-4 col-span-full"
                 aria-labelledby="pattern-title"
             >
                 <h2 id="pattern-title" class="text-xl font-semibold mb-3 text-blue-300">Pattern</h2>
@@ -430,7 +430,7 @@
 
             <!-- Card: Scale Quantization -->
             <section
-                class="bg-gray-700 p-4 rounded-lg shadow-inner sm:col-span-3 col-span-full"
+                class="bg-gray-700 p-4 rounded-lg shadow-inner md:col-span-3 col-span-full"
                 aria-labelledby="scale-quantization-title"
             >
                 <details class="card-details">
@@ -515,7 +515,7 @@
 
             <!-- Card: Keyboard Control -->
             <section
-                class="bg-gray-700 p-4 rounded-lg shadow-inner sm:col-span-3 col-span-full"
+                class="bg-gray-700 p-4 rounded-lg shadow-inner md:col-span-3 col-span-full"
                 aria-labelledby="keyboard-title"
             >
                 <details id="keyboard-details" class="card-details">
@@ -557,7 +557,7 @@
 
             <!-- Card: Synth Controls -->
             <section
-                class="sm:col-span-3 col-span-full bg-gray-700 p-4 rounded-lg shadow-inner"
+                class="md:col-span-3 col-span-full bg-gray-700 p-4 rounded-lg shadow-inner"
                 aria-labelledby="synth-title"
             >
                 <h2 id="synth-title" class="text-xl font-semibold mb-3 text-blue-300">Synth</h2>
@@ -938,7 +938,7 @@
 
             <!-- Card: Envelope (ADSR) -->
             <section
-                class="sm:col-span-3 col-span-full bg-gray-700 p-4 rounded-lg shadow-inner"
+                class="md:col-span-3 col-span-full bg-gray-700 p-4 rounded-lg shadow-inner"
                 aria-labelledby="envelope-title"
             >
                 <h2 id="envelope-title" class="text-xl font-semibold mb-3 text-blue-300">
@@ -1004,7 +1004,7 @@
 
             <!-- Card: Octave -->
             <section
-                class="sm:col-span-2 col-span-full bg-gray-700 p-4 rounded-lg shadow-inner"
+                class="md:col-span-2 col-span-full bg-gray-700 p-4 rounded-lg shadow-inner"
                 aria-labelledby="octave-title"
             >
                 <h2 id="octave-title" class="text-xl font-semibold mb-3 text-blue-300">Octave</h2>
@@ -1061,7 +1061,7 @@
 
             <!-- Card: Filter Controls -->
             <section
-                class="sm:col-span-2 col-span-full bg-gray-700 p-4 rounded-lg shadow-inner"
+                class="md:col-span-2 col-span-full bg-gray-700 p-4 rounded-lg shadow-inner"
                 aria-labelledby="filter-title"
             >
                 <h2 id="filter-title" class="text-xl font-semibold mb-3 text-blue-300">Filter</h2>
@@ -1102,7 +1102,7 @@
 
             <!-- Card: Effects Controls -->
             <section
-                class="sm:col-span-2 col-span-full bg-gray-700 p-4 rounded-lg shadow-inner"
+                class="md:col-span-2 col-span-full bg-gray-700 p-4 rounded-lg shadow-inner"
                 aria-labelledby="effects-title"
             >
                 <h2 id="effects-title" class="text-xl font-semibold mb-3 text-blue-300">Effects</h2>
@@ -1305,7 +1305,7 @@
 
             <!-- Card: Real-time Recording -->
             <section
-                class="bg-gray-700 p-4 rounded-lg shadow-inner sm:col-span-3 col-span-full"
+                class="bg-gray-700 p-4 rounded-lg shadow-inner md:col-span-3 col-span-full"
                 aria-labelledby="realtime-recording-title"
             >
                 <h2 id="realtime-recording-title" class="text-xl font-semibold mb-3 text-blue-300">
@@ -1365,7 +1365,7 @@
 
             <!-- Card: Offline Export -->
             <section
-                class="bg-gray-700 p-4 rounded-lg shadow-inner sm:col-span-3 col-span-full"
+                class="bg-gray-700 p-4 rounded-lg shadow-inner md:col-span-3 col-span-full"
                 aria-labelledby="offline-export-title"
             >
                 <h2 id="offline-export-title" class="text-xl font-semibold mb-3 text-blue-300">
