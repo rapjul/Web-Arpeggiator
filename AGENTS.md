@@ -114,7 +114,7 @@ Powered by `Tone.Transport`:
 - **MP3**: Compressed audio using LameJS encoder (128kbps)
 - **MIDI (.mid)**: Pure binary Standard MIDI File (SMF Format 0) export for external DAWs. Detailed technical specifications are available in [`docs/midi-specification.md`](./docs/midi-specification.md).
 
-All formats support simultaneous export with timestamped filenames.
+WAV and MP3 audio formats support simultaneous batch export via checkboxes, while MIDI pattern files are exported on-demand via a dedicated export button with timestamped filenames.
 
 ### 5. Visualizer
 
@@ -293,7 +293,8 @@ loadPreset(file);
 - Real-time record button
 - Offline export controls
 - Loop count input
-- Format checkboxes (WAV/MP3/MIDI)
+- Format checkboxes (WAV / MP3)
+- Dedicated MIDI export button (.mid)
 
 ### Utilities
 

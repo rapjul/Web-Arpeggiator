@@ -47,10 +47,11 @@ Web Arpeggiator is an interactive music tool that generates flowing musical patt
 
 ### 📊 Recording & Export
 
-- **Real-Time Recording**: Capture your performance with parameter changes
+- **Real-Time Recording**: Capture your live performance with parameter changes
 - **Perfect Loop Export**: Render exact loops offline (1-100 loops)
-- **Multi-Format Export**: WAV (lossless), MP3 (compressed), and Standard MIDI File (.mid)
-- **Timestamped Files**: Automatic naming for organized exports
+- **Multi-Format Audio Export**: Simultaneous WAV (lossless 16-bit) and MP3 (compressed 128kbps) export via format checkboxes
+- **Dedicated MIDI Export**: Export pure binary Standard MIDI Files (`.mid`, SMF Format 0) with a single click
+- **Timestamped Files**: Automatic timestamp naming for all exports
 
 ## Getting Started
 
@@ -126,9 +127,9 @@ For detailed pattern descriptions, see [Pattern Directions Guide](./docs/pattern
 
 ### Export Formats
 
-- **WAV**: Lossless 16-bit PCM (larger file size, highest quality)
-- **MP3**: Compressed 128kbps (smaller file size, suitable for web)
-- **MIDI (.mid)**: Standard MIDI File (SMF Format 0) for import into external DAWs and software instruments
+- **WAV**: Lossless 16-bit PCM audio (selectable via checkbox for real-time and offline export)
+- **MP3**: Compressed 128kbps audio (selectable via checkbox for real-time and offline export)
+- **MIDI (.mid)**: Pure binary Standard MIDI File (SMF Format 0) exported on-demand via the dedicated "Export Pattern as MIDI (.mid)" button
 
 ## Presets
 

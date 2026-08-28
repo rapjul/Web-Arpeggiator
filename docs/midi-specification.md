@@ -9,9 +9,9 @@ This document provides a technical overview of the Standard MIDI File (SMF 1.0) 
 For comprehensive specifications, refer to official standards published by the governing bodies:
 
 - **[The MIDI Association (midi.org)](https://www.midi.org/)**: The authoritative organization managing MIDI specifications.
-  - [Standard MIDI Files (SMF) 1.0 Specification](https://www.midi.org/specifications/item/standard-midi-files-smf)
-  - [MIDI 1.0 Detailed Specification](https://www.midi.org/specifications-old/item/the-midi-1-0-specification)
-  - [MIDI 2.0 Specifications](https://www.midi.org/specifications/midi-2-0-specifications)
+    - [Standard MIDI Files (SMF) 1.0 Specification](https://www.midi.org/specifications/item/standard-midi-files-smf)
+    - [MIDI 1.0 Detailed Specification](https://www.midi.org/specifications-old/item/the-midi-1-0-specification)
+    - [MIDI 2.0 Specifications](https://www.midi.org/specifications/midi-2-0-specifications)
 - **[W3C Web MIDI API](https://www.w3.org/TR/webmidi/)**: Specification for browser-level access to hardware MIDI input and output ports.
 
 > [!NOTE]
@@ -56,33 +56,34 @@ The header specifies the division in **Ticks Per Quarter Note** (Pulses Per Quar
 - **Web Arpeggiator Division:** `480` ticks per beat (`0x01E0`).
 - This high resolution guarantees exact subdivisions without floating-point rounding errors across all supported intervals:
 
-| Interval | Multiplier | Duration at 480 PPQ |
-| :--- | :--- | :--- |
-| **`64n`** | $1/16$ | $30\text{ ticks}$ |
-| **`32n`** | $1/8$ | $60\text{ ticks}$ |
-| **`16n`** | $1/4$ | $120\text{ ticks}$ |
-| **`8n`** | $1/2$ | $240\text{ ticks}$ |
-| **`4n`** | $1.0$ | $480\text{ ticks}$ |
-| **`2n`** | $2.0$ | $960\text{ ticks}$ |
+| Interval  | Multiplier | Duration at 480 PPQ |
+| :-------- | :--------- | :------------------ |
+| **`64n`** | $1/16$     | $30\text{ ticks}$   |
+| **`32n`** | $1/8$      | $60\text{ ticks}$   |
+| **`16n`** | $1/4$      | $120\text{ ticks}$  |
+| **`8n`**  | $1/2$      | $240\text{ ticks}$  |
+| **`4n`**  | $1.0$      | $480\text{ ticks}$  |
+| **`2n`**  | $2.0$      | $960\text{ ticks}$  |
 
 ---
 
 ### 3.2. Variable-Length Quantity (VLQ) Delta Times
 
 Delta times represent the tick delay between the current event and the preceding event. In MIDI streams, all delta times are encoded as **Variable-Length Quantities (VLQ)**:
+
 - Numbers are packed 7 bits per byte.
 - The Most Significant Bit (MSB, `0x80`) is set to `1` on all bytes except the final byte, which has MSB `0`.
 
 #### VLQ Encoding Table
 
 | Decimal Value | Hexadecimal | VLQ Encoded Bytes (Hex) |
-| :--- | :--- | :--- |
-| $0$ | `0x00` | `0x00` |
-| $64$ | `0x40` | `0x40` |
-| $127$ | `0x7F` | `0x7F` |
-| $128$ | `0x80` | `0x81 0x00` |
-| $480$ | `0x01E0` | `0x83 0x60` |
-| $16,383$ | `0x3FFF` | `0xFF 0x7F` |
+| :------------ | :---------- | :---------------------- |
+| $0$           | `0x00`      | `0x00`                  |
+| $64$          | `0x40`      | `0x40`                  |
+| $127$         | `0x7F`      | `0x7F`                  |
+| $128$         | `0x80`      | `0x81 0x00`             |
+| $480$         | `0x01E0`    | `0x83 0x60`             |
+| $16,383$      | `0x3FFF`    | `0xFF 0x7F`             |
 
 ---
 
@@ -91,16 +92,20 @@ Delta times represent the tick delay between the current event and the preceding
 Meta events provide sequence metadata. They begin with status byte `0xFF`, followed by a 1-byte meta-event type, a VLQ length descriptor, and event data bytes.
 
 #### 1. Time Signature (`0x58`)
+
 Sets time signature to 4/4 with 24 MIDI clocks per metronome click and eight 32nd notes per 24 clocks:
+
 ```
 [Delta-Time: 0x00] 0xFF 0x58 0x04 0x04 0x02 0x18 0x08
 ```
+
 - `0x04`: Numerator ($4$)
 - `0x02`: Denominator as negative power of 2 ($2^2 = 4$)
 - `0x18`: $24\text{ clocks}$ per quarter note
 - `0x08`: Eight 32nd notes per quarter note
 
 #### 2. Set Tempo (`0x51`)
+
 Defines tempo in microseconds per quarter note ($\mu s/\text{beat}$):
 $$\mu s/\text{beat} = \text{round}\left(\frac{60{,}000{,}000}{\text{BPM}}\right)$$
 
@@ -112,7 +117,9 @@ $$\mu s/\text{beat} = \frac{60{,}000{,}000}{120} = 500{,}000\text{ (Hex: 0x07A12
 ```
 
 #### 3. End of Track (`0x2F`)
+
 Signals the termination of the track chunk:
+
 ```
 [Delta-Time: remaining_rest_ticks] 0xFF 0x2F 0x00
 ```
@@ -124,19 +131,23 @@ Signals the termination of the track chunk:
 Web Arpeggiator writes note events on MIDI Channel 1 (Channel Index 0):
 
 #### Note-On Event (`0x90`)
+
 ```
 [Delta-Time (VLQ)] 0x90 [Note Number: 0-127] [Velocity: 1-127]
 ```
+
 - Default velocity is $100$.
 
 #### Note-Off Event (`0x80`)
+
 ```
 [Delta-Time: Note Duration (VLQ)] 0x80 [Note Number: 0-127] [Release Velocity: 0x40]
 ```
+
 - The delta-time before the Note-Off event matches the note duration in ticks:
-$$\text{noteDurationTicks} = \text{round}(\text{stepDurationTicks} \times \text{gateRatio})$$
+  $$\text{noteDurationTicks} = \text{round}(\text{stepDurationTicks} \times \text{gateRatio})$$
 - The subsequent Note-On uses a delta time matching the rest duration:
-$$\text{restDurationTicks} = \text{stepDurationTicks} - \text{noteDurationTicks}$$
+  $$\text{restDurationTicks} = \text{stepDurationTicks} - \text{noteDurationTicks}$$
 
 ---
 
@@ -146,20 +157,20 @@ MIDI assigns note number $60$ to Middle C ($C4$). The conversion formula for sci
 
 $$\text{MIDI Note Number} = (\text{Octave} + 1) \times 12 + \text{Semitone Index}$$
 
-| Pitch Name | Semitone Index | Octave 3 (e.g. C3) | Octave 4 (Middle C) | Octave 5 (e.g. C5) |
-| :--- | :--- | :--- | :--- | :--- |
-| **C** | 0 | 48 | 60 | 72 |
-| **C# / Db** | 1 | 49 | 61 | 73 |
-| **D** | 2 | 50 | 62 | 74 |
-| **D# / Eb** | 3 | 51 | 63 | 75 |
-| **E** | 4 | 52 | 64 | 76 |
-| **F** | 5 | 53 | 65 | 77 |
-| **F# / Gb** | 6 | 54 | 66 | 78 |
-| **G** | 7 | 55 | 67 | 79 |
-| **G# / Ab** | 8 | 56 | 68 | 80 |
-| **A** | 9 | 57 | 69 (A440) | 81 |
-| **A# / Bb** | 10 | 58 | 70 | 82 |
-| **B** | 11 | 59 | 71 | 83 |
+| Pitch Name  | Semitone Index | Octave 3 (e.g. C3) | Octave 4 (Middle C) | Octave 5 (e.g. C5) |
+| :---------- | :------------- | :----------------- | :------------------ | :----------------- |
+| **C**       | 0              | 48                 | 60                  | 72                 |
+| **C# / Db** | 1              | 49                 | 61                  | 73                 |
+| **D**       | 2              | 50                 | 62                  | 74                 |
+| **D# / Eb** | 3              | 51                 | 63                  | 75                 |
+| **E**       | 4              | 52                 | 64                  | 76                 |
+| **F**       | 5              | 53                 | 65                  | 77                 |
+| **F# / Gb** | 6              | 54                 | 66                  | 78                 |
+| **G**       | 7              | 55                 | 67                  | 79                 |
+| **G# / Ab** | 8              | 56                 | 68                  | 80                 |
+| **A**       | 9              | 57                 | 69 (A440)           | 81                 |
+| **A# / Bb** | 10             | 58                 | 70                  | 82                 |
+| **B**       | 11             | 59                 | 71                  | 83                 |
 
 ---
 
@@ -183,6 +194,7 @@ The [`../js/midi-export.js`](../js/midi-export.js) module exposes the following 
 ## 5. Future Extensions
 
 Potential future enhancements to the MIDI subsystem:
+
 1. **Web MIDI API Integration**: Real-time MIDI clock synchronization and output to external hardware synthesizers/DAWs.
 2. **SMF Format 1 Multi-Track Support**: Separating arpeggio patterns across independent melodic and bass channels.
 3. **MIDI CC Automation**: Exporting filter cutoff and resonance envelopes as Continuous Controller (`0xB0`) curves.
