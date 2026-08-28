@@ -74,6 +74,9 @@ export function createAudioEngine(context) {
         console.warn("Tone.Limiter failed, connecting to Destination directly.", e);
     }
 
+    // --- Real-time Meter (for peak/VU level metering) ---
+    const meter = new Tone.Meter({ channels: 1, smoothing: 0.8 });
+
     // --- Effects Chain ---
     const reverb = new Tone.Reverb({ decay: 1.5, wet: 0.3 });
     const delay = new Tone.FeedbackDelay({
@@ -127,8 +130,9 @@ export function createAudioEngine(context) {
     synths.fmSynth.connect(filter);
     synths.amSynth.connect(filter);
 
-    // Connect reverb → post gain → limiter → destination; reverb → analyser
+    // Connect reverb → post gain → limiter → destination; reverb → analyser; postGain → meter
     reverb.connect(postGain);
+    postGain.connect(meter);
     if (limiter) {
         postGain.connect(limiter);
     } else {
@@ -293,6 +297,7 @@ export function createAudioEngine(context) {
 
     return {
         analyser,
+        meter,
         filter,
         delay,
         reverb,

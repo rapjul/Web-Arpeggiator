@@ -284,6 +284,11 @@ function initializeApp() {
     const offlineExportMidiButton = document.getElementById("offline-export-midi-button");
     const offlineExportStatus = document.getElementById("offline-export-status");
 
+    // Output Peak / VU Meter
+    const vuMeterBar = document.getElementById("vu-meter-bar");
+    const vuDbValue = document.getElementById("vu-db-value");
+    const vuClipIndicator = document.getElementById("vu-clip-indicator");
+
     // Utility card
     const visualizerYAxisCanvas = /** @type {HTMLCanvasElement | null} */ (
         document.getElementById("visualizer-yaxis")
@@ -707,8 +712,14 @@ function initializeApp() {
             visualizerZoomValue,
             oscilloscopeWindowSelect,
             oscilloscopeWindowContainer,
+            vuMeterBar,
+            vuDbValue,
+            vuClipIndicator,
         },
-        audio: { analyser: audioEngine.analyser },
+        audio: {
+            analyser: audioEngine.analyser,
+            meter: audioEngine.meter,
+        },
         state: {
             get isRecording() {
                 return recorderManager ? recorderManager.isRecording : false;

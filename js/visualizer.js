@@ -52,11 +52,16 @@ export function createVisualizer(context) {
     const zoomValueSpan = dom.visualizerZoomValue;
     const oscilloscopeWindowSelect = dom.oscilloscopeWindowSelect;
     const oscilloscopeWindowContainer = dom.oscilloscopeWindowContainer;
+    const vuMeterBar = dom.vuMeterBar;
+    const vuDbValue = dom.vuDbValue;
+    const vuClipIndicator = dom.vuClipIndicator;
     const analyser = audio.analyser;
+    const meter = audio.meter;
 
     // --- Internal State ---
     let isVisualizerOn = false;
     let isPaused = false;
+    let isClipped = false;
     let currentMode = "oscilloscope"; // 'oscilloscope' | 'fft' | 'loopMap'
     let animationFrameId = null;
     let lastTimeStr = "";
@@ -694,6 +699,38 @@ export function createVisualizer(context) {
             }
         }
 
+        // --- Real-time Peak / VU Meter updates ---
+        if (meter && vuMeterBar) {
+            const rawVal = meter.getValue();
+            const db = typeof rawVal === "number" && isFinite(rawVal) ? rawVal : -Infinity;
+
+            if (db <= -60 || !isFinite(db)) {
+                vuMeterBar.style.width = "0%";
+                vuMeterBar.setAttribute("aria-valuenow", "-60");
+                if (vuDbValue) vuDbValue.textContent = "-inf dB";
+            } else {
+                const pct = Math.max(0, Math.min(100, ((db + 60) / 60) * 100));
+                vuMeterBar.style.width = `${pct.toFixed(1)}%`;
+                vuMeterBar.setAttribute("aria-valuenow", db.toFixed(1));
+                if (vuDbValue) {
+                    vuDbValue.textContent = `${db >= 0 ? "+" : ""}${db.toFixed(1)} dB`;
+                }
+            }
+
+            // Latch red clip indicator if signal exceeds -0.05 dBFS
+            if (db >= -0.05 && !isClipped && vuClipIndicator) {
+                isClipped = true;
+                vuClipIndicator.classList.remove("bg-gray-800", "text-gray-500", "border-gray-600");
+                vuClipIndicator.classList.add(
+                    "bg-rose-600",
+                    "text-white",
+                    "border-rose-400",
+                    "animate-pulse",
+                );
+                vuClipIndicator.setAttribute("aria-pressed", "true");
+            }
+        }
+
         // --- Recording Timer updates ---
         if (state.isRecording) {
             const elapsed = Tone.now() - state.recordingStartTime;
@@ -715,7 +752,7 @@ export function createVisualizer(context) {
      * @returns {void}
      */
     function startUiLoop() {
-        if (!animationFrameId && (isVisualizerOn || state.isRecording)) {
+        if (!animationFrameId && (isVisualizerOn || state.isRecording || state.isPlaying)) {
             const loop = () => {
                 runUiUpdate();
                 animationFrameId = requestAnimationFrame(loop);
@@ -730,9 +767,11 @@ export function createVisualizer(context) {
      * @returns {void}
      */
     function stopUiLoop() {
-        if (animationFrameId && !state.isPlaying && !state.isRecording) {
+        if (animationFrameId && !state.isPlaying && !state.isRecording && !isVisualizerOn) {
             cancelAnimationFrame(animationFrameId);
             animationFrameId = null;
+            if (vuMeterBar) vuMeterBar.style.width = "0%";
+            if (vuDbValue) vuDbValue.textContent = "-inf dB";
         }
     }
 
@@ -839,6 +878,29 @@ export function createVisualizer(context) {
     }
 
     /**
+     * Resets the latched clipping state and restores normal indicator appearance.
+     *
+     * @returns {void}
+     */
+    function resetClip() {
+        isClipped = false;
+        if (vuClipIndicator) {
+            vuClipIndicator.classList.remove(
+                "bg-rose-600",
+                "text-white",
+                "border-rose-400",
+                "animate-pulse",
+            );
+            vuClipIndicator.classList.add("bg-gray-800", "text-gray-500", "border-gray-600");
+            vuClipIndicator.setAttribute("aria-pressed", "false");
+        }
+    }
+
+    if (vuClipIndicator) {
+        vuClipIndicator.addEventListener("click", resetClip);
+    }
+
+    /**
      * Receives and stores a static rendered buffer along with its trigger events markers
      * to display the arpeggio sequence loop.
      *
@@ -869,6 +931,10 @@ export function createVisualizer(context) {
         get currentMode() {
             return currentMode;
         },
+        get isClipped() {
+            return isClipped;
+        },
+        resetClip,
         toggle,
         resizeCanvas,
         updateStaticLoopMap,
