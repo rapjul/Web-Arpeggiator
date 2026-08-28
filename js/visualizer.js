@@ -314,7 +314,7 @@ export function createVisualizer(context) {
                 "bg-red-600",
                 "hover:bg-red-700",
                 "bg-green-600",
-                "hover:bg-green-700"
+                "hover:bg-green-700",
             );
             pauseVisualizerButton.textContent = "Pause";
         } else {
@@ -323,7 +323,7 @@ export function createVisualizer(context) {
             pauseVisualizerButton.classList.remove(
                 "opacity-50",
                 "cursor-not-allowed",
-                "bg-gray-600"
+                "bg-gray-600",
             );
             if (isPaused) {
                 pauseVisualizerButton.textContent = "Resume";
@@ -424,7 +424,7 @@ export function createVisualizer(context) {
                     const lineGrad = getVerticalGradient(
                         plotCtx,
                         topPadding,
-                        plotLogicalHeight - bottomPadding
+                        plotLogicalHeight - bottomPadding,
                     );
 
                     // Draw the accumulated rolling waveform
@@ -463,7 +463,7 @@ export function createVisualizer(context) {
                         const binCount = waveformBuffer ? waveformBuffer.length : 1;
                         const binIndex = Math.min(
                             binCount - 1,
-                            Math.max(0, Math.floor((freq / nyquist) * binCount))
+                            Math.max(0, Math.floor((freq / nyquist) * binCount)),
                         );
 
                         const db = waveformBuffer ? waveformBuffer[binIndex] : -100;
@@ -473,7 +473,7 @@ export function createVisualizer(context) {
                         const maxDb = 0;
                         const normalizedDb = Math.min(
                             1,
-                            Math.max(0, (db - minDb) / (maxDb - minDb))
+                            Math.max(0, (db - minDb) / (maxDb - minDb)),
                         );
 
                         const barHeight = normalizedDb * plotHeight;
@@ -490,7 +490,7 @@ export function createVisualizer(context) {
                     const lineGrad = getVerticalGradient(
                         plotCtx,
                         topPadding,
-                        plotLogicalHeight - bottomPadding
+                        plotLogicalHeight - bottomPadding,
                     );
 
                     plotCtx.beginPath();
@@ -501,7 +501,7 @@ export function createVisualizer(context) {
                         const startSample = Math.floor((xPixel / plotWidth) * bufferLength);
                         const endSample = Math.min(
                             bufferLength,
-                            Math.floor(((xPixel + 1) / plotWidth) * bufferLength)
+                            Math.floor(((xPixel + 1) / plotWidth) * bufferLength),
                         );
 
                         let minVal = 0;
@@ -630,7 +630,7 @@ export function createVisualizer(context) {
                         plotCtx.fillText(
                             formatFrequency(freq),
                             x,
-                            plotLogicalHeight - bottomPadding + tickLength + 4
+                            plotLogicalHeight - bottomPadding + tickLength + 4,
                         );
                     });
 
@@ -640,7 +640,7 @@ export function createVisualizer(context) {
                     plotCtx.fillText(
                         "Frequency",
                         plotLogicalWidth / 2,
-                        plotLogicalHeight - bottomPadding + xLabelOffset + 6
+                        plotLogicalHeight - bottomPadding + xLabelOffset + 6,
                     );
                 } else if (currentMode === "loopMap" && cachedLoopMapBuffer) {
                     // Loop Map: draw ticks based on actual buffer duration
@@ -660,7 +660,7 @@ export function createVisualizer(context) {
                         plotCtx.fillText(
                             `${secVal.toFixed(2)}s`,
                             x,
-                            plotLogicalHeight - bottomPadding + tickLength + 4
+                            plotLogicalHeight - bottomPadding + tickLength + 4,
                         );
                     });
 
@@ -669,7 +669,7 @@ export function createVisualizer(context) {
                     plotCtx.fillText(
                         "Time (Single Loop Cycle)",
                         plotLogicalWidth / 2,
-                        plotLogicalHeight - bottomPadding + xLabelOffset + 6
+                        plotLogicalHeight - bottomPadding + xLabelOffset + 6,
                     );
                 } else {
                     // Live Oscilloscope X-ticks based on actual chosen duration
@@ -696,7 +696,7 @@ export function createVisualizer(context) {
                         plotCtx.fillText(
                             labelText,
                             x,
-                            plotLogicalHeight - bottomPadding + tickLength + 4
+                            plotLogicalHeight - bottomPadding + tickLength + 4,
                         );
                     });
 
@@ -705,7 +705,7 @@ export function createVisualizer(context) {
                     plotCtx.fillText(
                         "Time",
                         plotLogicalWidth / 2,
-                        plotLogicalHeight - bottomPadding + xLabelOffset + 6
+                        plotLogicalHeight - bottomPadding + xLabelOffset + 6,
                     );
                 }
             } catch (e) {
@@ -758,7 +758,7 @@ export function createVisualizer(context) {
                     "text-gray-400",
                     "border-gray-600",
                     "cursor-default",
-                    "opacity-60"
+                    "opacity-60",
                 );
                 vuClipIndicator.classList.add(
                     "bg-rose-600",
@@ -766,7 +766,7 @@ export function createVisualizer(context) {
                     "border-rose-400",
                     "animate-pulse",
                     "cursor-pointer",
-                    "opacity-100"
+                    "opacity-100",
                 );
                 vuClipIndicator.setAttribute("aria-pressed", "true");
                 vuClipIndicator.setAttribute("title", "Signal clipped — Click to reset");
@@ -785,7 +785,7 @@ export function createVisualizer(context) {
                 state.recordButton.textContent = `Stop Recording (${timeStr})`;
                 state.recordButton.setAttribute(
                     "aria-label",
-                    `Stop recording (current elapsed time ${timeStr})`
+                    `Stop recording (current elapsed time ${timeStr})`,
                 );
             }
         }
@@ -805,7 +805,7 @@ export function createVisualizer(context) {
             state.isPlaying ||
             manualNoteActive ||
             Boolean(state.activeNote) ||
-            manualNoteDecayTimeout
+            manualNoteDecayTimeout,
         );
     }
 
@@ -991,14 +991,14 @@ export function createVisualizer(context) {
                 "border-rose-400",
                 "animate-pulse",
                 "cursor-pointer",
-                "opacity-100"
+                "opacity-100",
             );
             vuClipIndicator.classList.add(
                 "bg-gray-800",
                 "text-gray-400",
                 "border-gray-600",
                 "cursor-default",
-                "opacity-60"
+                "opacity-60",
             );
             vuClipIndicator.setAttribute("aria-pressed", "false");
             vuClipIndicator.setAttribute("title", "Clipping indicator (normal)");

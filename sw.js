@@ -41,7 +41,7 @@ async function cacheResources(cache, urls) {
             } catch (error) {
                 console.warn("Failed to cache resource:", url, error);
             }
-        })
+        }),
     );
 }
 
@@ -104,7 +104,7 @@ self.addEventListener("install", (event) => {
             const cache = await caches.open(CACHE_NAME);
             await cacheResources(cache, manifest.assets || []);
             await self.skipWaiting();
-        })()
+        })(),
     );
 });
 
@@ -120,10 +120,10 @@ self.addEventListener("activate", (event) => {
                     }
 
                     return Promise.resolve();
-                })
+                }),
             );
             await self.clients.claim();
-        })()
+        })(),
     );
 });
 
@@ -165,7 +165,7 @@ self.addEventListener("message", (event) => {
                         ok: true,
                         type: "listCachesResult",
                         caches: cacheNames.filter((cacheName) =>
-                            cacheName.startsWith(CACHE_PREFIX)
+                            cacheName.startsWith(CACHE_PREFIX),
                         ),
                     });
                     return;
@@ -184,7 +184,7 @@ self.addEventListener("message", (event) => {
                             if (deleted) {
                                 deletedCaches.push(cacheName);
                             }
-                        })
+                        }),
                     );
 
                     await postMessageResponse(event, {
@@ -202,7 +202,7 @@ self.addEventListener("message", (event) => {
                     error: error?.message || String(error),
                 });
             }
-        })()
+        })(),
     );
 });
 

@@ -29,7 +29,7 @@ export async function fetchWithBackoff(url, options, maxRetries = 5, baseDelay =
             }
 
             await new Promise((resolve) =>
-                setTimeout(resolve, baseDelay * Math.pow(2, attempt - 1))
+                setTimeout(resolve, baseDelay * Math.pow(2, attempt - 1)),
             );
         }
     }
@@ -105,13 +105,13 @@ if (typeof window !== "undefined") {
         if (typeof requestIdleCallback === "function") {
             requestIdleCallback(() => {
                 loadLameJs().catch((err) =>
-                    console.warn("Background LameJS pre-load failed:", err)
+                    console.warn("Background LameJS pre-load failed:", err),
                 );
             });
         } else {
             setTimeout(() => {
                 loadLameJs().catch((err) =>
-                    console.warn("Background LameJS pre-load failed:", err)
+                    console.warn("Background LameJS pre-load failed:", err),
                 );
             }, 3000);
         }

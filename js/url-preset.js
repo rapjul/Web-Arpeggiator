@@ -42,7 +42,7 @@ export const PRESET_URL_KEYS = Object.freeze(
         "delay",
         "reverb",
         "loop",
-    ])
+    ]),
 );
 
 /**
@@ -294,7 +294,7 @@ export function parsePresetFromUrlParams(searchParams, currentSettings) {
             params.get("mod"),
             1.0,
             50.0,
-            settings.modulationIndex
+            settings.modulationIndex,
         );
     if (params.has("duty"))
         settings.dutyCycle = clampFloat(params.get("duty"), 0.01, 0.99, settings.dutyCycle);
@@ -317,14 +317,14 @@ export function parsePresetFromUrlParams(searchParams, currentSettings) {
             params.get("cutoff"),
             100.0,
             10000.0,
-            settings.filterCutoff
+            settings.filterCutoff,
         );
     if (params.has("res"))
         settings.filterResonance = clampFloat(
             params.get("res"),
             0.0,
             20.0,
-            settings.filterResonance
+            settings.filterResonance,
         );
     if (params.has("drive"))
         settings.driveMix = clampFloat(params.get("drive"), 0.0, 1.0, settings.driveMix ?? 0);
