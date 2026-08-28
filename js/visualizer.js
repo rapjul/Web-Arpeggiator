@@ -717,8 +717,8 @@ export function createVisualizer(context) {
                 }
             }
 
-            // Latch red clip indicator if signal exceeds -0.05 dBFS
-            if (db >= -0.05 && !isClipped && vuClipIndicator) {
+            // Latch red clip indicator if signal reaches or exceeds 0 dBFS
+            if (db >= 0 && !isClipped && vuClipIndicator) {
                 isClipped = true;
                 vuClipIndicator.classList.remove("bg-gray-800", "text-gray-500", "border-gray-600");
                 vuClipIndicator.classList.add(
@@ -746,13 +746,32 @@ export function createVisualizer(context) {
         }
     }
 
+    let manualNoteActive = false;
+    let manualNoteDecayTimeout = null;
+
+    /**
+     * Determines whether the real-time UI animation loop should remain active.
+     *
+     * @returns {boolean} True if visualizer is enabled, audio is playing/recording, or manual keyboard notes are active.
+     */
+    function shouldRunUiLoop() {
+        return Boolean(
+            isVisualizerOn ||
+                state.isRecording ||
+                state.isPlaying ||
+                manualNoteActive ||
+                Boolean(state.activeNote) ||
+                manualNoteDecayTimeout,
+        );
+    }
+
     /**
      * Starts the requestAnimationFrame loop for real-time visual updates.
      *
      * @returns {void}
      */
     function startUiLoop() {
-        if (!animationFrameId && (isVisualizerOn || state.isRecording || state.isPlaying)) {
+        if (!animationFrameId && shouldRunUiLoop()) {
             const loop = () => {
                 runUiUpdate();
                 animationFrameId = requestAnimationFrame(loop);
@@ -767,12 +786,43 @@ export function createVisualizer(context) {
      * @returns {void}
      */
     function stopUiLoop() {
-        if (animationFrameId && !state.isPlaying && !state.isRecording && !isVisualizerOn) {
+        if (animationFrameId && !shouldRunUiLoop()) {
             cancelAnimationFrame(animationFrameId);
             animationFrameId = null;
             if (vuMeterBar) vuMeterBar.style.width = "0%";
             if (vuDbValue) vuDbValue.textContent = "-inf dB";
         }
+    }
+
+    /**
+     * Notifies the visualizer that a manual keyboard note attack has started.
+     *
+     * @returns {void}
+     */
+    function onManualNoteAttack() {
+        if (manualNoteDecayTimeout) {
+            clearTimeout(manualNoteDecayTimeout);
+            manualNoteDecayTimeout = null;
+        }
+        manualNoteActive = true;
+        startUiLoop();
+    }
+
+    /**
+     * Notifies the visualizer that a manual keyboard note has been released,
+     * maintaining the loop during the envelope release decay phase.
+     *
+     * @returns {void}
+     */
+    function onManualNoteRelease() {
+        manualNoteActive = false;
+        if (manualNoteDecayTimeout) {
+            clearTimeout(manualNoteDecayTimeout);
+        }
+        manualNoteDecayTimeout = setTimeout(() => {
+            manualNoteDecayTimeout = null;
+            stopUiLoop();
+        }, 1200);
     }
 
     /**
@@ -925,6 +975,8 @@ export function createVisualizer(context) {
         runUiUpdate,
         startUiLoop,
         stopUiLoop,
+        onManualNoteAttack,
+        onManualNoteRelease,
         get isVisualizerOn() {
             return isVisualizerOn;
         },

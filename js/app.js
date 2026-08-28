@@ -51,7 +51,7 @@ import {
 } from "./url-preset.js";
 import { createToastManager } from "./ui-feedback.js";
 import { exportMidiFile, createMidiBlob } from "./midi-export.js";
-import { buildPatternSequence } from "./pattern-core.js";
+import { buildPatternSequence, materializePatternSequence } from "./pattern-core.js";
 
 /**
  * Filters keydown events for the notes input.
@@ -922,6 +922,18 @@ function initializeApp() {
             keyboardToggleStatus,
             keyboardDescription,
         },
+        actions: {
+            onNoteAttack: () => {
+                if (visualizer && typeof visualizer.onManualNoteAttack === "function") {
+                    visualizer.onManualNoteAttack();
+                }
+            },
+            onNoteRelease: () => {
+                if (visualizer && typeof visualizer.onManualNoteRelease === "function") {
+                    visualizer.onManualNoteRelease();
+                }
+            },
+        },
     });
     const { updateKeyboardControlUi } = keyboardControls;
 
@@ -1688,7 +1700,7 @@ function initializeApp() {
     if (offlineExportMidiButton) {
         offlineExportMidiButton.addEventListener("click", () => {
             const settings = getAllSettings();
-            const sequenceResult = buildPatternSequence(currentNotes, {
+            const sequenceResult = materializePatternSequence(currentNotes, {
                 direction: settings.direction,
                 octaveRange: currentOctaveRange,
                 octaveShift: currentOctaveShift,
@@ -1702,7 +1714,7 @@ function initializeApp() {
             const filename = `${generateFilename(false)}.mid`;
             exportMidiFile(
                 {
-                    notes: sequenceResult.finalNotes,
+                    notes: sequenceResult.notes,
                     bpm: settings.bpm,
                     interval: settings.interval,
                     gateRatio: settings.gateRatio,
@@ -2170,7 +2182,7 @@ function initializeApp() {
 
         exportMidiBlob: (opts = {}) => {
             const settings = getAllSettings();
-            const sequenceResult = buildPatternSequence(currentNotes, {
+            const sequenceResult = materializePatternSequence(currentNotes, {
                 direction: settings.direction,
                 octaveRange: currentOctaveRange,
                 octaveShift: currentOctaveShift,
@@ -2181,7 +2193,7 @@ function initializeApp() {
                 },
             });
             return createMidiBlob({
-                notes: sequenceResult.finalNotes,
+                notes: sequenceResult.notes,
                 bpm: settings.bpm,
                 interval: settings.interval,
                 gateRatio: settings.gateRatio,

@@ -215,12 +215,13 @@ export function createAudioEngine(context) {
     synths.pluckSynth.connect(distortion);
     synths.membraneSynth.connect(distortion);
 
-    // Connect reverb → post gain → limiter → destination; reverb → analyser; postGain → meter
+    // Connect reverb → post gain → limiter → destination & meter; reverb → analyser
     reverb.connect(postGain);
-    postGain.connect(meter);
     if (limiter) {
         postGain.connect(limiter);
+        limiter.connect(meter);
     } else {
+        postGain.connect(meter);
         postGain.toDestination();
     }
     reverb.connect(analyser);

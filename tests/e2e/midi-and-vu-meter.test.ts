@@ -38,7 +38,7 @@ test("MIDI Export & Real-Time Peak Meter Suite", async (): Promise<void> => {
     console.log("Step 2: Initializing audio...");
     await initializeAudio();
 
-    // 3. Test Standard MIDI File (.mid) Pattern Export
+    // 3. Test Standard MIDI File (.mid) Pattern Export via Button Click
     console.log("Step 3: Testing Standard MIDI File Pattern Export...");
     const midiExportResult: string = await runBrowser([
         "eval",
@@ -46,31 +46,59 @@ test("MIDI Export & Real-Time Peak Meter Suite", async (): Promise<void> => {
         const midiButton = document.getElementById("offline-export-midi-button");
         if (!midiButton) return "midi-button-missing";
 
-        // Export blob via test hook
-        const midiBlob = window.__WEB_ARP_TEST__.exportMidiBlob();
-        if (!midiBlob || !(midiBlob instanceof Blob)) return "invalid-midi-blob";
-        if (midiBlob.type !== "audio/midi") return "invalid-midi-mime:" + midiBlob.type;
-        if (midiBlob.size < 20) return "midi-size-too-small:" + midiBlob.size;
+        // Intercept download blob creation and link trigger
+        let capturedBlob = null;
+        let capturedFilename = null;
+        const originalCreateObjectURL = URL.createObjectURL;
+        const originalClick = HTMLAnchorElement.prototype.click;
 
-        const arrayBuffer = await midiBlob.arrayBuffer();
-        const bytes = new Uint8Array(arrayBuffer);
+        URL.createObjectURL = function (blob) {
+            capturedBlob = blob;
+            return originalCreateObjectURL.call(URL, blob);
+        };
+        HTMLAnchorElement.prototype.click = function () {
+            if (this.download) {
+                capturedFilename = this.download;
+            }
+        };
 
-        // Verify 'MThd' header signature (0x4D, 0x54, 0x68, 0x64)
-        if (bytes[0] !== 0x4d || bytes[1] !== 0x54 || bytes[2] !== 0x68 || bytes[3] !== 0x64) {
-            return "missing-mthd-header";
+        try {
+            midiButton.click();
+            await new Promise((resolve) => setTimeout(resolve, 200));
+
+            if (!capturedFilename) return "download-not-triggered";
+            if (!capturedFilename.endsWith(".mid")) {
+                return "invalid-filename:" + capturedFilename;
+            }
+
+            const midiBlob = capturedBlob;
+            if (!midiBlob || !(midiBlob instanceof Blob)) return "invalid-midi-blob";
+            if (midiBlob.type !== "audio/midi") return "invalid-midi-mime:" + midiBlob.type;
+            if (midiBlob.size < 20) return "midi-size-too-small:" + midiBlob.size;
+
+            const arrayBuffer = await midiBlob.arrayBuffer();
+            const bytes = new Uint8Array(arrayBuffer);
+
+            // Verify 'MThd' header signature (0x4D, 0x54, 0x68, 0x64)
+            if (bytes[0] !== 0x4d || bytes[1] !== 0x54 || bytes[2] !== 0x68 || bytes[3] !== 0x64) {
+                return "missing-mthd-header";
+            }
+
+            // Verify format 0, 1 track, 480 PPQ
+            if (bytes[8] !== 0 || bytes[9] !== 0 || bytes[10] !== 0 || bytes[11] !== 1) {
+                return "invalid-header-fields";
+            }
+
+            // Verify 'MTrk' track signature
+            if (bytes[14] !== 0x4d || bytes[15] !== 0x54 || bytes[16] !== 0x72 || bytes[17] !== 0x6b) {
+                return "missing-mtrk-chunk";
+            }
+
+            return "success";
+        } finally {
+            URL.createObjectURL = originalCreateObjectURL;
+            HTMLAnchorElement.prototype.click = originalClick;
         }
-
-        // Verify format 0, 1 track, 480 PPQ
-        if (bytes[8] !== 0 || bytes[9] !== 0 || bytes[10] !== 0 || bytes[11] !== 1) {
-            return "invalid-header-fields";
-        }
-
-        // Verify 'MTrk' track signature
-        if (bytes[14] !== 0x4d || bytes[15] !== 0x54 || bytes[16] !== 0x72 || bytes[17] !== 0x6b) {
-            return "missing-mtrk-chunk";
-        }
-
-        return "success";
     })()`,
     ]);
     expect(midiExportResult).toBe('"success"');
@@ -86,6 +114,11 @@ test("MIDI Export & Real-Time Peak Meter Suite", async (): Promise<void> => {
 
         if (!vuBar || !vuDb || !clipBtn) return "vu-elements-missing";
 
+        // Check a11y accessibility attributes
+        if (vuBar.getAttribute("role") !== "meter") return "missing-meter-role";
+        if (!vuBar.getAttribute("aria-label")) return "missing-meter-aria-label";
+        if (clipBtn.getAttribute("aria-pressed") !== "false") return "missing-initial-aria-pressed";
+
         // Start playback
         await window.__WEB_ARP_TEST__.play();
         await new Promise((resolve) => setTimeout(resolve, 800));
@@ -94,9 +127,29 @@ test("MIDI Export & Real-Time Peak Meter Suite", async (): Promise<void> => {
         const vis = window.__WEB_ARP_TEST__.getVisualizer();
         vis.runUiUpdate();
 
+        // Verify that meter bar or db readout responded to audio playback
+        const rawDbText = vuDb.textContent || "";
+        const barWidth = vuBar.style.width || "0%";
+        if (barWidth === "0%" && rawDbText === "-inf dB") {
+            return "meter-failed-to-respond";
+        }
+
+        // Test clipping latch behavior at or above 0 dBFS
+        const originalMeter = window.audioEngine?.meter;
+        if (originalMeter) {
+            const origGetVal = originalMeter.getValue;
+            originalMeter.getValue = () => 0.5; // Simulate peak clipping above 0 dBFS
+            vis.runUiUpdate();
+            originalMeter.getValue = origGetVal;
+        }
+
+        if (!vis.isClipped) return "clip-failed-to-latch";
+        if (clipBtn.getAttribute("aria-pressed") !== "true") return "clip-btn-aria-pressed-not-true";
+
         // Verify clip indicator click resets latched clip
         clipBtn.click();
         if (vis.isClipped) return "clip-failed-to-reset";
+        if (clipBtn.getAttribute("aria-pressed") !== "false") return "clip-btn-aria-pressed-not-reset";
 
         // Stop playback
         await window.__WEB_ARP_TEST__.stop();

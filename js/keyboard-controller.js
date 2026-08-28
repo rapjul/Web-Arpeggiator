@@ -7,10 +7,15 @@ import * as Tone from "tone";
  * Initializes the virtual keyboard against the live app state.
  *
  * @param {object} context - Bound app references.
+ * @param {object} context.state - Shared application state.
+ * @param {object} context.dom - Injected DOM element references.
+ * @param {object} [context.actions] - Optional event callbacks.
+ * @param {Function} [context.actions.onNoteAttack] - Callback when a key attack is triggered.
+ * @param {Function} [context.actions.onNoteRelease] - Callback when a key is released.
  * @returns {{updateKeyboardControlUi: Function}} Keyboard helpers.
  */
 export function initializeKeyboardControls(context) {
-    const { state, dom } = context;
+    const { state, dom, actions = {} } = context;
 
     const keyboardMapping = {
         z: "C4",
@@ -246,6 +251,9 @@ export function initializeKeyboardControls(context) {
             state.activeSynth.triggerAttack(note, Tone.now());
             state.activeNote = note;
             highlightKey(note, true);
+            if (typeof actions.onNoteAttack === "function") {
+                actions.onNoteAttack(note);
+            }
         }
     }
 
@@ -260,6 +268,9 @@ export function initializeKeyboardControls(context) {
             state.activeSynth.triggerRelease(Tone.now());
             highlightKey(note, false);
             state.activeNote = null;
+            if (typeof actions.onNoteRelease === "function") {
+                actions.onNoteRelease(note);
+            }
         }
     }
 
@@ -313,6 +324,9 @@ export function initializeKeyboardControls(context) {
                 state.activeSynth.triggerRelease(Tone.now());
                 highlightKey(state.activeNote, false);
                 state.activeNote = null;
+                if (typeof actions.onNoteRelease === "function") {
+                    actions.onNoteRelease();
+                }
             }
         }
 

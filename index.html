@@ -94,14 +94,16 @@
                     <!-- START: Real-Time Output Peak / VU Meter -->
                     <div id="vu-meter-container" class="pt-2 border-t border-gray-600/60">
                         <div class="flex justify-between items-center mb-1 text-xs font-mono">
-                            <span class="text-gray-300 font-medium"
-                                >Peak: <span id="vu-db-value">-inf dB</span></span
-                            >
+                            <span class="text-gray-300 font-medium">
+                                Peak:
+                                <span id="vu-db-value">-inf dB</span>
+                            </span>
                             <button
                                 id="vu-clip-indicator"
                                 type="button"
                                 title="Click to reset clip indicator"
                                 aria-label="Clipping indicator (click to reset)"
+                                aria-pressed="false"
                                 class="px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wider uppercase transition-colors bg-gray-800 text-gray-500 border border-gray-600 cursor-pointer"
                             >
                                 CLIP
@@ -115,6 +117,7 @@
                                 class="h-full rounded-full transition-all duration-75 ease-out bg-gradient-to-r from-emerald-500 via-amber-400 to-rose-500"
                                 style="width: 0%"
                                 role="meter"
+                                aria-label="Master audio peak level"
                                 aria-valuemin="-60"
                                 aria-valuemax="0"
                                 aria-valuenow="-60"
