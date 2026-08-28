@@ -483,6 +483,10 @@
                             <option value="synth" selected>Basic Synth</option>
                             <option value="fmSynth">FM Synth</option>
                             <option value="amSynth">AM Synth</option>
+                            <option value="monoSynth">MonoSynth (Analog Lead/Bass)</option>
+                            <option value="duoSynth">DuoSynth (Dual Voice)</option>
+                            <option value="pluckSynth">PluckSynth (Acoustic Pluck)</option>
+                            <option value="membraneSynth">MembraneSynth (Percussive/808)</option>
                         </select>
                     </div>
                     <!-- END Selector: Synth Type -->
@@ -606,7 +610,7 @@
                     </div>
                     <!-- END Selector: Synth Type Params -->
 
-                    <!-- START Selector: Advanced Synth Params (hidden by default) -->
+                    <!-- START Selector: Advanced FM/AM Synth Params -->
                     <div id="advanced-synth-params" class="hidden space-y-4">
                         <div id="harmonicity-control">
                             <label for="harmonicity" class="block text-sm font-medium mb-1"
@@ -635,7 +639,158 @@
                             />
                         </div>
                     </div>
-                    <!-- END Selector: Advanced Synth Params -->
+                    <!-- END Selector: Advanced FM/AM Synth Params -->
+
+                    <!-- START Selector: MonoSynth Params -->
+                    <div id="mono-synth-params" class="hidden space-y-4">
+                        <div>
+                            <label for="mono-cutoff" class="block text-sm font-medium mb-1"
+                                >Filter Env Base: <span id="mono-cutoff-value">300</span> Hz</label
+                            >
+                            <input
+                                type="range"
+                                id="mono-cutoff"
+                                min="50"
+                                max="5000"
+                                value="300"
+                                step="10"
+                            />
+                        </div>
+                        <div>
+                            <label for="mono-octaves" class="block text-sm font-medium mb-1"
+                                >Filter Env Octaves: <span id="mono-octaves-value">4.0</span></label
+                            >
+                            <input
+                                type="range"
+                                id="mono-octaves"
+                                min="0.5"
+                                max="8"
+                                value="4"
+                                step="0.1"
+                            />
+                        </div>
+                        <div>
+                            <label for="mono-q" class="block text-sm font-medium mb-1"
+                                >Filter Q (Resonance): <span id="mono-q-value">2.0</span></label
+                            >
+                            <input
+                                type="range"
+                                id="mono-q"
+                                min="0.1"
+                                max="10"
+                                value="2"
+                                step="0.1"
+                            />
+                        </div>
+                    </div>
+                    <!-- END Selector: MonoSynth Params -->
+
+                    <!-- START Selector: DuoSynth Params -->
+                    <div id="duo-synth-params" class="hidden space-y-4">
+                        <div>
+                            <label for="duo-harm" class="block text-sm font-medium mb-1"
+                                >Voice Ratio: <span id="duo-harm-value">1.50</span></label
+                            >
+                            <input
+                                type="range"
+                                id="duo-harm"
+                                min="0.5"
+                                max="4"
+                                value="1.5"
+                                step="0.05"
+                            />
+                        </div>
+                        <div>
+                            <label for="duo-vibrato" class="block text-sm font-medium mb-1"
+                                >Vibrato Depth: <span id="duo-vibrato-value">0.20</span></label
+                            >
+                            <input
+                                type="range"
+                                id="duo-vibrato"
+                                min="0"
+                                max="1"
+                                value="0.2"
+                                step="0.01"
+                            />
+                        </div>
+                    </div>
+                    <!-- END Selector: DuoSynth Params -->
+
+                    <!-- START Selector: PluckSynth Params -->
+                    <div id="pluck-synth-params" class="hidden space-y-4">
+                        <div>
+                            <label for="pluck-dampening" class="block text-sm font-medium mb-1"
+                                >Dampening: <span id="pluck-dampening-value">4000</span> Hz</label
+                            >
+                            <input
+                                type="range"
+                                id="pluck-dampening"
+                                min="500"
+                                max="10000"
+                                value="4000"
+                                step="50"
+                            />
+                        </div>
+                        <div>
+                            <label for="pluck-resonance" class="block text-sm font-medium mb-1"
+                                >Resonance: <span id="pluck-resonance-value">0.90</span></label
+                            >
+                            <input
+                                type="range"
+                                id="pluck-resonance"
+                                min="0.1"
+                                max="0.99"
+                                value="0.9"
+                                step="0.01"
+                            />
+                        </div>
+                        <div>
+                            <label for="pluck-noise" class="block text-sm font-medium mb-1"
+                                >Attack Noise: <span id="pluck-noise-value">1.0</span></label
+                            >
+                            <input
+                                type="range"
+                                id="pluck-noise"
+                                min="0.1"
+                                max="5"
+                                value="1"
+                                step="0.1"
+                            />
+                        </div>
+                    </div>
+                    <!-- END Selector: PluckSynth Params -->
+
+                    <!-- START Selector: MembraneSynth Params -->
+                    <div id="membrane-synth-params" class="hidden space-y-4">
+                        <div>
+                            <label for="membrane-pitch-decay" class="block text-sm font-medium mb-1"
+                                >Pitch Decay:
+                                <span id="membrane-pitch-decay-value">0.05</span>s</label
+                            >
+                            <input
+                                type="range"
+                                id="membrane-pitch-decay"
+                                min="0.001"
+                                max="0.5"
+                                value="0.05"
+                                step="0.005"
+                            />
+                        </div>
+                        <div>
+                            <label for="membrane-octaves" class="block text-sm font-medium mb-1"
+                                >Octaves: <span id="membrane-octaves-value">8.0</span></label
+                            >
+                            <input
+                                type="range"
+                                id="membrane-octaves"
+                                min="1"
+                                max="12"
+                                value="8"
+                                step="0.5"
+                            />
+                        </div>
+                    </div>
+                    <!-- END Selector: MembraneSynth Params -->
 
                     <!-- START Selector: Gate -->
                     <div>
@@ -826,6 +981,40 @@
             >
                 <h2 id="effects-title" class="text-xl font-semibold mb-3 text-blue-300">Effects</h2>
                 <div class="space-y-4">
+                    <!-- START Selector: Drive Mix -->
+                    <div>
+                        <label for="drive-mix" class="block text-sm font-medium mb-1"
+                            >Drive (Overdrive): <span id="drive-mix-value">0.00</span></label
+                        >
+                        <input type="range" id="drive-mix" min="0" max="1" value="0" step="0.01" />
+                    </div>
+                    <!-- END Selector: Drive Mix -->
+
+                    <!-- START Selector: Chorus Mix -->
+                    <div>
+                        <label for="chorus-mix" class="block text-sm font-medium mb-1"
+                            >Chorus Mix: <span id="chorus-mix-value">0.00</span></label
+                        >
+                        <input type="range" id="chorus-mix" min="0" max="1" value="0" step="0.01" />
+                    </div>
+                    <!-- END Selector: Chorus Mix -->
+
+                    <!-- START Selector: Auto-Pan Mix -->
+                    <div>
+                        <label for="autopan-mix" class="block text-sm font-medium mb-1"
+                            >Auto-Pan Mix: <span id="autopan-mix-value">0.00</span></label
+                        >
+                        <input
+                            type="range"
+                            id="autopan-mix"
+                            min="0"
+                            max="1"
+                            value="0"
+                            step="0.01"
+                        />
+                    </div>
+                    <!-- END Selector: Auto-Pan Mix -->
+
                     <!-- START Selector: Delay Mix -->
                     <div>
                         <label for="delay-mix" class="block text-sm font-medium mb-1"
