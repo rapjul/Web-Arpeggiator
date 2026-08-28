@@ -111,10 +111,11 @@ test("MIDI Export & Real-Time Peak Meter Suite", async (): Promise<void> => {
         const vuBar = document.getElementById("vu-meter-bar");
         const vuDb = document.getElementById("vu-db-value");
         const clipBtn = document.getElementById("vu-clip-indicator");
+        const clipTooltip = document.getElementById("vu-clip-tooltip");
         const infoBtn = document.getElementById("vu-info-button");
         const infoTooltip = document.getElementById("vu-info-tooltip");
 
-        if (!vuBar || !vuDb || !clipBtn || !infoBtn || !infoTooltip) return "vu-elements-missing";
+        if (!vuBar || !vuDb || !clipBtn || !clipTooltip || !infoBtn || !infoTooltip) return "vu-elements-missing";
 
         // Ensure playback is stopped to test clean idle state
         await window.__WEB_ARP_TEST__.stop();
@@ -128,8 +129,18 @@ test("MIDI Export & Real-Time Peak Meter Suite", async (): Promise<void> => {
         if (vuBar.getAttribute("aria-valuetext") !== "Idle") return "invalid-initial-aria-valuetext:" + vuBar.getAttribute("aria-valuetext");
         if (vuDb.textContent?.trim() !== "-- dB") return "invalid-initial-db-text:" + vuDb.textContent;
         if (clipBtn.getAttribute("aria-pressed") !== "false") return "missing-initial-aria-pressed";
+        if (clipBtn.getAttribute("aria-describedby") !== "vu-clip-tooltip") return "missing-clip-aria-describedby";
+        if (clipTooltip.getAttribute("role") !== "tooltip") return "missing-clip-tooltip-role";
 
-        // Check tooltip accessibility attributes
+        // Test hover interaction for clip tooltip (normal state)
+        if (!clipTooltip.classList.contains("hidden")) return "clip-tooltip-initially-visible";
+        clipBtn.dispatchEvent(new MouseEvent("mouseenter"));
+        if (clipTooltip.classList.contains("hidden")) return "clip-tooltip-hover-show-failed";
+        if (clipTooltip.textContent?.trim() !== "No clipping detected") return "invalid-clip-tooltip-text:" + clipTooltip.textContent;
+        clipBtn.dispatchEvent(new MouseEvent("mouseleave"));
+        if (!clipTooltip.classList.contains("hidden")) return "clip-tooltip-hover-hide-failed";
+
+        // Check info tooltip accessibility attributes
         if (infoTooltip.getAttribute("role") !== "tooltip") return "missing-tooltip-role";
         if (infoBtn.getAttribute("aria-describedby") !== "vu-info-tooltip") return "missing-info-aria-describedby";
         if (infoBtn.getAttribute("aria-label") !== "Final Audio Output info") return "invalid-info-aria-label";
@@ -184,11 +195,13 @@ test("MIDI Export & Real-Time Peak Meter Suite", async (): Promise<void> => {
 
         if (!vis.isClipped) return "clip-failed-to-latch";
         if (clipBtn.getAttribute("aria-pressed") !== "true") return "clip-btn-aria-pressed-not-true";
+        if (clipTooltip.textContent?.trim() !== "Signal clipped — Click to reset") return "invalid-clipped-tooltip-text:" + clipTooltip.textContent;
 
         // Verify clip indicator click resets latched clip
         clipBtn.click();
         if (vis.isClipped) return "clip-failed-to-reset";
         if (clipBtn.getAttribute("aria-pressed") !== "false") return "clip-btn-aria-pressed-not-reset";
+        if (clipTooltip.textContent?.trim() !== "No clipping detected") return "clip-tooltip-not-reset:" + clipTooltip.textContent;
 
         // Stop playback and verify return to idle
         await window.__WEB_ARP_TEST__.stop();

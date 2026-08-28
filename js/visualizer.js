@@ -28,6 +28,7 @@ import * as Tone from "tone";
  * @param {HTMLElement}       [context.dom.vuMeterBar]           - Meter bar element.
  * @param {HTMLElement}       [context.dom.vuDbValue]            - Peak dB value text container.
  * @param {HTMLButtonElement} [context.dom.vuClipIndicator]      - Clip reset button indicator.
+ * @param {HTMLElement}       [context.dom.vuClipTooltip]        - Clip reset button micro-tooltip.
  * @param {HTMLButtonElement} [context.dom.vuInfoButton]         - Info tooltip trigger button.
  * @param {HTMLElement}       [context.dom.vuInfoTooltip]        - Info tooltip container.
  * @param {HTMLInputElement}  [context.dom.envReleaseSlider]     - Envelope release slider input.
@@ -61,6 +62,7 @@ export function createVisualizer(context) {
     const vuMeterBar = dom.vuMeterBar;
     const vuDbValue = dom.vuDbValue;
     const vuClipIndicator = dom.vuClipIndicator;
+    const vuClipTooltip = dom.vuClipTooltip || document.getElementById("vu-clip-tooltip");
     const vuInfoButton = dom.vuInfoButton || document.getElementById("vu-info-button");
     const vuInfoTooltip = dom.vuInfoTooltip || document.getElementById("vu-info-tooltip");
     const envReleaseSlider = dom.envReleaseSlider;
@@ -748,7 +750,7 @@ export function createVisualizer(context) {
             // Latch red clip indicator if unsmoothed peak hits full scale or meter reaches 0 dBFS
             if ((isPeakClipping || db >= 0) && !isClipped && vuClipIndicator) {
                 isClipped = true;
-                vuClipIndicator.classList.remove("bg-gray-800", "text-gray-500", "border-gray-600");
+                vuClipIndicator.classList.remove("bg-gray-800", "text-gray-400", "border-gray-600");
                 vuClipIndicator.classList.add(
                     "bg-rose-600",
                     "text-white",
@@ -756,6 +758,10 @@ export function createVisualizer(context) {
                     "animate-pulse",
                 );
                 vuClipIndicator.setAttribute("aria-pressed", "true");
+                vuClipIndicator.setAttribute("title", "Signal clipped — Click to reset");
+                if (vuClipTooltip) {
+                    vuClipTooltip.textContent = "Signal clipped — Click to reset";
+                }
             }
         }
 
@@ -975,11 +981,43 @@ export function createVisualizer(context) {
             );
             vuClipIndicator.classList.add("bg-gray-800", "text-gray-400", "border-gray-600");
             vuClipIndicator.setAttribute("aria-pressed", "false");
+            vuClipIndicator.setAttribute("title", "Clipping indicator (normal)");
+        }
+        if (vuClipTooltip) {
+            vuClipTooltip.textContent = "No clipping detected";
+        }
+    }
+
+    /**
+     * Shows the clip button micro-tooltip.
+     *
+     * @returns {void}
+     */
+    function showClipTooltip() {
+        if (vuClipTooltip) {
+            vuClipTooltip.classList.remove("hidden");
+        }
+    }
+
+    /**
+     * Hides the clip button micro-tooltip.
+     *
+     * @returns {void}
+     */
+    function hideClipTooltip() {
+        if (vuClipTooltip) {
+            vuClipTooltip.classList.add("hidden");
         }
     }
 
     if (vuClipIndicator) {
         vuClipIndicator.addEventListener("click", resetClip);
+        if (vuClipTooltip) {
+            vuClipIndicator.addEventListener("mouseenter", showClipTooltip);
+            vuClipIndicator.addEventListener("mouseleave", hideClipTooltip);
+            vuClipIndicator.addEventListener("focus", showClipTooltip);
+            vuClipIndicator.addEventListener("blur", hideClipTooltip);
+        }
     }
 
     /**

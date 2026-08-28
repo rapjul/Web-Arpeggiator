@@ -345,6 +345,7 @@ function initializeApp() {
     const vuMeterBar = document.getElementById("vu-meter-bar");
     const vuDbValue = document.getElementById("vu-db-value");
     const vuClipIndicator = document.getElementById("vu-clip-indicator");
+    const vuClipTooltip = document.getElementById("vu-clip-tooltip");
     const vuInfoButton = document.getElementById("vu-info-button");
     const vuInfoTooltip = document.getElementById("vu-info-tooltip");
 
@@ -794,6 +795,7 @@ function initializeApp() {
             vuMeterBar,
             vuDbValue,
             vuClipIndicator,
+            vuClipTooltip,
             vuInfoButton,
             vuInfoTooltip,
             envReleaseSlider,

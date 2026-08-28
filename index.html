@@ -126,16 +126,26 @@
                                     </svg>
                                 </button>
                             </div>
-                            <button
-                                id="vu-clip-indicator"
-                                type="button"
-                                title="Click to reset clip indicator"
-                                aria-label="Clipping indicator (click to reset)"
-                                aria-pressed="false"
-                                class="px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wider uppercase transition-colors bg-gray-800 text-gray-400 border border-gray-600 hover:border-gray-500 focus:outline-none focus:ring-2 focus:ring-rose-500 cursor-pointer shrink-0 ml-auto"
-                            >
-                                CLIP
-                            </button>
+                            <div class="relative inline-flex shrink-0 ml-auto">
+                                <button
+                                    id="vu-clip-indicator"
+                                    type="button"
+                                    title="Clipping indicator (normal)"
+                                    aria-label="Clipping indicator (click to reset)"
+                                    aria-describedby="vu-clip-tooltip"
+                                    aria-pressed="false"
+                                    class="px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wider uppercase transition-colors bg-gray-800 text-gray-400 border border-gray-600 hover:border-gray-500 focus:outline-none focus:ring-2 focus:ring-rose-500 cursor-pointer"
+                                >
+                                    CLIP
+                                </button>
+                                <div
+                                    id="vu-clip-tooltip"
+                                    role="tooltip"
+                                    class="hidden absolute right-0 top-full mt-1.5 z-50 px-2 py-1 bg-gray-900 border border-gray-600 rounded shadow-xl text-[11px] font-sans font-normal text-gray-200 whitespace-nowrap pointer-events-none"
+                                >
+                                    No clipping detected
+                                </div>
+                            </div>
                         </div>
                         <div
                             class="w-full h-2.5 bg-gray-900 rounded-full overflow-hidden p-0.5 border border-gray-600 flex"
