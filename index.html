@@ -88,7 +88,6 @@
                         <label for="swing" class="block text-sm font-medium mb-1"
                             >Swing: <span id="swing-value">0.00</span></label
                         >
-                        <input type="range" id="swing" min="0" max="1" value="0" step="0.01" />
                     </div>
                 </div>
             </section>
@@ -1087,15 +1086,24 @@
                             <span>MP3</span>
                         </label>
                     </div>
-                    <button
-                        id="offline-export-button"
-                        aria-label="Generate & Export perfect loop"
-                        class="w-full text-lg font-bold py-2 px-4 bg-purple-600 hover:bg-purple-700 rounded-lg shadow-lg transition-all"
-                    >
-                        Generate & Export
-                    </button>
+                    <div class="flex flex-col sm:flex-row gap-3">
+                        <button
+                            id="offline-export-button"
+                            aria-label="Generate & Export perfect loop audio"
+                            class="flex-1 text-lg font-bold py-2 px-4 bg-purple-600 hover:bg-purple-700 rounded-lg shadow-lg transition-all"
+                        >
+                            Generate & Export Audio
+                        </button>
+                        <button
+                            id="offline-export-midi-button"
+                            aria-label="Export arpeggio pattern as standard MIDI file (.mid)"
+                            class="flex-1 text-lg font-bold py-2 px-4 bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-lg transition-all"
+                        >
+                            Export MIDI (.mid)
+                        </button>
+                    </div>
                     <p id="offline-export-status" class="text-sm text-center text-gray-300">
-                        Generate a perfect loop of the current settings.
+                        Generate audio loops or standard MIDI files from current settings.
                     </p>
                 </div>
             </section>

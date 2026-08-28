@@ -50,6 +50,8 @@ import {
     hasPresetChanges,
 } from "./url-preset.js";
 import { createToastManager } from "./ui-feedback.js";
+import { exportMidiFile, createMidiBlob } from "./midi-export.js";
+import { buildPatternSequence } from "./pattern-core.js";
 
 /**
  * Filters keydown events for the notes input.
@@ -279,6 +281,7 @@ function initializeApp() {
     const offlineExportWavCheck = document.getElementById("offline-export-wav");
     const offlineExportMp3Check = document.getElementById("offline-export-mp3");
     const offlineExportButton = document.getElementById("offline-export-button");
+    const offlineExportMidiButton = document.getElementById("offline-export-midi-button");
     const offlineExportStatus = document.getElementById("offline-export-status");
 
     // Utility card
@@ -655,6 +658,14 @@ function initializeApp() {
     //    Module Initialization
     // ==================================================================
 
+    // 0. Toast Manager — UI notifications and live region announcements
+    const toastManager = createToastManager({
+        toastContainer,
+        liveRegion: document.getElementById("sr-announcements"),
+        logger: log,
+    });
+    const { showToast, announce } = toastManager;
+
     // 1. Audio Engine — synths, effects, filter, analyzer
     let audioEngine;
     audioEngine = createAudioEngine({
@@ -683,6 +694,7 @@ function initializeApp() {
     window.audioEngine = audioEngine;
 
     // 2. Visualizer — canvas rendering, UI loop, toggle
+    let recorderManager;
     const visualizer = createVisualizer({
         dom: {
             visualizerYAxisCanvas,
@@ -699,10 +711,10 @@ function initializeApp() {
         audio: { analyser: audioEngine.analyser },
         state: {
             get isRecording() {
-                return recorderManager.isRecording;
+                return recorderManager ? recorderManager.isRecording : false;
             },
             get recordingStartTime() {
-                return recorderManager.recordingStartTime;
+                return recorderManager ? recorderManager.recordingStartTime : 0;
             },
             get isPlaying() {
                 return isPlaying;
@@ -797,7 +809,7 @@ function initializeApp() {
     const { updateKeyboardControlUi } = keyboardControls;
 
     // 5. Recorder Manager (needs getAllSettings / generateFilename from settings)
-    const recorderManager = createRecorderManager({
+    recorderManager = createRecorderManager({
         audio: {
             reverb: audioEngine.reverb,
             synths: audioEngine.synths,
@@ -926,13 +938,6 @@ function initializeApp() {
             scaleQuantizeToggleStatus.classList.add("text-gray-400");
         }
     }
-
-    const toastManager = createToastManager({
-        toastContainer,
-        liveRegion: document.getElementById("sr-announcements"),
-        logger: log,
-    });
-    const { showToast, announce } = toastManager;
 
     /**
      * Sets up arrow key keyboard navigation for a group of buttons.
@@ -1432,6 +1437,35 @@ function initializeApp() {
         await recorderManager.exportOffline();
     });
 
+    if (offlineExportMidiButton) {
+        offlineExportMidiButton.addEventListener("click", () => {
+            const settings = getAllSettings();
+            const sequenceResult = buildPatternSequence(currentNotes, {
+                direction: settings.direction,
+                octaveRange: currentOctaveRange,
+                octaveShift: currentOctaveShift,
+                quantize: {
+                    enabled: settings.scaleQuantize,
+                    root: settings.scaleRoot,
+                    scale: settings.scaleType,
+                },
+            });
+
+            const filename = `${generateFilename(false)}.mid`;
+            exportMidiFile(
+                {
+                    notes: sequenceResult.finalNotes,
+                    bpm: settings.bpm,
+                    interval: settings.interval,
+                    gateRatio: settings.gateRatio,
+                    loopCount: settings.loopCount,
+                },
+                filename,
+            );
+            showToast("Exported MIDI pattern file!", "success");
+        });
+    }
+
     // --- Visualizer Toggle ---
     toggleVisualizerButton.addEventListener("click", () => {
         visualizer.toggle();
@@ -1885,6 +1919,30 @@ function initializeApp() {
             }
             return !isPlaying;
         },
+
+        exportMidiBlob: (opts = {}) => {
+            const settings = getAllSettings();
+            const sequenceResult = buildPatternSequence(currentNotes, {
+                direction: settings.direction,
+                octaveRange: currentOctaveRange,
+                octaveShift: currentOctaveShift,
+                quantize: {
+                    enabled: settings.scaleQuantize,
+                    root: settings.scaleRoot,
+                    scale: settings.scaleType,
+                },
+            });
+            return createMidiBlob({
+                notes: sequenceResult.finalNotes,
+                bpm: settings.bpm,
+                interval: settings.interval,
+                gateRatio: settings.gateRatio,
+                loopCount: settings.loopCount,
+                ...opts,
+            });
+        },
+
+        getVisualizer: () => visualizer,
     });
 
     // ==================================================================
