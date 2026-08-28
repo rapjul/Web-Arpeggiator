@@ -368,6 +368,201 @@ export function buildPatternSequence(baseNotes, options = {}) {
 }
 
 /**
+ * Materializes a finite sequence of notes and base index mappings according to the selected pattern direction.
+ *
+ * Unlike buildPatternSequence which defers standard directions ('down', 'upDown', 'downUp', 'random', 'randomWalk')
+ * to Tone.Pattern traversal during playback, this function unrolls all 12 directions deterministically into a
+ * finite concrete sequence suitable for Standard MIDI export, offline renderers, and static timeline mapping.
+ *
+ * @param {string[]} baseNotes - Input note strings.
+ * @param {object} [options={}] - Configuration options.
+ * @param {string} [options.direction='up'] - One of the 12 supported pattern directions.
+ * @param {number} [options.octaveRange=1] - Octave range (1 to 5).
+ * @param {number} [options.octaveShift=0] - Octave shift (-3 to 3).
+ * @param {{enabled?: boolean, root?: string, scale?: string}} [options.quantize] - Quantization options.
+ * @param {() => number} [options.rng=Math.random] - Optional random number generator for deterministic unrolling.
+ * @returns {{notes: string[], map: number[]}} Unrolled note sequence and base note index map.
+ */
+export function materializePatternSequence(baseNotes, options = {}) {
+    const {
+        direction = "up",
+        octaveRange = 1,
+        octaveShift = 0,
+        quantize = { enabled: false, root: "C", scale: "major" },
+        rng = Math.random,
+    } = options;
+
+    if (!baseNotes || baseNotes.length === 0) {
+        return { notes: [], map: [] };
+    }
+
+    const { notes, map } = buildPatternNotesAndMap(baseNotes, octaveRange, octaveShift, quantize);
+
+    if (notes.length === 0) {
+        return { notes: [], map: [] };
+    }
+
+    let finalNotes = [];
+    let finalMap = [];
+
+    switch (direction) {
+        case "up":
+            finalNotes = [...notes];
+            finalMap = [...map];
+            break;
+        case "down":
+            finalNotes = [...notes].reverse();
+            finalMap = [...map].reverse();
+            break;
+        case "upDown":
+            if (notes.length <= 2) {
+                finalNotes = [...notes];
+                finalMap = [...map];
+            } else {
+                const downNotes = notes.slice(1, -1).reverse();
+                const downMap = map.slice(1, -1).reverse();
+                finalNotes = [...notes, ...downNotes];
+                finalMap = [...map, ...downMap];
+            }
+            break;
+        case "downUp":
+            if (notes.length <= 2) {
+                finalNotes = [...notes].reverse();
+                finalMap = [...map].reverse();
+            } else {
+                const reversedNotes = [...notes].reverse();
+                const reversedMap = [...map].reverse();
+                const upNotes = notes.slice(1, -1);
+                const upMap = map.slice(1, -1);
+                finalNotes = [...reversedNotes, ...upNotes];
+                finalMap = [...reversedMap, ...upMap];
+            }
+            break;
+        case "upDownRepeat":
+            finalNotes = [...notes, ...[...notes].reverse()];
+            finalMap = [...map, ...[...map].reverse()];
+            break;
+        case "downUpRepeat":
+            finalNotes = [...[...notes].reverse(), ...notes];
+            finalMap = [...[...map].reverse(), ...map];
+            break;
+        case "octaveCycle": {
+            const quantizedBaseNotes =
+                quantize && quantize.enabled
+                    ? quantizeToScale(baseNotes, quantize.root, quantize.scale)
+                    : baseNotes;
+            quantizedBaseNotes.forEach((baseNote, i) => {
+                const parsed = Tonal.Note.get(baseNote);
+                if (!parsed || parsed.midi === undefined) return;
+                for (let rep = 0; rep < 2; rep++) {
+                    for (let oct = 0; oct < 3; oct++) {
+                        finalNotes.push(
+                            Tonal.Note.fromMidi(parsed.midi + octaveShift * 12 + oct * 12),
+                        );
+                        finalMap.push(i);
+                    }
+                }
+            });
+            break;
+        }
+        case "octaveCycleReverse": {
+            const quantizedBaseNotes =
+                quantize && quantize.enabled
+                    ? quantizeToScale(baseNotes, quantize.root, quantize.scale)
+                    : baseNotes;
+            const indexed = [...quantizedBaseNotes]
+                .map((note, index) => ({ note, index }))
+                .reverse();
+            indexed.forEach(({ note, index }) => {
+                const parsed = Tonal.Note.get(note);
+                if (!parsed || parsed.midi === undefined) return;
+                for (let rep = 0; rep < 2; rep++) {
+                    for (let oct = 2; oct >= 0; oct--) {
+                        finalNotes.push(
+                            Tonal.Note.fromMidi(parsed.midi + octaveShift * 12 + oct * 12),
+                        );
+                        finalMap.push(index);
+                    }
+                }
+            });
+            break;
+        }
+        case "octaveCyclePingPong": {
+            const quantizedBaseNotes =
+                quantize && quantize.enabled
+                    ? quantizeToScale(baseNotes, quantize.root, quantize.scale)
+                    : baseNotes;
+            quantizedBaseNotes.forEach((baseNote, i) => {
+                const parsed = Tonal.Note.get(baseNote);
+                if (!parsed || parsed.midi === undefined) return;
+                for (let oct = 0; oct < 3; oct++) {
+                    finalNotes.push(Tonal.Note.fromMidi(parsed.midi + octaveShift * 12 + oct * 12));
+                    finalMap.push(i);
+                }
+                for (let oct = 1; oct >= 0; oct--) {
+                    finalNotes.push(Tonal.Note.fromMidi(parsed.midi + octaveShift * 12 + oct * 12));
+                    finalMap.push(i);
+                }
+                for (let oct = 1; oct < 3; oct++) {
+                    finalNotes.push(Tonal.Note.fromMidi(parsed.midi + octaveShift * 12 + oct * 12));
+                    finalMap.push(i);
+                }
+            });
+            break;
+        }
+        case "random": {
+            const count = Math.max(1, notes.length);
+            for (let i = 0; i < count; i++) {
+                const idx = Math.floor(rng() * notes.length);
+                finalNotes.push(notes[idx]);
+                finalMap.push(map[idx]);
+            }
+            break;
+        }
+        case "randomWalk": {
+            const count = Math.max(1, notes.length);
+            let idx = Math.floor(rng() * notes.length);
+            finalNotes.push(notes[idx]);
+            finalMap.push(map[idx]);
+            for (let i = 1; i < count; i++) {
+                const step = rng() > 0.5 ? 1 : -1;
+                idx = (idx + step + notes.length) % notes.length;
+                finalNotes.push(notes[idx]);
+                finalMap.push(map[idx]);
+            }
+            break;
+        }
+        case "randomWalkDrunk": {
+            let currentIndex = Math.floor(rng() * notes.length);
+            finalNotes.push(notes[currentIndex]);
+            finalMap.push(map[currentIndex]);
+            for (let i = 1; i < 16; i++) {
+                let step;
+                if (rng() < 0.8) {
+                    step = rng() > 0.5 ? 1 : -1;
+                } else {
+                    step = Math.floor(rng() * 7) - 3;
+                    if (step === 0) step = 1;
+                }
+                currentIndex = (currentIndex + step + notes.length) % notes.length;
+                finalNotes.push(notes[currentIndex]);
+                finalMap.push(map[currentIndex]);
+            }
+            break;
+        }
+        default:
+            finalNotes = [...notes];
+            finalMap = [...map];
+            break;
+    }
+
+    return {
+        notes: finalNotes,
+        map: finalMap,
+    };
+}
+
+/**
  * Note trigger marker descriptor for loop mapping and visualizer timelines.
  * @typedef {object} NoteMarker
  * @property {string} note - Pitch string (e.g. 'C4').
@@ -402,97 +597,23 @@ export function calculateNoteMarkers(settings) {
         direction = "up",
     } = settings;
 
-    let expanded = [];
-    for (let i = 0; i < baseNotes.length; i++) {
-        const note = baseNotes[i];
-        const parsed = Tonal.Note.get(note);
-        if (!parsed || parsed.midi === undefined) continue;
-        for (let o = 0; o < octaveRange; o++) {
-            const midi = parsed.midi + o * 12 + octaveShift * 12;
-            expanded.push(Tonal.Note.fromMidi(midi));
-        }
-    }
+    const { notes } = materializePatternSequence(baseNotes, {
+        direction,
+        octaveRange,
+        octaveShift,
+        quantize: {
+            enabled: scaleQuantize,
+            root: scaleRoot,
+            scale: scaleType,
+        },
+    });
 
-    if (scaleQuantize) {
-        expanded = quantizeToScale(expanded, scaleRoot, scaleType);
-    }
-
-    let finalNotes = [];
-
-    if (direction === "up") {
-        finalNotes = expanded;
-    } else if (direction === "down") {
-        finalNotes = [...expanded].reverse();
-    } else if (direction === "upDown") {
-        const downPart = [...expanded].slice(1, -1).reverse();
-        finalNotes = [...expanded, ...downPart];
-    } else if (direction === "downUp") {
-        const reversed = [...expanded].reverse();
-        const upPart = [...expanded].slice(1, -1);
-        finalNotes = [...reversed, ...upPart];
-    } else if (direction === "upDownRepeat") {
-        const reversed = [...expanded].reverse();
-        finalNotes = [...expanded, ...reversed];
-    } else if (direction === "downUpRepeat") {
-        const reversed = [...expanded].reverse();
-        finalNotes = [...reversed, ...expanded];
-    } else if (direction === "octaveCycle") {
-        const cycleBaseNotes = scaleQuantize
-            ? quantizeToScale(baseNotes, scaleRoot, scaleType)
-            : baseNotes;
-        cycleBaseNotes.forEach((baseNote) => {
-            const parsed = Tonal.Note.get(baseNote);
-            if (!parsed || parsed.midi === undefined) return;
-            for (let rep = 0; rep < 2; rep++) {
-                for (let oct = 0; oct < 3; oct++) {
-                    const midi = parsed.midi + octaveShift * 12 + oct * 12;
-                    finalNotes.push(Tonal.Note.fromMidi(midi));
-                }
-            }
-        });
-    } else if (direction === "octaveCycleReverse") {
-        const cycleBaseNotes = scaleQuantize
-            ? quantizeToScale(baseNotes, scaleRoot, scaleType)
-            : baseNotes;
-        const reversedIndexed = [...cycleBaseNotes].reverse();
-        reversedIndexed.forEach((baseNote) => {
-            const parsed = Tonal.Note.get(baseNote);
-            if (!parsed || parsed.midi === undefined) return;
-            for (let rep = 0; rep < 2; rep++) {
-                for (let oct = 2; oct >= 0; oct--) {
-                    const midi = parsed.midi + octaveShift * 12 + oct * 12;
-                    finalNotes.push(Tonal.Note.fromMidi(midi));
-                }
-            }
-        });
-    } else if (direction === "octaveCyclePingPong") {
-        const cycleBaseNotes = scaleQuantize
-            ? quantizeToScale(baseNotes, scaleRoot, scaleType)
-            : baseNotes;
-        cycleBaseNotes.forEach((baseNote) => {
-            const parsed = Tonal.Note.get(baseNote);
-            if (!parsed || parsed.midi === undefined) return;
-            for (let oct = 0; oct < 3; oct++) {
-                finalNotes.push(Tonal.Note.fromMidi(parsed.midi + octaveShift * 12 + oct * 12));
-            }
-            for (let oct = 1; oct >= 0; oct--) {
-                finalNotes.push(Tonal.Note.fromMidi(parsed.midi + octaveShift * 12 + oct * 12));
-            }
-            for (let oct = 1; oct < 3; oct++) {
-                finalNotes.push(Tonal.Note.fromMidi(parsed.midi + octaveShift * 12 + oct * 12));
-            }
-        });
-    } else {
-        // Fallback for non-deterministic modes
-        finalNotes = expanded;
-    }
-
-    if (finalNotes.length === 0) {
+    if (notes.length === 0) {
         return [];
     }
 
-    return finalNotes.map((note, idx) => ({
+    return notes.map((note, idx) => ({
         note,
-        timeRatio: idx / finalNotes.length,
+        timeRatio: idx / notes.length,
     }));
 }

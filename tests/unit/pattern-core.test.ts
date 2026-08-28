@@ -4,6 +4,7 @@ import {
     getArpeggioNotes,
     buildPatternNotesAndMap,
     buildPatternSequence,
+    materializePatternSequence,
     calculateNoteMarkers,
     CHROMATIC_PITCHES,
     CHROMATIC_RANGE,
@@ -288,5 +289,85 @@ describe("Pattern Core - Note Marker Calculations", () => {
     test("returns empty array for empty inputs", () => {
         expect(calculateNoteMarkers({ baseNotes: [] })).toEqual([]);
         expect(calculateNoteMarkers(null as any)).toEqual([]);
+    });
+});
+
+describe("Pattern Core - materializePatternSequence Deterministic Unrolling", () => {
+    const base = ["C4", "E4", "G4"];
+
+    test("materializes 'up' and 'down' sequences", () => {
+        const up = materializePatternSequence(base, { direction: "up" });
+        expect(up.notes).toEqual(["C4", "E4", "G4"]);
+        expect(up.map).toEqual([0, 1, 2]);
+
+        const down = materializePatternSequence(base, { direction: "down" });
+        expect(down.notes).toEqual(["G4", "E4", "C4"]);
+        expect(down.map).toEqual([2, 1, 0]);
+    });
+
+    test("materializes 'upDown' and 'downUp' sequences with exclusive endpoints", () => {
+        const upDown = materializePatternSequence(base, { direction: "upDown" });
+        expect(upDown.notes).toEqual(["C4", "E4", "G4", "E4"]);
+        expect(upDown.map).toEqual([0, 1, 2, 1]);
+
+        const downUp = materializePatternSequence(base, { direction: "downUp" });
+        expect(downUp.notes).toEqual(["G4", "E4", "C4", "E4"]);
+        expect(downUp.map).toEqual([2, 1, 0, 1]);
+    });
+
+    test("materializes 'upDownRepeat' and 'downUpRepeat' with inclusive endpoints", () => {
+        const upDownRep = materializePatternSequence(base, {
+            direction: "upDownRepeat",
+        });
+        expect(upDownRep.notes).toEqual(["C4", "E4", "G4", "G4", "E4", "C4"]);
+        expect(upDownRep.map).toEqual([0, 1, 2, 2, 1, 0]);
+
+        const downUpRep = materializePatternSequence(base, {
+            direction: "downUpRepeat",
+        });
+        expect(downUpRep.notes).toEqual(["G4", "E4", "C4", "C4", "E4", "G4"]);
+        expect(downUpRep.map).toEqual([2, 1, 0, 0, 1, 2]);
+    });
+
+    test("materializes octave cycle variants", () => {
+        const oct = materializePatternSequence(["C4"], { direction: "octaveCycle" });
+        expect(oct.notes).toEqual(["C4", "C5", "C6", "C4", "C5", "C6"]);
+
+        const octRev = materializePatternSequence(["C4"], {
+            direction: "octaveCycleReverse",
+        });
+        expect(octRev.notes).toEqual(["C6", "C5", "C4", "C6", "C5", "C4"]);
+
+        const octPingPong = materializePatternSequence(["C4"], {
+            direction: "octaveCyclePingPong",
+        });
+        expect(octPingPong.notes).toEqual(["C4", "C5", "C6", "C5", "C4", "C5", "C6"]);
+    });
+
+    test("materializes random and random walk modes with deterministic RNG", () => {
+        const deterministicRng = () => 0.25;
+
+        const rand = materializePatternSequence(base, {
+            direction: "random",
+            rng: deterministicRng,
+        });
+        expect(rand.notes.length).toBe(3);
+
+        const walk = materializePatternSequence(base, {
+            direction: "randomWalk",
+            rng: deterministicRng,
+        });
+        expect(walk.notes.length).toBe(3);
+
+        const drunk = materializePatternSequence(base, {
+            direction: "randomWalkDrunk",
+            rng: deterministicRng,
+        });
+        expect(drunk.notes.length).toBe(16);
+    });
+
+    test("handles empty or invalid inputs gracefully", () => {
+        expect(materializePatternSequence([])).toEqual({ notes: [], map: [] });
+        expect(materializePatternSequence(null as any)).toEqual({ notes: [], map: [] });
     });
 });

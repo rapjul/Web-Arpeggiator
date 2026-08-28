@@ -19,6 +19,16 @@ describe("MIDI Export Domain Module", () => {
         expect(noteNameToMidiNumber("F#4")).toBe(66);
         expect(noteNameToMidiNumber("Bb3")).toBe(58);
         expect(noteNameToMidiNumber("G#2")).toBe(44);
+        expect(noteNameToMidiNumber("Db5")).toBe(73);
+
+        // Enharmonic pitch calculations across octave boundaries
+        expect(noteNameToMidiNumber("Cb4")).toBe(59); // B3
+        expect(noteNameToMidiNumber("Fb4")).toBe(64); // E4
+        expect(noteNameToMidiNumber("E#4")).toBe(65); // F4
+        expect(noteNameToMidiNumber("B#3")).toBe(60); // C4
+        expect(noteNameToMidiNumber("C-1")).toBe(0); // Min MIDI note
+        expect(noteNameToMidiNumber("G9")).toBe(127); // Max MIDI note clamped
+
         expect(noteNameToMidiNumber("invalid")).toBe(60); // Fallback to 60
         expect(noteNameToMidiNumber("")).toBe(60);
     });
@@ -104,5 +114,34 @@ describe("MIDI Export Domain Module", () => {
         expect(blob instanceof Blob).toBe(true);
         expect(blob.type).toBe("audio/midi");
         expect(blob.size).toBeGreaterThan(0);
+    });
+
+    test("createMidiFileBytes defensively normalizes non-finite or invalid parameters", () => {
+        // @ts-expect-error test non-finite inputs
+        const bytesNaN = createMidiFileBytes({
+            notes: ["C4"],
+            bpm: Number.NaN,
+            // @ts-expect-error test NaN loopCount
+            loopCount: Number.NaN,
+            // @ts-expect-error test NaN gateRatio
+            gateRatio: Number.NaN,
+        });
+        expect(bytesNaN instanceof Uint8Array).toBe(true);
+        expect(bytesNaN.length).toBeGreaterThan(20);
+
+        // Fractional loopCount should be safely truncated
+        const bytesFractional = createMidiFileBytes({
+            notes: ["C4", "E4"],
+            loopCount: 2.7,
+        });
+        const bytesExact2 = createMidiFileBytes({
+            notes: ["C4", "E4"],
+            loopCount: 2,
+        });
+        expect(bytesFractional.length).toBe(bytesExact2.length);
+
+        // Empty options fallback
+        const bytesDefault = createMidiFileBytes();
+        expect(bytesDefault.length).toBeGreaterThan(20);
     });
 });

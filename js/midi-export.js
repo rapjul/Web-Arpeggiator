@@ -30,32 +30,24 @@ export const INTERVAL_BEAT_MULTIPLIERS = Object.freeze({
 });
 
 /**
- * Note pitch name to semitone index lookup (chromatic C=0 to B=11).
+ * Natural pitch class semitone offset lookup (C=0, D=2, E=4, F=5, G=7, A=9, B=11).
  * @type {Readonly<Record<string, number>>}
  */
-const NOTE_SEMITONES = Object.freeze({
+const NATURAL_SEMITONES = Object.freeze({
     C: 0,
-    "C#": 1,
-    Db: 1,
     D: 2,
-    "D#": 3,
-    Eb: 3,
     E: 4,
     F: 5,
-    "F#": 6,
-    Gb: 6,
     G: 7,
-    "G#": 8,
-    Ab: 8,
     A: 9,
-    "A#": 10,
-    Bb: 10,
     B: 11,
 });
 
 /**
- * Converts a musical pitch string (e.g. 'C4', 'F#3', 'Bb5') into a standard MIDI note number (0–127).
+ * Converts a musical pitch string (e.g. 'C4', 'F#3', 'Bb5', 'Cb4', 'E#4') into a standard MIDI note number (0–127).
  * MIDI standard: C4 = note number 60.
+ * Accidental offsets (# = +1, b = -1) are applied to the natural note pitch,
+ * correctly handling cross-octave enharmonics such as Cb4 (59) and B#3 (60).
  *
  * @param {string} noteName - Scientific pitch notation string.
  * @returns {number} The corresponding MIDI note number clamped between 0 and 127.
@@ -63,15 +55,19 @@ const NOTE_SEMITONES = Object.freeze({
 export function noteNameToMidiNumber(noteName) {
     if (!noteName || typeof noteName !== "string") return 60;
 
-    const match = noteName.trim().match(/^([A-Ga-g][b#]?)(-?\d+)$/);
+    const match = noteName.trim().match(/^([A-Ga-g])([b#]?)(-?\d+)$/);
     if (!match) return 60;
 
-    const pitch = match[1].charAt(0).toUpperCase() + match[1].slice(1).toLowerCase();
-    const octave = parseInt(match[2], 10);
+    const natural = match[1].toUpperCase();
+    const accidental = match[2];
+    const octave = parseInt(match[3], 10);
 
-    const semitone = NOTE_SEMITONES[pitch] ?? 0;
-    // MIDI standard: C-1 is 0, C4 is 60 -> (octave + 1) * 12 + semitone
-    const midiNum = (octave + 1) * 12 + semitone;
+    const naturalSemitone = NATURAL_SEMITONES[natural];
+    if (naturalSemitone === undefined || !Number.isFinite(octave)) return 60;
+
+    const accidentalOffset = accidental === "#" ? 1 : accidental === "b" ? -1 : 0;
+    // MIDI standard: C-1 is 0, C4 is 60 -> (octave + 1) * 12 + naturalSemitone + accidentalOffset
+    const midiNum = (octave + 1) * 12 + naturalSemitone + accidentalOffset;
     return Math.min(Math.max(midiNum, 0), 127);
 }
 
@@ -138,10 +134,19 @@ export function createMidiFileBytes(options) {
         velocity = 100,
     } = options || {};
 
-    const safeBpm = Math.max(20, Math.min(300, bpm));
-    const safeGate = Math.max(0.05, Math.min(1.0, gateRatio));
-    const safeLoops = Math.max(1, Math.min(100, loopCount));
-    const safeVelocity = Math.max(1, Math.min(127, Math.round(velocity)));
+    const parsedBpm = parseFloat(bpm);
+    const safeBpm = Number.isFinite(parsedBpm) ? Math.max(20, Math.min(300, parsedBpm)) : 120;
+
+    const parsedGate = parseFloat(gateRatio);
+    const safeGate = Number.isFinite(parsedGate) ? Math.max(0.05, Math.min(1.0, parsedGate)) : 0.8;
+
+    const parsedLoops = parseInt(loopCount, 10);
+    const safeLoops = Number.isFinite(parsedLoops) ? Math.max(1, Math.min(100, parsedLoops)) : 1;
+
+    const parsedVelocity = parseInt(velocity, 10);
+    const safeVelocity = Number.isFinite(parsedVelocity)
+        ? Math.max(1, Math.min(127, parsedVelocity))
+        : 100;
 
     const beatMultiplier = INTERVAL_BEAT_MULTIPLIERS[interval] ?? 0.25;
     const stepDurationTicks = Math.round(TICKS_PER_BEAT * beatMultiplier);
