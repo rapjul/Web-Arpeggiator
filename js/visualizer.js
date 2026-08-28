@@ -25,6 +25,12 @@ import * as Tone from "tone";
  * @param {HTMLElement}       context.dom.visualizerZoomValue    - Text readout for zoom.
  * @param {HTMLSelectElement} context.dom.oscilloscopeWindowSelect - Select dropdown for time duration.
  * @param {HTMLElement}       context.dom.oscilloscopeWindowContainer - Container wrapper for time dropdown.
+ * @param {HTMLElement}       [context.dom.vuMeterBar]           - Meter bar element.
+ * @param {HTMLElement}       [context.dom.vuDbValue]            - Peak dB value text container.
+ * @param {HTMLButtonElement} [context.dom.vuClipIndicator]      - Clip reset button indicator.
+ * @param {HTMLButtonElement} [context.dom.vuInfoButton]         - Info tooltip trigger button.
+ * @param {HTMLElement}       [context.dom.vuInfoTooltip]        - Info tooltip container.
+ * @param {HTMLInputElement}  [context.dom.envReleaseSlider]     - Envelope release slider input.
  * @param {object}   context.audio                               - Audio-engine references.
  * @param {Tone.Analyser}     context.audio.analyser             - Waveform/FFT analyser.
  * @param {object}   context.state                               - Shared app state.
@@ -55,6 +61,8 @@ export function createVisualizer(context) {
     const vuMeterBar = dom.vuMeterBar;
     const vuDbValue = dom.vuDbValue;
     const vuClipIndicator = dom.vuClipIndicator;
+    const vuInfoButton = dom.vuInfoButton || document.getElementById("vu-info-button");
+    const vuInfoTooltip = dom.vuInfoTooltip || document.getElementById("vu-info-tooltip");
     const envReleaseSlider = dom.envReleaseSlider;
     const analyser = audio.analyser;
     const meter = audio.meter;
@@ -724,12 +732,14 @@ export function createVisualizer(context) {
             if (db <= -60 || !isFinite(db)) {
                 vuMeterBar.style.width = "0%";
                 vuMeterBar.setAttribute("aria-valuenow", "-60");
-                if (vuDbValue) vuDbValue.textContent = "-inf dB";
+                vuMeterBar.setAttribute("aria-valuetext", "Idle");
+                if (vuDbValue) vuDbValue.textContent = "-- dB";
             } else {
                 const clampedDb = Math.min(0, Math.max(-60, db));
                 const pct = Math.max(0, Math.min(100, ((clampedDb + 60) / 60) * 100));
                 vuMeterBar.style.width = `${pct.toFixed(1)}%`;
                 vuMeterBar.setAttribute("aria-valuenow", clampedDb.toFixed(1));
+                vuMeterBar.setAttribute("aria-valuetext", `${clampedDb.toFixed(1)} dBFS`);
                 if (vuDbValue) {
                     vuDbValue.textContent = `${db >= 0 ? "+" : ""}${db.toFixed(1)} dB`;
                 }
@@ -806,8 +816,12 @@ export function createVisualizer(context) {
         if (animationFrameId && !shouldRunUiLoop()) {
             cancelAnimationFrame(animationFrameId);
             animationFrameId = null;
-            if (vuMeterBar) vuMeterBar.style.width = "0%";
-            if (vuDbValue) vuDbValue.textContent = "-inf dB";
+            if (vuMeterBar) {
+                vuMeterBar.style.width = "0%";
+                vuMeterBar.setAttribute("aria-valuenow", "-60");
+                vuMeterBar.setAttribute("aria-valuetext", "Idle");
+            }
+            if (vuDbValue) vuDbValue.textContent = "-- dB";
         }
     }
 
@@ -959,13 +973,78 @@ export function createVisualizer(context) {
                 "border-rose-400",
                 "animate-pulse",
             );
-            vuClipIndicator.classList.add("bg-gray-800", "text-gray-500", "border-gray-600");
+            vuClipIndicator.classList.add("bg-gray-800", "text-gray-400", "border-gray-600");
             vuClipIndicator.setAttribute("aria-pressed", "false");
         }
     }
 
     if (vuClipIndicator) {
         vuClipIndicator.addEventListener("click", resetClip);
+    }
+
+    /**
+     * Shows the peak meter info tooltip and updates its ARIA state.
+     *
+     * @returns {void}
+     */
+    function showInfoTooltip() {
+        if (vuInfoTooltip) {
+            vuInfoTooltip.classList.remove("hidden");
+        }
+        if (vuInfoButton) {
+            vuInfoButton.setAttribute("aria-expanded", "true");
+        }
+    }
+
+    /**
+     * Hides the peak meter info tooltip and updates its ARIA state.
+     *
+     * @returns {void}
+     */
+    function hideInfoTooltip() {
+        if (vuInfoTooltip) {
+            vuInfoTooltip.classList.add("hidden");
+        }
+        if (vuInfoButton) {
+            vuInfoButton.setAttribute("aria-expanded", "false");
+        }
+    }
+
+    if (vuInfoButton && vuInfoTooltip) {
+        // Desktop: Hover & Focus
+        vuInfoButton.addEventListener("mouseenter", showInfoTooltip);
+        vuInfoButton.addEventListener("mouseleave", hideInfoTooltip);
+        vuInfoButton.addEventListener("focus", showInfoTooltip);
+        vuInfoButton.addEventListener("blur", hideInfoTooltip);
+
+        // Mobile/Touch: Tap toggle
+        vuInfoButton.addEventListener("click", (e) => {
+            e.stopPropagation();
+            if (vuInfoTooltip.classList.contains("hidden")) {
+                showInfoTooltip();
+            } else {
+                hideInfoTooltip();
+            }
+        });
+
+        // Global dismiss on Escape key or outside click
+        document.addEventListener("keydown", (e) => {
+            if (e.key === "Escape" && !vuInfoTooltip.classList.contains("hidden")) {
+                hideInfoTooltip();
+                vuInfoButton.focus();
+            }
+        });
+
+        document.addEventListener("click", (e) => {
+            if (
+                !vuInfoTooltip.classList.contains("hidden") &&
+                e.target !== vuInfoButton &&
+                !vuInfoButton.contains(/** @type {Node} */ (e.target)) &&
+                !vuInfoTooltip.contains(/** @type {Node} */ (e.target))
+            ) {
+                hideInfoTooltip();
+            }
+        });
     }
 
     /**

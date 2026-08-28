@@ -345,6 +345,8 @@ function initializeApp() {
     const vuMeterBar = document.getElementById("vu-meter-bar");
     const vuDbValue = document.getElementById("vu-db-value");
     const vuClipIndicator = document.getElementById("vu-clip-indicator");
+    const vuInfoButton = document.getElementById("vu-info-button");
+    const vuInfoTooltip = document.getElementById("vu-info-tooltip");
 
     // Utility card
     const visualizerYAxisCanvas = /** @type {HTMLCanvasElement | null} */ (
@@ -792,6 +794,8 @@ function initializeApp() {
             vuMeterBar,
             vuDbValue,
             vuClipIndicator,
+            vuInfoButton,
+            vuInfoTooltip,
             envReleaseSlider,
         },
         audio: {
