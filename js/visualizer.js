@@ -52,11 +52,18 @@ export function createVisualizer(context) {
     const zoomValueSpan = dom.visualizerZoomValue;
     const oscilloscopeWindowSelect = dom.oscilloscopeWindowSelect;
     const oscilloscopeWindowContainer = dom.oscilloscopeWindowContainer;
+    const vuMeterBar = dom.vuMeterBar;
+    const vuDbValue = dom.vuDbValue;
+    const vuClipIndicator = dom.vuClipIndicator;
+    const envReleaseSlider = dom.envReleaseSlider;
     const analyser = audio.analyser;
+    const meter = audio.meter;
+    const peakAnalyser = audio.peakAnalyser;
 
     // --- Internal State ---
     let isVisualizerOn = false;
     let isPaused = false;
+    let isClipped = false;
     let currentMode = "oscilloscope"; // 'oscilloscope' | 'fft' | 'loopMap'
     let animationFrameId = null;
     let lastTimeStr = "";
@@ -694,6 +701,54 @@ export function createVisualizer(context) {
             }
         }
 
+        // --- Real-time Peak / VU Meter updates ---
+        if (meter && vuMeterBar) {
+            // 1. Calculate unsmoothed peak amplitude for instantaneous clipping detection
+            let isPeakClipping = false;
+            if (peakAnalyser) {
+                const samples = peakAnalyser.getValue();
+                let maxAbs = 0;
+                for (let i = 0; i < samples.length; i++) {
+                    const abs = Math.abs(samples[i]);
+                    if (abs > maxAbs) maxAbs = abs;
+                }
+                if (maxAbs >= 0.994) {
+                    isPeakClipping = true;
+                }
+            }
+
+            // 2. Read smoothed RMS meter value for display
+            const rawVal = meter.getValue();
+            const db = typeof rawVal === "number" && isFinite(rawVal) ? rawVal : -Infinity;
+
+            if (db <= -60 || !isFinite(db)) {
+                vuMeterBar.style.width = "0%";
+                vuMeterBar.setAttribute("aria-valuenow", "-60");
+                if (vuDbValue) vuDbValue.textContent = "-inf dB";
+            } else {
+                const clampedDb = Math.min(0, Math.max(-60, db));
+                const pct = Math.max(0, Math.min(100, ((clampedDb + 60) / 60) * 100));
+                vuMeterBar.style.width = `${pct.toFixed(1)}%`;
+                vuMeterBar.setAttribute("aria-valuenow", clampedDb.toFixed(1));
+                if (vuDbValue) {
+                    vuDbValue.textContent = `${db >= 0 ? "+" : ""}${db.toFixed(1)} dB`;
+                }
+            }
+
+            // Latch red clip indicator if unsmoothed peak hits full scale or meter reaches 0 dBFS
+            if ((isPeakClipping || db >= 0) && !isClipped && vuClipIndicator) {
+                isClipped = true;
+                vuClipIndicator.classList.remove("bg-gray-800", "text-gray-500", "border-gray-600");
+                vuClipIndicator.classList.add(
+                    "bg-rose-600",
+                    "text-white",
+                    "border-rose-400",
+                    "animate-pulse",
+                );
+                vuClipIndicator.setAttribute("aria-pressed", "true");
+            }
+        }
+
         // --- Recording Timer updates ---
         if (state.isRecording) {
             const elapsed = Tone.now() - state.recordingStartTime;
@@ -709,13 +764,31 @@ export function createVisualizer(context) {
         }
     }
 
+    let manualNoteActive = false;
+    let manualNoteDecayTimeout = null;
+
+    /**
+     * Determines whether the real-time UI animation loop should remain active.
+     *
+     * @returns {boolean} True if audio is playing/recording, or manual keyboard notes are active/decaying.
+     */
+    function shouldRunUiLoop() {
+        return Boolean(
+            state.isRecording ||
+            state.isPlaying ||
+            manualNoteActive ||
+            Boolean(state.activeNote) ||
+            manualNoteDecayTimeout,
+        );
+    }
+
     /**
      * Starts the requestAnimationFrame loop for real-time visual updates.
      *
      * @returns {void}
      */
     function startUiLoop() {
-        if (!animationFrameId && (isVisualizerOn || state.isRecording)) {
+        if (!animationFrameId && shouldRunUiLoop()) {
             const loop = () => {
                 runUiUpdate();
                 animationFrameId = requestAnimationFrame(loop);
@@ -730,10 +803,47 @@ export function createVisualizer(context) {
      * @returns {void}
      */
     function stopUiLoop() {
-        if (animationFrameId && !state.isPlaying && !state.isRecording) {
+        if (animationFrameId && !shouldRunUiLoop()) {
             cancelAnimationFrame(animationFrameId);
             animationFrameId = null;
+            if (vuMeterBar) vuMeterBar.style.width = "0%";
+            if (vuDbValue) vuDbValue.textContent = "-inf dB";
         }
+    }
+
+    /**
+     * Notifies the visualizer that a manual keyboard note attack has started.
+     *
+     * @returns {void}
+     */
+    function onManualNoteAttack() {
+        if (manualNoteDecayTimeout) {
+            clearTimeout(manualNoteDecayTimeout);
+            manualNoteDecayTimeout = null;
+        }
+        manualNoteActive = true;
+        startUiLoop();
+    }
+
+    /**
+     * Notifies the visualizer that a manual keyboard note has been released,
+     * maintaining the loop during the envelope release decay phase.
+     *
+     * @returns {void}
+     */
+    function onManualNoteRelease() {
+        manualNoteActive = false;
+        if (manualNoteDecayTimeout) {
+            clearTimeout(manualNoteDecayTimeout);
+        }
+        const releaseSec = envReleaseSlider ? parseFloat(envReleaseSlider.value) : 0.5;
+        const decayDurationMs =
+            (isFinite(releaseSec) ? Math.max(0.1, releaseSec) : 0.5) * 1000 + 400;
+
+        manualNoteDecayTimeout = setTimeout(() => {
+            manualNoteDecayTimeout = null;
+            stopUiLoop();
+        }, decayDurationMs);
     }
 
     /**
@@ -755,12 +865,10 @@ export function createVisualizer(context) {
                 analyser.type = currentMode === "fft" ? "fft" : "waveform";
             }
 
-            if (state.isPlaying || currentMode === "loopMap") {
+            if (currentMode === "loopMap") {
+                runUiUpdate();
+            } else if (shouldRunUiLoop()) {
                 startUiLoop();
-                if (currentMode === "loopMap") {
-                    // Force instant redraw of static loop
-                    runUiUpdate();
-                }
             }
         } else {
             toggleVisualizerButton.textContent = "Enable Visualizer";
@@ -769,7 +877,7 @@ export function createVisualizer(context) {
 
             if (plotCtx) plotCtx.clearRect(0, 0, plotCanvas.width, plotCanvas.height);
             if (yAxisCtx) yAxisCtx.clearRect(0, 0, yAxisCanvas.width, yAxisCanvas.height);
-            if (!state.isRecording) {
+            if (!shouldRunUiLoop()) {
                 stopUiLoop();
             }
         }
@@ -793,10 +901,9 @@ export function createVisualizer(context) {
             // Force repaint or check loop status
             if (isVisualizerOn) {
                 if (currentMode === "loopMap") {
-                    // In loopMap mode, we run a static render. Ensure loop runs to draw it
-                    startUiLoop();
+                    // In loopMap mode, we run a static render.
                     runUiUpdate();
-                } else if (state.isPlaying) {
+                } else if (shouldRunUiLoop()) {
                     startUiLoop();
                 } else {
                     // stopped and not map mode: clear display
@@ -839,6 +946,29 @@ export function createVisualizer(context) {
     }
 
     /**
+     * Resets the latched clipping state and restores normal indicator appearance.
+     *
+     * @returns {void}
+     */
+    function resetClip() {
+        isClipped = false;
+        if (vuClipIndicator) {
+            vuClipIndicator.classList.remove(
+                "bg-rose-600",
+                "text-white",
+                "border-rose-400",
+                "animate-pulse",
+            );
+            vuClipIndicator.classList.add("bg-gray-800", "text-gray-500", "border-gray-600");
+            vuClipIndicator.setAttribute("aria-pressed", "false");
+        }
+    }
+
+    if (vuClipIndicator) {
+        vuClipIndicator.addEventListener("click", resetClip);
+    }
+
+    /**
      * Receives and stores a static rendered buffer along with its trigger events markers
      * to display the arpeggio sequence loop.
      *
@@ -863,12 +993,18 @@ export function createVisualizer(context) {
         runUiUpdate,
         startUiLoop,
         stopUiLoop,
+        onManualNoteAttack,
+        onManualNoteRelease,
         get isVisualizerOn() {
             return isVisualizerOn;
         },
         get currentMode() {
             return currentMode;
         },
+        get isClipped() {
+            return isClipped;
+        },
+        resetClip,
         toggle,
         resizeCanvas,
         updateStaticLoopMap,

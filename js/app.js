@@ -50,6 +50,8 @@ import {
     hasPresetChanges,
 } from "./url-preset.js";
 import { createToastManager } from "./ui-feedback.js";
+import { exportMidiFile, createMidiBlob } from "./midi-export.js";
+import { buildPatternSequence, materializePatternSequence } from "./pattern-core.js";
 
 /**
  * Filters keydown events for the notes input.
@@ -336,7 +338,13 @@ function initializeApp() {
     const offlineExportWavCheck = document.getElementById("offline-export-wav");
     const offlineExportMp3Check = document.getElementById("offline-export-mp3");
     const offlineExportButton = document.getElementById("offline-export-button");
+    const offlineExportMidiButton = document.getElementById("offline-export-midi-button");
     const offlineExportStatus = document.getElementById("offline-export-status");
+
+    // Output Peak / VU Meter
+    const vuMeterBar = document.getElementById("vu-meter-bar");
+    const vuDbValue = document.getElementById("vu-db-value");
+    const vuClipIndicator = document.getElementById("vu-clip-indicator");
 
     // Utility card
     const visualizerYAxisCanvas = /** @type {HTMLCanvasElement | null} */ (
@@ -781,8 +789,16 @@ function initializeApp() {
             visualizerZoomValue,
             oscilloscopeWindowSelect,
             oscilloscopeWindowContainer,
+            vuMeterBar,
+            vuDbValue,
+            vuClipIndicator,
+            envReleaseSlider,
         },
-        audio: { analyser: audioEngine.analyser },
+        audio: {
+            analyser: audioEngine.analyser,
+            meter: audioEngine.meter,
+            peakAnalyser: audioEngine.peakAnalyser,
+        },
         state: {
             get isRecording() {
                 return recorderManager ? recorderManager.isRecording : false;
@@ -907,6 +923,18 @@ function initializeApp() {
             keyboardToggle,
             keyboardToggleStatus,
             keyboardDescription,
+        },
+        actions: {
+            onNoteAttack: () => {
+                if (visualizer && typeof visualizer.onManualNoteAttack === "function") {
+                    visualizer.onManualNoteAttack();
+                }
+            },
+            onNoteRelease: () => {
+                if (visualizer && typeof visualizer.onManualNoteRelease === "function") {
+                    visualizer.onManualNoteRelease();
+                }
+            },
         },
     });
     const { updateKeyboardControlUi } = keyboardControls;
@@ -1671,6 +1699,35 @@ function initializeApp() {
         await recorderManager.exportOffline();
     });
 
+    if (offlineExportMidiButton) {
+        offlineExportMidiButton.addEventListener("click", () => {
+            const settings = getAllSettings();
+            const sequenceResult = materializePatternSequence(currentNotes, {
+                direction: settings.direction,
+                octaveRange: currentOctaveRange,
+                octaveShift: currentOctaveShift,
+                quantize: {
+                    enabled: settings.scaleQuantize,
+                    root: settings.scaleRoot,
+                    scale: settings.scaleType,
+                },
+            });
+
+            const filename = `${generateFilename(false)}.mid`;
+            exportMidiFile(
+                {
+                    notes: sequenceResult.notes,
+                    bpm: settings.bpm,
+                    interval: settings.interval,
+                    gateRatio: settings.gateRatio,
+                    loopCount: settings.loopCount,
+                },
+                filename,
+            );
+            showToast("Exported MIDI pattern file!", "success");
+        });
+    }
+
     // --- Visualizer Toggle ---
     toggleVisualizerButton.addEventListener("click", () => {
         visualizer.toggle();
@@ -2124,6 +2181,30 @@ function initializeApp() {
             }
             return !isPlaying;
         },
+
+        exportMidiBlob: (opts = {}) => {
+            const settings = getAllSettings();
+            const sequenceResult = materializePatternSequence(currentNotes, {
+                direction: settings.direction,
+                octaveRange: currentOctaveRange,
+                octaveShift: currentOctaveShift,
+                quantize: {
+                    enabled: settings.scaleQuantize,
+                    root: settings.scaleRoot,
+                    scale: settings.scaleType,
+                },
+            });
+            return createMidiBlob({
+                notes: sequenceResult.notes,
+                bpm: settings.bpm,
+                interval: settings.interval,
+                gateRatio: settings.gateRatio,
+                loopCount: settings.loopCount,
+                ...opts,
+            });
+        },
+
+        getVisualizer: () => visualizer,
     });
 
     // ==================================================================

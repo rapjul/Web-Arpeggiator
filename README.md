@@ -6,7 +6,7 @@ A browser-based musical arpeggiator with real-time synthesis, effects, and recor
 
 Web Arpeggiator is an interactive music tool that generates flowing musical patterns (arpeggios) from note sequences you provide. Combine it with customizable synthesizers, professional effects, and multiple pattern directions to create evolving soundscapes—all in your browser. It ships as an installable PWA with offline shell caching and browser-backed preset storage.
 
-**Try it now**: Open `index.html` in any modern web browser.
+**Live Demo**: [Play Web Arpeggiator on GitHub Pages](https://rapjul.github.io/Web-Arpeggiator/)
 
 ## Features
 
@@ -42,15 +42,15 @@ Web Arpeggiator is an interactive music tool that generates flowing musical patt
 ### 📱 PWA Support
 
 - **Installable**: Add the app to your desktop or home screen
-- **Offline Shell**: The app shell and curated assets are cached for offline launch
-- **Editable Cache List**: Cached assets are defined in `js/asset-manifest.js` for easy updates during development
+- **Offline Shell**: The app shell and curated assets are precached automatically for offline launch
 
 ### 📊 Recording & Export
 
-- **Real-Time Recording**: Capture your performance with parameter changes
+- **Real-Time Recording**: Capture your live performance with parameter changes
 - **Perfect Loop Export**: Render exact loops offline (1-100 loops)
-- **Dual Format Export**: WAV (lossless) and MP3 (compressed)
-- **Timestamped Files**: Automatic naming for organized exports
+- **Multi-Format Audio Export**: Simultaneous WAV (lossless 16-bit) and MP3 (compressed 128kbps) export via format checkboxes
+- **Dedicated MIDI Export**: Export pure binary Standard MIDI Files (`.mid`, SMF Format 0) with a single click
+- **Timestamped Files**: Automatic timestamp naming for all exports
 
 ## Getting Started
 
@@ -106,7 +106,7 @@ Use spaces to separate multiple notes: `C4 E4 G4`
 | **Octave Cycle Ping-Pong** | Octave cycle with reversal             |
 | **Random Walk**            | Constrained random (adjacent notes)    |
 
-For detailed pattern descriptions, see [Pattern Directions Guide](./PATTERN_DIRECTIONS.md).
+For detailed pattern descriptions, see [Pattern Directions Guide](./docs/pattern-directions.md).
 
 ## Recording & Export
 
@@ -126,8 +126,9 @@ For detailed pattern descriptions, see [Pattern Directions Guide](./PATTERN_DIRE
 
 ### Export Formats
 
-- **WAV**: Lossless 16-bit PCM (larger file size, highest quality)
-- **MP3**: Compressed 128kbps (smaller file size, suitable for web)
+- **WAV**: Lossless 16-bit PCM audio (selectable via checkbox for real-time and offline export)
+- **MP3**: Compressed 128kbps audio (selectable via checkbox for real-time and offline export)
+- **MIDI (.mid)**: Pure binary Standard MIDI File (SMF Format 0) exported on-demand via the dedicated "Export Pattern as MIDI (.mid)" button
 
 ## Presets
 
@@ -182,10 +183,9 @@ Example: With C Major selected, the note "C#4" becomes "D4"
 
 ## Documentation
 
-- **[AGENTS.md](AGENTS.md)**: Detailed architecture, development guide, and technical reference
-- **[Pattern Directions Guide](guides/Pattern_Directions_Guide.md)**: Visual and descriptive guide to all 11 pattern types
-- **[Tone.js Transport Docs](guides/Transport%20·%20Tonejs_Tone.js%20Wiki.md)**: Reference for timing and synchronization
-- **[Changes Log](guides/changes/)**: Development history and improvements
+- **[AGENTS.md](./AGENTS.md)**: Detailed architecture, development guide, and technical reference
+- **[Pattern Directions Guide](./docs/pattern-directions.md)**: Visual and descriptive guide to all 12 pattern types
+- **[Standard MIDI Specification & Implementation Guide](./docs/midi-specification.md)**: Technical reference for SMF Format 0 binary encoding and external MIDI standards
 
 ## Browser Support
 
@@ -276,28 +276,42 @@ Example: With C Major selected, the note "C#4" becomes "D4"
 
 When modifying the codebase:
 
-1. Maintain the single-file architecture (all code in HTML file)
+1. Maintain the modular ES module architecture under `js/`
 2. Test audio on both HTTPS and HTTP contexts
 3. Verify preset save/load functionality
 4. Check responsive design on mobile
-5. Update [AGENTS.md](AGENTS.md) with architectural changes
-6. Save working versions to `Previous Versions/` before major changes
+5. Update [AGENTS.md](./AGENTS.md) with architectural changes
 
 ## File Structure
 
 ```
 Web Arpeggiator/
-├── README.md                    # This file
+├── index.html                   # Main application shell (PWA-enabled)
+├── styles.css                   # Tailwind CSS styling
+├── manifest.json                # PWA web manifest
+├── sw.js                        # Service worker
+├── README.md                    # Project documentation & overview
 ├── AGENTS.md                    # Architecture & development guide
-├── index.html                   # Main application shell
-├── styles.css                   # External styles (optional)
-├── presets/                     # Saved configurations
-├── exports/                     # Generated audio
-│   ├── realtime-recordings/
-│   └── perfect-loops/
-├── guides/                      # Documentation
-├── images/                      # Assets
-└── Previous Versions/           # Archive of working versions
+├── docs/                        # Technical guides & specifications
+│   ├── midi-specification.md    # Standard MIDI binary specification reference
+│   └── pattern-directions.md    # Visual guide to arpeggiator patterns
+├── js/                          # Modular ES application logic
+│   ├── app.js                   # Application entry point & DOM wiring
+│   ├── audio-engine.js          # Tone.js synths & audio processing chain
+│   ├── audio-utils.js           # Audio encoding and file download utilities
+│   ├── keyboard-controller.js   # Interactive virtual keyboard
+│   ├── midi-export.js           # SMF Format 0 binary generator
+│   ├── pattern-core.js          # Core math & note generation logic
+│   ├── pattern-generator.js     # Tone.Pattern controller & quantization
+│   ├── presets-store.js         # IndexedDB preset persistence
+│   ├── pwa.js                   # Service worker registration & updates
+│   ├── randomizer.js            # Scale-quantized pattern randomizer
+│   ├── recorder.js              # Real-time capture & offline loop renderer
+│   ├── settings-manager.js      # Configuration state persistence
+│   ├── ui-feedback.js           # Toast alerts and visual status indicators
+│   ├── url-preset.js            # URL query parameter preset serialization
+│   └── visualizer.js            # Real-time oscilloscope canvas
+└── public/                      # Static assets & pattern icons
 ```
 
 ## Performance
@@ -332,9 +346,3 @@ Built with:
 ## License
 
 This project is provided as-is for personal use and experimentation.
-
----
-
-**Have questions or feedback?** Check [AGENTS.md](AGENTS.md) for technical details, or review the code in [index.html](index.html) directly - it's extensively documented!
-
-**Ready to create?** Open [index.html](index.html) and start making music!

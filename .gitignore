@@ -250,4 +250,6 @@ _artifacts/
 .specstory
 
 # Test snapshots
+tests/**/visualizer-snapshots/
 tests/visualizer-snapshots/
+tests/e2e/visualizer-snapshots/

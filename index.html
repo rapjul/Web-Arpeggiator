@@ -90,6 +90,41 @@
                         >
                         <input type="range" id="swing" min="0" max="1" value="0" step="0.01" />
                     </div>
+
+                    <!-- START: Real-Time Output Peak / VU Meter -->
+                    <div id="vu-meter-container" class="pt-2 border-t border-gray-600/60">
+                        <div class="flex justify-between items-center mb-1 text-xs font-mono">
+                            <span class="text-gray-300 font-medium">
+                                Peak:
+                                <span id="vu-db-value">-inf dB</span>
+                            </span>
+                            <button
+                                id="vu-clip-indicator"
+                                type="button"
+                                title="Click to reset clip indicator"
+                                aria-label="Clipping indicator (click to reset)"
+                                aria-pressed="false"
+                                class="px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wider uppercase transition-colors bg-gray-800 text-gray-500 border border-gray-600 cursor-pointer"
+                            >
+                                CLIP
+                            </button>
+                        </div>
+                        <div
+                            class="w-full h-2.5 bg-gray-900 rounded-full overflow-hidden p-0.5 border border-gray-600 flex"
+                        >
+                            <div
+                                id="vu-meter-bar"
+                                class="h-full rounded-full transition-all duration-75 ease-out bg-gradient-to-r from-emerald-500 via-amber-400 to-rose-500"
+                                style="width: 0%"
+                                role="meter"
+                                aria-label="Master audio peak level"
+                                aria-valuemin="-60"
+                                aria-valuemax="0"
+                                aria-valuenow="-60"
+                            ></div>
+                        </div>
+                    </div>
+                    <!-- END: Real-Time Output Peak / VU Meter -->
                 </div>
             </section>
 
@@ -1315,15 +1350,24 @@
                             <span>MP3</span>
                         </label>
                     </div>
-                    <button
-                        id="offline-export-button"
-                        aria-label="Generate & Export perfect loop"
-                        class="w-full text-lg font-bold py-2 px-4 bg-purple-600 hover:bg-purple-700 rounded-lg shadow-lg transition-all"
-                    >
-                        Generate & Export
-                    </button>
+                    <div class="flex flex-col sm:flex-row gap-3">
+                        <button
+                            id="offline-export-button"
+                            aria-label="Generate & Export perfect loop audio"
+                            class="flex-1 text-lg font-bold py-2 px-4 bg-purple-600 hover:bg-purple-700 rounded-lg shadow-lg transition-all"
+                        >
+                            Generate & Export Audio
+                        </button>
+                        <button
+                            id="offline-export-midi-button"
+                            aria-label="Export arpeggio pattern as standard MIDI file (.mid)"
+                            class="flex-1 text-lg font-bold py-2 px-4 bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-lg transition-all"
+                        >
+                            Export MIDI (.mid)
+                        </button>
+                    </div>
                     <p id="offline-export-status" class="text-sm text-center text-gray-300">
-                        Generate a perfect loop of the current settings.
+                        Generate audio loops or standard MIDI files from current settings.
                     </p>
                 </div>
             </section>

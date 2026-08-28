@@ -112,8 +112,9 @@ Powered by `Tone.Transport`:
 
 - **WAV**: Lossless 16-bit PCM audio
 - **MP3**: Compressed audio using LameJS encoder (128kbps)
+- **MIDI (.mid)**: Pure binary Standard MIDI File (SMF Format 0) export for external DAWs. Detailed technical specifications are available in [`docs/midi-specification.md`](./docs/midi-specification.md).
 
-Both formats support simultaneous export with timestamped filenames.
+WAV and MP3 audio formats support simultaneous batch export via checkboxes, while MIDI pattern files are exported on-demand via a dedicated export button with timestamped filenames.
 
 ### 5. Visualizer
 
@@ -292,7 +293,8 @@ loadPreset(file);
 - Real-time record button
 - Offline export controls
 - Loop count input
-- Format checkboxes (WAV/MP3)
+- Format checkboxes (WAV / MP3)
+- Dedicated MIDI export button (.mid)
 
 ### Utilities
 
@@ -309,27 +311,31 @@ Web Arpeggiator/
 ├── manifest.json           # PWA manifest
 ├── sw.js                   # Service worker
 ├── AGENTS.md               # This file
+├── docs/                   # Specifications & architectural guides
+│   ├── midi-specification.md # Standard MIDI specification & implementation reference
+│   └── pattern-directions.md # Detailed pattern descriptions & visual guide
 ├── js/                     # ES modules (no bundler needed)
 │   ├── app.js              # Main entry point, DOM wiring, transport, presets, randomizer
 │   ├── audio-engine.js     # Tone.js synths, effects chain, setSynth, updateEnvelope
 │   ├── audio-utils.js      # WAV/MP3 encoding, download helpers
 │   ├── keyboard-controller.js   # Virtual keyboard input handling
+│   ├── midi-export.js      # Standard MIDI File (.mid) binary encoder
+│   ├── pattern-core.js     # Core note transformations and math
 │   ├── pattern-generator.js     # Pattern logic (11 directions), scale quantization
 │   ├── presets-store.js         # IndexedDB preset persistence
 │   ├── pwa.js                   # Service worker registration
+│   ├── randomizer.js            # Musical scale-quantized randomizer
 │   ├── recorder.js              # Real-time recording + offline Tone.Offline export
 │   ├── settings-manager.js      # Settings serialization/restoration
-│   ├── visualizer.js            # Canvas waveform rendering, UI update loop, toggle
-│   └── asset-manifest.js        # Cache versioning manifest
+│   ├── ui-feedback.js           # Toast alerts and UI status indicators
+│   ├── url-preset.js            # URL query parameter preset serialization
+│   └── visualizer.js            # Canvas waveform rendering, UI update loop, toggle
 ├── exports/                # Generated audio test files
 │   ├── realtime-recordings/
 │   └── perfect-loops/
 ├── presets/                # Saved JSON presets
-├── guides/                 # Documentation
-│   ├── changes/            # Development changelog
-│   └── *.md                # Tone.js reference docs
-├── images/                 # Assets
-└── Previous Versions/      # Archived versions
+├── public/                 # Static assets, icons, and pattern SVGs
+└── tests/                  # Unit and E2E test suites
 ```
 
 ## Development Guidelines
@@ -447,9 +453,8 @@ When modifying the codebase:
 
 This is a living document. Major architectural changes are tracked in:
 
-- `guides/changes/CHANGES_*.md` files
 - Git commit history
-- Archived versions in `Previous Versions/`
+- Technical guides and specifications in [`docs/`](./docs/)
 
 ---
 
