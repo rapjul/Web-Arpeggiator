@@ -164,7 +164,7 @@ export function createOrUpdatePattern() {
                 }
             },
             finalNotes,
-            finalDirection,
+            finalDirection
         );
 
         window.arpPattern = patternInstance;

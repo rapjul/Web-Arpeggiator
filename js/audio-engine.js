@@ -270,7 +270,7 @@ export function createAudioEngine(context) {
                     btn.classList.add("opacity-40", "cursor-not-allowed");
                     btn.setAttribute(
                         "title",
-                        "Waveform is disabled for Pluck Synth (physical string modeling)",
+                        "Waveform is disabled for Pluck Synth (physical string modeling)"
                     );
                 } else {
                     btn.classList.remove("opacity-40", "cursor-not-allowed");

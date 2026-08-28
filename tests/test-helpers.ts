@@ -51,7 +51,7 @@ export async function runBrowser(args: string[]): Promise<string> {
 
     if (exitCode !== 0) {
         throw new Error(
-            `agent-browser ${args.join(" ")} failed with exit code ${exitCode}. Output: ${output.trim()}`,
+            `agent-browser ${args.join(" ")} failed with exit code ${exitCode}. Output: ${output.trim()}`
         );
     }
 

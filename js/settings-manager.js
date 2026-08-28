@@ -23,7 +23,7 @@ export function createSettingsManager(context) {
         const notesWithOctaves = actions.getArpeggioNotes(
             baseNotes,
             state.currentOctaveRange,
-            state.currentOctaveShift,
+            state.currentOctaveShift
         );
 
         return {
@@ -218,12 +218,12 @@ export function createSettingsManager(context) {
             actions.updateButtonGroup(
                 dom.octaveShiftButtons,
                 state.currentOctaveShift,
-                "data-shift",
+                "data-shift"
             );
             actions.updateButtonGroup(
                 dom.octaveRangeButtons,
                 state.currentOctaveRange,
-                "data-range",
+                "data-range"
             );
 
             const gateRatio = settings.gateRatio || 0.8;

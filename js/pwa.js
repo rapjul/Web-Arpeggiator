@@ -58,7 +58,7 @@
                 }
                 if (unregisteredAny) {
                     console.log(
-                        "Development mode: Unregistered existing service workers. Reloading page.",
+                        "Development mode: Unregistered existing service workers. Reloading page."
                     );
                     // Force a reload to clear interceptors and establish normal dev server connection
                     location.reload();
@@ -95,7 +95,7 @@
                         state.hasWaitingWorker = Boolean(registration.waiting);
                         window.showToast(
                             "App cache updated. Reload to use the latest assets.",
-                            "info",
+                            "info"
                         );
                     }
                 });
@@ -266,7 +266,7 @@
             () => {
                 void registerServiceWorker();
             },
-            { once: true },
+            { once: true }
         );
     }
 
