@@ -268,6 +268,14 @@ export function createAudioEngine(context) {
             });
         }
 
+        if (dom.waveformPluckOverlay) {
+            if (type === "pluckSynth") {
+                dom.waveformPluckOverlay.classList.remove("hidden");
+            } else {
+                dom.waveformPluckOverlay.classList.add("hidden");
+            }
+        }
+
         hideAllSpecificParams();
 
         if (type === "synth") {

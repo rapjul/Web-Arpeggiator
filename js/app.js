@@ -173,6 +173,7 @@ function initializeApp() {
     const waveformButtonsContainer = document.getElementById("waveform-buttons-container");
     const waveformButtons = document.getElementById("waveform-buttons");
     const carrierLabel = document.getElementById("carrier-label");
+    const waveformPluckOverlay = document.getElementById("waveform-pluck-overlay");
 
     // Pattern Buttons
     const patternButtons = document.getElementById("pattern-buttons");
@@ -727,6 +728,7 @@ function initializeApp() {
             harmonicityControl,
             modIndexControl,
             carrierLabel,
+            waveformPluckOverlay,
             dutyControl,
             basicSynthParams,
             waveformButtons,

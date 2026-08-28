@@ -179,7 +179,9 @@ test("Synthesizer & Audio Effects Chain Suite", async (): Promise<void> => {
         if (monoParams.classList.contains('hidden')) return 'mono-params-hidden';
         if (window.__WEB_ARP_TEST__.getCurrentSettings().synthType !== 'monoSynth') return 'mono-settings-mismatch';
         const sineBtn = document.querySelector('button[data-wave="sine"]');
+        const pluckOverlay = document.getElementById('waveform-pluck-overlay');
         if (sineBtn && sineBtn.disabled) return 'sine-btn-disabled-for-monosynth';
+        if (pluckOverlay && !pluckOverlay.classList.contains('hidden')) return 'overlay-visible-for-monosynth';
 
         // 7b. DuoSynth
         sel.value = 'duoSynth';
@@ -193,6 +195,7 @@ test("Synthesizer & Audio Effects Chain Suite", async (): Promise<void> => {
         if (pluckParams.classList.contains('hidden')) return 'pluck-params-hidden';
         if (window.__WEB_ARP_TEST__.getCurrentSettings().synthType !== 'pluckSynth') return 'pluck-settings-mismatch';
         if (sineBtn && !sineBtn.disabled) return 'sine-btn-should-be-disabled-for-plucksynth';
+        if (pluckOverlay && pluckOverlay.classList.contains('hidden')) return 'overlay-hidden-for-plucksynth';
 
         // 7d. MembraneSynth
         sel.value = 'membraneSynth';
@@ -200,6 +203,7 @@ test("Synthesizer & Audio Effects Chain Suite", async (): Promise<void> => {
         if (membraneParams.classList.contains('hidden')) return 'membrane-params-hidden';
         if (window.__WEB_ARP_TEST__.getCurrentSettings().synthType !== 'membraneSynth') return 'membrane-settings-mismatch';
         if (sineBtn && sineBtn.disabled) return 'sine-btn-disabled-for-membranesynth';
+        if (pluckOverlay && !pluckOverlay.classList.contains('hidden')) return 'overlay-visible-for-membranesynth';
 
         return 'success';
     })()`,
