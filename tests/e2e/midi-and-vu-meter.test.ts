@@ -103,7 +103,7 @@ test("MIDI Export & Real-Time Peak Meter Suite", async (): Promise<void> => {
     ]);
     expect(midiExportResult).toBe('"success"');
 
-    // 4. Test Real-Time VU / Peak Meter UI & Clip Reset
+    // 4. Test Real-Time VU / Peak Meter UI, Tooltip, & Clip Reset
     console.log("Step 4: Testing Real-Time VU Meter & Clipping Indicator...");
     const vuMeterResult: string = await runBrowser([
         "eval",
@@ -111,27 +111,62 @@ test("MIDI Export & Real-Time Peak Meter Suite", async (): Promise<void> => {
         const vuBar = document.getElementById("vu-meter-bar");
         const vuDb = document.getElementById("vu-db-value");
         const clipBtn = document.getElementById("vu-clip-indicator");
+        const infoBtn = document.getElementById("vu-info-button");
+        const infoTooltip = document.getElementById("vu-info-tooltip");
 
-        if (!vuBar || !vuDb || !clipBtn) return "vu-elements-missing";
+        if (!vuBar || !vuDb || !clipBtn || !infoBtn || !infoTooltip) return "vu-elements-missing";
 
-        // Check a11y accessibility attributes
+        // Ensure playback is stopped to test clean idle state
+        await window.__WEB_ARP_TEST__.stop();
+        const vis = window.__WEB_ARP_TEST__.getVisualizer();
+        vis.stopUiLoop();
+
+        // Check a11y accessibility attributes & initial idle state
         if (vuBar.getAttribute("role") !== "meter") return "missing-meter-role";
-        if (!vuBar.getAttribute("aria-label")) return "missing-meter-aria-label";
+        if (vuBar.getAttribute("aria-label") !== "Final audio output peak level") return "invalid-meter-aria-label";
+        if (vuBar.getAttribute("aria-valuenow") !== "-60") return "invalid-initial-aria-valuenow:" + vuBar.getAttribute("aria-valuenow");
+        if (vuBar.getAttribute("aria-valuetext") !== "Idle") return "invalid-initial-aria-valuetext:" + vuBar.getAttribute("aria-valuetext");
+        if (vuDb.textContent?.trim() !== "-- dB") return "invalid-initial-db-text:" + vuDb.textContent;
         if (clipBtn.getAttribute("aria-pressed") !== "false") return "missing-initial-aria-pressed";
+
+        // Check tooltip accessibility attributes
+        if (infoTooltip.getAttribute("role") !== "tooltip") return "missing-tooltip-role";
+        if (infoBtn.getAttribute("aria-describedby") !== "vu-info-tooltip") return "missing-info-aria-describedby";
+        if (infoBtn.getAttribute("aria-label") !== "Final Audio Output info") return "invalid-info-aria-label";
+
+        // Test hover interaction for info tooltip
+        if (!infoTooltip.classList.contains("hidden")) return "tooltip-initially-visible";
+        infoBtn.dispatchEvent(new MouseEvent("mouseenter"));
+        if (infoTooltip.classList.contains("hidden")) return "tooltip-hover-show-failed";
+        if (infoBtn.getAttribute("aria-expanded") !== "true") return "tooltip-aria-expanded-not-true";
+
+        infoBtn.dispatchEvent(new MouseEvent("mouseleave"));
+        if (!infoTooltip.classList.contains("hidden")) return "tooltip-hover-hide-failed";
+        if (infoBtn.getAttribute("aria-expanded") !== "false") return "tooltip-aria-expanded-not-false";
+
+        // Test focus & escape key dismissal
+        infoBtn.focus();
+        if (infoTooltip.classList.contains("hidden")) return "tooltip-focus-show-failed";
+        document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+        if (!infoTooltip.classList.contains("hidden")) return "tooltip-escape-hide-failed";
 
         // Start playback
         await window.__WEB_ARP_TEST__.play();
         await new Promise((resolve) => setTimeout(resolve, 800));
 
         // Get visualizer animation update
-        const vis = window.__WEB_ARP_TEST__.getVisualizer();
         vis.runUiUpdate();
 
         // Verify that meter bar or db readout responded to audio playback
         const rawDbText = vuDb.textContent || "";
         const barWidth = vuBar.style.width || "0%";
-        if (barWidth === "0%" && rawDbText === "-inf dB") {
+        if (barWidth === "0%" && rawDbText === "-- dB") {
             return "meter-failed-to-respond";
+        }
+
+        const activeAriaValueText = vuBar.getAttribute("aria-valuetext") || "";
+        if (!activeAriaValueText.includes("dBFS")) {
+            return "missing-active-aria-valuetext:" + activeAriaValueText;
         }
 
         // Test clipping latch behavior with unsmoothed peakAnalyser and verify aria-valuenow clamping
@@ -155,8 +190,12 @@ test("MIDI Export & Real-Time Peak Meter Suite", async (): Promise<void> => {
         if (vis.isClipped) return "clip-failed-to-reset";
         if (clipBtn.getAttribute("aria-pressed") !== "false") return "clip-btn-aria-pressed-not-reset";
 
-        // Stop playback
+        // Stop playback and verify return to idle
         await window.__WEB_ARP_TEST__.stop();
+        vis.stopUiLoop();
+        if (vuDb.textContent?.trim() !== "-- dB") return "stop-db-not-idle:" + vuDb.textContent;
+        if (vuBar.getAttribute("aria-valuetext") !== "Idle") return "stop-aria-valuetext-not-idle";
+
         return "success";
     })()`,
     ]);
