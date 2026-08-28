@@ -250,10 +250,21 @@ export function createAudioEngine(context) {
         // Apply current ADSR to new synth
         updateEnvelope();
 
-        // Enable all waveform buttons for all synths
+        // Enable/disable waveform buttons depending on whether active synth uses an oscillator
         if (dom.waveformButtons) {
+            const isPluck = type === "pluckSynth";
             dom.waveformButtons.querySelectorAll("button").forEach((btn) => {
-                btn.disabled = false;
+                btn.disabled = isPluck;
+                if (isPluck) {
+                    btn.classList.add("opacity-40", "cursor-not-allowed");
+                    btn.setAttribute(
+                        "title",
+                        "Waveform is disabled for Pluck Synth (physical string modeling)",
+                    );
+                } else {
+                    btn.classList.remove("opacity-40", "cursor-not-allowed");
+                    btn.removeAttribute("title");
+                }
             });
         }
 
