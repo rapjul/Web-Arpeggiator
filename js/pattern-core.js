@@ -437,7 +437,10 @@ export function calculateNoteMarkers(settings) {
         const reversed = [...expanded].reverse();
         finalNotes = [...reversed, ...expanded];
     } else if (direction === "octaveCycle") {
-        baseNotes.forEach((baseNote) => {
+        const cycleBaseNotes = scaleQuantize
+            ? quantizeToScale(baseNotes, scaleRoot, scaleType)
+            : baseNotes;
+        cycleBaseNotes.forEach((baseNote) => {
             const parsed = Tonal.Note.get(baseNote);
             if (!parsed || parsed.midi === undefined) return;
             for (let rep = 0; rep < 2; rep++) {
@@ -448,7 +451,10 @@ export function calculateNoteMarkers(settings) {
             }
         });
     } else if (direction === "octaveCycleReverse") {
-        const reversedIndexed = [...baseNotes].reverse();
+        const cycleBaseNotes = scaleQuantize
+            ? quantizeToScale(baseNotes, scaleRoot, scaleType)
+            : baseNotes;
+        const reversedIndexed = [...cycleBaseNotes].reverse();
         reversedIndexed.forEach((baseNote) => {
             const parsed = Tonal.Note.get(baseNote);
             if (!parsed || parsed.midi === undefined) return;
@@ -460,7 +466,10 @@ export function calculateNoteMarkers(settings) {
             }
         });
     } else if (direction === "octaveCyclePingPong") {
-        baseNotes.forEach((baseNote) => {
+        const cycleBaseNotes = scaleQuantize
+            ? quantizeToScale(baseNotes, scaleRoot, scaleType)
+            : baseNotes;
+        cycleBaseNotes.forEach((baseNote) => {
             const parsed = Tonal.Note.get(baseNote);
             if (!parsed || parsed.midi === undefined) return;
             for (let oct = 0; oct < 3; oct++) {

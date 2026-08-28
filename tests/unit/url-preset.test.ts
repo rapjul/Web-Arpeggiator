@@ -137,5 +137,47 @@ describe("URL Preset Domain Module", () => {
                 waveform: "square",
             }),
         ).toBe(true);
+
+        // Effect change (drive, chorus, pan)
+        expect(
+            hasPresetChanges(defaultSettings, {
+                ...defaultSettings,
+                driveMix: 0.5,
+            }),
+        ).toBe(true);
+        expect(
+            hasPresetChanges(defaultSettings, {
+                ...defaultSettings,
+                chorusMix: 0.3,
+            }),
+        ).toBe(true);
+        expect(
+            hasPresetChanges(defaultSettings, {
+                ...defaultSettings,
+                autoPanMix: 0.7,
+            }),
+        ).toBe(true);
+    });
+
+    test("serializes and parses new synths and studio effect parameters", () => {
+        const customSettings = {
+            ...defaultSettings,
+            synthType: "monoSynth",
+            driveMix: 0.65,
+            chorusMix: 0.45,
+            autoPanMix: 0.8,
+        };
+
+        const params = serializePresetToUrlParams(customSettings);
+        expect(params.get("synth")).toBe("monoSynth");
+        expect(params.get("drive")).toBe("0.65");
+        expect(params.get("chorus")).toBe("0.45");
+        expect(params.get("pan")).toBe("0.80");
+
+        const parsed = parsePresetFromUrlParams(params, defaultSettings);
+        expect(parsed?.synthType).toBe("monoSynth");
+        expect(parsed?.driveMix).toBe(0.65);
+        expect(parsed?.chorusMix).toBe(0.45);
+        expect(parsed?.autoPanMix).toBe(0.8);
     });
 });

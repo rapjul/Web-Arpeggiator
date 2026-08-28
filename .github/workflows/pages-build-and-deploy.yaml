@@ -29,12 +29,12 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - name: Checkout
-              uses: actions/checkout@v4
+              uses: actions/checkout@v7
 
             - name: Setup Bun
               uses: oven-sh/setup-bun@v2
               with:
-                  bun-version: latest
+                bun-version: latest
 
             - name: Install dependencies
               run: bun install --frozen-lockfile
@@ -43,13 +43,13 @@ jobs:
               run: bun run build
 
             - name: Setup Pages
-              uses: actions/configure-pages@v5
+              uses: actions/configure-pages@v6
 
             - name: Upload artifact
-              uses: actions/upload-pages-artifact@v3
+              uses: actions/upload-pages-artifact@v5
               with:
-                  path: "./dist"
+                path: "./dist"
 
             - name: Deploy to GitHub Pages
               id: deployment
-              uses: actions/deploy-pages@v4
+              uses: actions/deploy-pages@v5

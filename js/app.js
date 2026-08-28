@@ -173,6 +173,7 @@ function initializeApp() {
     const waveformButtonsContainer = document.getElementById("waveform-buttons-container");
     const waveformButtons = document.getElementById("waveform-buttons");
     const carrierLabel = document.getElementById("carrier-label");
+    const waveformPluckOverlay = document.getElementById("waveform-pluck-overlay");
 
     // Pattern Buttons
     const patternButtons = document.getElementById("pattern-buttons");
@@ -195,6 +196,54 @@ function initializeApp() {
         document.getElementById("modulation-index")
     );
     const modIndexValue = document.getElementById("modulation-index-value");
+
+    // MonoSynth Params
+    const monoSynthParams = document.getElementById("mono-synth-params");
+    const monoCutoffSlider = /** @type {HTMLInputElement} */ (
+        document.getElementById("mono-cutoff")
+    );
+    const monoCutoffValue = document.getElementById("mono-cutoff-value");
+    const monoOctavesSlider = /** @type {HTMLInputElement} */ (
+        document.getElementById("mono-octaves")
+    );
+    const monoOctavesValue = document.getElementById("mono-octaves-value");
+    const monoQSlider = /** @type {HTMLInputElement} */ (document.getElementById("mono-q"));
+    const monoQValue = document.getElementById("mono-q-value");
+
+    // DuoSynth Params
+    const duoSynthParams = document.getElementById("duo-synth-params");
+    const duoHarmSlider = /** @type {HTMLInputElement} */ (document.getElementById("duo-harm"));
+    const duoHarmValue = document.getElementById("duo-harm-value");
+    const duoVibratoSlider = /** @type {HTMLInputElement} */ (
+        document.getElementById("duo-vibrato")
+    );
+    const duoVibratoValue = document.getElementById("duo-vibrato-value");
+
+    // PluckSynth Params
+    const pluckSynthParams = document.getElementById("pluck-synth-params");
+    const pluckDampeningSlider = /** @type {HTMLInputElement} */ (
+        document.getElementById("pluck-dampening")
+    );
+    const pluckDampeningValue = document.getElementById("pluck-dampening-value");
+    const pluckResonanceSlider = /** @type {HTMLInputElement} */ (
+        document.getElementById("pluck-resonance")
+    );
+    const pluckResonanceValue = document.getElementById("pluck-resonance-value");
+    const pluckNoiseSlider = /** @type {HTMLInputElement} */ (
+        document.getElementById("pluck-noise")
+    );
+    const pluckNoiseValue = document.getElementById("pluck-noise-value");
+
+    // MembraneSynth Params
+    const membraneSynthParams = document.getElementById("membrane-synth-params");
+    const membranePitchDecaySlider = /** @type {HTMLInputElement} */ (
+        document.getElementById("membrane-pitch-decay")
+    );
+    const membranePitchDecayValue = document.getElementById("membrane-pitch-decay-value");
+    const membraneOctavesSlider = /** @type {HTMLInputElement} */ (
+        document.getElementById("membrane-octaves")
+    );
+    const membraneOctavesValue = document.getElementById("membrane-octaves-value");
 
     // Gate Parameter
     const gateSlider = /** @type {HTMLInputElement} */ (document.getElementById("gate"));
@@ -251,6 +300,14 @@ function initializeApp() {
     const filterResonanceValue = document.getElementById("filter-resonance-value");
 
     // Effects card
+    const driveMixSlider = /** @type {HTMLInputElement} */ (document.getElementById("drive-mix"));
+    const driveMixValue = document.getElementById("drive-mix-value");
+    const chorusMixSlider = /** @type {HTMLInputElement} */ (document.getElementById("chorus-mix"));
+    const chorusMixValue = document.getElementById("chorus-mix-value");
+    const autoPanMixSlider = /** @type {HTMLInputElement} */ (
+        document.getElementById("autopan-mix")
+    );
+    const autoPanMixValue = document.getElementById("autopan-mix-value");
     const delayMixSlider = /** @type {HTMLInputElement} */ (document.getElementById("delay-mix"));
     const delayMixValue = document.getElementById("delay-mix-value");
     const reverbMixSlider = /** @type {HTMLInputElement} */ (document.getElementById("reverb-mix"));
@@ -671,15 +728,33 @@ function initializeApp() {
             harmonicityControl,
             modIndexControl,
             carrierLabel,
+            waveformPluckOverlay,
             dutyControl,
             basicSynthParams,
             waveformButtons,
+            monoSynthParams,
+            duoSynthParams,
+            pluckSynthParams,
+            membraneSynthParams,
             harmonicitySlider,
             modIndexSlider,
+            monoCutoffSlider,
+            monoOctavesSlider,
+            monoQSlider,
+            duoHarmSlider,
+            duoVibratoSlider,
+            pluckDampeningSlider,
+            pluckResonanceSlider,
+            pluckNoiseSlider,
+            membranePitchDecaySlider,
+            membraneOctavesSlider,
             envAttackSlider,
             envDecaySlider,
             envSustainSlider,
             envReleaseSlider,
+            driveMixSlider,
+            chorusMixSlider,
+            autoPanMixSlider,
         },
         actions: {
             syncPatternModuleState,
@@ -690,8 +765,10 @@ function initializeApp() {
     window.currentWaveform = audioEngine.currentWaveform;
     window.audioEngine = audioEngine;
 
-    // 2. Visualizer — canvas rendering, UI loop, toggle
+    // 2. Recorder Manager declaration (forward reference for visualizer state getter)
     let recorderManager;
+
+    // 3. Visualizer — canvas rendering, UI loop, toggle
     const visualizer = createVisualizer({
         dom: {
             visualizerYAxisCanvas,
@@ -727,7 +804,7 @@ function initializeApp() {
         },
     });
 
-    // 3. Settings Manager — serialization / restoration (no deps on recorder)
+    // 4. Settings Manager — serialization / restoration (no deps on recorder)
     const settingsManager = createSettingsManager({
         state: appState,
         dom: {
@@ -747,6 +824,26 @@ function initializeApp() {
             harmonicityValue,
             modIndexSlider,
             modIndexValue,
+            monoCutoffSlider,
+            monoCutoffValue,
+            monoOctavesSlider,
+            monoOctavesValue,
+            monoQSlider,
+            monoQValue,
+            duoHarmSlider,
+            duoHarmValue,
+            duoVibratoSlider,
+            duoVibratoValue,
+            pluckDampeningSlider,
+            pluckDampeningValue,
+            pluckResonanceSlider,
+            pluckResonanceValue,
+            pluckNoiseSlider,
+            pluckNoiseValue,
+            membranePitchDecaySlider,
+            membranePitchDecayValue,
+            membraneOctavesSlider,
+            membraneOctavesValue,
             gateSlider,
             gateValue,
             dutySlider,
@@ -763,6 +860,12 @@ function initializeApp() {
             filterCutoffValue,
             filterResonanceSlider,
             filterResonanceValue,
+            driveMixSlider,
+            driveMixValue,
+            chorusMixSlider,
+            chorusMixValue,
+            autoPanMixSlider,
+            autoPanMixValue,
             delayMixSlider,
             delayMixValue,
             reverbMixSlider,
@@ -784,7 +887,10 @@ function initializeApp() {
             showToast,
         },
         audio: {
+            distortion: audioEngine.distortion,
             filter: audioEngine.filter,
+            chorus: audioEngine.chorus,
+            autoPanner: audioEngine.autoPanner,
             delay: audioEngine.delay,
             reverb: audioEngine.reverb,
             postGain: audioEngine.postGain,
@@ -793,7 +899,7 @@ function initializeApp() {
 
     const { getAllSettings, loadAllSettings, generateFilename } = settingsManager;
 
-    // 4. Keyboard Controller
+    // 5. Keyboard Controller
     const keyboardControls = initializeKeyboardControls({
         state: appState,
         dom: {
@@ -805,7 +911,7 @@ function initializeApp() {
     });
     const { updateKeyboardControlUi } = keyboardControls;
 
-    // 5. Recorder Manager (needs getAllSettings / generateFilename from settings)
+    // 6. Recorder Manager (needs getAllSettings / generateFilename from settings)
     recorderManager = createRecorderManager({
         audio: {
             reverb: audioEngine.reverb,
@@ -1409,7 +1515,138 @@ function initializeApp() {
         filterResonanceValue.textContent = res.toFixed(1);
     });
 
+    // --- MonoSynth Controls ---
+    if (monoCutoffSlider) {
+        monoCutoffSlider.addEventListener("input", () => {
+            const val = parseFloat(monoCutoffSlider.value);
+            if (monoCutoffValue) monoCutoffValue.textContent = val.toFixed(0);
+            if (
+                audioEngine.activeSynth &&
+                "filterEnvelope" in audioEngine.activeSynth &&
+                audioEngine.activeSynth.filterEnvelope
+            ) {
+                audioEngine.activeSynth.filterEnvelope.baseFrequency = val;
+            }
+        });
+    }
+    if (monoOctavesSlider) {
+        monoOctavesSlider.addEventListener("input", () => {
+            const val = parseFloat(monoOctavesSlider.value);
+            if (monoOctavesValue) monoOctavesValue.textContent = val.toFixed(1);
+            if (
+                audioEngine.activeSynth &&
+                "filterEnvelope" in audioEngine.activeSynth &&
+                audioEngine.activeSynth.filterEnvelope
+            ) {
+                audioEngine.activeSynth.filterEnvelope.octaves = val;
+            }
+        });
+    }
+    if (monoQSlider) {
+        monoQSlider.addEventListener("input", () => {
+            const val = parseFloat(monoQSlider.value);
+            if (monoQValue) monoQValue.textContent = val.toFixed(1);
+            if (
+                audioEngine.activeSynth &&
+                "filter" in audioEngine.activeSynth &&
+                audioEngine.activeSynth.filter
+            ) {
+                audioEngine.activeSynth.filter.Q.value = val;
+            }
+        });
+    }
+
+    // --- DuoSynth Controls ---
+    if (duoHarmSlider) {
+        duoHarmSlider.addEventListener("input", () => {
+            const val = parseFloat(duoHarmSlider.value);
+            if (duoHarmValue) duoHarmValue.textContent = val.toFixed(2);
+            if (audioEngine.activeSynth && "harmonicity" in audioEngine.activeSynth) {
+                audioEngine.activeSynth.harmonicity.value = val;
+            }
+        });
+    }
+    if (duoVibratoSlider) {
+        duoVibratoSlider.addEventListener("input", () => {
+            const val = parseFloat(duoVibratoSlider.value);
+            if (duoVibratoValue) duoVibratoValue.textContent = val.toFixed(2);
+            if (audioEngine.activeSynth && "vibratoAmount" in audioEngine.activeSynth) {
+                audioEngine.activeSynth.vibratoAmount.value = val;
+            }
+        });
+    }
+
+    // --- PluckSynth Controls ---
+    if (pluckDampeningSlider) {
+        pluckDampeningSlider.addEventListener("input", () => {
+            const val = parseFloat(pluckDampeningSlider.value);
+            if (pluckDampeningValue) pluckDampeningValue.textContent = val.toFixed(0);
+            if (audioEngine.activeSynth && "dampening" in audioEngine.activeSynth) {
+                audioEngine.activeSynth.dampening = val;
+            }
+        });
+    }
+    if (pluckResonanceSlider) {
+        pluckResonanceSlider.addEventListener("input", () => {
+            const val = parseFloat(pluckResonanceSlider.value);
+            if (pluckResonanceValue) pluckResonanceValue.textContent = val.toFixed(2);
+            if (audioEngine.activeSynth && "resonance" in audioEngine.activeSynth) {
+                audioEngine.activeSynth.resonance = val;
+            }
+        });
+    }
+    if (pluckNoiseSlider) {
+        pluckNoiseSlider.addEventListener("input", () => {
+            const val = parseFloat(pluckNoiseSlider.value);
+            if (pluckNoiseValue) pluckNoiseValue.textContent = val.toFixed(1);
+            if (audioEngine.activeSynth && "attackNoise" in audioEngine.activeSynth) {
+                audioEngine.activeSynth.attackNoise = val;
+            }
+        });
+    }
+
+    // --- MembraneSynth Controls ---
+    if (membranePitchDecaySlider) {
+        membranePitchDecaySlider.addEventListener("input", () => {
+            const val = parseFloat(membranePitchDecaySlider.value);
+            if (membranePitchDecayValue) membranePitchDecayValue.textContent = val.toFixed(3);
+            if (audioEngine.activeSynth && "pitchDecay" in audioEngine.activeSynth) {
+                audioEngine.activeSynth.pitchDecay = val;
+            }
+        });
+    }
+    if (membraneOctavesSlider) {
+        membraneOctavesSlider.addEventListener("input", () => {
+            const val = parseFloat(membraneOctavesSlider.value);
+            if (membraneOctavesValue) membraneOctavesValue.textContent = val.toFixed(1);
+            if (audioEngine.activeSynth && "octaves" in audioEngine.activeSynth) {
+                audioEngine.activeSynth.octaves = val;
+            }
+        });
+    }
+
     // --- Effects ---
+    if (driveMixSlider) {
+        driveMixSlider.addEventListener("input", () => {
+            const mix = parseFloat(driveMixSlider.value);
+            if (audioEngine.distortion) audioEngine.distortion.wet.value = mix;
+            if (driveMixValue) driveMixValue.textContent = mix.toFixed(2);
+        });
+    }
+    if (chorusMixSlider) {
+        chorusMixSlider.addEventListener("input", () => {
+            const mix = parseFloat(chorusMixSlider.value);
+            if (audioEngine.chorus) audioEngine.chorus.wet.value = mix;
+            if (chorusMixValue) chorusMixValue.textContent = mix.toFixed(2);
+        });
+    }
+    if (autoPanMixSlider) {
+        autoPanMixSlider.addEventListener("input", () => {
+            const mix = parseFloat(autoPanMixSlider.value);
+            if (audioEngine.autoPanner) audioEngine.autoPanner.wet.value = mix;
+            if (autoPanMixValue) autoPanMixValue.textContent = mix.toFixed(2);
+        });
+    }
     delayMixSlider.addEventListener("input", () => {
         const mix = parseFloat(delayMixSlider.value);
         debouncedSetDelayMix(mix);
