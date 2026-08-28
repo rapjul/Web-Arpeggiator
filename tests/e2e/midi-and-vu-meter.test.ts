@@ -134,14 +134,18 @@ test("MIDI Export & Real-Time Peak Meter Suite", async (): Promise<void> => {
             return "meter-failed-to-respond";
         }
 
-        // Test clipping latch behavior at or above 0 dBFS
-        const originalMeter = window.audioEngine?.meter;
-        if (originalMeter) {
-            const origGetVal = originalMeter.getValue;
-            originalMeter.getValue = () => 0.5; // Simulate peak clipping above 0 dBFS
+        // Test clipping latch behavior with unsmoothed peakAnalyser and verify aria-valuenow clamping
+        const originalPeakAnalyser = window.audioEngine?.peakAnalyser;
+        if (originalPeakAnalyser) {
+            const origGetVal = originalPeakAnalyser.getValue;
+            originalPeakAnalyser.getValue = () => new Float32Array([1.05]); // Full scale peak
             vis.runUiUpdate();
-            originalMeter.getValue = origGetVal;
+            originalPeakAnalyser.getValue = origGetVal;
         }
+
+        // Verify ARIA valuenow does not exceed declared aria-valuemax of 0
+        const ariaValueNow = parseFloat(vuBar.getAttribute("aria-valuenow") || "0");
+        if (ariaValueNow > 0) return "aria-valuenow-exceeds-max:" + ariaValueNow;
 
         if (!vis.isClipped) return "clip-failed-to-latch";
         if (clipBtn.getAttribute("aria-pressed") !== "true") return "clip-btn-aria-pressed-not-true";

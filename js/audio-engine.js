@@ -55,8 +55,9 @@ import * as Tone from "tone";
  * @param {Function} context.actions.showToast - Toast notification.
  * @typedef {object} AudioEngine
  * @property {Tone.Analyser} analyser - Waveform analyser node.
- * @property {Tone.Distortion} distortion - Overdrive/distortion node.
- * @property {Tone.Filter} filter - Low-pass filter.
+ * @property {Tone.Meter} meter - Real-time smoothed VU meter node.
+ * @property {Tone.Analyser} peakAnalyser - Unsmoothed waveform peak detector.
+ * @property {Tone.Distortion} distortion - Master distortion effect node.
  * @property {Tone.Chorus} chorus - Stereo chorus effect node.
  * @property {Tone.AutoPanner} autoPanner - Tempo-synced auto-panner node.
  * @property {Tone.FeedbackDelay} delay - Feedback delay.
@@ -94,8 +95,11 @@ export function createAudioEngine(context) {
         console.warn("Tone.Limiter failed, connecting to Destination directly.", e);
     }
 
-    // --- Real-time Meter (for peak/VU level metering) ---
+    // --- Real-time Meter (for smoothed VU level metering) ---
     const meter = new Tone.Meter({ channels: 1, smoothing: 0.8 });
+
+    // --- Unsmoothed Peak Analyser (for instantaneous true peak & clipping detection) ---
+    const peakAnalyser = new Tone.Analyser("waveform", 256);
 
     // --- Effects Chain ---
     const reverb = new Tone.Reverb({ decay: 1.5, wet: 0.3 });
@@ -215,13 +219,15 @@ export function createAudioEngine(context) {
     synths.pluckSynth.connect(distortion);
     synths.membraneSynth.connect(distortion);
 
-    // Connect reverb → post gain → limiter → destination & meter; reverb → analyser
+    // Connect reverb → post gain → limiter → destination, meter & peakAnalyser; reverb → analyser
     reverb.connect(postGain);
     if (limiter) {
         postGain.connect(limiter);
         limiter.connect(meter);
+        limiter.connect(peakAnalyser);
     } else {
         postGain.connect(meter);
+        postGain.connect(peakAnalyser);
         postGain.toDestination();
     }
     reverb.connect(analyser);
@@ -546,6 +552,7 @@ export function createAudioEngine(context) {
     return {
         analyser,
         meter,
+        peakAnalyser,
         distortion,
         filter,
         chorus,

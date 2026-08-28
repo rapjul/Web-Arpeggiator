@@ -329,8 +329,7 @@ Web Arpeggiator/
 │   ├── settings-manager.js      # Settings serialization/restoration
 │   ├── ui-feedback.js           # Toast alerts and UI status indicators
 │   ├── url-preset.js            # URL query parameter preset serialization
-│   ├── visualizer.js            # Canvas waveform rendering, UI update loop, toggle
-│   └── asset-manifest.js        # Cache versioning manifest
+│   └── visualizer.js            # Canvas waveform rendering, UI update loop, toggle
 ├── exports/                # Generated audio test files
 │   ├── realtime-recordings/
 │   └── perfect-loops/

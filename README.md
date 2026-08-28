@@ -42,8 +42,7 @@ Web Arpeggiator is an interactive music tool that generates flowing musical patt
 ### 📱 PWA Support
 
 - **Installable**: Add the app to your desktop or home screen
-- **Offline Shell**: The app shell and curated assets are cached for offline launch
-- **Editable Cache List**: Cached assets are defined in `js/asset-manifest.js` for easy updates during development
+- **Offline Shell**: The app shell and curated assets are precached automatically for offline launch
 
 ### 📊 Recording & Export
 
@@ -311,8 +310,7 @@ Web Arpeggiator/
 │   ├── settings-manager.js      # Configuration state persistence
 │   ├── ui-feedback.js           # Toast alerts and visual status indicators
 │   ├── url-preset.js            # URL query parameter preset serialization
-│   ├── visualizer.js            # Real-time oscilloscope canvas
-│   └── asset-manifest.js        # Cache versioning manifest
+│   └── visualizer.js            # Real-time oscilloscope canvas
 └── public/                      # Static assets & pattern icons
 ```
 

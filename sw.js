@@ -23,7 +23,7 @@ const manifest = {
 const CACHE_NAME = `web-arpeggiator-${manifest.cacheVersion || "dev"}`;
 const CACHE_PREFIX = "web-arpeggiator-";
 const FALLBACK_URL = manifest.navigationFallback || manifest.appShell || "./index.html";
-const MUTABLE_PATHS = ["/index.html", "/manifest.json", "/js/asset-manifest.js"];
+const MUTABLE_PATHS = ["/index.html", "/manifest.json"];
 
 /**
  * Adds each configured URL to the active cache without failing the whole install

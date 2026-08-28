@@ -366,6 +366,121 @@ describe("Pattern Core - materializePatternSequence Deterministic Unrolling", ()
         expect(drunk.notes.length).toBe(16);
     });
 
+    test("exercises randomWalk and randomWalkDrunk branches including negative leap modulo wrapping", () => {
+        // 1. Test randomWalk step forward (rng > 0.5) vs step backward (rng <= 0.5)
+        let flip = true;
+        const alternatingRng = () => {
+            flip = !flip;
+            return flip ? 0.9 : 0.1;
+        };
+
+        const walk = materializePatternSequence(["C4", "E4"], {
+            direction: "randomWalk",
+            rng: alternatingRng,
+        });
+        expect(walk.notes.length).toBe(2);
+        walk.notes.forEach((n) => expect(["C4", "E4"]).toContain(n));
+
+        // 2. Test randomWalkDrunk leap branch (rng >= 0.8) and negative leap step = -3 with 2 notes
+        // Sequence of RNG values:
+        // Initial idx: 0 (0.0 * 2 = 0)
+        // Step 1: rng() = 0.85 (leap branch >= 0.8), leap rng = 0.0 -> Math.floor(0 * 7) - 3 = -3.
+        // With 2 notes, (0 + (-3)) % 2 = -1; normalized modulo must wrap to index 1 (E4), not -1 (undefined).
+        const leapRng = (() => {
+            const values = [0.0, 0.85, 0.0, 0.85, 0.45, 0.85, 0.0];
+            let i = 0;
+            return () => values[i++ % values.length];
+        })();
+
+        const drunkMaterialized = materializePatternSequence(["C4", "E4"], {
+            direction: "randomWalkDrunk",
+            rng: leapRng,
+        });
+
+        expect(drunkMaterialized.notes.length).toBe(16);
+        drunkMaterialized.notes.forEach((note) => {
+            expect(note).toBeDefined();
+            expect(["C4", "E4"]).toContain(note);
+        });
+
+        // 3. Test buildPatternSequence randomWalkDrunk with negative leap modulo
+        let stepCount = 0;
+        const drunkBuildRng = () => {
+            stepCount++;
+            // Alternate between leap branch (>= 0.8) and normal step (< 0.8)
+            return stepCount % 2 === 0 ? 0.9 : 0.05;
+        };
+        const drunkBuilt = buildPatternSequence(["C4", "E4"], {
+            direction: "randomWalkDrunk",
+            rng: drunkBuildRng,
+        });
+        expect(drunkBuilt.finalNotes.length).toBe(16);
+        drunkBuilt.finalNotes.forEach((note) => {
+            expect(note).toBeDefined();
+            expect(["C4", "E4"]).toContain(note);
+        });
+    });
+
+    test("exercises all scale quantization modes in getScalePitches", () => {
+        const scaleTypes = [
+            "major",
+            "minor",
+            "harmonicMinor",
+            "melodicMinor",
+            "dorian",
+            "phrygian",
+            "lydian",
+            "mixolydian",
+            "locrian",
+            "blues",
+            "chromatic",
+            "unknownScaleFallback",
+        ];
+
+        scaleTypes.forEach((scale) => {
+            const notes = quantizeToScale(["C4", "D#4", "F#4"], "C", scale);
+            expect(notes.length).toBe(3);
+            notes.forEach((n) => expect(typeof n).toBe("string"));
+        });
+    });
+
+    test("handles short baseNotes arrays (<= 2 notes) in upDown and downUp directions", () => {
+        const shortUpDown = calculateNoteMarkers({
+            baseNotes: ["C4", "E4"],
+            direction: "upDown",
+        });
+        expect(shortUpDown.map((m) => m.note)).toEqual(["C4", "E4"]);
+
+        const shortDownUp = calculateNoteMarkers({
+            baseNotes: ["C4", "E4"],
+            direction: "downUp",
+        });
+        expect(shortDownUp.map((m) => m.note)).toEqual(["E4", "C4"]);
+
+        const matShortUpDown = materializePatternSequence(["C4", "E4"], {
+            direction: "upDown",
+        });
+        expect(matShortUpDown.notes).toEqual(["C4", "E4"]);
+
+        const matShortDownUp = materializePatternSequence(["C4", "E4"], {
+            direction: "downUp",
+        });
+        expect(matShortDownUp.notes).toEqual(["E4", "C4"]);
+    });
+
+    test("handles fallback/unrecognized direction branches gracefully", () => {
+        // @ts-expect-error test unrecognized direction
+        const matFallback = materializePatternSequence(["C4", "E4"], { direction: "invalid" });
+        expect(matFallback.notes).toEqual(["C4", "E4"]);
+
+        // @ts-expect-error test unrecognized direction in marker calculation
+        const markerFallback = calculateNoteMarkers({
+            baseNotes: ["C4", "E4"],
+            direction: "unknown",
+        });
+        expect(markerFallback.map((m) => m.note)).toEqual(["C4", "E4"]);
+    });
+
     test("handles empty or invalid inputs gracefully", () => {
         expect(materializePatternSequence([])).toEqual({ notes: [], map: [] });
         expect(materializePatternSequence(null as any)).toEqual({ notes: [], map: [] });

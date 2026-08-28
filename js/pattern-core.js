@@ -341,7 +341,8 @@ export function buildPatternSequence(baseNotes, options = {}) {
                     if (step === 0) step = 1;
                 }
 
-                currentIndex = (currentIndex + step + notes.length) % notes.length;
+                currentIndex =
+                    (((currentIndex + step) % notes.length) + notes.length) % notes.length;
                 finalNotes.push(notes[currentIndex]);
                 stepToBaseIndexMap.push(map[currentIndex]);
             }
@@ -526,7 +527,7 @@ export function materializePatternSequence(baseNotes, options = {}) {
             finalMap.push(map[idx]);
             for (let i = 1; i < count; i++) {
                 const step = rng() > 0.5 ? 1 : -1;
-                idx = (idx + step + notes.length) % notes.length;
+                idx = (((idx + step) % notes.length) + notes.length) % notes.length;
                 finalNotes.push(notes[idx]);
                 finalMap.push(map[idx]);
             }
@@ -544,7 +545,8 @@ export function materializePatternSequence(baseNotes, options = {}) {
                     step = Math.floor(rng() * 7) - 3;
                     if (step === 0) step = 1;
                 }
-                currentIndex = (currentIndex + step + notes.length) % notes.length;
+                currentIndex =
+                    (((currentIndex + step) % notes.length) + notes.length) % notes.length;
                 finalNotes.push(notes[currentIndex]);
                 finalMap.push(map[currentIndex]);
             }

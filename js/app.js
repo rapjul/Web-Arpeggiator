@@ -792,10 +792,12 @@ function initializeApp() {
             vuMeterBar,
             vuDbValue,
             vuClipIndicator,
+            envReleaseSlider,
         },
         audio: {
             analyser: audioEngine.analyser,
             meter: audioEngine.meter,
+            peakAnalyser: audioEngine.peakAnalyser,
         },
         state: {
             get isRecording() {

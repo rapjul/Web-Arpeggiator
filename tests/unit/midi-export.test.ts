@@ -144,4 +144,79 @@ describe("MIDI Export Domain Module", () => {
         const bytesDefault = createMidiFileBytes();
         expect(bytesDefault.length).toBeGreaterThan(20);
     });
+
+    test("encodes exact Note-On (0x90, vel 100) and Note-Off (0x80, release vel 64/0x40) events", () => {
+        const midiBytes = createMidiFileBytes({
+            notes: ["C4"], // Note 60 (0x3C)
+            bpm: 120,
+            interval: "4n",
+            gateRatio: 0.8,
+            loopCount: 1,
+            velocity: 100,
+        });
+
+        // Search for Note-On sequence: [0x90, 0x3C, 0x64] (Channel 0 Note On, C4=60, Velocity 100=0x64)
+        let noteOnIdx = -1;
+        for (let i = 0; i < midiBytes.length - 2; i++) {
+            if (midiBytes[i] === 0x90 && midiBytes[i + 1] === 60 && midiBytes[i + 2] === 100) {
+                noteOnIdx = i;
+                break;
+            }
+        }
+        expect(noteOnIdx).toBeGreaterThan(0);
+
+        // Search for Note-Off sequence: [0x80, 0x3C, 0x40] (Channel 0 Note Off, C4=60, Release Velocity 64=0x40)
+        let noteOffIdx = -1;
+        for (let i = noteOnIdx + 3; i < midiBytes.length - 2; i++) {
+            if (midiBytes[i] === 0x80 && midiBytes[i + 1] === 60 && midiBytes[i + 2] === 0x40) {
+                noteOffIdx = i;
+                break;
+            }
+        }
+        expect(noteOffIdx).toBeGreaterThan(noteOnIdx);
+    });
+
+    test("encodes accurate Set Tempo meta events across varied BPMs", () => {
+        // At 120 BPM: 60,000,000 / 120 = 500,000 us/beat -> [0x07, 0xA1, 0x20]
+        const bytes120 = createMidiFileBytes({ notes: ["C4"], bpm: 120 });
+        let tempoIdx120 = -1;
+        for (let i = 0; i < bytes120.length - 5; i++) {
+            if (bytes120[i] === 0xff && bytes120[i + 1] === 0x51 && bytes120[i + 2] === 0x03) {
+                tempoIdx120 = i;
+                break;
+            }
+        }
+        expect(tempoIdx120).toBeGreaterThan(0);
+        expect(bytes120[tempoIdx120 + 3]).toBe(0x07);
+        expect(bytes120[tempoIdx120 + 4]).toBe(0xa1);
+        expect(bytes120[tempoIdx120 + 5]).toBe(0x20);
+
+        // At 60 BPM: 60,000,000 / 60 = 1,000,000 us/beat -> [0x0F, 0x42, 0x40]
+        const bytes60 = createMidiFileBytes({ notes: ["C4"], bpm: 60 });
+        let tempoIdx60 = -1;
+        for (let i = 0; i < bytes60.length - 5; i++) {
+            if (bytes60[i] === 0xff && bytes60[i + 1] === 0x51 && bytes60[i + 2] === 0x03) {
+                tempoIdx60 = i;
+                break;
+            }
+        }
+        expect(tempoIdx60).toBeGreaterThan(0);
+        expect(bytes60[tempoIdx60 + 3]).toBe(0x0f);
+        expect(bytes60[tempoIdx60 + 4]).toBe(0x42);
+        expect(bytes60[tempoIdx60 + 5]).toBe(0x40);
+    });
+
+    test("supports all interval subdivisions correctly", () => {
+        const intervals = ["64n", "32n", "16n", "8n", "4n", "2n"] as const;
+        intervals.forEach((interval) => {
+            const bytes = createMidiFileBytes({
+                notes: ["C4", "E4"],
+                interval,
+                gateRatio: 0.5,
+                loopCount: 1,
+            });
+            expect(bytes instanceof Uint8Array).toBe(true);
+            expect(bytes.length).toBeGreaterThan(25);
+        });
+    });
 });
