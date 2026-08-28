@@ -9,12 +9,8 @@
  * @module recorder
  */
 
-import * as Tone from 'tone';
-import {
-    audioBufferToMp3Blob,
-    audioBufferToWav,
-    downloadBlob
-} from './audio-utils.js';
+import * as Tone from "tone";
+import { audioBufferToMp3Blob, audioBufferToWav, downloadBlob } from "./audio-utils.js";
 
 /**
  * Creates the recorder manager with real-time and offline export control.
@@ -25,42 +21,42 @@ import {
  * @param {object}          context.audio.synths            - { synth, fmSynth, amSynth } for offline config.
  * @param {Function}        context.audio.createOfflineChain - Offline routing creation callback.
  * @param {object}   context.dom                            - DOM element references.
-  * @param {HTMLElement}     context.dom.recordButton        - Record start/stop button.
-  * @param {HTMLElement}     context.dom.recordStatus        - Recording status display.
-  * @param {HTMLElement}     context.dom.exportControls      - Export controls wrapper.
-  * @param {HTMLElement}     context.dom.realtimeExportWavCheck - Real-time WAV checkbox.
-  * @param {HTMLElement}     context.dom.realtimeExportMp3Check - Real-time MP3 checkbox.
-  * @param {HTMLElement}     context.dom.exportButton        - Real-time export button.
-  * @param {HTMLElement}     context.dom.offlineExportWavCheck - Offline WAV checkbox.
-  * @param {HTMLElement}     context.dom.offlineExportMp3Check - Offline MP3 checkbox.
-  * @param {HTMLElement}     context.dom.offlineExportButton - Offline export trigger button.
-  * @param {HTMLElement}     context.dom.offlineExportStatus - Offline export status display.
-  * @param {HTMLElement}     context.dom.loopCountInput      - Loop count <input>.
-  * @param {HTMLElement}     context.dom.envAttackSlider     - ADSR Attack slider.
-  * @param {HTMLElement}     context.dom.envDecaySlider      - ADSR Decay slider.
-  * @param {HTMLElement}     context.dom.envSustainSlider    - ADSR Sustain slider.
-  * @param {HTMLElement}     context.dom.envReleaseSlider    - ADSR Release slider.
-  * @param {object}   context.state                          - Shared mutable state.
-  * @param {boolean}  context.state.isAudioContextStarted    - Audio context started (read).
-  * @param {boolean}  context.state.isPlaying                - Transport playing (read).
-  * @param {object}   context.actions                        - Action callbacks.
-  * @param {Function} context.actions.showToast              - Toast notification.
-  * @param {Function} context.actions.startUiLoop            - Start Tone.Loop.
-  * @param {Function} context.actions.stopUiLoop             - Stop Tone.Loop.
-  * @param {Function} context.actions.getAllSettings         - Current settings snapshot.
-  * @param {Function} context.actions.generateFilename       - Timestamped filename.
-  * @param {Function} context.actions.formatTime             - Time formatting helper.
-  * @typedef {object} RecorderManager
-  * @property {Function} initRecorder - Creates recorder instance (lazy, called once).
-  * @property {Function} toggleRecording - Start/stop recording.
-  * @property {Function} exportRealtime - Export recorded blob as WAV/MP3.
-  * @property {Function} exportOffline - Tone.Offline render + export.
-  * @property {boolean} isRecording - Whether recording is active.
-  * @property {number} recordingStartTime - Timestamp when recording started.
-  * @property {Function} setRecorderBlob - Sets liveRecordedWavBlob (called by event).
-  *
-  * @returns {RecorderManager} Public API.
-  */
+ * @param {HTMLElement}     context.dom.recordButton        - Record start/stop button.
+ * @param {HTMLElement}     context.dom.recordStatus        - Recording status display.
+ * @param {HTMLElement}     context.dom.exportControls      - Export controls wrapper.
+ * @param {HTMLElement}     context.dom.realtimeExportWavCheck - Real-time WAV checkbox.
+ * @param {HTMLElement}     context.dom.realtimeExportMp3Check - Real-time MP3 checkbox.
+ * @param {HTMLElement}     context.dom.exportButton        - Real-time export button.
+ * @param {HTMLElement}     context.dom.offlineExportWavCheck - Offline WAV checkbox.
+ * @param {HTMLElement}     context.dom.offlineExportMp3Check - Offline MP3 checkbox.
+ * @param {HTMLElement}     context.dom.offlineExportButton - Offline export trigger button.
+ * @param {HTMLElement}     context.dom.offlineExportStatus - Offline export status display.
+ * @param {HTMLElement}     context.dom.loopCountInput      - Loop count <input>.
+ * @param {HTMLElement}     context.dom.envAttackSlider     - ADSR Attack slider.
+ * @param {HTMLElement}     context.dom.envDecaySlider      - ADSR Decay slider.
+ * @param {HTMLElement}     context.dom.envSustainSlider    - ADSR Sustain slider.
+ * @param {HTMLElement}     context.dom.envReleaseSlider    - ADSR Release slider.
+ * @param {object}   context.state                          - Shared mutable state.
+ * @param {boolean}  context.state.isAudioContextStarted    - Audio context started (read).
+ * @param {boolean}  context.state.isPlaying                - Transport playing (read).
+ * @param {object}   context.actions                        - Action callbacks.
+ * @param {Function} context.actions.showToast              - Toast notification.
+ * @param {Function} context.actions.startUiLoop            - Start Tone.Loop.
+ * @param {Function} context.actions.stopUiLoop             - Stop Tone.Loop.
+ * @param {Function} context.actions.getAllSettings         - Current settings snapshot.
+ * @param {Function} context.actions.generateFilename       - Timestamped filename.
+ * @param {Function} context.actions.formatTime             - Time formatting helper.
+ * @typedef {object} RecorderManager
+ * @property {Function} initRecorder - Creates recorder instance (lazy, called once).
+ * @property {Function} toggleRecording - Start/stop recording.
+ * @property {Function} exportRealtime - Export recorded blob as WAV/MP3.
+ * @property {Function} exportOffline - Tone.Offline render + export.
+ * @property {boolean} isRecording - Whether recording is active.
+ * @property {number} recordingStartTime - Timestamp when recording started.
+ * @property {Function} setRecorderBlob - Sets liveRecordedWavBlob (called by event).
+ *
+ * @returns {RecorderManager} Public API.
+ */
 export function createRecorderManager(context) {
     const { audio, state, actions } = context;
     const dom = /** @type {any} */ (context.dom);
@@ -83,14 +79,14 @@ export function createRecorderManager(context) {
      * @returns {void}
      */
     function onRecordingStop() {
-        dom.recordButton.textContent = 'Record';
-        dom.recordButton.setAttribute('aria-label', 'Start recording');
-        dom.recordButton.classList.remove('recording');
+        dom.recordButton.textContent = "Record";
+        dom.recordButton.setAttribute("aria-label", "Start recording");
+        dom.recordButton.classList.remove("recording");
         dom.recordStatus.textContent = "Recording stopped. Ready to export.";
-        dom.exportControls.classList.remove('hidden');
+        dom.exportControls.classList.remove("hidden");
         dom.recordButton.disabled = false;
         dom.exportButton.disabled = false;
-        dom.exportButton.textContent = 'Export Files';
+        dom.exportButton.textContent = "Export Files";
     }
 
     // ------------------------------------------------------------------
@@ -114,24 +110,26 @@ export function createRecorderManager(context) {
         try {
             recorder = new Tone.Recorder();
             audio.reverb.connect(recorder);
-            recorderType = 'ToneRecorder';
+            recorderType = "ToneRecorder";
             dom.recordStatus.textContent = "Ready to record (Tone.Recorder).";
             actions.showToast("Recorder ready (Fallback)", "info");
         } catch (e) {
             // Fall back to MediaRecorder (HTTPS only)
-            if (window.isSecureContext && typeof MediaRecorder !== 'undefined') {
+            if (window.isSecureContext && typeof MediaRecorder !== "undefined") {
                 try {
                     const rawCtx = /** @type {AudioContext} */ (Tone.getContext().rawContext);
                     const dest = rawCtx.createMediaStreamDestination();
                     audio.reverb.connect(dest);
                     recorder = new MediaRecorder(dest.stream);
-                    recorderType = 'MediaRecorder';
+                    recorderType = "MediaRecorder";
 
                     recorder.ondataavailable = (e) => {
                         if (e.data.size > 0) recordedChunks.push(e.data);
                     };
                     recorder.onstop = () => {
-                        liveRecordedWavBlob = new Blob(recordedChunks, { type: 'audio/webm' });
+                        liveRecordedWavBlob = new Blob(recordedChunks, {
+                            type: "audio/webm",
+                        });
                         recordedChunks = [];
                         onRecordingStop();
                     };
@@ -169,10 +167,10 @@ export function createRecorderManager(context) {
         if (isRecording) {
             // --- Stop recording ---
             isRecording = false;
-            if (recorderType === 'MediaRecorder') {
+            if (recorderType === "MediaRecorder") {
                 recorder.stop();
                 // onRecordingStop fires from the onstop event
-            } else if (recorderType === 'ToneRecorder') {
+            } else if (recorderType === "ToneRecorder") {
                 recorder.stop().then((blob) => {
                     liveRecordedWavBlob = blob;
                     onRecordingStop();
@@ -185,25 +183,31 @@ export function createRecorderManager(context) {
                 return;
             }
             if (!recorder) {
-                actions.showToast("Recorder not initialized. Try starting playback first.", "error");
+                actions.showToast(
+                    "Recorder not initialized. Try starting playback first.",
+                    "error",
+                );
                 return;
             }
 
             liveRecordedWavBlob = null;
 
-            if (recorderType === 'MediaRecorder') {
+            if (recorderType === "MediaRecorder") {
                 recordedChunks = [];
                 recorder.start();
-            } else if (recorderType === 'ToneRecorder') {
+            } else if (recorderType === "ToneRecorder") {
                 recorder.start();
             }
 
-            dom.recordButton.classList.add('recording');
-            dom.exportControls.classList.add('hidden');
+            dom.recordButton.classList.add("recording");
+            dom.exportControls.classList.add("hidden");
             dom.recordStatus.textContent = "Recording... Click again to stop.";
             recordingStartTime = Tone.now();
-            dom.recordButton.textContent = 'Stop Recording (00:00.0)';
-            dom.recordButton.setAttribute('aria-label', 'Stop recording (current elapsed time 00:00.0)');
+            dom.recordButton.textContent = "Stop Recording (00:00.0)";
+            dom.recordButton.setAttribute(
+                "aria-label",
+                "Stop recording (current elapsed time 00:00.0)",
+            );
             isRecording = true;
         }
 
@@ -240,7 +244,7 @@ export function createRecorderManager(context) {
         }
 
         dom.exportButton.disabled = true;
-        dom.exportButton.textContent = 'Exporting...';
+        dom.exportButton.textContent = "Exporting...";
 
         const filename = actions.generateFilename(true);
 
@@ -260,7 +264,7 @@ export function createRecorderManager(context) {
             actions.showToast("Encoding MP3...", "info");
             try {
                 const audioBuffer = await Tone.getContext().decodeAudioData(
-                    await liveRecordedWavBlob.arrayBuffer()
+                    await liveRecordedWavBlob.arrayBuffer(),
                 );
                 const mp3Blob = await audioBufferToMp3Blob(audioBuffer);
                 downloadBlob(mp3Blob, `${filename}.mp3`);
@@ -278,7 +282,7 @@ export function createRecorderManager(context) {
         }
 
         dom.exportButton.disabled = false;
-        dom.exportButton.textContent = 'Export Files';
+        dom.exportButton.textContent = "Export Files";
     }
 
     // ------------------------------------------------------------------
@@ -303,7 +307,7 @@ export function createRecorderManager(context) {
         }
 
         dom.offlineExportButton.disabled = true;
-        dom.offlineExportButton.textContent = 'Generating...';
+        dom.offlineExportButton.textContent = "Generating...";
         dom.offlineExportStatus.textContent = "Generating audio... please wait.";
 
         const settings = actions.getAllSettings();
@@ -312,11 +316,11 @@ export function createRecorderManager(context) {
         // Calculate loop duration
         let stepsPerLoop = settings.notes.length;
 
-        if (settings.direction === 'upDownRepeat' || settings.direction === 'downUpRepeat') {
+        if (settings.direction === "upDownRepeat" || settings.direction === "downUpRepeat") {
             stepsPerLoop = settings.notes.length * 2;
-        } else if (settings.direction === 'upDown' || settings.direction === 'downUp') {
+        } else if (settings.direction === "upDown" || settings.direction === "downUp") {
             if (settings.notes.length > 1) {
-                stepsPerLoop = (settings.notes.length * 2) - 2;
+                stepsPerLoop = settings.notes.length * 2 - 2;
             }
         }
 
@@ -340,20 +344,23 @@ export function createRecorderManager(context) {
                 let patternNotes = settings.notes;
                 let patternType = settings.direction;
 
-                if (settings.direction === 'upDownRepeat') {
+                if (settings.direction === "upDownRepeat") {
                     const reversed = [...settings.notes].reverse();
                     patternNotes = [...settings.notes, ...reversed];
-                    patternType = 'up';
-                } else if (settings.direction === 'downUpRepeat') {
+                    patternType = "up";
+                } else if (settings.direction === "downUpRepeat") {
                     const reversed = [...settings.notes].reverse();
                     patternNotes = [...reversed, ...settings.notes];
-                    patternType = 'up';
+                    patternType = "up";
                 }
 
                 const offlinePattern = new Tone.Pattern(
                     (time, note) => {
                         // Split triggerAttackRelease to ensure exact scheduling reference time is used
-                        if (typeof offlineSynth.triggerAttack === 'function' && typeof offlineSynth.triggerRelease === 'function') {
+                        if (
+                            typeof offlineSynth.triggerAttack === "function" &&
+                            typeof offlineSynth.triggerRelease === "function"
+                        ) {
                             offlineSynth.triggerAttack(note, time);
                             offlineSynth.triggerRelease(time + gateLength);
                         } else {
@@ -361,7 +368,7 @@ export function createRecorderManager(context) {
                         }
                     },
                     patternNotes,
-                    patternType
+                    patternType,
                 );
                 offlinePattern.interval = settings.interval;
                 offlinePattern.start(0);
@@ -369,14 +376,16 @@ export function createRecorderManager(context) {
                 offlineContext.transport.start(0);
             }, totalDuration + 2.0); // Extra 2 s for reverb tail
 
-            const nativeBuffer = /** @type {AudioBuffer} */ (typeof toneAudioBuffer.get === 'function' ? toneAudioBuffer.get() : toneAudioBuffer);
+            const nativeBuffer = /** @type {AudioBuffer} */ (
+                typeof toneAudioBuffer.get === "function" ? toneAudioBuffer.get() : toneAudioBuffer
+            );
 
             // Validate buffer
             if (nativeBuffer.length < 1000) {
                 actions.showToast("Offline generation failed! No audio was created.", "error");
                 dom.offlineExportStatus.textContent = "Offline rendering failed.";
                 dom.offlineExportButton.disabled = false;
-                dom.offlineExportButton.textContent = 'Generate & Export';
+                dom.offlineExportButton.textContent = "Generate & Export";
                 return;
             }
 
@@ -408,7 +417,7 @@ export function createRecorderManager(context) {
             actions.showToast("Offline render failed.", "error");
         } finally {
             dom.offlineExportButton.disabled = false;
-            dom.offlineExportButton.textContent = 'Generate & Export';
+            dom.offlineExportButton.textContent = "Generate & Export";
         }
     }
 
@@ -421,8 +430,14 @@ export function createRecorderManager(context) {
         toggleRecording,
         exportRealtime,
         exportOffline,
-        get isRecording() { return isRecording; },
-        get recordingStartTime() { return recordingStartTime; },
-        setRecorderBlob: (blob) => { liveRecordedWavBlob = blob; }
+        get isRecording() {
+            return isRecording;
+        },
+        get recordingStartTime() {
+            return recordingStartTime;
+        },
+        setRecorderBlob: (blob) => {
+            liveRecordedWavBlob = blob;
+        },
     };
 }

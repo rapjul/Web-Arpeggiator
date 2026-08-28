@@ -8,22 +8,22 @@
 // self.__WB_MANIFEST is injected by Workbox during build
 const precachedEntries = self.__WB_MANIFEST || [];
 const manifest = {
-    cacheVersion: precachedEntries.length > 0 
-        ? precachedEntries.map(e => e.revision || '').join('-').slice(0, 16)
-        : 'dev',
-    appShell: './index.html',
-    navigationFallback: './index.html',
-    assets: precachedEntries.map(entry => typeof entry === 'string' ? entry : entry.url)
+    cacheVersion:
+        precachedEntries.length > 0
+            ? precachedEntries
+                  .map((e) => e.revision || "")
+                  .join("-")
+                  .slice(0, 16)
+            : "dev",
+    appShell: "./index.html",
+    navigationFallback: "./index.html",
+    assets: precachedEntries.map((entry) => (typeof entry === "string" ? entry : entry.url)),
 };
 
-const CACHE_NAME = `web-arpeggiator-${manifest.cacheVersion || 'dev'}`;
-const CACHE_PREFIX = 'web-arpeggiator-';
-const FALLBACK_URL = manifest.navigationFallback || manifest.appShell || './index.html';
-const MUTABLE_PATHS = [
-    '/index.html',
-    '/manifest.json',
-    '/js/asset-manifest.js'
-];
+const CACHE_NAME = `web-arpeggiator-${manifest.cacheVersion || "dev"}`;
+const CACHE_PREFIX = "web-arpeggiator-";
+const FALLBACK_URL = manifest.navigationFallback || manifest.appShell || "./index.html";
+const MUTABLE_PATHS = ["/index.html", "/manifest.json", "/js/asset-manifest.js"];
 
 /**
  * Adds each configured URL to the active cache without failing the whole install
@@ -34,13 +34,15 @@ const MUTABLE_PATHS = [
  * @returns {Promise<void>} Resolves after all cache attempts have settled.
  */
 async function cacheResources(cache, urls) {
-    await Promise.allSettled(urls.map(async (url) => {
-        try {
-            await cache.add(new Request(url, { cache: 'reload' }));
-        } catch (error) {
-            console.warn('Failed to cache resource:', url, error);
-        }
-    }));
+    await Promise.allSettled(
+        urls.map(async (url) => {
+            try {
+                await cache.add(new Request(url, { cache: "reload" }));
+            } catch (error) {
+                console.warn("Failed to cache resource:", url, error);
+            }
+        }),
+    );
 }
 
 /**
@@ -58,8 +60,8 @@ async function cacheFirst(request) {
 
     try {
         const networkResponse = await fetch(request);
-        if (networkResponse && (networkResponse.ok || networkResponse.type === 'opaque')) {
-            cache.put(request, networkResponse.clone()).catch(() => { });
+        if (networkResponse && (networkResponse.ok || networkResponse.type === "opaque")) {
+            cache.put(request, networkResponse.clone()).catch(() => {});
         }
 
         return networkResponse;
@@ -80,13 +82,13 @@ async function networkFirst(request, fallbackUrl = FALLBACK_URL) {
 
     try {
         const networkResponse = await fetch(request);
-        if (networkResponse && (networkResponse.ok || networkResponse.type === 'opaque')) {
-            cache.put(request, networkResponse.clone()).catch(() => { });
+        if (networkResponse && (networkResponse.ok || networkResponse.type === "opaque")) {
+            cache.put(request, networkResponse.clone()).catch(() => {});
         }
 
         return networkResponse;
     } catch (error) {
-        const cachedResponse = await cache.match(request) || await cache.match(fallbackUrl);
+        const cachedResponse = (await cache.match(request)) || (await cache.match(fallbackUrl));
         if (cachedResponse) {
             return cachedResponse;
         }
@@ -96,27 +98,33 @@ async function networkFirst(request, fallbackUrl = FALLBACK_URL) {
 }
 
 // Precache the current app shell and static dependencies as soon as the worker installs.
-self.addEventListener('install', (event) => {
-    event.waitUntil((async () => {
-        const cache = await caches.open(CACHE_NAME);
-        await cacheResources(cache, manifest.assets || []);
-        await self.skipWaiting();
-    })());
+self.addEventListener("install", (event) => {
+    event.waitUntil(
+        (async () => {
+            const cache = await caches.open(CACHE_NAME);
+            await cacheResources(cache, manifest.assets || []);
+            await self.skipWaiting();
+        })(),
+    );
 });
 
 // Claim clients immediately and remove stale Web Arpeggiator cache versions only.
-self.addEventListener('activate', (event) => {
-    event.waitUntil((async () => {
-        const cacheNames = await caches.keys();
-        await Promise.all(cacheNames.map((cacheName) => {
-            if (cacheName.startsWith(CACHE_PREFIX) && cacheName !== CACHE_NAME) {
-                return caches.delete(cacheName);
-            }
+self.addEventListener("activate", (event) => {
+    event.waitUntil(
+        (async () => {
+            const cacheNames = await caches.keys();
+            await Promise.all(
+                cacheNames.map((cacheName) => {
+                    if (cacheName.startsWith(CACHE_PREFIX) && cacheName !== CACHE_NAME) {
+                        return caches.delete(cacheName);
+                    }
 
-            return Promise.resolve();
-        }));
-        await self.clients.claim();
-    })());
+                    return Promise.resolve();
+                }),
+            );
+            await self.clients.claim();
+        })(),
+    );
 });
 
 /**
@@ -127,87 +135,93 @@ self.addEventListener('activate', (event) => {
  * @returns {Promise<void>} Resolves after the response attempt completes.
  */
 async function postMessageResponse(event, payload) {
-    if (event.source && typeof event.source.postMessage === 'function') {
+    if (event.source && typeof event.source.postMessage === "function") {
         event.source.postMessage(payload);
     }
 }
 
 // Dev/test message API for cache inspection, cache clearing, and immediate activation.
-self.addEventListener('message', (event) => {
+self.addEventListener("message", (event) => {
     const message = event.data || {};
     const messageId = message.messageId || null;
 
-    event.waitUntil((async () => {
-        try {
-            if (message.type === 'SKIP_WAITING') {
-                await self.skipWaiting();
+    event.waitUntil(
+        (async () => {
+            try {
+                if (message.type === "SKIP_WAITING") {
+                    await self.skipWaiting();
+                    await postMessageResponse(event, {
+                        messageId,
+                        ok: true,
+                        type: "SKIP_WAITING_COMPLETE",
+                    });
+                    return;
+                }
+
+                if (message.type === "listCaches") {
+                    const cacheNames = await caches.keys();
+                    await postMessageResponse(event, {
+                        messageId,
+                        ok: true,
+                        type: "listCachesResult",
+                        caches: cacheNames.filter((cacheName) =>
+                            cacheName.startsWith(CACHE_PREFIX),
+                        ),
+                    });
+                    return;
+                }
+
+                if (message.type === "clearCaches") {
+                    const cacheNames = await caches.keys();
+                    const deletedCaches = [];
+                    await Promise.all(
+                        cacheNames.map(async (cacheName) => {
+                            if (!cacheName.startsWith(CACHE_PREFIX)) {
+                                return;
+                            }
+
+                            const deleted = await caches.delete(cacheName);
+                            if (deleted) {
+                                deletedCaches.push(cacheName);
+                            }
+                        }),
+                    );
+
+                    await postMessageResponse(event, {
+                        messageId,
+                        ok: true,
+                        type: "clearCachesResult",
+                        caches: deletedCaches,
+                    });
+                }
+            } catch (error) {
                 await postMessageResponse(event, {
                     messageId,
-                    ok: true,
-                    type: 'SKIP_WAITING_COMPLETE'
-                });
-                return;
-            }
-
-            if (message.type === 'listCaches') {
-                const cacheNames = await caches.keys();
-                await postMessageResponse(event, {
-                    messageId,
-                    ok: true,
-                    type: 'listCachesResult',
-                    caches: cacheNames.filter((cacheName) => cacheName.startsWith(CACHE_PREFIX))
-                });
-                return;
-            }
-
-            if (message.type === 'clearCaches') {
-                const cacheNames = await caches.keys();
-                const deletedCaches = [];
-                await Promise.all(cacheNames.map(async (cacheName) => {
-                    if (!cacheName.startsWith(CACHE_PREFIX)) {
-                        return;
-                    }
-
-                    const deleted = await caches.delete(cacheName);
-                    if (deleted) {
-                        deletedCaches.push(cacheName);
-                    }
-                }));
-
-                await postMessageResponse(event, {
-                    messageId,
-                    ok: true,
-                    type: 'clearCachesResult',
-                    caches: deletedCaches
+                    ok: false,
+                    type: "serviceWorkerMessageError",
+                    error: error?.message || String(error),
                 });
             }
-        } catch (error) {
-            await postMessageResponse(event, {
-                messageId,
-                ok: false,
-                type: 'serviceWorkerMessageError',
-                error: error?.message || String(error)
-            });
-        }
-    })());
+        })(),
+    );
 });
 
 // Route page navigations, CDN dependencies, mutable assets, and static assets.
-self.addEventListener('fetch', (event) => {
+self.addEventListener("fetch", (event) => {
     const { request } = event;
 
-    if (request.method !== 'GET') {
+    if (request.method !== "GET") {
         return;
     }
 
     const requestUrl = new URL(request.url);
 
     // Bypass caching for the service worker itself to avoid update check failures
-    if (requestUrl.pathname.endsWith('/sw.js')) {
+    if (requestUrl.pathname.endsWith("/sw.js")) {
         return;
     }
 
-    if (request.mode === 'navigate') {
+    if (request.mode === "navigate") {
         event.respondWith(networkFirst(request, FALLBACK_URL));
         return;
     }
@@ -217,7 +231,10 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    if (MUTABLE_PATHS.some(path => requestUrl.pathname.endsWith(path)) || requestUrl.pathname.endsWith('/manifest.json')) {
+    if (
+        MUTABLE_PATHS.some((path) => requestUrl.pathname.endsWith(path)) ||
+        requestUrl.pathname.endsWith("/manifest.json")
+    ) {
         event.respondWith(networkFirst(request));
         return;
     }

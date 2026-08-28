@@ -245,9 +245,9 @@ presets/*.json
 
 _previous-versions/*
 
-## Ignore AI Agents ##
-_agent/
-.specstory/
+# AI planning conversations and artifacts
+_artifacts/
+.specstory
 
 # Test snapshots
 tests/visualizer-snapshots/

@@ -1,6 +1,14 @@
 import { test, expect, beforeAll, afterAll } from "bun:test";
-import { spawn, type Subprocess } from "bun";
-import { startTestServer, runBrowser, waitForPwaReady, initializeAudio, resetBrowserState, cleanupProcesses } from "./test-helpers";
+import { type Subprocess } from "bun";
+import {
+    startTestServer,
+    runBrowser,
+    waitForPwaReady,
+    initializeAudio,
+    resetBrowserState,
+    cleanupProcesses,
+    closeBrowser,
+} from "../test-helpers";
 
 /**
  * References the background server process.
@@ -21,25 +29,21 @@ const PORT: number = 4178;
 const APP_URL: string = `http://127.0.0.1:${PORT}/index.html`;
 
 beforeAll(async (): Promise<void> => {
-    // Clean up any stale browser processes from previous runs to release connection locks
-    await spawn(["pkill", "-9", "-f", "agent-browser-chrome"]).exited;
-    await spawn(["pkill", "-9", "-f", "agent-browser"]).exited;
     serverProcess = await startTestServer(PORT);
 });
 
 afterAll(async (): Promise<void> => {
+    await closeBrowser();
     cleanupProcesses();
-    await spawn(["pkill", "-9", "-f", "agent-browser-chrome"]).exited;
-    await spawn(["pkill", "-9", "-f", "agent-browser"]).exited;
 });
 
 test("Randomize Notes Integration Suite", async (): Promise<void> => {
     console.log("Starting Randomizer Integration Suite...");
-    
+
     // 1. Wait for PWA page and registration to complete
     console.log("Step 1: Waiting for PWA ready...");
     await waitForPwaReady(APP_URL);
-    
+
     console.log("Step 1b: Resetting browser state...");
     await resetBrowserState();
 
@@ -49,7 +53,9 @@ test("Randomize Notes Integration Suite", async (): Promise<void> => {
 
     // 3. Verify Random Note Generation (Scale Quantization Off)
     console.log("Step 3: Testing random note generation with scale quantization disabled...");
-    const unquantizedResult: string = await runBrowser(["eval", `(async () => {
+    const unquantizedResult: string = await runBrowser([
+        "eval",
+        `(async () => {
         const randomizeBtn = document.getElementById('randomize-notes');
         const notesInput = document.getElementById('notes');
         const quantizeToggle = document.getElementById('scale-quantize-toggle');
@@ -82,12 +88,15 @@ test("Randomize Notes Integration Suite", async (): Promise<void> => {
         }
 
         return 'success';
-    })()`]);
+    })()`,
+    ]);
     expect(unquantizedResult).toBe('"success"');
 
     // 4. Verify Random Note Generation (Scale Quantization On: F Minor Scale)
     console.log("Step 4: Testing scale-quantized random note generation (F Minor)...");
-    const quantizedResult: string = await runBrowser(["eval", `(async () => {
+    const quantizedResult: string = await runBrowser([
+        "eval",
+        `(async () => {
         const randomizeBtn = document.getElementById('randomize-notes');
         const notesInput = document.getElementById('notes');
         const quantizeToggle = document.getElementById('scale-quantize-toggle');
@@ -133,8 +142,9 @@ test("Randomize Notes Integration Suite", async (): Promise<void> => {
         }
 
         return 'success';
-    })()`]);
+    })()`,
+    ]);
     expect(quantizedResult).toBe('"success"');
-    
+
     console.log("Randomizer Integration Suite complete!");
 }, 30000);

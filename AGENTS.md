@@ -173,7 +173,6 @@ Offline-friendly note sequence generation using local music theory calculations:
 - **Scale Quantization**: When scale quantization is enabled, notes are generated strictly from the pitches in the active scale (e.g., F minor or C major).
 - **Chromatic Mode**: When quantization is disabled or set to chromatic, a random scale mode is chosen under the hood to ensure the generated notes are musically coherent.
 
-
 ## State Management
 
 Global application state:
@@ -198,7 +197,7 @@ Global application state:
 ### Audio Initialization
 
 ```javascript
-startAudio()
+startAudio();
 // Initializes Tone.js context, requires user gesture (autoplay policy)
 // Enables all audio controls after successful start
 ```
@@ -206,7 +205,7 @@ startAudio()
 ### Pattern Management
 
 ```javascript
-createOrUpdatePattern()
+createOrUpdatePattern();
 // Generates Tone.Pattern from current settings
 // Applies scale quantization if enabled
 // Handles all pattern direction transformations
@@ -215,7 +214,7 @@ createOrUpdatePattern()
 ### Recording Control
 
 ```javascript
-startRecording() / stopRecording()
+startRecording() / stopRecording();
 // Manages recorder state and timing
 // Handles fallback between MediaRecorder and Tone.Recorder
 ```
@@ -223,11 +222,11 @@ startRecording() / stopRecording()
 ### Export Functions
 
 ```javascript
-exportRealtimeRecording()
+exportRealtimeRecording();
 // Converts recorded blob to WAV/MP3
 // Generates timestamped files
 
-exportOfflineRender(loopCount)
+exportOfflineRender(loopCount);
 // Renders perfect loops using Tone.Offline
 // Exports WAV/MP3 without real-time constraints
 ```
@@ -235,11 +234,11 @@ exportOfflineRender(loopCount)
 ### Preset I/O
 
 ```javascript
-savePreset()
+savePreset();
 // Serializes all settings to JSON
 // Downloads with timestamp
 
-loadPreset(file)
+loadPreset(file);
 // Parses JSON preset
 // Updates all UI controls and synth parameters
 ```
@@ -374,7 +373,7 @@ All preset-related settings must be:
 Use the global `showToast()` function:
 
 ```javascript
-showToast(message, type)
+showToast(message, type);
 // type: 'success', 'info', 'error'
 ```
 

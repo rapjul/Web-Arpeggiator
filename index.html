@@ -1,751 +1,1203 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Web Arpeggiator</title>
+        <meta
+            name="description"
+            content="A simple web arpeggiator for creating musical patterns."
+        />
+        <!-- Icon images -->
+        <link rel="icon" type="image/svg+xml" href="/images/icons/pwa-icon.svg" />
+        <link rel="icon" type="image/png" sizes="192x192" href="/images/icons/pwa-icon-192.png" />
+        <link rel="icon" type="image/png" sizes="512x512" href="/images/icons/pwa-icon-512.png" />
+        <link rel="apple-touch-icon" href="/images/icons/pwa-icon-192.png" />
+        <meta name="theme-color" content="#0f172a" />
+        <!-- Load presets store -->
+        <script src="./js/presets-store.js" type="module"></script>
+        <!-- Load PWA -->
+        <script src="./js/pwa.js" type="module"></script>
+        <link rel="stylesheet" href="./styles.css" />
+    </head>
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Web Arpeggiator</title>
-    <meta name="description" content="A simple web arpeggiator for creating musical patterns.">
-    <!-- Icon images -->
-    <link rel="icon" type="image/svg+xml" href="/images/icons/pwa-icon.svg">
-    <link rel="icon" type="image/png" sizes="192x192" href="/images/icons/pwa-icon-192.png">
-    <link rel="icon" type="image/png" sizes="512x512" href="/images/icons/pwa-icon-512.png">
-    <link rel="apple-touch-icon" href="/images/icons/pwa-icon-192.png">
-    <meta name="theme-color" content="#0f172a">
-    <!-- Load presets store -->
-    <script src="./js/presets-store.js" type="module"></script>
-    <!-- Load PWA -->
-    <script src="./js/pwa.js" type="module"></script>
-    <link rel="stylesheet" href="./styles.css">
-
-</head>
-
-<body class="bg-gray-900 text-gray-100 min-h-screen font-sans flex items-center justify-center p-4">
-
-    <!-- Fullscreen overlay for audio start -->
-    <div id="start-overlay"
-        class="fixed inset-0 bg-gray-900 bg-opacity-90 flex items-center justify-center z-50 cursor-pointer">
-        <div class="text-center p-8 bg-gray-800 rounded-xl shadow-2xl max-w-md">
-            <h2 class="text-2xl font-bold text-blue-400 mb-4">Web Arpeggiator</h2>
-            <p class="text-lg text-gray-300 mb-6">Press anywhere to enable audio</p>
-            <button id="start-button"
-                class="text-xl font-bold py-3 px-6 bg-orange-600 hover:bg-orange-700 rounded-lg shadow-lg transition-all animate-pulse">Enable
-                Audio</button>
-        </div>
-    </div>
-
-    <main class="w-full max-w-4xl bg-gray-800 rounded-2xl shadow-2xl p-6 sm:p-8 grid grid-cols-1 sm:grid-cols-6 gap-6">
-        <h1 class="col-span-full text-3xl font-bold text-center text-blue-400">Web Arpeggiator</h1>
-
-        <!-- Visually hidden screen reader announcements live region -->
-        <div id="sr-announcements" role="status" aria-live="polite" class="sr-only"></div>
-
-        <!-- Card: Main Audio Control -->
-        <div class="col-span-full grid grid-cols-2 gap-6">
-            <!-- `onclick` attribute to start the synth -->
-            <button id="play-stop"
-                aria-label="Press anywhere on screen to enable audio context first (play/stop control currently disabled)"
-                class="col-span-2 text-lg font-bold py-3 px-6 bg-gray-600 rounded-lg shadow-lg transition-all opacity-50 cursor-not-allowed">
-                Enable Audio
-            </button>
+    <body
+        class="bg-gray-900 text-gray-100 min-h-screen font-sans flex items-center justify-center p-4"
+    >
+        <!-- Fullscreen overlay for audio start -->
+        <div
+            id="start-overlay"
+            class="fixed inset-0 bg-gray-900 bg-opacity-90 flex items-center justify-center z-50 cursor-pointer"
+        >
+            <div class="text-center p-8 bg-gray-800 rounded-xl shadow-2xl max-w-md">
+                <h2 class="text-2xl font-bold text-blue-400 mb-4">Web Arpeggiator</h2>
+                <p class="text-lg text-gray-300 mb-6">Press anywhere to enable audio</p>
+                <button
+                    id="start-button"
+                    class="text-xl font-bold py-3 px-6 bg-orange-600 hover:bg-orange-700 rounded-lg shadow-lg transition-all animate-pulse"
+                >
+                    Enable Audio
+                </button>
+            </div>
         </div>
 
-        <!-- Card: Transport -->
-        <section class="bg-gray-700 p-4 rounded-lg shadow-inner sm:col-span-2 col-span-full"
-            aria-labelledby="transport-title">
-            <h2 id="transport-title" class="text-xl font-semibold mb-3 text-blue-300">Transport</h2>
-            <div class="space-y-4">
-                <div>
-                    <label for="post-gain" class="block text-sm font-medium mb-1">Post Gain: <span
-                            id="post-gain-value">100</span>%</label>
-                    <input type="range" id="post-gain" min="-40" max="0" value="0" step="1">
-                </div>
-                <div>
-                    <label for="bpm" class="block text-sm font-medium mb-1">BPM: <span id="bpm-value">120</span></label>
-                    <input type="range" id="bpm" min="40" max="240" value="120" step="1">
-                </div>
-                <div>
-                    <label for="swing" class="block text-sm font-medium mb-1">Swing: <span
-                            id="swing-value">0.00</span></label>
-                    <input type="range" id="swing" min="0" max="1" value="0" step="0.01">
-                </div>
+        <main
+            class="w-full max-w-4xl bg-gray-800 rounded-2xl shadow-2xl p-6 sm:p-8 grid grid-cols-1 sm:grid-cols-6 gap-6"
+        >
+            <h1 class="col-span-full text-3xl font-bold text-center text-blue-400">
+                Web Arpeggiator
+            </h1>
+
+            <!-- Visually hidden screen reader announcements live region -->
+            <div id="sr-announcements" role="status" aria-live="polite" class="sr-only"></div>
+
+            <!-- Card: Main Audio Control -->
+            <div class="col-span-full grid grid-cols-2 gap-6">
+                <!-- `onclick` attribute to start the synth -->
+                <button
+                    id="play-stop"
+                    aria-label="Press anywhere on screen to enable audio context first (play/stop control currently disabled)"
+                    class="col-span-2 text-lg font-bold py-3 px-6 bg-gray-600 rounded-lg shadow-lg transition-all opacity-50 cursor-not-allowed"
+                >
+                    Enable Audio
+                </button>
             </div>
-        </section>
 
-        <!-- Card: Pattern -->
-        <section class="bg-gray-700 p-4 rounded-lg shadow-inner sm:col-span-4 col-span-full"
-            aria-labelledby="pattern-title">
-            <h2 id="pattern-title" class="text-xl font-semibold mb-3 text-blue-300">Pattern</h2>
-            <div class="space-y-4">
-                <div>
-                    <div class="flex justify-between items-center mb-1">
-                        <label for="notes" class="block text-sm font-medium">Notes <span
-                                class="text-xs text-gray-300 font-normal">e.g., C4 E4 G4 C#4 Eb5</span></label>
-                        <button id="randomize-notes"
-                            title="Generates a random, musically coherent sequence of 4–6 notes. When Scale Quantization is enabled, notes are drawn strictly from the active scale. When disabled, a random root note and scale mode are also chosen automatically."
-                            class="text-xs font-bold py-1 px-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded transition-all flex items-center gap-1 shadow-md">
-                            <span>🎲</span> Randomize
-                        </button>
+            <!-- Card: Transport -->
+            <section
+                class="bg-gray-700 p-4 rounded-lg shadow-inner sm:col-span-2 col-span-full"
+                aria-labelledby="transport-title"
+            >
+                <h2 id="transport-title" class="text-xl font-semibold mb-3 text-blue-300">
+                    Transport
+                </h2>
+                <div class="space-y-4">
+                    <div>
+                        <label for="post-gain" class="block text-sm font-medium mb-1"
+                            >Post Gain: <span id="post-gain-value">100</span>%</label
+                        >
+                        <input type="range" id="post-gain" min="-40" max="0" value="0" step="1" />
                     </div>
-
-                    <input type="text" id="notes" value="C4 E4 G4" placeholder="e.g., C4 E4 G4 C#4 Eb5"
-                        autocomplete="off"
-                        class="w-full p-2 bg-gray-800 border border-gray-600 rounded-md text-gray-100"
-                        onkeydown="return filterNoteInput(event);">
-
-                    <!-- Note Step Indicator: highlights the currently playing note during playback -->
-                    <div id="note-step-indicator" aria-hidden="true"></div>
-                </div>
-
-                <!-- START Selection: Pattern Direction -->
-                <div class="space-y-2">
-                    <label id="pattern-label" class="block text-sm font-medium mb-1">Pattern Direction</label>
-                    <div id="pattern-buttons" role="group" aria-labelledby="pattern-label">
-                        <button class="pattern-btn selected" data-pattern="up">
-                            <svg class="stroke-current" fill="none" viewBox="0 0 32 32"
-                                xmlns="http://www.w3.org/2000/svg">
-                                <path d="M2 16 L30 2" stroke-linecap="round" stroke-linejoin="round" />
-                            </svg>
-                            <span class="text-xs font-medium">Up</span>
-                        </button>
-                        <button class="pattern-btn" data-pattern="down">
-                            <svg class="stroke-current" fill="none" viewBox="0 0 32 32"
-                                xmlns="http://www.w3.org/2000/svg">
-                                <path d="M30 16 L2 2" stroke-linecap="round" stroke-linejoin="round" />
-                            </svg>
-                            <span class="text-xs font-medium">Down</span>
-                        </button>
-                        <button class="pattern-btn" data-pattern="upDown">
-                            <svg class="stroke-current" fill="none" viewBox="0 0 32 32"
-                                xmlns="http://www.w3.org/2000/svg">
-                                <path d="M2 16 L16 2 L30 16" stroke-linecap="round" stroke-linejoin="round" />
-                            </svg>
-                            <span class="text-xs font-medium">Up-Down</span>
-                        </button>
-                        <button class="pattern-btn" data-pattern="downUp">
-                            <svg class="stroke-current" fill="none" viewBox="0 0 32 32"
-                                xmlns="http://www.w3.org/2000/svg">
-                                <path d="M30 2L16 16 2 2" stroke-linecap="round" stroke-linejoin="round" />
-                            </svg>
-                            <span class="text-xs font-medium">Down-Up</span>
-                        </button>
-                        <button class="pattern-btn" data-pattern="upDownRepeat">
-                            <svg class="stroke-current" fill="none" viewBox="0 0 32 32"
-                                xmlns="http://www.w3.org/2000/svg">
-                                <path d="M2 16L10 2l2.0-.0 6 14 2.54.0 8.0-14 1.5-.0" stroke-linecap="round"
-                                    stroke-linejoin="round" />
-                            </svg>
-                            <span class="text-xs font-medium">Up-Down <wbr>(Repeated)</span>
-                        </button>
-                        <button class="pattern-btn" data-pattern="downUpRepeat">
-                            <svg class="stroke-current" fill="none" viewBox="0 0 32 32"
-                                xmlns="http://www.w3.org/2000/svg">
-                                <path d="M2 2 l8 14 2.57.00 L18 2l2.50.0 8.0 14 1.01.0" stroke-linecap="round"
-                                    stroke-linejoin="round" />
-                            </svg>
-                            <span class="text-xs font-medium">Down-Up <wbr>(Repeated)</span>
-                        </button>
-                        <button class="pattern-btn" data-pattern="random">
-                            <svg class="stroke-current" fill="none" viewBox="0 0 32 32"
-                                xmlns="http://www.w3.org/2000/svg">
-                                <path d="M2 2 l8 14 2.57.00 L18 2 l2.5 0.0 8.0 14 1.01.0" stroke-linecap="round"
-                                    stroke-linejoin="round" />
-                            </svg>
-                            <span class="text-xs font-medium">Random</span>
-                        </button>
-                        <button class="pattern-btn" data-pattern="octaveCycle">
-                            <svg class="stroke-current" fill="none" viewBox="0 0 32 32"
-                                xmlns="http://www.w3.org/2000/svg">
-                                <circle cx="8" cy="24" r="3" fill="#38bdf8" />
-                                <circle cx="16" cy="16" r="3" fill="#38bdf8" />
-                                <circle cx="24" cy="8" r="3" fill="#38bdf8" />
-                            </svg>
-                            <span class="text-xs font-medium">Octave <wbr>Cycle</span>
-                        </button>
-                        <button class="pattern-btn" data-pattern="octaveCycleReverse">
-                            <svg class="stroke-current" fill="none" viewBox="0 0 32 32"
-                                xmlns="http://www.w3.org/2000/svg">
-                                <circle cx="8" cy="8" r="3" fill="#38bdf8" />
-                                <circle cx="16" cy="16" r="3" fill="#38bdf8" />
-                                <circle cx="24" cy="24" r="3" fill="#38bdf8" />
-                            </svg>
-                            <span class="text-xs font-medium">Reversed <wbr>Octaves</span>
-                        </button>
-                        <button class="pattern-btn" data-pattern="octaveCyclePingPong">
-                            <svg class="stroke-current" fill="none" viewBox="0 0 32 32"
-                                xmlns="http://www.w3.org/2000/svg">
-                                <circle cx="4" cy="24" r="2.5" fill="#38bdf8" />
-                                <circle cx="10" cy="16" r="2.5" fill="#38bdf8" />
-                                <circle cx="16" cy="8" r="2.5" fill="#38bdf8" />
-                                <circle cx="22" cy="16" r="2.5" fill="#38bdf8" />
-                                <circle cx="28" cy="24" r="2.5" fill="#38bdf8" />
-                            </svg>
-                            <span class="text-xs font-medium">Ping-Pong <wbr>Octaves</span>
-                        </button>
-                        <button class="pattern-btn" data-pattern="randomWalk">
-                            <svg class="stroke-current" fill="none" viewBox="0 0 32 32"
-                                xmlns="http://www.w3.org/2000/svg">
-                                <path d="M2 16 Q6 12, 10 16 T18 12 T24 16 T30 12" stroke-linecap="round"
-                                    stroke-linejoin="round" />
-                            </svg>
-                            <span class="text-xs font-medium">Random <wbr>Walk</span>
-                        </button>
-                        <button class="pattern-btn" data-pattern="randomWalkDrunk">
-                            <svg class="stroke-current" fill="none" viewBox="0 0 32 32"
-                                xmlns="http://www.w3.org/2000/svg">
-                                <path d="M2 16 Q8 2, 12 7 T22 4 T30 24" stroke-linecap="round"
-                                    stroke-linejoin="round" />
-                            </svg>
-                            <span class="text-xs font-medium">Drunkard's <wbr>Walk</span>
-                        </button>
+                    <div>
+                        <label for="bpm" class="block text-sm font-medium mb-1"
+                            >BPM: <span id="bpm-value">120</span></label
+                        >
+                        <input type="range" id="bpm" min="40" max="240" value="120" step="1" />
+                    </div>
+                    <div>
+                        <label for="swing" class="block text-sm font-medium mb-1"
+                            >Swing: <span id="swing-value">0.00</span></label
+                        >
+                        <input type="range" id="swing" min="0" max="1" value="0" step="0.01" />
                     </div>
                 </div>
-                <!-- END Selection: Pattern Direction -->
+            </section>
 
-                <!-- START Selection: Note Duration -->
-                <div>
-                    <label for="interval" class="block text-sm font-medium mb-1">Note Duration</label>
-                    <select id="interval"
-                        class="w-full p-2 bg-gray-800 border border-gray-600 rounded-md text-gray-100">
-                        <option value="32n">32nd</option>
-                        <option value="16n" selected>16th</option>
-                        <option value="8n">8th</option>
-                        <option value="4n">Quarter</option>
-                        <option value="2n">Half</option>
-                    </select>
-                </div>
-                <!-- END Selection: Note Duration -->
-            </div>
-        </section>
-
-
-        <!-- Card: Scale Quantization -->
-        <section class="bg-gray-700 p-4 rounded-lg shadow-inner sm:col-span-3 col-span-full"
-            aria-labelledby="scale-quantization-title">
-            <details class="card-details">
-                <summary>
-                    <h2 id="scale-quantization-title" class="text-xl font-semibold text-blue-300 inline">🎼 Scale
-                        Quantization</h2>
-                </summary>
-                <div id="quantizer-card" class="mt-4">
-                    <div class="flex items-center justify-between mb-3">
-                        <p class="text-xs text-gray-400">This feature "snaps" the notes you enter to the nearest
-                            note in the selected scale, helping you stay in key.<br />Set to "Chromatic (Off)" to
-                            disable, or toggle the checkbox on the right.</p>
-                        <label class="flex items-center space-x-1 cursor-pointer pl-4">
-                            <input role="switch" type="checkbox" id="scale-quantize-toggle" aria-checked="true"
-                                class="h-5 w-5 rounded border-radius-full bg-gray-800 border-gray-600 text-blue-500 focus:ring-blue-600">
-                            <span id="scale-quantize-toggle-status" class="text-sm">Off</span>
-                        </label>
-                    </div>
-                    <div id="quantizer-controls" class="grid grid-cols-2 gap-4">
-                        <!-- START Selector: Root Note -->
-                        <div>
-                            <label for="scale-root" class="block text-sm font-medium mb-1">Root Note</label>
-                            <select id="scale-root"
-                                class="w-full p-2 bg-gray-800 border border-gray-600 rounded-md text-gray-100">
-                                <option value="C">C</option>
-                                <option value="C#">C# / Db</option>
-                                <option value="D">D</option>
-                                <option value="D#">D# / Eb</option>
-                                <option value="E">E</option>
-                                <option value="F">F</option>
-                                <option value="F#">F# / Gb</option>
-                                <option value="G">G</option>
-                                <option value="G#">G# / Ab</option>
-                                <option value="A">A</option>
-                                <option value="A#">A# / Bb</option>
-                                <option value="B">B</option>
-                            </select>
-                        </div>
-                        <!-- END Selector: Root Note -->
-
-                        <!-- START Selector: Scale Type -->
-                        <div>
-                            <label for="scale-type" class="block text-sm font-medium mb-1">Scale Type</label>
-                            <select id="scale-type"
-                                class="w-full p-2 bg-gray-800 border border-gray-600 rounded-md text-gray-100">
-                                <option value="major" selected>Major</option>
-                                <option value="minor">Minor</option>
-                                <option value="majorPentatonic">Major Pentatonic</option>
-                                <option value="minorPentatonic">Minor Pentatonic</option>
-                                <option value="chromatic">Chromatic (Off)</option>
-                                <option value="dorian">Dorian</option>
-                                <option value="phrygian">Phrygian</option>
-                                <option value="lydian">Lydian</option>
-                                <option value="mixolydian">Mixolydian</option>
-                                <option value="locrian">Locrian</option>
-                            </select>
-                        </div>
-                        <!-- END Selector: Scale Type -->
-                    </div>
-                </div>
-            </details>
-        </section>
-
-        <!-- Card: Keyboard Control -->
-        <section class="bg-gray-700 p-4 rounded-lg shadow-inner sm:col-span-3 col-span-full"
-            aria-labelledby="keyboard-title">
-            <details id="keyboard-details" class="card-details">
-                <summary>
-                    <h2 id="keyboard-title" class="text-xl font-semibold text-blue-300 inline">⌨️ Keyboard Control</h2>
-                </summary>
-                <div class="flex items-center justify-between mb-3 mt-4">
-                    <p id="keyboard-description" class="text-xs text-gray-400 mb-2 text-left align-middle">Press keys on
-                        your
-                        keyboard to test notes manually.<br />Only one note can be played at a time.</p>
-                    <label class="flex items-center space-x-1 cursor-pointer pl-4">
-                        <input role="switch" type="checkbox" id="keyboard-toggle" aria-checked="true" checked
-                            class="h-5 w-5 rounded border-radius-full bg-gray-800 border-gray-600 text-blue-500 focus:ring-blue-600">
-                        <span id="keyboard-toggle-status" class="text-sm">Off</span>
-                    </label>
-                </div>
-
-                <!-- START Visual Keyboard -->
-                <div class="mt-4">
-                    <div id="keyboard-visual" class="">
-                        <!-- Generated by JavaScript -->
-                    </div>
-                </div>
-                <!-- END Visual Keyboard -->
-            </details>
-        </section>
-
-        <!-- Card: Synth Controls -->
-        <section class="sm:col-span-3 col-span-full bg-gray-700 p-4 rounded-lg shadow-inner"
-            aria-labelledby="synth-title">
-            <h2 id="synth-title" class="text-xl font-semibold mb-3 text-blue-300">Synth</h2>
-            <div class="space-y-4">
-                <!-- START Selector: Synth Type -->
-                <div>
-                    <label for="synth-type" class="block text-sm font-medium mb-1">Synth Type</label>
-                    <select id="synth-type"
-                        class="w-full p-2 bg-gray-800 border border-gray-600 rounded-md text-gray-100">
-                        <option value="synth" selected>Basic Synth</option>
-                        <option value="fmSynth">FM Synth</option>
-                        <option value="amSynth">AM Synth</option>
-                    </select>
-                </div>
-                <!-- END Selector: Synth Type -->
-
-                <!-- START Selector: Visual Waveform -->
-                <div id="waveform-buttons-container">
-                    <label id="waveform-label" class="block text-sm font-medium mb-1">
-                        Waveform <span id="carrier-label"
-                            class="text-xs text-gray-400 font-normal hidden">(Carrier)</span>
-                    </label>
-                    <!-- flex layout for responsive overflow -->
-                    <div id="waveform-buttons" role="group" aria-labelledby="waveform-label"
-                        class="flex flex-wrap gap-2">
-                        <button class="waveform-btn" data-wave="sine">
-                            <svg id="svg-sine" class="stroke-current" fill="none" viewBox="0 0 32 32"
-                                xmlns="http://www.w3.org/2000/svg">
-                                <path d="M2 16 C2 16 6 4 10 4 C14 4 18 28 22 28 C26 28 30 16 30 16"
-                                    stroke-linecap="round" stroke-linejoin="round" />
-                            </svg>
-                            <span class="text-xs font-medium">Sine</span>
-                        </button>
-                        <button class="waveform-btn" data-wave="sawtooth">
-                            <svg id="svg-sawtooth" class="stroke-current" fill="none" viewBox="0 0 32 32"
-                                xmlns="http://www.w3.org/2000/svg">
-                                <path d="M2 24 L10 8 V24 L18 8 V24 L26 8 V24 H30" stroke-linecap="round"
-                                    stroke-linejoin="round" />
-                            </svg>
-                            <span class="text-xs font-medium">Sawtooth</span>
-                        </button>
-                        <button class="waveform-btn" data-wave="triangle">
-                            <svg id="svg-triangle" class="stroke-current" fill="none" viewBox="0 0 32 32"
-                                xmlns="http://www.w3.org/2000/svg">
-                                <path d="M2 16 L6 8 L14 24 L22 8 L30 16" stroke-linecap="round"
-                                    stroke-linejoin="round" />
-                            </svg>
-                            <span class="text-xs font-medium">Triangle</span>
-                        </button>
-                        <button class="waveform-btn" data-wave="square">
-                            <svg id="svg-square" class="stroke-current" fill="none" viewBox="0 0 32 32"
-                                xmlns="http://www.w3.org/2000/svg">
-                                <path d="M2 24 V8 H10 V24 H18 V8 H26 V24 H30" stroke-linecap="round"
-                                    stroke-linejoin="round" />
-                            </svg>
-                            <span class="text-xs font-medium">Square</span>
-                        </button>
-                        <button class="waveform-btn" data-wave="pulse">
-                            <svg id="svg-pulse" class="stroke-current" fill="none" viewBox="0 0 32 32"
-                                xmlns="http://www.w3.org/2000/svg">
-                                <path d="M2 24 V8 H6 V24 H14 V8 H18 V24 H26 V8 H30" stroke-linecap="round"
-                                    stroke-linejoin="round" />
-                            </svg>
-                            <span class="text-xs font-medium">Pulse</span>
-                        </button>
-                    </div>
-                </div>
-                <!-- END Selector: Visual Waveform -->
-
-                <!-- START Selector: Synth Type Params -->
-                <div id="basic-synth-params" class="hidden space-y-4">
-                    <div id="duty-control">
-                        <label for="duty-cycle" class="block text-sm font-medium mb-1">
-                            Duty Cycle: <span id="duty-value">0.50</span>
-                        </label>
-                        <input type="range" id="duty-cycle" min="0.01" max="0.99" step="0.01" value="0.5">
-                    </div>
-                </div>
-                <!-- END Selector: Synth Type Params -->
-
-                <!-- START Selector: Advanced Synth Params (hidden by default) -->
-                <div id="advanced-synth-params" class="hidden space-y-4">
-                    <div id="harmonicity-control">
-                        <label for="harmonicity" class="block text-sm font-medium mb-1">Harmonicity: <span
-                                id="harmonicity-value">3.0</span></label>
-                        <input type="range" id="harmonicity" min="0.5" max="10" value="3" step="0.1">
-                    </div>
-                    <div id="mod-index-control">
-                        <label for="modulation-index" class="block text-sm font-medium mb-1">Mod. Index: <span
-                                id="modulation-index-value">10.0</span></label>
-                        <input type="range" id="modulation-index" min="1" max="50" value="10" step="0.1">
-                    </div>
-                </div>
-                <!-- END Selector: Advanced Synth Params -->
-
-                <!-- START Selector: Gate -->
-                <div>
-                    <label for="gate" class="block text-sm font-medium mb-1">Gate (Note Length): <span
-                            id="gate-value">0.80</span></label>
-                    <input type="range" id="gate" min="0.05" max="1.0" value="0.8" step="0.01">
-                </div>
-                <!-- END Selector: Gate -->
-            </div>
-        </section>
-
-        <!-- Card: Envelope (ADSR) -->
-        <section class="sm:col-span-3 col-span-full bg-gray-700 p-4 rounded-lg shadow-inner"
-            aria-labelledby="envelope-title">
-            <h2 id="envelope-title" class="text-xl font-semibold mb-3 text-blue-300">Envelope (ADSR)</h2>
-            <div class="space-y-4">
-                <!-- START Selector: Attack -->
-                <div>
-                    <label for="env-attack" class="block text-sm font-medium mb-1">Attack: <span
-                            id="env-attack-value">0.01</span>s</label>
-                    <input type="range" id="env-attack" min="0" max="2" value="0.01" step="0.01">
-                </div>
-                <!-- END Selector: Attack -->
-
-                <!-- START Selector: Decay -->
-                <label for="env-decay" class="block text-sm font-medium mb-1">Decay: <span
-                        id="env-decay-value">0.10</span>s</label>
-                <input type="range" id="env-decay" min="0" max="2" value="0.1" step="0.01">
-                <!-- END Selector: Decay -->
-
-                <!-- START Selector: Sustain -->
-                <div>
-                    <label for="env-sustain" class="block text-sm font-medium mb-1">Sustain: <span
-                            id="env-sustain-value">0.30</span></label>
-                    <input type="range" id="env-sustain" min="0" max="1" value="0.3" step="0.01">
-                </div>
-                <!-- END Selector: Sustain -->
-
-                <!-- START Selector: Release -->
-                <div>
-                    <label for="env-release" class="block text-sm font-medium mb-1">Release: <span
-                            id="env-release-value">0.50</span>s</label>
-                    <input type="range" id="env-release" min="0" max="5" value="0.5" step="0.01">
-                </div>
-                <!-- END Selector: Release -->
-            </div>
-        </section>
-
-        <!-- Card: Octave -->
-        <section class="sm:col-span-2 col-span-full bg-gray-700 p-4 rounded-lg shadow-inner"
-            aria-labelledby="octave-title">
-            <h2 id="octave-title" class="text-xl font-semibold mb-3 text-blue-300">Octave</h2>
-            <div class="space-y-4">
-                <!-- START Selector: Octave Shift -->
-                <div class="space-y-2">
-                    <label id="octave-shift-label" class="block text-sm font-medium">Octave Shift <span
-                            class="text-xs text-gray-400 font-normal">(0 = no shift)</span></label>
-                    <div id="octave-shift-buttons" role="group" aria-labelledby="octave-shift-label"
-                        class="flex flex-wrap justify-center gap-2">
-                        <button class="octave-btn" data-shift="-3">-3</button>
-                        <button class="octave-btn" data-shift="-2">-2</button>
-                        <button class="octave-btn" data-shift="-1">-1</button>
-                        <button class="octave-btn" data-shift="0">0</button>
-                        <button class="octave-btn" data-shift="1">+1</button>
-                        <button class="octave-btn" data-shift="2">+2</button>
-                        <button class="octave-btn" data-shift="3">+3</button>
-                    </div>
-                </div>
-                <!-- END Selector: Octave Shift -->
-
-                <!-- START Selector: Octave Layers -->
-                <div class="space-y-2">
-                    <label id="octave-range-label" class="block text-sm font-medium">Octave Layers <span
-                            class="text-xs text-gray-400 font-normal">(1 = base only)</span></label>
-                    <div id="octave-range-buttons" role="group" aria-labelledby="octave-range-label"
-                        class="flex flex-wrap justify-center gap-2">
-                        <button class="octave-btn" data-range="1">1</button>
-                        <button class="octave-btn" data-range="2">2</button>
-                        <button class="octave-btn" data-range="3">3</button>
-                        <button class="octave-btn" data-range="4">4</button>
-                        <button class="octave-btn" data-range="5">5</button>
-                    </div>
-                </div>
-                <!-- END Selector: Octave Layers -->
-            </div>
-        </section>
-
-        <!-- Card: Filter Controls -->
-        <section class="sm:col-span-2 col-span-full bg-gray-700 p-4 rounded-lg shadow-inner"
-            aria-labelledby="filter-title">
-            <h2 id="filter-title" class="text-xl font-semibold mb-3 text-blue-300">Filter</h2>
-            <div class="space-y-4">
-                <!-- START Selector: Filter Cutoff -->
-                <div>
-                    <label for="filter-cutoff" class="block text-sm font-medium mb-1">Cutoff: <span
-                            id="filter-cutoff-value">4000</span> Hz</label>
-                    <input type="range" id="filter-cutoff" min="100" max="10000" value="4000" step="10">
-                </div>
-                <!-- END Selector: Filter Cutoff -->
-
-                <!-- START Selector: Filter Resonance -->
-                <div>
-                    <label for="filter-resonance" class="block text-sm font-medium mb-1">Resonance: <span
-                            id="filter-resonance-value">1.0</span></label>
-                    <input type="range" id="filter-resonance" min="0" max="20" value="1.0" step="0.1">
-                </div>
-                <!-- END Selector: Filter Resonance -->
-            </div>
-        </section>
-
-        <!-- Card: Effects Controls -->
-        <section class="sm:col-span-2 col-span-full bg-gray-700 p-4 rounded-lg shadow-inner"
-            aria-labelledby="effects-title">
-            <h2 id="effects-title" class="text-xl font-semibold mb-3 text-blue-300">Effects</h2>
-            <div class="space-y-4">
-                <!-- START Selector: Delay Mix -->
-                <div>
-                    <label for="delay-mix" class="block text-sm font-medium mb-1">Delay Mix: <span
-                            id="delay-mix-value">0.20</span></label>
-                    <input type="range" id="delay-mix" min="0" max="1" value="0.2" step="0.01">
-                </div>
-                <!-- END Selector: Delay Mix -->
-
-                <!-- START Selector: Reverb Mix -->
-                <div>
-                    <label for="reverb-mix" class="block text-sm font-medium mb-1">Reverb Mix: <span
-                            id="reverb-mix-value">0.30</span></label>
-                    <input type="range" id="reverb-mix" min="0" max="1" value="0.3" step="0.01">
-                </div>
-                <!-- END Selector: Reverb Mix -->
-            </div>
-        </section>
-
-        <!-- Card: Utilities -->
-        <section class="bg-gray-700 p-4 rounded-lg shadow-inner col-span-full" aria-labelledby="utilities-title">
-            <details class="card-details">
-                <summary>
-                    <h2 id="utilities-title" class="text-xl font-semibold text-blue-300 inline">Utilities</h2>
-                </summary>
-                <div class="mt-4">
-                    <!-- START Visualizer -->
-                    <div class="space-y-4">
-                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 items-center">
-                            <button id="toggle-visualizer"
-                                class="w-full text-sm font-bold py-2 px-4 bg-green-600 hover:bg-green-700 rounded-lg shadow-lg transition-all">
-                                Enable Visualizer
+            <!-- Card: Pattern -->
+            <section
+                class="bg-gray-700 p-4 rounded-lg shadow-inner sm:col-span-4 col-span-full"
+                aria-labelledby="pattern-title"
+            >
+                <h2 id="pattern-title" class="text-xl font-semibold mb-3 text-blue-300">Pattern</h2>
+                <div class="space-y-4">
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <label for="notes" class="block text-sm font-medium"
+                                >Notes
+                                <span class="text-xs text-gray-300 font-normal"
+                                    >e.g., C4 E4 G4 C#4 Eb5</span
+                                ></label
+                            >
+                            <button
+                                id="randomize-notes"
+                                title="Generates a random, musically coherent sequence of 4–6 notes. When Scale Quantization is enabled, notes are drawn strictly from the active scale. When disabled, a random root note and scale mode are also chosen automatically."
+                                class="text-xs font-bold py-1 px-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded transition-all flex items-center gap-1 shadow-md"
+                            >
+                                <span>🎲</span> Randomize
                             </button>
-                            <div class="flex items-center space-x-2">
-                                <label for="visualizer-mode" class="text-xs font-semibold text-gray-300">Mode:</label>
-                                <select id="visualizer-mode"
-                                    class="flex-1 p-2 text-sm bg-gray-800 border border-gray-600 rounded-md text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                    <option value="oscilloscope" selected>Live Oscilloscope</option>
-                                    <option value="fft">FFT Spectrum</option>
-                                    <option value="loopMap">Arpeggio Loop Map</option>
+                        </div>
+
+                        <input
+                            type="text"
+                            id="notes"
+                            value="C4 E4 G4"
+                            placeholder="e.g., C4 E4 G4 C#4 Eb5"
+                            autocomplete="off"
+                            class="w-full p-2 bg-gray-800 border border-gray-600 rounded-md text-gray-100"
+                            onkeydown="return filterNoteInput(event);"
+                        />
+
+                        <!-- Note Step Indicator: highlights the currently playing note during playback -->
+                        <div id="note-step-indicator" aria-hidden="true"></div>
+                    </div>
+
+                    <!-- START Selection: Pattern Direction -->
+                    <div class="space-y-2">
+                        <label id="pattern-label" class="block text-sm font-medium mb-1"
+                            >Pattern Direction</label
+                        >
+                        <div id="pattern-buttons" role="group" aria-labelledby="pattern-label">
+                            <button class="pattern-btn selected" data-pattern="up">
+                                <svg
+                                    class="stroke-current"
+                                    fill="none"
+                                    viewBox="0 0 32 32"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                >
+                                    <path
+                                        d="M2 16 L30 2"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                    />
+                                </svg>
+                                <span class="text-xs font-medium">Up</span>
+                            </button>
+                            <button class="pattern-btn" data-pattern="down">
+                                <svg
+                                    class="stroke-current"
+                                    fill="none"
+                                    viewBox="0 0 32 32"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                >
+                                    <path
+                                        d="M30 16 L2 2"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                    />
+                                </svg>
+                                <span class="text-xs font-medium">Down</span>
+                            </button>
+                            <button class="pattern-btn" data-pattern="upDown">
+                                <svg
+                                    class="stroke-current"
+                                    fill="none"
+                                    viewBox="0 0 32 32"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                >
+                                    <path
+                                        d="M2 16 L16 2 L30 16"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                    />
+                                </svg>
+                                <span class="text-xs font-medium">Up-Down</span>
+                            </button>
+                            <button class="pattern-btn" data-pattern="downUp">
+                                <svg
+                                    class="stroke-current"
+                                    fill="none"
+                                    viewBox="0 0 32 32"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                >
+                                    <path
+                                        d="M30 2L16 16 2 2"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                    />
+                                </svg>
+                                <span class="text-xs font-medium">Down-Up</span>
+                            </button>
+                            <button class="pattern-btn" data-pattern="upDownRepeat">
+                                <svg
+                                    class="stroke-current"
+                                    fill="none"
+                                    viewBox="0 0 32 32"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                >
+                                    <path
+                                        d="M2 16L10 2l2.0-.0 6 14 2.54.0 8.0-14 1.5-.0"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                    />
+                                </svg>
+                                <span class="text-xs font-medium">Up-Down <wbr />(Repeated)</span>
+                            </button>
+                            <button class="pattern-btn" data-pattern="downUpRepeat">
+                                <svg
+                                    class="stroke-current"
+                                    fill="none"
+                                    viewBox="0 0 32 32"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                >
+                                    <path
+                                        d="M2 2 l8 14 2.57.00 L18 2l2.50.0 8.0 14 1.01.0"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                    />
+                                </svg>
+                                <span class="text-xs font-medium">Down-Up <wbr />(Repeated)</span>
+                            </button>
+                            <button class="pattern-btn" data-pattern="random">
+                                <svg
+                                    class="stroke-current"
+                                    fill="none"
+                                    viewBox="0 0 32 32"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                >
+                                    <path
+                                        d="M2 2 l8 14 2.57.00 L18 2 l2.5 0.0 8.0 14 1.01.0"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                    />
+                                </svg>
+                                <span class="text-xs font-medium">Random</span>
+                            </button>
+                            <button class="pattern-btn" data-pattern="octaveCycle">
+                                <svg
+                                    class="stroke-current"
+                                    fill="none"
+                                    viewBox="0 0 32 32"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                >
+                                    <circle cx="8" cy="24" r="3" fill="#38bdf8" />
+                                    <circle cx="16" cy="16" r="3" fill="#38bdf8" />
+                                    <circle cx="24" cy="8" r="3" fill="#38bdf8" />
+                                </svg>
+                                <span class="text-xs font-medium">Octave <wbr />Cycle</span>
+                            </button>
+                            <button class="pattern-btn" data-pattern="octaveCycleReverse">
+                                <svg
+                                    class="stroke-current"
+                                    fill="none"
+                                    viewBox="0 0 32 32"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                >
+                                    <circle cx="8" cy="8" r="3" fill="#38bdf8" />
+                                    <circle cx="16" cy="16" r="3" fill="#38bdf8" />
+                                    <circle cx="24" cy="24" r="3" fill="#38bdf8" />
+                                </svg>
+                                <span class="text-xs font-medium">Reversed <wbr />Octaves</span>
+                            </button>
+                            <button class="pattern-btn" data-pattern="octaveCyclePingPong">
+                                <svg
+                                    class="stroke-current"
+                                    fill="none"
+                                    viewBox="0 0 32 32"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                >
+                                    <circle cx="4" cy="24" r="2.5" fill="#38bdf8" />
+                                    <circle cx="10" cy="16" r="2.5" fill="#38bdf8" />
+                                    <circle cx="16" cy="8" r="2.5" fill="#38bdf8" />
+                                    <circle cx="22" cy="16" r="2.5" fill="#38bdf8" />
+                                    <circle cx="28" cy="24" r="2.5" fill="#38bdf8" />
+                                </svg>
+                                <span class="text-xs font-medium">Ping-Pong <wbr />Octaves</span>
+                            </button>
+                            <button class="pattern-btn" data-pattern="randomWalk">
+                                <svg
+                                    class="stroke-current"
+                                    fill="none"
+                                    viewBox="0 0 32 32"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                >
+                                    <path
+                                        d="M2 16 Q6 12, 10 16 T18 12 T24 16 T30 12"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                    />
+                                </svg>
+                                <span class="text-xs font-medium">Random <wbr />Walk</span>
+                            </button>
+                            <button class="pattern-btn" data-pattern="randomWalkDrunk">
+                                <svg
+                                    class="stroke-current"
+                                    fill="none"
+                                    viewBox="0 0 32 32"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                >
+                                    <path
+                                        d="M2 16 Q8 2, 12 7 T22 4 T30 24"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                    />
+                                </svg>
+                                <span class="text-xs font-medium">Drunkard's <wbr />Walk</span>
+                            </button>
+                        </div>
+                    </div>
+                    <!-- END Selection: Pattern Direction -->
+
+                    <!-- START Selection: Note Duration -->
+                    <div>
+                        <label for="interval" class="block text-sm font-medium mb-1"
+                            >Note Duration</label
+                        >
+                        <select
+                            id="interval"
+                            class="w-full p-2 bg-gray-800 border border-gray-600 rounded-md text-gray-100"
+                        >
+                            <option value="32n">32nd</option>
+                            <option value="16n" selected>16th</option>
+                            <option value="8n">8th</option>
+                            <option value="4n">Quarter</option>
+                            <option value="2n">Half</option>
+                        </select>
+                    </div>
+                    <!-- END Selection: Note Duration -->
+                </div>
+            </section>
+
+            <!-- Card: Scale Quantization -->
+            <section
+                class="bg-gray-700 p-4 rounded-lg shadow-inner sm:col-span-3 col-span-full"
+                aria-labelledby="scale-quantization-title"
+            >
+                <details class="card-details">
+                    <summary>
+                        <h2
+                            id="scale-quantization-title"
+                            class="text-xl font-semibold text-blue-300 inline"
+                        >
+                            🎼 Scale Quantization
+                        </h2>
+                    </summary>
+                    <div id="quantizer-card" class="mt-4">
+                        <div class="flex items-center justify-between mb-3">
+                            <p class="text-xs text-gray-400">
+                                This feature "snaps" the notes you enter to the nearest note in the
+                                selected scale, helping you stay in key.<br />Set to "Chromatic
+                                (Off)" to disable, or toggle the checkbox on the right.
+                            </p>
+                            <label class="flex items-center space-x-1 cursor-pointer pl-4">
+                                <input
+                                    role="switch"
+                                    type="checkbox"
+                                    id="scale-quantize-toggle"
+                                    aria-checked="true"
+                                    class="h-5 w-5 rounded border-radius-full bg-gray-800 border-gray-600 text-blue-500 focus:ring-blue-600"
+                                />
+                                <span id="scale-quantize-toggle-status" class="text-sm">Off</span>
+                            </label>
+                        </div>
+                        <div id="quantizer-controls" class="grid grid-cols-2 gap-4">
+                            <!-- START Selector: Root Note -->
+                            <div>
+                                <label for="scale-root" class="block text-sm font-medium mb-1"
+                                    >Root Note</label
+                                >
+                                <select
+                                    id="scale-root"
+                                    class="w-full p-2 bg-gray-800 border border-gray-600 rounded-md text-gray-100"
+                                >
+                                    <option value="C">C</option>
+                                    <option value="C#">C# / Db</option>
+                                    <option value="D">D</option>
+                                    <option value="D#">D# / Eb</option>
+                                    <option value="E">E</option>
+                                    <option value="F">F</option>
+                                    <option value="F#">F# / Gb</option>
+                                    <option value="G">G</option>
+                                    <option value="G#">G# / Ab</option>
+                                    <option value="A">A</option>
+                                    <option value="A#">A# / Bb</option>
+                                    <option value="B">B</option>
                                 </select>
                             </div>
-                            <button id="pause-visualizer" disabled
-                                class="w-full text-sm font-bold py-2 px-4 bg-gray-600 hover:bg-gray-500 rounded-lg shadow-lg transition-all opacity-50 cursor-not-allowed">
-                                Pause
-                            </button>
-                        </div>
-                        <div class="flex flex-col">
-                            <div id="visualizer-container"
-                                class="relative flex border-t border-x border-gray-600 rounded-t-md bg-gray-800 overflow-hidden">
-                                <canvas id="visualizer-yaxis" width="50" role="img"
-                                    aria-label="Visualizer Y-axis scale"></canvas>
-                                <div id="visualizer-viewport" class="flex-1 overflow-x-auto overflow-y-hidden">
-                                    <canvas id="visualizer-plot" role="img"
-                                        aria-label="Audio waveform visualizer"></canvas>
-                                </div>
+                            <!-- END Selector: Root Note -->
+
+                            <!-- START Selector: Scale Type -->
+                            <div>
+                                <label for="scale-type" class="block text-sm font-medium mb-1"
+                                    >Scale Type</label
+                                >
+                                <select
+                                    id="scale-type"
+                                    class="w-full p-2 bg-gray-800 border border-gray-600 rounded-md text-gray-100"
+                                >
+                                    <option value="major" selected>Major</option>
+                                    <option value="minor">Minor</option>
+                                    <option value="majorPentatonic">Major Pentatonic</option>
+                                    <option value="minorPentatonic">Minor Pentatonic</option>
+                                    <option value="chromatic">Chromatic (Off)</option>
+                                    <option value="dorian">Dorian</option>
+                                    <option value="phrygian">Phrygian</option>
+                                    <option value="lydian">Lydian</option>
+                                    <option value="mixolydian">Mixolydian</option>
+                                    <option value="locrian">Locrian</option>
+                                </select>
                             </div>
-                            <!-- Controls Footer Bar -->
-                            <div id="visualizer-controls-footer"
-                                class="flex flex-wrap items-center justify-between gap-4 p-3 bg-gray-700 rounded-b-md border-x border-b border-gray-600">
-                                <!-- Zoom Slider -->
-                                <div class="flex items-center space-x-2 flex-1 min-w-[200px]">
-                                    <label for="visualizer-zoom"
-                                        class="text-xs font-semibold text-gray-300">Zoom:</label>
-                                    <input type="range" id="visualizer-zoom" min="1" max="8" value="1" step="0.1"
-                                        class="flex-1">
-                                    <span id="visualizer-zoom-value"
-                                        class="text-xs text-gray-400 min-w-[28px] text-right">1.0x</span>
-                                </div>
-                                <!-- Time Window (Oscilloscope only) -->
-                                <div id="oscilloscope-window-container" class="flex items-center space-x-2">
-                                    <label for="oscilloscope-window" class="text-xs font-semibold text-gray-300">Time
-                                        Window:</label>
-                                    <select id="oscilloscope-window"
-                                        class="p-1 text-xs bg-gray-800 border border-gray-600 rounded-md text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                        <option value="50" selected>50ms (Default)</option>
-                                        <option value="100">100ms</option>
-                                        <option value="250">250ms</option>
-                                        <option value="500">500ms</option>
-                                        <option value="1000">1.0s</option>
-                                    </select>
-                                </div>
-                            </div>
+                            <!-- END Selector: Scale Type -->
                         </div>
                     </div>
-                    <!-- END Visualizer -->
+                </details>
+            </section>
+
+            <!-- Card: Keyboard Control -->
+            <section
+                class="bg-gray-700 p-4 rounded-lg shadow-inner sm:col-span-3 col-span-full"
+                aria-labelledby="keyboard-title"
+            >
+                <details id="keyboard-details" class="card-details">
+                    <summary>
+                        <h2 id="keyboard-title" class="text-xl font-semibold text-blue-300 inline">
+                            ⌨️ Keyboard Control
+                        </h2>
+                    </summary>
+                    <div class="flex items-center justify-between mb-3 mt-4">
+                        <p
+                            id="keyboard-description"
+                            class="text-xs text-gray-400 mb-2 text-left align-middle"
+                        >
+                            Press keys on your keyboard to test notes manually.<br />Only one note
+                            can be played at a time.
+                        </p>
+                        <label class="flex items-center space-x-1 cursor-pointer pl-4">
+                            <input
+                                role="switch"
+                                type="checkbox"
+                                id="keyboard-toggle"
+                                aria-checked="true"
+                                checked
+                                class="h-5 w-5 rounded border-radius-full bg-gray-800 border-gray-600 text-blue-500 focus:ring-blue-600"
+                            />
+                            <span id="keyboard-toggle-status" class="text-sm">Off</span>
+                        </label>
+                    </div>
+
+                    <!-- START Visual Keyboard -->
+                    <div class="mt-4">
+                        <div id="keyboard-visual" class="">
+                            <!-- Generated by JavaScript -->
+                        </div>
+                    </div>
+                    <!-- END Visual Keyboard -->
+                </details>
+            </section>
+
+            <!-- Card: Synth Controls -->
+            <section
+                class="sm:col-span-3 col-span-full bg-gray-700 p-4 rounded-lg shadow-inner"
+                aria-labelledby="synth-title"
+            >
+                <h2 id="synth-title" class="text-xl font-semibold mb-3 text-blue-300">Synth</h2>
+                <div class="space-y-4">
+                    <!-- START Selector: Synth Type -->
+                    <div>
+                        <label for="synth-type" class="block text-sm font-medium mb-1"
+                            >Synth Type</label
+                        >
+                        <select
+                            id="synth-type"
+                            class="w-full p-2 bg-gray-800 border border-gray-600 rounded-md text-gray-100"
+                        >
+                            <option value="synth" selected>Basic Synth</option>
+                            <option value="fmSynth">FM Synth</option>
+                            <option value="amSynth">AM Synth</option>
+                        </select>
+                    </div>
+                    <!-- END Selector: Synth Type -->
+
+                    <!-- START Selector: Visual Waveform -->
+                    <div id="waveform-buttons-container">
+                        <label id="waveform-label" class="block text-sm font-medium mb-1">
+                            Waveform
+                            <span
+                                id="carrier-label"
+                                class="text-xs text-gray-400 font-normal hidden"
+                                >(Carrier)</span
+                            >
+                        </label>
+                        <!-- flex layout for responsive overflow -->
+                        <div
+                            id="waveform-buttons"
+                            role="group"
+                            aria-labelledby="waveform-label"
+                            class="flex flex-wrap gap-2"
+                        >
+                            <button class="waveform-btn" data-wave="sine">
+                                <svg
+                                    id="svg-sine"
+                                    class="stroke-current"
+                                    fill="none"
+                                    viewBox="0 0 32 32"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                >
+                                    <path
+                                        d="M2 16 C2 16 6 4 10 4 C14 4 18 28 22 28 C26 28 30 16 30 16"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                    />
+                                </svg>
+                                <span class="text-xs font-medium">Sine</span>
+                            </button>
+                            <button class="waveform-btn" data-wave="sawtooth">
+                                <svg
+                                    id="svg-sawtooth"
+                                    class="stroke-current"
+                                    fill="none"
+                                    viewBox="0 0 32 32"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                >
+                                    <path
+                                        d="M2 24 L10 8 V24 L18 8 V24 L26 8 V24 H30"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                    />
+                                </svg>
+                                <span class="text-xs font-medium">Sawtooth</span>
+                            </button>
+                            <button class="waveform-btn" data-wave="triangle">
+                                <svg
+                                    id="svg-triangle"
+                                    class="stroke-current"
+                                    fill="none"
+                                    viewBox="0 0 32 32"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                >
+                                    <path
+                                        d="M2 16 L6 8 L14 24 L22 8 L30 16"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                    />
+                                </svg>
+                                <span class="text-xs font-medium">Triangle</span>
+                            </button>
+                            <button class="waveform-btn" data-wave="square">
+                                <svg
+                                    id="svg-square"
+                                    class="stroke-current"
+                                    fill="none"
+                                    viewBox="0 0 32 32"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                >
+                                    <path
+                                        d="M2 24 V8 H10 V24 H18 V8 H26 V24 H30"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                    />
+                                </svg>
+                                <span class="text-xs font-medium">Square</span>
+                            </button>
+                            <button class="waveform-btn" data-wave="pulse">
+                                <svg
+                                    id="svg-pulse"
+                                    class="stroke-current"
+                                    fill="none"
+                                    viewBox="0 0 32 32"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                >
+                                    <path
+                                        d="M2 24 V8 H6 V24 H14 V8 H18 V24 H26 V8 H30"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                    />
+                                </svg>
+                                <span class="text-xs font-medium">Pulse</span>
+                            </button>
+                        </div>
+                    </div>
+                    <!-- END Selector: Visual Waveform -->
+
+                    <!-- START Selector: Synth Type Params -->
+                    <div id="basic-synth-params" class="hidden space-y-4">
+                        <div id="duty-control">
+                            <label for="duty-cycle" class="block text-sm font-medium mb-1">
+                                Duty Cycle: <span id="duty-value">0.50</span>
+                            </label>
+                            <input
+                                type="range"
+                                id="duty-cycle"
+                                min="0.01"
+                                max="0.99"
+                                step="0.01"
+                                value="0.5"
+                            />
+                        </div>
+                    </div>
+                    <!-- END Selector: Synth Type Params -->
+
+                    <!-- START Selector: Advanced Synth Params (hidden by default) -->
+                    <div id="advanced-synth-params" class="hidden space-y-4">
+                        <div id="harmonicity-control">
+                            <label for="harmonicity" class="block text-sm font-medium mb-1"
+                                >Harmonicity: <span id="harmonicity-value">3.0</span></label
+                            >
+                            <input
+                                type="range"
+                                id="harmonicity"
+                                min="0.5"
+                                max="10"
+                                value="3"
+                                step="0.1"
+                            />
+                        </div>
+                        <div id="mod-index-control">
+                            <label for="modulation-index" class="block text-sm font-medium mb-1"
+                                >Mod. Index: <span id="modulation-index-value">10.0</span></label
+                            >
+                            <input
+                                type="range"
+                                id="modulation-index"
+                                min="1"
+                                max="50"
+                                value="10"
+                                step="0.1"
+                            />
+                        </div>
+                    </div>
+                    <!-- END Selector: Advanced Synth Params -->
+
+                    <!-- START Selector: Gate -->
+                    <div>
+                        <label for="gate" class="block text-sm font-medium mb-1"
+                            >Gate (Note Length): <span id="gate-value">0.80</span></label
+                        >
+                        <input
+                            type="range"
+                            id="gate"
+                            min="0.05"
+                            max="1.0"
+                            value="0.8"
+                            step="0.01"
+                        />
+                    </div>
+                    <!-- END Selector: Gate -->
                 </div>
-            </details>
-        </section>
+            </section>
 
-        <!-- Card: Real-time Recording -->
-        <section class="bg-gray-700 p-4 rounded-lg shadow-inner sm:col-span-3 col-span-full"
-            aria-labelledby="realtime-recording-title">
-            <h2 id="realtime-recording-title" class="text-xl font-semibold mb-3 text-blue-300">Real-time Recording</h2>
-            <div class="space-y-4">
-                <!-- START Record Button -->
-                <button id="record-button" aria-label="Start recording"
-                    class="w-full text-lg font-bold py-2 px-4 bg-green-600 hover:bg-green-700 rounded-lg shadow-lg transition-all">
-                    Record
-                </button>
-                <!-- END Record Button -->
+            <!-- Card: Envelope (ADSR) -->
+            <section
+                class="sm:col-span-3 col-span-full bg-gray-700 p-4 rounded-lg shadow-inner"
+                aria-labelledby="envelope-title"
+            >
+                <h2 id="envelope-title" class="text-xl font-semibold mb-3 text-blue-300">
+                    Envelope (ADSR)
+                </h2>
+                <div class="space-y-4">
+                    <!-- START Selector: Attack -->
+                    <div>
+                        <label for="env-attack" class="block text-sm font-medium mb-1"
+                            >Attack: <span id="env-attack-value">0.01</span>s</label
+                        >
+                        <input
+                            type="range"
+                            id="env-attack"
+                            min="0"
+                            max="2"
+                            value="0.01"
+                            step="0.01"
+                        />
+                    </div>
+                    <!-- END Selector: Attack -->
 
-                <!-- START Status Indicator -->
-                <p id="realtime-record-status" class="text-sm text-center text-gray-400">Record your live parameter
-                    changes.</p>
-                <!-- END Status Indicator -->
+                    <!-- START Selector: Decay -->
+                    <label for="env-decay" class="block text-sm font-medium mb-1"
+                        >Decay: <span id="env-decay-value">0.10</span>s</label
+                    >
+                    <input type="range" id="env-decay" min="0" max="2" value="0.1" step="0.01" />
+                    <!-- END Selector: Decay -->
 
-                <!-- START Export Controls -->
-                <div id="realtime-export-controls" class="hidden space-y-3">
-                    <h3 class="text-lg font-semibold text-center">Export Recording</h3>
+                    <!-- START Selector: Sustain -->
+                    <div>
+                        <label for="env-sustain" class="block text-sm font-medium mb-1"
+                            >Sustain: <span id="env-sustain-value">0.30</span></label
+                        >
+                        <input
+                            type="range"
+                            id="env-sustain"
+                            min="0"
+                            max="1"
+                            value="0.3"
+                            step="0.01"
+                        />
+                    </div>
+                    <!-- END Selector: Sustain -->
+
+                    <!-- START Selector: Release -->
+                    <div>
+                        <label for="env-release" class="block text-sm font-medium mb-1"
+                            >Release: <span id="env-release-value">0.50</span>s</label
+                        >
+                        <input
+                            type="range"
+                            id="env-release"
+                            min="0"
+                            max="5"
+                            value="0.5"
+                            step="0.01"
+                        />
+                    </div>
+                    <!-- END Selector: Release -->
+                </div>
+            </section>
+
+            <!-- Card: Octave -->
+            <section
+                class="sm:col-span-2 col-span-full bg-gray-700 p-4 rounded-lg shadow-inner"
+                aria-labelledby="octave-title"
+            >
+                <h2 id="octave-title" class="text-xl font-semibold mb-3 text-blue-300">Octave</h2>
+                <div class="space-y-4">
+                    <!-- START Selector: Octave Shift -->
+                    <div class="space-y-2">
+                        <label id="octave-shift-label" class="block text-sm font-medium"
+                            >Octave Shift
+                            <span class="text-xs text-gray-400 font-normal"
+                                >(0 = no shift)</span
+                            ></label
+                        >
+                        <div
+                            id="octave-shift-buttons"
+                            role="group"
+                            aria-labelledby="octave-shift-label"
+                            class="flex flex-wrap justify-center gap-2"
+                        >
+                            <button class="octave-btn" data-shift="-3">-3</button>
+                            <button class="octave-btn" data-shift="-2">-2</button>
+                            <button class="octave-btn" data-shift="-1">-1</button>
+                            <button class="octave-btn" data-shift="0">0</button>
+                            <button class="octave-btn" data-shift="1">+1</button>
+                            <button class="octave-btn" data-shift="2">+2</button>
+                            <button class="octave-btn" data-shift="3">+3</button>
+                        </div>
+                    </div>
+                    <!-- END Selector: Octave Shift -->
+
+                    <!-- START Selector: Octave Layers -->
+                    <div class="space-y-2">
+                        <label id="octave-range-label" class="block text-sm font-medium"
+                            >Octave Layers
+                            <span class="text-xs text-gray-400 font-normal"
+                                >(1 = base only)</span
+                            ></label
+                        >
+                        <div
+                            id="octave-range-buttons"
+                            role="group"
+                            aria-labelledby="octave-range-label"
+                            class="flex flex-wrap justify-center gap-2"
+                        >
+                            <button class="octave-btn" data-range="1">1</button>
+                            <button class="octave-btn" data-range="2">2</button>
+                            <button class="octave-btn" data-range="3">3</button>
+                            <button class="octave-btn" data-range="4">4</button>
+                            <button class="octave-btn" data-range="5">5</button>
+                        </div>
+                    </div>
+                    <!-- END Selector: Octave Layers -->
+                </div>
+            </section>
+
+            <!-- Card: Filter Controls -->
+            <section
+                class="sm:col-span-2 col-span-full bg-gray-700 p-4 rounded-lg shadow-inner"
+                aria-labelledby="filter-title"
+            >
+                <h2 id="filter-title" class="text-xl font-semibold mb-3 text-blue-300">Filter</h2>
+                <div class="space-y-4">
+                    <!-- START Selector: Filter Cutoff -->
+                    <div>
+                        <label for="filter-cutoff" class="block text-sm font-medium mb-1"
+                            >Cutoff: <span id="filter-cutoff-value">4000</span> Hz</label
+                        >
+                        <input
+                            type="range"
+                            id="filter-cutoff"
+                            min="100"
+                            max="10000"
+                            value="4000"
+                            step="10"
+                        />
+                    </div>
+                    <!-- END Selector: Filter Cutoff -->
+
+                    <!-- START Selector: Filter Resonance -->
+                    <div>
+                        <label for="filter-resonance" class="block text-sm font-medium mb-1"
+                            >Resonance: <span id="filter-resonance-value">1.0</span></label
+                        >
+                        <input
+                            type="range"
+                            id="filter-resonance"
+                            min="0"
+                            max="20"
+                            value="1.0"
+                            step="0.1"
+                        />
+                    </div>
+                    <!-- END Selector: Filter Resonance -->
+                </div>
+            </section>
+
+            <!-- Card: Effects Controls -->
+            <section
+                class="sm:col-span-2 col-span-full bg-gray-700 p-4 rounded-lg shadow-inner"
+                aria-labelledby="effects-title"
+            >
+                <h2 id="effects-title" class="text-xl font-semibold mb-3 text-blue-300">Effects</h2>
+                <div class="space-y-4">
+                    <!-- START Selector: Delay Mix -->
+                    <div>
+                        <label for="delay-mix" class="block text-sm font-medium mb-1"
+                            >Delay Mix: <span id="delay-mix-value">0.20</span></label
+                        >
+                        <input
+                            type="range"
+                            id="delay-mix"
+                            min="0"
+                            max="1"
+                            value="0.2"
+                            step="0.01"
+                        />
+                    </div>
+                    <!-- END Selector: Delay Mix -->
+
+                    <!-- START Selector: Reverb Mix -->
+                    <div>
+                        <label for="reverb-mix" class="block text-sm font-medium mb-1"
+                            >Reverb Mix: <span id="reverb-mix-value">0.30</span></label
+                        >
+                        <input
+                            type="range"
+                            id="reverb-mix"
+                            min="0"
+                            max="1"
+                            value="0.3"
+                            step="0.01"
+                        />
+                    </div>
+                    <!-- END Selector: Reverb Mix -->
+                </div>
+            </section>
+
+            <!-- Card: Utilities -->
+            <section
+                class="bg-gray-700 p-4 rounded-lg shadow-inner col-span-full"
+                aria-labelledby="utilities-title"
+            >
+                <details class="card-details">
+                    <summary>
+                        <h2 id="utilities-title" class="text-xl font-semibold text-blue-300 inline">
+                            Utilities
+                        </h2>
+                    </summary>
+                    <div class="mt-4">
+                        <!-- START Visualizer -->
+                        <div class="space-y-4">
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 items-center">
+                                <button
+                                    id="toggle-visualizer"
+                                    class="w-full text-sm font-bold py-2 px-4 bg-green-600 hover:bg-green-700 rounded-lg shadow-lg transition-all"
+                                >
+                                    Enable Visualizer
+                                </button>
+                                <div class="flex items-center space-x-2">
+                                    <label
+                                        for="visualizer-mode"
+                                        class="text-xs font-semibold text-gray-300"
+                                        >Mode:</label
+                                    >
+                                    <select
+                                        id="visualizer-mode"
+                                        class="flex-1 p-2 text-sm bg-gray-800 border border-gray-600 rounded-md text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    >
+                                        <option value="oscilloscope" selected>
+                                            Live Oscilloscope
+                                        </option>
+                                        <option value="fft">FFT Spectrum</option>
+                                        <option value="loopMap">Arpeggio Loop Map</option>
+                                    </select>
+                                </div>
+                                <button
+                                    id="pause-visualizer"
+                                    disabled
+                                    class="w-full text-sm font-bold py-2 px-4 bg-gray-600 hover:bg-gray-500 rounded-lg shadow-lg transition-all opacity-50 cursor-not-allowed"
+                                >
+                                    Pause
+                                </button>
+                            </div>
+                            <div class="flex flex-col">
+                                <div
+                                    id="visualizer-container"
+                                    class="relative flex border-t border-x border-gray-600 rounded-t-md bg-gray-800 overflow-hidden"
+                                >
+                                    <canvas
+                                        id="visualizer-yaxis"
+                                        width="50"
+                                        role="img"
+                                        aria-label="Visualizer Y-axis scale"
+                                    ></canvas>
+                                    <div
+                                        id="visualizer-viewport"
+                                        class="flex-1 overflow-x-auto overflow-y-hidden"
+                                    >
+                                        <canvas
+                                            id="visualizer-plot"
+                                            role="img"
+                                            aria-label="Audio waveform visualizer"
+                                        ></canvas>
+                                    </div>
+                                </div>
+                                <!-- Controls Footer Bar -->
+                                <div
+                                    id="visualizer-controls-footer"
+                                    class="flex flex-wrap items-center justify-between gap-4 p-3 bg-gray-700 rounded-b-md border-x border-b border-gray-600"
+                                >
+                                    <!-- Zoom Slider -->
+                                    <div class="flex items-center space-x-2 flex-1 min-w-[200px]">
+                                        <label
+                                            for="visualizer-zoom"
+                                            class="text-xs font-semibold text-gray-300"
+                                            >Zoom:</label
+                                        >
+                                        <input
+                                            type="range"
+                                            id="visualizer-zoom"
+                                            min="1"
+                                            max="8"
+                                            value="1"
+                                            step="0.1"
+                                            class="flex-1"
+                                        />
+                                        <span
+                                            id="visualizer-zoom-value"
+                                            class="text-xs text-gray-400 min-w-[28px] text-right"
+                                            >1.0x</span
+                                        >
+                                    </div>
+                                    <!-- Time Window (Oscilloscope only) -->
+                                    <div
+                                        id="oscilloscope-window-container"
+                                        class="flex items-center space-x-2"
+                                    >
+                                        <label
+                                            for="oscilloscope-window"
+                                            class="text-xs font-semibold text-gray-300"
+                                            >Time Window:</label
+                                        >
+                                        <select
+                                            id="oscilloscope-window"
+                                            class="p-1 text-xs bg-gray-800 border border-gray-600 rounded-md text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        >
+                                            <option value="50" selected>50ms (Default)</option>
+                                            <option value="100">100ms</option>
+                                            <option value="250">250ms</option>
+                                            <option value="500">500ms</option>
+                                            <option value="1000">1.0s</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- END Visualizer -->
+                    </div>
+                </details>
+            </section>
+
+            <!-- Card: Real-time Recording -->
+            <section
+                class="bg-gray-700 p-4 rounded-lg shadow-inner sm:col-span-3 col-span-full"
+                aria-labelledby="realtime-recording-title"
+            >
+                <h2 id="realtime-recording-title" class="text-xl font-semibold mb-3 text-blue-300">
+                    Real-time Recording
+                </h2>
+                <div class="space-y-4">
+                    <!-- START Record Button -->
+                    <button
+                        id="record-button"
+                        aria-label="Start recording"
+                        class="w-full text-lg font-bold py-2 px-4 bg-green-600 hover:bg-green-700 rounded-lg shadow-lg transition-all"
+                    >
+                        Record
+                    </button>
+                    <!-- END Record Button -->
+
+                    <!-- START Status Indicator -->
+                    <p id="realtime-record-status" class="text-sm text-center text-gray-400">
+                        Record your live parameter changes.
+                    </p>
+                    <!-- END Status Indicator -->
+
+                    <!-- START Export Controls -->
+                    <div id="realtime-export-controls" class="hidden space-y-3">
+                        <h3 class="text-lg font-semibold text-center">Export Recording</h3>
+                        <div class="flex justify-center gap-6">
+                            <label class="flex items-center space-x-2 cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    id="realtime-export-wav"
+                                    checked
+                                    class="h-5 w-5 rounded bg-gray-800 border-gray-600 text-blue-500 focus:ring-blue-600"
+                                />
+                                <span>WAV</span>
+                            </label>
+                            <label class="flex items-center space-x-2 cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    id="realtime-export-mp3"
+                                    checked
+                                    class="h-5 w-5 rounded bg-gray-800 border-gray-600 text-blue-500 focus:ring-blue-600"
+                                />
+                                <span>MP3</span>
+                            </label>
+                        </div>
+                        <button
+                            id="realtime-export-button"
+                            aria-label="Export recording as audio files"
+                            class="w-full text-lg font-bold py-2 px-4 bg-blue-600 hover:bg-blue-700 rounded-lg shadow-lg transition-all"
+                        >
+                            Export Files
+                        </button>
+                    </div>
+                    <!-- END Export Controls -->
+                </div>
+            </section>
+
+            <!-- Card: Offline Export -->
+            <section
+                class="bg-gray-700 p-4 rounded-lg shadow-inner sm:col-span-3 col-span-full"
+                aria-labelledby="offline-export-title"
+            >
+                <h2 id="offline-export-title" class="text-xl font-semibold mb-3 text-blue-300">
+                    Offline Export (Perfect Loop)
+                </h2>
+                <div class="space-y-4">
+                    <div class="flex items-center gap-4">
+                        <label for="loop-count" class="text-sm font-medium whitespace-nowrap"
+                            >Number of Loops:</label
+                        >
+                        <input
+                            type="number"
+                            id="loop-count"
+                            value="4"
+                            min="1"
+                            max="100"
+                            class="w-20 p-2 bg-gray-800 border border-gray-600 rounded-md text-gray-100"
+                            onkeydown="return filterNumericInput(event);"
+                        />
+                    </div>
                     <div class="flex justify-center gap-6">
                         <label class="flex items-center space-x-2 cursor-pointer">
-                            <input type="checkbox" id="realtime-export-wav" checked
-                                class="h-5 w-5 rounded bg-gray-800 border-gray-600 text-blue-500 focus:ring-blue-600">
+                            <input
+                                type="checkbox"
+                                id="offline-export-wav"
+                                checked
+                                class="h-5 w-5 rounded bg-gray-800 border-gray-600 text-blue-500 focus:ring-blue-600"
+                            />
                             <span>WAV</span>
                         </label>
                         <label class="flex items-center space-x-2 cursor-pointer">
-                            <input type="checkbox" id="realtime-export-mp3" checked
-                                class="h-5 w-5 rounded bg-gray-800 border-gray-600 text-blue-500 focus:ring-blue-600">
+                            <input
+                                type="checkbox"
+                                id="offline-export-mp3"
+                                checked
+                                class="h-5 w-5 rounded bg-gray-800 border-gray-600 text-blue-500 focus:ring-blue-600"
+                            />
                             <span>MP3</span>
                         </label>
                     </div>
-                    <button id="realtime-export-button" aria-label="Export recording as audio files"
-                        class="w-full text-lg font-bold py-2 px-4 bg-blue-600 hover:bg-blue-700 rounded-lg shadow-lg transition-all">
-                        Export Files
+                    <button
+                        id="offline-export-button"
+                        aria-label="Generate & Export perfect loop"
+                        class="w-full text-lg font-bold py-2 px-4 bg-purple-600 hover:bg-purple-700 rounded-lg shadow-lg transition-all"
+                    >
+                        Generate & Export
                     </button>
+                    <p id="offline-export-status" class="text-sm text-center text-gray-300">
+                        Generate a perfect loop of the current settings.
+                    </p>
                 </div>
-                <!-- END Export Controls -->
-            </div>
-        </section>
+            </section>
 
-        <!-- Card: Offline Export -->
-        <section class="bg-gray-700 p-4 rounded-lg shadow-inner sm:col-span-3 col-span-full"
-            aria-labelledby="offline-export-title">
-            <h2 id="offline-export-title" class="text-xl font-semibold mb-3 text-blue-300">Offline Export (Perfect Loop)
-            </h2>
-            <div class="space-y-4">
-                <div class="flex items-center gap-4">
-                    <label for="loop-count" class="text-sm font-medium whitespace-nowrap">Number of Loops:</label>
-                    <input type="number" id="loop-count" value="4" min="1" max="100"
-                        class="w-20 p-2 bg-gray-800 border border-gray-600 rounded-md text-gray-100"
-                        onkeydown="return filterNumericInput(event);">
-                </div>
-                <div class="flex justify-center gap-6">
-                    <label class="flex items-center space-x-2 cursor-pointer">
-                        <input type="checkbox" id="offline-export-wav" checked
-                            class="h-5 w-5 rounded bg-gray-800 border-gray-600 text-blue-500 focus:ring-blue-600">
-                        <span>WAV</span>
+            <!-- Card: Preset Management -->
+            <section
+                class="bg-gray-700 p-4 rounded-lg shadow-inner col-span-full"
+                aria-labelledby="preset-management-title"
+            >
+                <h2 id="preset-management-title" class="text-xl font-semibold mb-3 text-blue-300">
+                    Preset Management
+                </h2>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <label class="sm:col-span-3">
+                        <span class="block text-sm font-medium mb-1">Preset Name</span>
+                        <input
+                            type="text"
+                            id="preset-name-input"
+                            placeholder="Optional saved preset name"
+                            class="w-full p-2 bg-gray-800 border border-gray-600 rounded-md text-gray-100"
+                        />
                     </label>
-                    <label class="flex items-center space-x-2 cursor-pointer">
-                        <input type="checkbox" id="offline-export-mp3" checked
-                            class="h-5 w-5 rounded bg-gray-800 border-gray-600 text-blue-500 focus:ring-blue-600">
-                        <span>MP3</span>
+                    <button
+                        type="button"
+                        id="save-preset-to-browser-button"
+                        class="w-full text-lg font-bold py-2 px-4 bg-lime-800 hover:bg-lime-900 rounded-lg shadow-lg transition-all"
+                    >
+                        Save Preset (Browser)
+                    </button>
+                    <button
+                        id="save-preset-button"
+                        class="w-full text-lg font-bold py-2 px-4 bg-green-700 hover:bg-green-800 rounded-lg shadow-lg transition-all"
+                    >
+                        Save Preset (JSON)
+                    </button>
+                    <button
+                        id="share-preset-button"
+                        class="w-full text-lg font-bold py-2 px-4 bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-lg transition-all"
+                    >
+                        Copy Share Link
+                    </button>
+                    <button
+                        id="load-saved-preset-button"
+                        class="w-full text-lg font-bold py-2 px-4 bg-emerald-700 hover:bg-emerald-800 rounded-lg shadow-lg transition-all"
+                    >
+                        Load Saved Preset
+                    </button>
+                    <button
+                        id="load-preset-button"
+                        class="w-full text-lg font-bold py-2 px-4 bg-blue-600 hover:bg-blue-700 rounded-lg shadow-lg transition-all"
+                    >
+                        Load Preset (JSON)
+                    </button>
+                    <button
+                        id="clear-saved-preset-button"
+                        class="w-full text-lg font-bold py-2 px-4 bg-red-700 hover:bg-red-800 rounded-lg shadow-lg transition-all"
+                    >
+                        Clear Saved Presets
+                    </button>
+                    <label class="sm:col-span-2">
+                        <span class="block text-sm font-medium mb-1">Saved Presets</span>
+                        <select
+                            id="saved-preset-select"
+                            class="w-full p-2 bg-gray-800 border border-gray-600 rounded-md text-gray-100"
+                        >
+                            <option value="">No saved presets</option>
+                        </select>
                     </label>
+                    <button
+                        id="delete-saved-preset-button"
+                        class="w-full self-end text-lg font-bold py-2 px-4 bg-gray-600 hover:bg-gray-500 rounded-lg shadow-lg transition-all"
+                    >
+                        Delete Selected
+                    </button>
+                    <input
+                        type="file"
+                        id="load-preset-input"
+                        accept=".json"
+                        title="Upload Preset JSON File"
+                        aria-label="Upload Preset JSON File"
+                        class="w-full sm:col-span-3 text-sm text-gray-200 file:mr-3 file:rounded-lg file:border-0 file:bg-gray-600 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-gray-500"
+                    />
+                    <p class="text-xs text-center text-gray-300 sm:col-span-3">
+                        JSON export/import stays available. Saved presets also persist in the
+                        browser for offline use.
+                    </p>
                 </div>
-                <button id="offline-export-button" aria-label="Generate & Export perfect loop"
-                    class="w-full text-lg font-bold py-2 px-4 bg-purple-600 hover:bg-purple-700 rounded-lg shadow-lg transition-all">
-                    Generate & Export
-                </button>
-                <p id="offline-export-status" class="text-sm text-center text-gray-300">Generate a perfect loop of
-                    the current settings.</p>
-            </div>
-        </section>
+            </section>
+        </main>
 
-        <!-- Card: Preset Management -->
-        <section class="bg-gray-700 p-4 rounded-lg shadow-inner col-span-full"
-            aria-labelledby="preset-management-title">
-            <h2 id="preset-management-title" class="text-xl font-semibold mb-3 text-blue-300">Preset Management</h2>
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <label class="sm:col-span-3">
-                    <span class="block text-sm font-medium mb-1">Preset Name</span>
-                    <input type="text" id="preset-name-input" placeholder="Optional saved preset name"
-                        class="w-full p-2 bg-gray-800 border border-gray-600 rounded-md text-gray-100">
-                </label>
-                <button type="button" id="save-preset-to-browser-button"
-                    class="w-full text-lg font-bold py-2 px-4 bg-lime-800 hover:bg-lime-900 rounded-lg shadow-lg transition-all">
-                    Save Preset (Browser)
-                </button>
-                <button id="save-preset-button"
-                    class="w-full text-lg font-bold py-2 px-4 bg-green-700 hover:bg-green-800 rounded-lg shadow-lg transition-all">
-                    Save Preset (JSON)
-                </button>
-                <button id="share-preset-button"
-                    class="w-full text-lg font-bold py-2 px-4 bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-lg transition-all">
-                    Copy Share Link
-                </button>
-                <button id="load-saved-preset-button"
-                    class="w-full text-lg font-bold py-2 px-4 bg-emerald-700 hover:bg-emerald-800 rounded-lg shadow-lg transition-all">
-                    Load Saved Preset
-                </button>
-                <button id="load-preset-button"
-                    class="w-full text-lg font-bold py-2 px-4 bg-blue-600 hover:bg-blue-700 rounded-lg shadow-lg transition-all">
-                    Load Preset (JSON)
-                </button>
-                <button id="clear-saved-preset-button"
-                    class="w-full text-lg font-bold py-2 px-4 bg-red-700 hover:bg-red-800 rounded-lg shadow-lg transition-all">
-                    Clear Saved Presets
-                </button>
-                <label class="sm:col-span-2">
-                    <span class="block text-sm font-medium mb-1">Saved Presets</span>
-                    <select id="saved-preset-select"
-                        class="w-full p-2 bg-gray-800 border border-gray-600 rounded-md text-gray-100">
-                        <option value="">No saved presets</option>
-                    </select>
-                </label>
-                <button id="delete-saved-preset-button"
-                    class="w-full self-end text-lg font-bold py-2 px-4 bg-gray-600 hover:bg-gray-500 rounded-lg shadow-lg transition-all">
-                    Delete Selected
-                </button>
-                <input type="file" id="load-preset-input" accept=".json" title="Upload Preset JSON File"
-                    aria-label="Upload Preset JSON File"
-                    class="w-full sm:col-span-3 text-sm text-gray-200 file:mr-3 file:rounded-lg file:border-0 file:bg-gray-600 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-gray-500">
-                <p class="text-xs text-center text-gray-300 sm:col-span-3">JSON export/import stays available. Saved
-                    presets also persist in the browser for offline use.</p>
-            </div>
-        </section>
-    </main>
+        <!-- TOAST MESSAGES CONTAINER -->
+        <div id="toast-container" role="status" aria-live="polite"></div>
 
-    <!-- TOAST MESSAGES CONTAINER -->
-    <div id="toast-container" role="status" aria-live="polite"></div>
+        <!-- Hidden state mirror used by browser automation checks without affecting the visible UI. -->
+        <textarea
+            id="pwa-test-state"
+            class="test-state-mirror"
+            aria-label="PWA Test State"
+            readonly
+            tabindex="-1"
+        ></textarea>
 
-    <!-- Hidden state mirror used by browser automation checks without affecting the visible UI. -->
-    <textarea id="pwa-test-state" class="test-state-mirror" aria-label="PWA Test State" readonly
-        tabindex="-1"></textarea>
-
-    <script type="module" src="./js/app.js"></script>
-</body>
-
+        <script type="module" src="./js/app.js"></script>
+    </body>
 </html>
