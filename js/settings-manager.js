@@ -49,6 +49,25 @@ export function createSettingsManager(context) {
             modulationIndex: parseFloat(dom.modIndexSlider.value),
             dutyCycle: parseFloat(dom.dutySlider.value),
             gateRatio: parseFloat(dom.gateSlider.value),
+            // Synth-Specific Extended Params
+            monoCutoff: dom.monoCutoffSlider ? parseFloat(dom.monoCutoffSlider.value) : 300,
+            monoOctaves: dom.monoOctavesSlider ? parseFloat(dom.monoOctavesSlider.value) : 4.0,
+            monoQ: dom.monoQSlider ? parseFloat(dom.monoQSlider.value) : 2.0,
+            duoHarm: dom.duoHarmSlider ? parseFloat(dom.duoHarmSlider.value) : 1.5,
+            duoVibrato: dom.duoVibratoSlider ? parseFloat(dom.duoVibratoSlider.value) : 0.2,
+            pluckDampening: dom.pluckDampeningSlider
+                ? parseFloat(dom.pluckDampeningSlider.value)
+                : 4000,
+            pluckResonance: dom.pluckResonanceSlider
+                ? parseFloat(dom.pluckResonanceSlider.value)
+                : 0.9,
+            pluckNoise: dom.pluckNoiseSlider ? parseFloat(dom.pluckNoiseSlider.value) : 1.0,
+            membranePitchDecay: dom.membranePitchDecaySlider
+                ? parseFloat(dom.membranePitchDecaySlider.value)
+                : 0.05,
+            membraneOctaves: dom.membraneOctavesSlider
+                ? parseFloat(dom.membraneOctavesSlider.value)
+                : 8.0,
             // Envelope (ADSR)
             envAttack: parseFloat(dom.envAttackSlider.value),
             envDecay: parseFloat(dom.envDecaySlider.value),
@@ -58,6 +77,9 @@ export function createSettingsManager(context) {
             filterCutoff: parseFloat(dom.filterCutoffSlider.value),
             filterResonance: parseFloat(dom.filterResonanceSlider.value),
             // Effects
+            driveMix: dom.driveMixSlider ? parseFloat(dom.driveMixSlider.value) : 0.0,
+            chorusMix: dom.chorusMixSlider ? parseFloat(dom.chorusMixSlider.value) : 0.0,
+            autoPanMix: dom.autoPanMixSlider ? parseFloat(dom.autoPanMixSlider.value) : 0.0,
             delayMix: parseFloat(dom.delayMixSlider.value),
             reverbMix: parseFloat(dom.reverbMixSlider.value),
             loopCount: parseInt(dom.loopCountInput.value),
@@ -114,6 +136,57 @@ export function createSettingsManager(context) {
                 dom.modIndexValue.textContent = settings.modulationIndex.toFixed(1);
             }
 
+            // Restore extended synth params
+            if (settings.monoCutoff !== undefined && dom.monoCutoffSlider) {
+                dom.monoCutoffSlider.value = settings.monoCutoff;
+                if (dom.monoCutoffValue)
+                    dom.monoCutoffValue.textContent = settings.monoCutoff.toFixed(0);
+            }
+            if (settings.monoOctaves !== undefined && dom.monoOctavesSlider) {
+                dom.monoOctavesSlider.value = settings.monoOctaves;
+                if (dom.monoOctavesValue)
+                    dom.monoOctavesValue.textContent = settings.monoOctaves.toFixed(1);
+            }
+            if (settings.monoQ !== undefined && dom.monoQSlider) {
+                dom.monoQSlider.value = settings.monoQ;
+                if (dom.monoQValue) dom.monoQValue.textContent = settings.monoQ.toFixed(1);
+            }
+            if (settings.duoHarm !== undefined && dom.duoHarmSlider) {
+                dom.duoHarmSlider.value = settings.duoHarm;
+                if (dom.duoHarmValue) dom.duoHarmValue.textContent = settings.duoHarm.toFixed(2);
+            }
+            if (settings.duoVibrato !== undefined && dom.duoVibratoSlider) {
+                dom.duoVibratoSlider.value = settings.duoVibrato;
+                if (dom.duoVibratoValue)
+                    dom.duoVibratoValue.textContent = settings.duoVibrato.toFixed(2);
+            }
+            if (settings.pluckDampening !== undefined && dom.pluckDampeningSlider) {
+                dom.pluckDampeningSlider.value = settings.pluckDampening;
+                if (dom.pluckDampeningValue)
+                    dom.pluckDampeningValue.textContent = settings.pluckDampening.toFixed(0);
+            }
+            if (settings.pluckResonance !== undefined && dom.pluckResonanceSlider) {
+                dom.pluckResonanceSlider.value = settings.pluckResonance;
+                if (dom.pluckResonanceValue)
+                    dom.pluckResonanceValue.textContent = settings.pluckResonance.toFixed(2);
+            }
+            if (settings.pluckNoise !== undefined && dom.pluckNoiseSlider) {
+                dom.pluckNoiseSlider.value = settings.pluckNoise;
+                if (dom.pluckNoiseValue)
+                    dom.pluckNoiseValue.textContent = settings.pluckNoise.toFixed(1);
+            }
+            if (settings.membranePitchDecay !== undefined && dom.membranePitchDecaySlider) {
+                dom.membranePitchDecaySlider.value = settings.membranePitchDecay;
+                if (dom.membranePitchDecayValue)
+                    dom.membranePitchDecayValue.textContent =
+                        settings.membranePitchDecay.toFixed(3);
+            }
+            if (settings.membraneOctaves !== undefined && dom.membraneOctavesSlider) {
+                dom.membraneOctavesSlider.value = settings.membraneOctaves;
+                if (dom.membraneOctavesValue)
+                    dom.membraneOctavesValue.textContent = settings.membraneOctaves.toFixed(1);
+            }
+
             actions.setSynth(settings.synthType);
 
             // Restore duty cycle
@@ -159,17 +232,36 @@ export function createSettingsManager(context) {
 
             dom.filterCutoffSlider.value = settings.filterCutoff;
             dom.filterCutoffValue.textContent = settings.filterCutoff.toFixed(0);
-            audio.filter.frequency.value = settings.filterCutoff;
+            if (audio.filter) audio.filter.frequency.value = settings.filterCutoff;
             dom.filterResonanceSlider.value = settings.filterResonance;
             dom.filterResonanceValue.textContent = settings.filterResonance.toFixed(1);
-            audio.filter.Q.value = settings.filterResonance;
+            if (audio.filter) audio.filter.Q.value = settings.filterResonance;
+
+            // Restore effects
+            if (settings.driveMix !== undefined && dom.driveMixSlider) {
+                dom.driveMixSlider.value = settings.driveMix;
+                if (dom.driveMixValue) dom.driveMixValue.textContent = settings.driveMix.toFixed(2);
+                if (audio.distortion) audio.distortion.wet.value = settings.driveMix;
+            }
+            if (settings.chorusMix !== undefined && dom.chorusMixSlider) {
+                dom.chorusMixSlider.value = settings.chorusMix;
+                if (dom.chorusMixValue)
+                    dom.chorusMixValue.textContent = settings.chorusMix.toFixed(2);
+                if (audio.chorus) audio.chorus.wet.value = settings.chorusMix;
+            }
+            if (settings.autoPanMix !== undefined && dom.autoPanMixSlider) {
+                dom.autoPanMixSlider.value = settings.autoPanMix;
+                if (dom.autoPanMixValue)
+                    dom.autoPanMixValue.textContent = settings.autoPanMix.toFixed(2);
+                if (audio.autoPanner) audio.autoPanner.wet.value = settings.autoPanMix;
+            }
 
             dom.delayMixSlider.value = settings.delayMix;
             dom.delayMixValue.textContent = settings.delayMix.toFixed(2);
-            audio.delay.wet.value = settings.delayMix;
+            if (audio.delay) audio.delay.wet.value = settings.delayMix;
             dom.reverbMixSlider.value = settings.reverbMix;
             dom.reverbMixValue.textContent = settings.reverbMix.toFixed(2);
-            audio.reverb.wet.value = settings.reverbMix;
+            if (audio.reverb) audio.reverb.wet.value = settings.reverbMix;
 
             dom.loopCountInput.value = settings.loopCount;
 
@@ -209,10 +301,7 @@ export function createSettingsManager(context) {
 
         if (settings.synthType === "synth") {
             baseName = `arp-${settings.bpm}bpm-basicSynth-${settings.synthType}-${settings.waveform}-${settings.interval}-${notesString}-${scaleQuantize}`;
-        } else if (settings.synthType === "fmSynth" || settings.synthType === "amSynth") {
-            baseName = `arp-${settings.bpm}bpm-${settings.direction}-${settings.synthType}-${settings.interval}-${notesString}-${scaleQuantize}`;
         } else {
-            actions.showToast(`Unknown synth type: ${settings.synthType}.`, "error");
             baseName = `arp-${settings.bpm}bpm-${settings.direction}-${settings.synthType}-${settings.interval}-${notesString}-${scaleQuantize}`;
         }
 
