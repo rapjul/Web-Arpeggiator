@@ -110,12 +110,32 @@ test("MIDI Export & Real-Time Peak Meter Suite", async (): Promise<void> => {
         `(async () => {
         const vuBar = document.getElementById("vu-meter-bar");
         const vuDb = document.getElementById("vu-db-value");
-        const clipBtn = document.getElementById("vu-clip-indicator");
+        const clipContainer = document.getElementById("vu-clip-container");
+        const clipBtn = /** @type {HTMLButtonElement | null} */ (document.getElementById("vu-clip-indicator"));
         const clipTooltip = document.getElementById("vu-clip-tooltip");
+        const scaleTicks = document.getElementById("vu-scale-ticks");
         const infoBtn = document.getElementById("vu-info-button");
         const infoTooltip = document.getElementById("vu-info-tooltip");
+        const postGainSlider = /** @type {HTMLInputElement | null} */ (document.getElementById("post-gain"));
+        const postGainValue = document.getElementById("post-gain-value");
 
-        if (!vuBar || !vuDb || !clipBtn || !clipTooltip || !infoBtn || !infoTooltip) return "vu-elements-missing";
+        if (!vuBar || !vuDb || !clipBtn || !clipTooltip || !infoBtn || !infoTooltip || !scaleTicks || !postGainSlider || !postGainValue) {
+            return "vu-elements-missing";
+        }
+
+        // Verify post-gain slider and dynamic dB-to-percent conversion (-6 dB = 85%)
+        postGainSlider.value = "-6";
+        postGainSlider.dispatchEvent(new Event("input"));
+        if (postGainValue.textContent?.trim() !== "85") return "invalid-postgain-text:" + postGainValue.textContent;
+
+        // Verify meter bar track has taller h-5 height
+        if (!vuBar.parentElement?.classList.contains("h-5")) return "missing-h-5-meter-track";
+
+        // Verify scale ticks contain key digital full-scale points
+        const ticksText = scaleTicks.textContent || "";
+        if (!ticksText.includes("-60") || !ticksText.includes("-24") || !ticksText.includes("-12") || !ticksText.includes("-6") || !ticksText.includes("0")) {
+            return "missing-scale-tick-labels:" + ticksText;
+        }
 
         // Ensure playback is stopped to test clean idle state
         await window.__WEB_ARP_TEST__.stop();
@@ -129,15 +149,17 @@ test("MIDI Export & Real-Time Peak Meter Suite", async (): Promise<void> => {
         if (vuBar.getAttribute("aria-valuetext") !== "Idle") return "invalid-initial-aria-valuetext:" + vuBar.getAttribute("aria-valuetext");
         if (vuDb.textContent?.trim() !== "-- dB") return "invalid-initial-db-text:" + vuDb.textContent;
         if (clipBtn.getAttribute("aria-pressed") !== "false") return "missing-initial-aria-pressed";
+        if (clipBtn.disabled !== true) return "clip-btn-should-be-disabled-initially";
         if (clipBtn.getAttribute("aria-describedby") !== "vu-clip-tooltip") return "missing-clip-aria-describedby";
         if (clipTooltip.getAttribute("role") !== "tooltip") return "missing-clip-tooltip-role";
 
-        // Test hover interaction for clip tooltip (normal state)
+        // Test hover interaction for clip tooltip (normal state via container wrapper)
+        const hoverTarget = clipContainer || clipBtn;
         if (!clipTooltip.classList.contains("hidden")) return "clip-tooltip-initially-visible";
-        clipBtn.dispatchEvent(new MouseEvent("mouseenter"));
+        hoverTarget.dispatchEvent(new MouseEvent("mouseenter"));
         if (clipTooltip.classList.contains("hidden")) return "clip-tooltip-hover-show-failed";
         if (clipTooltip.textContent?.trim() !== "No clipping detected") return "invalid-clip-tooltip-text:" + clipTooltip.textContent;
-        clipBtn.dispatchEvent(new MouseEvent("mouseleave"));
+        hoverTarget.dispatchEvent(new MouseEvent("mouseleave"));
         if (!clipTooltip.classList.contains("hidden")) return "clip-tooltip-hover-hide-failed";
 
         // Check info tooltip accessibility attributes
@@ -194,12 +216,14 @@ test("MIDI Export & Real-Time Peak Meter Suite", async (): Promise<void> => {
         if (ariaValueNow > 0) return "aria-valuenow-exceeds-max:" + ariaValueNow;
 
         if (!vis.isClipped) return "clip-failed-to-latch";
+        if (clipBtn.disabled !== false) return "clip-btn-should-be-enabled-when-clipped";
         if (clipBtn.getAttribute("aria-pressed") !== "true") return "clip-btn-aria-pressed-not-true";
         if (clipTooltip.textContent?.trim() !== "Signal clipped — Click to reset") return "invalid-clipped-tooltip-text:" + clipTooltip.textContent;
 
         // Verify clip indicator click resets latched clip
         clipBtn.click();
         if (vis.isClipped) return "clip-failed-to-reset";
+        if (clipBtn.disabled !== true) return "clip-btn-should-be-disabled-after-reset";
         if (clipBtn.getAttribute("aria-pressed") !== "false") return "clip-btn-aria-pressed-not-reset";
         if (clipTooltip.textContent?.trim() !== "No clipping detected") return "clip-tooltip-not-reset:" + clipTooltip.textContent;
 

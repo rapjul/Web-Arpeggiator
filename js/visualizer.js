@@ -27,6 +27,7 @@ import * as Tone from "tone";
  * @param {HTMLElement}       context.dom.oscilloscopeWindowContainer - Container wrapper for time dropdown.
  * @param {HTMLElement}       [context.dom.vuMeterBar]           - Meter bar element.
  * @param {HTMLElement}       [context.dom.vuDbValue]            - Peak dB value text container.
+ * @param {HTMLElement}       [context.dom.vuClipContainer]      - Clip reset button wrapper container.
  * @param {HTMLButtonElement} [context.dom.vuClipIndicator]      - Clip reset button indicator.
  * @param {HTMLElement}       [context.dom.vuClipTooltip]        - Clip reset button micro-tooltip.
  * @param {HTMLButtonElement} [context.dom.vuInfoButton]         - Info tooltip trigger button.
@@ -61,6 +62,7 @@ export function createVisualizer(context) {
     const oscilloscopeWindowContainer = dom.oscilloscopeWindowContainer;
     const vuMeterBar = dom.vuMeterBar;
     const vuDbValue = dom.vuDbValue;
+    const vuClipContainer = dom.vuClipContainer || document.getElementById("vu-clip-container");
     const vuClipIndicator = dom.vuClipIndicator;
     const vuClipTooltip = dom.vuClipTooltip || document.getElementById("vu-clip-tooltip");
     const vuInfoButton = dom.vuInfoButton || document.getElementById("vu-info-button");
@@ -750,12 +752,21 @@ export function createVisualizer(context) {
             // Latch red clip indicator if unsmoothed peak hits full scale or meter reaches 0 dBFS
             if ((isPeakClipping || db >= 0) && !isClipped && vuClipIndicator) {
                 isClipped = true;
-                vuClipIndicator.classList.remove("bg-gray-800", "text-gray-400", "border-gray-600");
+                vuClipIndicator.disabled = false;
+                vuClipIndicator.classList.remove(
+                    "bg-gray-800",
+                    "text-gray-400",
+                    "border-gray-600",
+                    "cursor-default",
+                    "opacity-60",
+                );
                 vuClipIndicator.classList.add(
                     "bg-rose-600",
                     "text-white",
                     "border-rose-400",
                     "animate-pulse",
+                    "cursor-pointer",
+                    "opacity-100",
                 );
                 vuClipIndicator.setAttribute("aria-pressed", "true");
                 vuClipIndicator.setAttribute("title", "Signal clipped — Click to reset");
@@ -973,13 +984,22 @@ export function createVisualizer(context) {
     function resetClip() {
         isClipped = false;
         if (vuClipIndicator) {
+            vuClipIndicator.disabled = true;
             vuClipIndicator.classList.remove(
                 "bg-rose-600",
                 "text-white",
                 "border-rose-400",
                 "animate-pulse",
+                "cursor-pointer",
+                "opacity-100",
             );
-            vuClipIndicator.classList.add("bg-gray-800", "text-gray-400", "border-gray-600");
+            vuClipIndicator.classList.add(
+                "bg-gray-800",
+                "text-gray-400",
+                "border-gray-600",
+                "cursor-default",
+                "opacity-60",
+            );
             vuClipIndicator.setAttribute("aria-pressed", "false");
             vuClipIndicator.setAttribute("title", "Clipping indicator (normal)");
         }
@@ -1012,12 +1032,14 @@ export function createVisualizer(context) {
 
     if (vuClipIndicator) {
         vuClipIndicator.addEventListener("click", resetClip);
-        if (vuClipTooltip) {
-            vuClipIndicator.addEventListener("mouseenter", showClipTooltip);
-            vuClipIndicator.addEventListener("mouseleave", hideClipTooltip);
-            vuClipIndicator.addEventListener("focus", showClipTooltip);
-            vuClipIndicator.addEventListener("blur", hideClipTooltip);
-        }
+    }
+
+    const clipTarget = vuClipContainer || vuClipIndicator;
+    if (clipTarget && vuClipTooltip) {
+        clipTarget.addEventListener("mouseenter", showClipTooltip);
+        clipTarget.addEventListener("mouseleave", hideClipTooltip);
+        clipTarget.addEventListener("focusin", showClipTooltip);
+        clipTarget.addEventListener("focusout", hideClipTooltip);
     }
 
     /**

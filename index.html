@@ -74,9 +74,9 @@
                 <div class="space-y-4">
                     <div>
                         <label for="post-gain" class="block text-sm font-medium mb-1"
-                            >Post Gain: <span id="post-gain-value">100</span>%</label
+                            >Post Gain: <span id="post-gain-value">85</span>%</label
                         >
-                        <input type="range" id="post-gain" min="-40" max="0" value="0" step="1" />
+                        <input type="range" id="post-gain" min="-40" max="0" value="-6" step="1" />
                     </div>
                     <div>
                         <label for="bpm" class="block text-sm font-medium mb-1"
@@ -93,7 +93,7 @@
 
                     <!-- START: Real-Time Output Peak / VU Meter -->
                     <div id="vu-meter-container" class="relative pt-2 border-t border-gray-600/60">
-                        <div class="flex justify-between items-center mb-1 text-sm font-medium">
+                        <div class="flex justify-between items-center mb-1.5 text-sm font-medium">
                             <div class="flex items-center gap-1.5 shrink-0 whitespace-nowrap">
                                 <span class="text-gray-100 font-medium"> Peak: </span>
                                 <span
@@ -126,15 +126,19 @@
                                     </svg>
                                 </button>
                             </div>
-                            <div class="relative inline-flex shrink-0 ml-auto">
+                            <div
+                                id="vu-clip-container"
+                                class="relative inline-flex shrink-0 ml-auto"
+                            >
                                 <button
                                     id="vu-clip-indicator"
                                     type="button"
+                                    disabled
                                     title="Clipping indicator (normal)"
                                     aria-label="Clipping indicator (click to reset)"
                                     aria-describedby="vu-clip-tooltip"
                                     aria-pressed="false"
-                                    class="px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wider uppercase transition-colors bg-gray-800 text-gray-400 border border-gray-600 hover:border-gray-500 focus:outline-none focus:ring-2 focus:ring-rose-500 cursor-pointer"
+                                    class="px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wider uppercase transition-colors bg-gray-800 text-gray-400 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-rose-500 cursor-default opacity-60"
                                 >
                                     CLIP
                                 </button>
@@ -148,11 +152,11 @@
                             </div>
                         </div>
                         <div
-                            class="w-full h-2.5 bg-gray-900 rounded-full overflow-hidden p-0.5 border border-gray-600 flex"
+                            class="w-full h-5 bg-gray-900 rounded-md overflow-hidden p-0.5 border border-gray-600 flex"
                         >
                             <div
                                 id="vu-meter-bar"
-                                class="h-full rounded-full transition-all duration-75 ease-out bg-gradient-to-r from-emerald-500 via-amber-400 to-rose-500"
+                                class="h-full rounded-sm transition-all duration-75 ease-out bg-gradient-to-r from-emerald-500 via-amber-400 to-rose-500"
                                 style="width: 0%"
                                 role="meter"
                                 aria-label="Final audio output peak level"
@@ -162,6 +166,47 @@
                                 aria-valuetext="Idle"
                             ></div>
                         </div>
+
+                        <!-- Scale Calibration Ticks & Labels -->
+                        <div
+                            id="vu-scale-ticks"
+                            class="relative w-full h-4 mt-1 select-none pointer-events-none text-[10px] font-mono text-gray-400"
+                        >
+                            <!-- Tick: -60 dB (0%) -->
+                            <div class="absolute left-0 top-0 flex flex-col items-start">
+                                <div class="w-px h-1 bg-gray-500"></div>
+                                <span class="leading-none mt-0.5"> -60 </span>
+                            </div>
+                            <!-- Tick: -24 dB (60%) -->
+                            <div
+                                class="absolute left-[60%] -translate-x-1/2 top-0 flex flex-col items-center"
+                            >
+                                <div class="w-px h-1 bg-gray-500"></div>
+                                <span class="leading-none mt-0.5"> -24 </span>
+                            </div>
+                            <!-- Tick: -12 dB (80%) -->
+                            <div
+                                class="absolute left-[80%] -translate-x-1/2 top-0 flex flex-col items-center"
+                            >
+                                <div class="w-px h-1 bg-amber-400/70"></div>
+                                <span class="leading-none mt-0.5 text-amber-400/80"> -12 </span>
+                            </div>
+                            <!-- Tick: -6 dB (90%) -->
+                            <div
+                                class="absolute left-[90%] -translate-x-1/2 top-0 flex flex-col items-center"
+                            >
+                                <div class="w-px h-1 bg-amber-500"></div>
+                                <span class="leading-none mt-0.5 text-amber-400"> -6 </span>
+                            </div>
+                            <!-- Tick: 0 dB (100%) -->
+                            <div class="absolute right-0 top-0 flex flex-col items-end">
+                                <div class="w-px h-1 bg-rose-400"></div>
+                                <span class="leading-none mt-0.5 text-rose-400 font-semibold">
+                                    0
+                                </span>
+                            </div>
+                        </div>
+
                         <!-- START: Peak Info Tooltip -->
                         <div
                             id="vu-info-tooltip"
