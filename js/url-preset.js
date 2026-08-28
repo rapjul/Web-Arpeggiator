@@ -36,6 +36,9 @@ export const PRESET_URL_KEYS = Object.freeze(
         "release",
         "cutoff",
         "res",
+        "drive",
+        "chorus",
+        "pan",
         "delay",
         "reverb",
         "loop",
@@ -108,7 +111,15 @@ export const ALLOWED_SCALES = Object.freeze([
  * Allowed synth types.
  * @type {ReadonlyArray<string>}
  */
-export const ALLOWED_SYNTHS = Object.freeze(["synth", "fmSynth", "amSynth"]);
+export const ALLOWED_SYNTHS = Object.freeze([
+    "synth",
+    "fmSynth",
+    "amSynth",
+    "monoSynth",
+    "duoSynth",
+    "pluckSynth",
+    "membraneSynth",
+]);
 
 /**
  * Allowed waveform types.
@@ -198,6 +209,11 @@ export function serializePresetToUrlParams(settings) {
         params.set("cutoff", Number(settings.filterCutoff).toFixed(0));
     if (settings.filterResonance !== undefined)
         params.set("res", Number(settings.filterResonance).toFixed(1));
+    if (settings.driveMix !== undefined) params.set("drive", Number(settings.driveMix).toFixed(2));
+    if (settings.chorusMix !== undefined)
+        params.set("chorus", Number(settings.chorusMix).toFixed(2));
+    if (settings.autoPanMix !== undefined)
+        params.set("pan", Number(settings.autoPanMix).toFixed(2));
     if (settings.delayMix !== undefined) params.set("delay", Number(settings.delayMix).toFixed(2));
     if (settings.reverbMix !== undefined)
         params.set("reverb", Number(settings.reverbMix).toFixed(2));
@@ -310,6 +326,12 @@ export function parsePresetFromUrlParams(searchParams, currentSettings) {
             20.0,
             settings.filterResonance,
         );
+    if (params.has("drive"))
+        settings.driveMix = clampFloat(params.get("drive"), 0.0, 1.0, settings.driveMix ?? 0);
+    if (params.has("chorus"))
+        settings.chorusMix = clampFloat(params.get("chorus"), 0.0, 1.0, settings.chorusMix ?? 0);
+    if (params.has("pan"))
+        settings.autoPanMix = clampFloat(params.get("pan"), 0.0, 1.0, settings.autoPanMix ?? 0);
     if (params.has("delay"))
         settings.delayMix = clampFloat(params.get("delay"), 0.0, 1.0, settings.delayMix);
     if (params.has("reverb"))
@@ -358,6 +380,9 @@ export function hasPresetChanges(a, b) {
     if (Math.abs((a.envRelease ?? 0) - (b.envRelease ?? 0)) > eps) return true;
     if (Math.abs((a.filterCutoff ?? 0) - (b.filterCutoff ?? 0)) > eps) return true;
     if (Math.abs((a.filterResonance ?? 0) - (b.filterResonance ?? 0)) > eps) return true;
+    if (Math.abs((a.driveMix ?? 0) - (b.driveMix ?? 0)) > eps) return true;
+    if (Math.abs((a.chorusMix ?? 0) - (b.chorusMix ?? 0)) > eps) return true;
+    if (Math.abs((a.autoPanMix ?? 0) - (b.autoPanMix ?? 0)) > eps) return true;
     if (Math.abs((a.delayMix ?? 0) - (b.delayMix ?? 0)) > eps) return true;
     if (Math.abs((a.reverbMix ?? 0) - (b.reverbMix ?? 0)) > eps) return true;
     if (a.loopCount !== b.loopCount) return true;

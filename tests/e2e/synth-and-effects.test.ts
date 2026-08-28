@@ -162,5 +162,83 @@ test("Synthesizer & Audio Effects Chain Suite", async (): Promise<void> => {
     ]);
     expect(filterDelayResult).toBe('"success"');
 
+    // 7. Verify New Synths (MonoSynth, DuoSynth, PluckSynth, MembraneSynth) switching and UI containers
+    console.log("Step 7: Testing new synth engines switching and containers...");
+    const newSynthsResult: string = await runBrowser([
+        "eval",
+        `(async () => {
+        const sel = document.getElementById('synth-type');
+        const monoParams = document.getElementById('mono-synth-params');
+        const duoParams = document.getElementById('duo-synth-params');
+        const pluckParams = document.getElementById('pluck-synth-params');
+        const membraneParams = document.getElementById('membrane-synth-params');
+
+        // 7a. MonoSynth
+        sel.value = 'monoSynth';
+        sel.dispatchEvent(new Event('change'));
+        if (monoParams.classList.contains('hidden')) return 'mono-params-hidden';
+        if (window.__WEB_ARP_TEST__.getCurrentSettings().synthType !== 'monoSynth') return 'mono-settings-mismatch';
+        const sineBtn = document.querySelector('button[data-wave="sine"]');
+        const pluckOverlay = document.getElementById('waveform-pluck-overlay');
+        if (sineBtn && sineBtn.disabled) return 'sine-btn-disabled-for-monosynth';
+        if (pluckOverlay && !pluckOverlay.classList.contains('hidden')) return 'overlay-visible-for-monosynth';
+
+        // 7b. DuoSynth
+        sel.value = 'duoSynth';
+        sel.dispatchEvent(new Event('change'));
+        if (duoParams.classList.contains('hidden')) return 'duo-params-hidden';
+        if (window.__WEB_ARP_TEST__.getCurrentSettings().synthType !== 'duoSynth') return 'duo-settings-mismatch';
+
+        // 7c. PluckSynth
+        sel.value = 'pluckSynth';
+        sel.dispatchEvent(new Event('change'));
+        if (pluckParams.classList.contains('hidden')) return 'pluck-params-hidden';
+        if (window.__WEB_ARP_TEST__.getCurrentSettings().synthType !== 'pluckSynth') return 'pluck-settings-mismatch';
+        if (sineBtn && !sineBtn.disabled) return 'sine-btn-should-be-disabled-for-plucksynth';
+        if (pluckOverlay && pluckOverlay.classList.contains('hidden')) return 'overlay-hidden-for-plucksynth';
+
+        // 7d. MembraneSynth
+        sel.value = 'membraneSynth';
+        sel.dispatchEvent(new Event('change'));
+        if (membraneParams.classList.contains('hidden')) return 'membrane-params-hidden';
+        if (window.__WEB_ARP_TEST__.getCurrentSettings().synthType !== 'membraneSynth') return 'membrane-settings-mismatch';
+        if (sineBtn && sineBtn.disabled) return 'sine-btn-disabled-for-membranesynth';
+        if (pluckOverlay && !pluckOverlay.classList.contains('hidden')) return 'overlay-visible-for-membranesynth';
+
+        return 'success';
+    })()`,
+    ]);
+    expect(newSynthsResult).toBe('"success"');
+
+    // 8. Verify Studio Effects (Drive, Chorus, Auto-Pan)
+    console.log("Step 8: Testing studio effects (Drive, Chorus, Auto-Pan)...");
+    const studioEffectsResult: string = await runBrowser([
+        "eval",
+        `(async () => {
+        const drive = document.getElementById('drive-mix');
+        drive.value = 0.65;
+        drive.dispatchEvent(new Event('input'));
+        drive.dispatchEvent(new Event('change'));
+
+        const chorus = document.getElementById('chorus-mix');
+        chorus.value = 0.50;
+        chorus.dispatchEvent(new Event('input'));
+        chorus.dispatchEvent(new Event('change'));
+
+        const pan = document.getElementById('autopan-mix');
+        pan.value = 0.75;
+        pan.dispatchEvent(new Event('input'));
+        pan.dispatchEvent(new Event('change'));
+
+        const settings = window.__WEB_ARP_TEST__.getCurrentSettings();
+        if (Math.abs(settings.driveMix - 0.65) > 0.01) return 'incorrect-drive-mix: ' + settings.driveMix;
+        if (Math.abs(settings.chorusMix - 0.50) > 0.01) return 'incorrect-chorus-mix: ' + settings.chorusMix;
+        if (Math.abs(settings.autoPanMix - 0.75) > 0.01) return 'incorrect-autopan-mix: ' + settings.autoPanMix;
+
+        return 'success';
+    })()`,
+    ]);
+    expect(studioEffectsResult).toBe('"success"');
+
     console.log("Synthesizer & Audio Effects Chain Integration Suite complete!");
 }, 30000);

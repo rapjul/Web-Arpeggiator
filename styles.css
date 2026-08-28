@@ -236,6 +236,7 @@ button:disabled {
     /* py-2 */
     min-width: 60px;
     /* Ensure buttons don't get too small */
+    min-height: 72px;
     flex: 1 0 18%;
     /* Allow flex growth and wrap */
     border-radius: 0.375rem;
