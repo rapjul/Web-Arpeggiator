@@ -6,9 +6,9 @@ Web Arpeggiator is a browser-based musical arpeggiator application built with va
 
 ## Core Technologies
 
-- **Tone.js (v14.8.49)**: Web Audio API framework for synthesis, effects, and timing
-- **Tonal.js (v6.4.2)**: Music theory library for scale quantization
-- **LameJS (v1.2.1)**: MP3 encoding for audio export
+- **Tone.js**: Web Audio API framework for synthesis, effects, and timing
+- **Tonal.js**: Music theory library for scale quantization
+- **LameJS**: MP3 encoding for audio export
 - **Tailwind CSS**: Utility-first CSS framework for UI styling
 
 ## Architecture

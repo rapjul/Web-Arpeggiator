@@ -176,9 +176,9 @@ Example: With C Major selected, the note "C#4" becomes "D4"
 
 ## Technologies
 
-- **[Tone.js](https://tonejs.org/)** (v14.8.49): Web Audio API framework for synthesis and effects
-- **[Tonal.js](https://github.com/tonaljs/tonal)** (v6.4.2): Music theory library for scale operations
-- **[LameJS](https://www.npmjs.com/package/lamejs)** (v1.2.1): Client-side MP3 encoding
+- **[Tone.js](https://tonejs.org/)**: Web Audio API framework for synthesis and effects
+- **[Tonal.js](https://github.com/tonaljs/tonal)**: Music theory library for scale operations
+- **[LameJS](https://www.npmjs.com/package/lamejs)**: Client-side MP3 encoding
 - **[Tailwind CSS](https://tailwindcss.com/)**: Utility-first CSS styling
 
 ## Documentation
