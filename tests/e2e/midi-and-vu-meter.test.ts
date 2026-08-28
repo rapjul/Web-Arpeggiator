@@ -103,35 +103,103 @@ test("MIDI Export & Real-Time Peak Meter Suite", async (): Promise<void> => {
     ]);
     expect(midiExportResult).toBe('"success"');
 
-    // 4. Test Real-Time VU / Peak Meter UI & Clip Reset
+    // 4. Test Real-Time VU / Peak Meter UI, Tooltip, & Clip Reset
     console.log("Step 4: Testing Real-Time VU Meter & Clipping Indicator...");
     const vuMeterResult: string = await runBrowser([
         "eval",
         `(async () => {
         const vuBar = document.getElementById("vu-meter-bar");
         const vuDb = document.getElementById("vu-db-value");
-        const clipBtn = document.getElementById("vu-clip-indicator");
+        const clipContainer = document.getElementById("vu-clip-container");
+        const clipBtn = /** @type {HTMLButtonElement | null} */ (document.getElementById("vu-clip-indicator"));
+        const clipTooltip = document.getElementById("vu-clip-tooltip");
+        const scaleTicks = document.getElementById("vu-scale-ticks");
+        const infoBtn = document.getElementById("vu-info-button");
+        const infoTooltip = document.getElementById("vu-info-tooltip");
+        const postGainSlider = /** @type {HTMLInputElement | null} */ (document.getElementById("post-gain"));
+        const postGainValue = document.getElementById("post-gain-value");
 
-        if (!vuBar || !vuDb || !clipBtn) return "vu-elements-missing";
+        if (!vuBar || !vuDb || !clipBtn || !clipTooltip || !infoBtn || !infoTooltip || !scaleTicks || !postGainSlider || !postGainValue) {
+            return "vu-elements-missing";
+        }
 
-        // Check a11y accessibility attributes
+        // Verify post-gain slider and dynamic dB-to-percent conversion (-6 dB = 85%)
+        postGainSlider.value = "-6";
+        postGainSlider.dispatchEvent(new Event("input"));
+        if (postGainValue.textContent?.trim() !== "85") return "invalid-postgain-text:" + postGainValue.textContent;
+
+        // Verify meter bar track has taller h-5 height
+        if (!vuBar.parentElement?.classList.contains("h-5")) return "missing-h-5-meter-track";
+
+        // Verify scale ticks contain key digital full-scale points
+        const ticksText = scaleTicks.textContent || "";
+        if (!ticksText.includes("-60") || !ticksText.includes("-24") || !ticksText.includes("-12") || !ticksText.includes("-6") || !ticksText.includes("0")) {
+            return "missing-scale-tick-labels:" + ticksText;
+        }
+
+        // Ensure playback is stopped to test clean idle state
+        await window.__WEB_ARP_TEST__.stop();
+        const vis = window.__WEB_ARP_TEST__.getVisualizer();
+        vis.stopUiLoop();
+
+        // Check a11y accessibility attributes & initial idle state
         if (vuBar.getAttribute("role") !== "meter") return "missing-meter-role";
-        if (!vuBar.getAttribute("aria-label")) return "missing-meter-aria-label";
+        if (vuBar.getAttribute("aria-label") !== "Final audio output peak level") return "invalid-meter-aria-label";
+        if (vuBar.getAttribute("aria-valuenow") !== "-60") return "invalid-initial-aria-valuenow:" + vuBar.getAttribute("aria-valuenow");
+        if (vuBar.getAttribute("aria-valuetext") !== "Idle") return "invalid-initial-aria-valuetext:" + vuBar.getAttribute("aria-valuetext");
+        if (vuDb.textContent?.trim() !== "-- dB") return "invalid-initial-db-text:" + vuDb.textContent;
         if (clipBtn.getAttribute("aria-pressed") !== "false") return "missing-initial-aria-pressed";
+        if (clipBtn.disabled !== true) return "clip-btn-should-be-disabled-initially";
+        if (clipBtn.getAttribute("aria-describedby") !== "vu-clip-tooltip") return "missing-clip-aria-describedby";
+        if (clipTooltip.getAttribute("role") !== "tooltip") return "missing-clip-tooltip-role";
+
+        // Test hover interaction for clip tooltip (normal state via container wrapper)
+        const hoverTarget = clipContainer || clipBtn;
+        if (!clipTooltip.classList.contains("hidden")) return "clip-tooltip-initially-visible";
+        hoverTarget.dispatchEvent(new MouseEvent("mouseenter"));
+        if (clipTooltip.classList.contains("hidden")) return "clip-tooltip-hover-show-failed";
+        if (clipTooltip.textContent?.trim() !== "No clipping detected") return "invalid-clip-tooltip-text:" + clipTooltip.textContent;
+        hoverTarget.dispatchEvent(new MouseEvent("mouseleave"));
+        if (!clipTooltip.classList.contains("hidden")) return "clip-tooltip-hover-hide-failed";
+
+        // Check info tooltip accessibility attributes
+        if (infoTooltip.getAttribute("role") !== "tooltip") return "missing-tooltip-role";
+        if (infoBtn.getAttribute("aria-describedby") !== "vu-info-tooltip") return "missing-info-aria-describedby";
+        if (infoBtn.getAttribute("aria-label") !== "Final Audio Output info") return "invalid-info-aria-label";
+
+        // Test hover interaction for info tooltip
+        if (!infoTooltip.classList.contains("hidden")) return "tooltip-initially-visible";
+        infoBtn.dispatchEvent(new MouseEvent("mouseenter"));
+        if (infoTooltip.classList.contains("hidden")) return "tooltip-hover-show-failed";
+        if (infoBtn.getAttribute("aria-expanded") !== "true") return "tooltip-aria-expanded-not-true";
+
+        infoBtn.dispatchEvent(new MouseEvent("mouseleave"));
+        if (!infoTooltip.classList.contains("hidden")) return "tooltip-hover-hide-failed";
+        if (infoBtn.getAttribute("aria-expanded") !== "false") return "tooltip-aria-expanded-not-false";
+
+        // Test focus & escape key dismissal
+        infoBtn.focus();
+        if (infoTooltip.classList.contains("hidden")) return "tooltip-focus-show-failed";
+        document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+        if (!infoTooltip.classList.contains("hidden")) return "tooltip-escape-hide-failed";
 
         // Start playback
         await window.__WEB_ARP_TEST__.play();
         await new Promise((resolve) => setTimeout(resolve, 800));
 
         // Get visualizer animation update
-        const vis = window.__WEB_ARP_TEST__.getVisualizer();
         vis.runUiUpdate();
 
         // Verify that meter bar or db readout responded to audio playback
         const rawDbText = vuDb.textContent || "";
         const barWidth = vuBar.style.width || "0%";
-        if (barWidth === "0%" && rawDbText === "-inf dB") {
+        if (barWidth === "0%" && rawDbText === "-- dB") {
             return "meter-failed-to-respond";
+        }
+
+        const activeAriaValueText = vuBar.getAttribute("aria-valuetext") || "";
+        if (!activeAriaValueText.includes("dBFS")) {
+            return "missing-active-aria-valuetext:" + activeAriaValueText;
         }
 
         // Test clipping latch behavior with unsmoothed peakAnalyser and verify aria-valuenow clamping
@@ -148,15 +216,23 @@ test("MIDI Export & Real-Time Peak Meter Suite", async (): Promise<void> => {
         if (ariaValueNow > 0) return "aria-valuenow-exceeds-max:" + ariaValueNow;
 
         if (!vis.isClipped) return "clip-failed-to-latch";
+        if (clipBtn.disabled !== false) return "clip-btn-should-be-enabled-when-clipped";
         if (clipBtn.getAttribute("aria-pressed") !== "true") return "clip-btn-aria-pressed-not-true";
+        if (clipTooltip.textContent?.trim() !== "Signal clipped — Click to reset") return "invalid-clipped-tooltip-text:" + clipTooltip.textContent;
 
         // Verify clip indicator click resets latched clip
         clipBtn.click();
         if (vis.isClipped) return "clip-failed-to-reset";
+        if (clipBtn.disabled !== true) return "clip-btn-should-be-disabled-after-reset";
         if (clipBtn.getAttribute("aria-pressed") !== "false") return "clip-btn-aria-pressed-not-reset";
+        if (clipTooltip.textContent?.trim() !== "No clipping detected") return "clip-tooltip-not-reset:" + clipTooltip.textContent;
 
-        // Stop playback
+        // Stop playback and verify return to idle
         await window.__WEB_ARP_TEST__.stop();
+        vis.stopUiLoop();
+        if (vuDb.textContent?.trim() !== "-- dB") return "stop-db-not-idle:" + vuDb.textContent;
+        if (vuBar.getAttribute("aria-valuetext") !== "Idle") return "stop-aria-valuetext-not-idle";
+
         return "success";
     })()`,
     ]);

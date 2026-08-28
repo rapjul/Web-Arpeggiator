@@ -25,6 +25,14 @@ import * as Tone from "tone";
  * @param {HTMLElement}       context.dom.visualizerZoomValue    - Text readout for zoom.
  * @param {HTMLSelectElement} context.dom.oscilloscopeWindowSelect - Select dropdown for time duration.
  * @param {HTMLElement}       context.dom.oscilloscopeWindowContainer - Container wrapper for time dropdown.
+ * @param {HTMLElement}       [context.dom.vuMeterBar]           - Meter bar element.
+ * @param {HTMLElement}       [context.dom.vuDbValue]            - Peak dB value text container.
+ * @param {HTMLElement}       [context.dom.vuClipContainer]      - Clip reset button wrapper container.
+ * @param {HTMLButtonElement} [context.dom.vuClipIndicator]      - Clip reset button indicator.
+ * @param {HTMLElement}       [context.dom.vuClipTooltip]        - Clip reset button micro-tooltip.
+ * @param {HTMLButtonElement} [context.dom.vuInfoButton]         - Info tooltip trigger button.
+ * @param {HTMLElement}       [context.dom.vuInfoTooltip]        - Info tooltip container.
+ * @param {HTMLInputElement}  [context.dom.envReleaseSlider]     - Envelope release slider input.
  * @param {object}   context.audio                               - Audio-engine references.
  * @param {Tone.Analyser}     context.audio.analyser             - Waveform/FFT analyser.
  * @param {object}   context.state                               - Shared app state.
@@ -54,7 +62,11 @@ export function createVisualizer(context) {
     const oscilloscopeWindowContainer = dom.oscilloscopeWindowContainer;
     const vuMeterBar = dom.vuMeterBar;
     const vuDbValue = dom.vuDbValue;
+    const vuClipContainer = dom.vuClipContainer || document.getElementById("vu-clip-container");
     const vuClipIndicator = dom.vuClipIndicator;
+    const vuClipTooltip = dom.vuClipTooltip || document.getElementById("vu-clip-tooltip");
+    const vuInfoButton = dom.vuInfoButton || document.getElementById("vu-info-button");
+    const vuInfoTooltip = dom.vuInfoTooltip || document.getElementById("vu-info-tooltip");
     const envReleaseSlider = dom.envReleaseSlider;
     const analyser = audio.analyser;
     const meter = audio.meter;
@@ -724,12 +736,14 @@ export function createVisualizer(context) {
             if (db <= -60 || !isFinite(db)) {
                 vuMeterBar.style.width = "0%";
                 vuMeterBar.setAttribute("aria-valuenow", "-60");
-                if (vuDbValue) vuDbValue.textContent = "-inf dB";
+                vuMeterBar.setAttribute("aria-valuetext", "Idle");
+                if (vuDbValue) vuDbValue.textContent = "-- dB";
             } else {
                 const clampedDb = Math.min(0, Math.max(-60, db));
                 const pct = Math.max(0, Math.min(100, ((clampedDb + 60) / 60) * 100));
                 vuMeterBar.style.width = `${pct.toFixed(1)}%`;
                 vuMeterBar.setAttribute("aria-valuenow", clampedDb.toFixed(1));
+                vuMeterBar.setAttribute("aria-valuetext", `${clampedDb.toFixed(1)} dBFS`);
                 if (vuDbValue) {
                     vuDbValue.textContent = `${db >= 0 ? "+" : ""}${db.toFixed(1)} dB`;
                 }
@@ -738,14 +752,27 @@ export function createVisualizer(context) {
             // Latch red clip indicator if unsmoothed peak hits full scale or meter reaches 0 dBFS
             if ((isPeakClipping || db >= 0) && !isClipped && vuClipIndicator) {
                 isClipped = true;
-                vuClipIndicator.classList.remove("bg-gray-800", "text-gray-500", "border-gray-600");
+                vuClipIndicator.disabled = false;
+                vuClipIndicator.classList.remove(
+                    "bg-gray-800",
+                    "text-gray-400",
+                    "border-gray-600",
+                    "cursor-default",
+                    "opacity-60",
+                );
                 vuClipIndicator.classList.add(
                     "bg-rose-600",
                     "text-white",
                     "border-rose-400",
                     "animate-pulse",
+                    "cursor-pointer",
+                    "opacity-100",
                 );
                 vuClipIndicator.setAttribute("aria-pressed", "true");
+                vuClipIndicator.setAttribute("title", "Signal clipped — Click to reset");
+                if (vuClipTooltip) {
+                    vuClipTooltip.textContent = "Signal clipped — Click to reset";
+                }
             }
         }
 
@@ -806,8 +833,12 @@ export function createVisualizer(context) {
         if (animationFrameId && !shouldRunUiLoop()) {
             cancelAnimationFrame(animationFrameId);
             animationFrameId = null;
-            if (vuMeterBar) vuMeterBar.style.width = "0%";
-            if (vuDbValue) vuDbValue.textContent = "-inf dB";
+            if (vuMeterBar) {
+                vuMeterBar.style.width = "0%";
+                vuMeterBar.setAttribute("aria-valuenow", "-60");
+                vuMeterBar.setAttribute("aria-valuetext", "Idle");
+            }
+            if (vuDbValue) vuDbValue.textContent = "-- dB";
         }
     }
 
@@ -953,19 +984,127 @@ export function createVisualizer(context) {
     function resetClip() {
         isClipped = false;
         if (vuClipIndicator) {
+            vuClipIndicator.disabled = true;
             vuClipIndicator.classList.remove(
                 "bg-rose-600",
                 "text-white",
                 "border-rose-400",
                 "animate-pulse",
+                "cursor-pointer",
+                "opacity-100",
             );
-            vuClipIndicator.classList.add("bg-gray-800", "text-gray-500", "border-gray-600");
+            vuClipIndicator.classList.add(
+                "bg-gray-800",
+                "text-gray-400",
+                "border-gray-600",
+                "cursor-default",
+                "opacity-60",
+            );
             vuClipIndicator.setAttribute("aria-pressed", "false");
+            vuClipIndicator.setAttribute("title", "Clipping indicator (normal)");
+        }
+        if (vuClipTooltip) {
+            vuClipTooltip.textContent = "No clipping detected";
+        }
+    }
+
+    /**
+     * Shows the clip button micro-tooltip.
+     *
+     * @returns {void}
+     */
+    function showClipTooltip() {
+        if (vuClipTooltip) {
+            vuClipTooltip.classList.remove("hidden");
+        }
+    }
+
+    /**
+     * Hides the clip button micro-tooltip.
+     *
+     * @returns {void}
+     */
+    function hideClipTooltip() {
+        if (vuClipTooltip) {
+            vuClipTooltip.classList.add("hidden");
         }
     }
 
     if (vuClipIndicator) {
         vuClipIndicator.addEventListener("click", resetClip);
+    }
+
+    const clipTarget = vuClipContainer || vuClipIndicator;
+    if (clipTarget && vuClipTooltip) {
+        clipTarget.addEventListener("mouseenter", showClipTooltip);
+        clipTarget.addEventListener("mouseleave", hideClipTooltip);
+        clipTarget.addEventListener("focusin", showClipTooltip);
+        clipTarget.addEventListener("focusout", hideClipTooltip);
+    }
+
+    /**
+     * Shows the peak meter info tooltip and updates its ARIA state.
+     *
+     * @returns {void}
+     */
+    function showInfoTooltip() {
+        if (vuInfoTooltip) {
+            vuInfoTooltip.classList.remove("hidden");
+        }
+        if (vuInfoButton) {
+            vuInfoButton.setAttribute("aria-expanded", "true");
+        }
+    }
+
+    /**
+     * Hides the peak meter info tooltip and updates its ARIA state.
+     *
+     * @returns {void}
+     */
+    function hideInfoTooltip() {
+        if (vuInfoTooltip) {
+            vuInfoTooltip.classList.add("hidden");
+        }
+        if (vuInfoButton) {
+            vuInfoButton.setAttribute("aria-expanded", "false");
+        }
+    }
+
+    if (vuInfoButton && vuInfoTooltip) {
+        // Desktop: Hover & Focus
+        vuInfoButton.addEventListener("mouseenter", showInfoTooltip);
+        vuInfoButton.addEventListener("mouseleave", hideInfoTooltip);
+        vuInfoButton.addEventListener("focus", showInfoTooltip);
+        vuInfoButton.addEventListener("blur", hideInfoTooltip);
+
+        // Mobile/Touch: Tap toggle
+        vuInfoButton.addEventListener("click", (e) => {
+            e.stopPropagation();
+            if (vuInfoTooltip.classList.contains("hidden")) {
+                showInfoTooltip();
+            } else {
+                hideInfoTooltip();
+            }
+        });
+
+        // Global dismiss on Escape key or outside click
+        document.addEventListener("keydown", (e) => {
+            if (e.key === "Escape" && !vuInfoTooltip.classList.contains("hidden")) {
+                hideInfoTooltip();
+                vuInfoButton.focus();
+            }
+        });
+
+        document.addEventListener("click", (e) => {
+            if (
+                !vuInfoTooltip.classList.contains("hidden") &&
+                e.target !== vuInfoButton &&
+                !vuInfoButton.contains(/** @type {Node} */ (e.target)) &&
+                !vuInfoTooltip.contains(/** @type {Node} */ (e.target))
+            ) {
+                hideInfoTooltip();
+            }
+        });
     }
 
     /**

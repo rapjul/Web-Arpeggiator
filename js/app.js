@@ -344,7 +344,13 @@ function initializeApp() {
     // Output Peak / VU Meter
     const vuMeterBar = document.getElementById("vu-meter-bar");
     const vuDbValue = document.getElementById("vu-db-value");
-    const vuClipIndicator = document.getElementById("vu-clip-indicator");
+    const vuClipContainer = document.getElementById("vu-clip-container");
+    const vuClipIndicator = /** @type {HTMLButtonElement | null} */ (
+        document.getElementById("vu-clip-indicator")
+    );
+    const vuClipTooltip = document.getElementById("vu-clip-tooltip");
+    const vuInfoButton = document.getElementById("vu-info-button");
+    const vuInfoTooltip = document.getElementById("vu-info-tooltip");
 
     // Utility card
     const visualizerYAxisCanvas = /** @type {HTMLCanvasElement | null} */ (
@@ -791,7 +797,11 @@ function initializeApp() {
             oscilloscopeWindowContainer,
             vuMeterBar,
             vuDbValue,
+            vuClipContainer,
             vuClipIndicator,
+            vuClipTooltip,
+            vuInfoButton,
+            vuInfoTooltip,
             envReleaseSlider,
         },
         audio: {
