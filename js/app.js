@@ -655,6 +655,14 @@ function initializeApp() {
     //    Module Initialization
     // ==================================================================
 
+    // 0. Toast Manager — UI notifications and live region announcements
+    const toastManager = createToastManager({
+        toastContainer,
+        liveRegion: document.getElementById("sr-announcements"),
+        logger: log,
+    });
+    const { showToast, announce } = toastManager;
+
     // 1. Audio Engine — synths, effects, filter, analyzer
     let audioEngine;
     audioEngine = createAudioEngine({
@@ -683,6 +691,7 @@ function initializeApp() {
     window.audioEngine = audioEngine;
 
     // 2. Visualizer — canvas rendering, UI loop, toggle
+    let recorderManager;
     const visualizer = createVisualizer({
         dom: {
             visualizerYAxisCanvas,
@@ -699,10 +708,10 @@ function initializeApp() {
         audio: { analyser: audioEngine.analyser },
         state: {
             get isRecording() {
-                return recorderManager.isRecording;
+                return recorderManager ? recorderManager.isRecording : false;
             },
             get recordingStartTime() {
-                return recorderManager.recordingStartTime;
+                return recorderManager ? recorderManager.recordingStartTime : 0;
             },
             get isPlaying() {
                 return isPlaying;
@@ -797,7 +806,7 @@ function initializeApp() {
     const { updateKeyboardControlUi } = keyboardControls;
 
     // 5. Recorder Manager (needs getAllSettings / generateFilename from settings)
-    const recorderManager = createRecorderManager({
+    recorderManager = createRecorderManager({
         audio: {
             reverb: audioEngine.reverb,
             synths: audioEngine.synths,
@@ -926,13 +935,6 @@ function initializeApp() {
             scaleQuantizeToggleStatus.classList.add("text-gray-400");
         }
     }
-
-    const toastManager = createToastManager({
-        toastContainer,
-        liveRegion: document.getElementById("sr-announcements"),
-        logger: log,
-    });
-    const { showToast, announce } = toastManager;
 
     /**
      * Sets up arrow key keyboard navigation for a group of buttons.
