@@ -1,6 +1,7 @@
 node_modules
 dist
-Previous Versions
-exports
-presets
-.agents
+.vite
+bun.lock
+exports/
+coverage/
+.system_generated/
