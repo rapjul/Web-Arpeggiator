@@ -95,9 +95,7 @@
                     <div id="vu-meter-container" class="relative pt-2 border-t border-gray-600/60">
                         <div class="flex justify-between items-center mb-1 text-sm font-medium">
                             <div class="flex items-center gap-1.5 shrink-0 whitespace-nowrap">
-                                <span class="text-gray-100 font-medium">
-                                    Peak:
-                                </span>
+                                <span class="text-gray-100 font-medium"> Peak: </span>
                                 <span
                                     id="vu-db-value"
                                     class="text-sm font-mono tabular-nums text-gray-200 whitespace-nowrap"
@@ -158,11 +156,9 @@
                         <div
                             id="vu-info-tooltip"
                             role="tooltip"
-                            class="hidden mt-2 p-2.5 bg-gray-800 border border-gray-600 rounded-md shadow-lg text-xs text-gray-200 space-y-1.5 transition-all"
+                            class="hidden absolute left-0 right-0 top-full mt-2 z-50 p-2.5 bg-gray-900 border border-gray-600 rounded-md shadow-2xl text-xs text-gray-200 space-y-1.5 backdrop-blur-md"
                         >
-                            <p class="font-semibold text-blue-300">
-                                Final Audio Output Peak Meter
-                            </p>
+                            <p class="font-semibold text-blue-300">Final Audio Output Peak Meter</p>
                             <p class="text-gray-300">
                                 Measures real-time output signal level in dBFS after the master
                                 limiter.
