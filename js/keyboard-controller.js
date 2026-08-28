@@ -80,7 +80,7 @@ export function initializeKeyboardControls(context) {
         "justify-center",
         "items-start",
         "h-20",
-        "select-none",
+        "select-none"
     );
 
     const octave1Wrapper = document.createElement("div");

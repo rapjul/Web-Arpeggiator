@@ -42,7 +42,7 @@ export const CHROMATIC_RANGE = Object.freeze(
             }
         }
         return range;
-    })(),
+    })()
 );
 
 /**
@@ -70,7 +70,7 @@ export function quantizeToScale(baseNotes, root, scaleType) {
 
         const scalePitchClasses = scale.notes.map((n) => Tonal.Note.pitchClass(n));
         const scaleNotes = CHROMATIC_RANGE.filter((note) =>
-            scalePitchClasses.includes(Tonal.Note.pitchClass(note)),
+            scalePitchClasses.includes(Tonal.Note.pitchClass(note))
         );
 
         if (!scaleNotes.length) {
@@ -87,7 +87,7 @@ export function quantizeToScale(baseNotes, root, scaleType) {
                 }
 
                 const closest = scaleMidis.reduce((prev, curr) =>
-                    Math.abs(curr - noteMidi) < Math.abs(prev - noteMidi) ? curr : prev,
+                    Math.abs(curr - noteMidi) < Math.abs(prev - noteMidi) ? curr : prev
                 );
 
                 return Tonal.Note.fromMidi(closest);
@@ -225,7 +225,7 @@ export function buildPatternSequence(baseNotes, options = {}) {
             baseNotes,
             octaveRange,
             octaveShift,
-            quantize,
+            quantize
         );
         if (notes.length > 0) {
             const reversedNotes = [...notes].reverse();
@@ -239,7 +239,7 @@ export function buildPatternSequence(baseNotes, options = {}) {
             baseNotes,
             octaveRange,
             octaveShift,
-            quantize,
+            quantize
         );
         if (notes.length > 0) {
             const reversedNotes = [...notes].reverse();
@@ -325,7 +325,7 @@ export function buildPatternSequence(baseNotes, options = {}) {
             baseNotes,
             octaveRange,
             octaveShift,
-            quantize,
+            quantize
         );
         if (notes.length > 0) {
             let currentIndex = Math.floor(rng() * notes.length);
@@ -354,7 +354,7 @@ export function buildPatternSequence(baseNotes, options = {}) {
             baseNotes,
             octaveRange,
             octaveShift,
-            quantize,
+            quantize
         );
         finalNotes = notes;
         stepToBaseIndexMap = map;
@@ -458,7 +458,7 @@ export function materializePatternSequence(baseNotes, options = {}) {
                 for (let rep = 0; rep < 2; rep++) {
                     for (let oct = 0; oct < 3; oct++) {
                         finalNotes.push(
-                            Tonal.Note.fromMidi(parsed.midi + octaveShift * 12 + oct * 12),
+                            Tonal.Note.fromMidi(parsed.midi + octaveShift * 12 + oct * 12)
                         );
                         finalMap.push(i);
                     }
@@ -480,7 +480,7 @@ export function materializePatternSequence(baseNotes, options = {}) {
                 for (let rep = 0; rep < 2; rep++) {
                     for (let oct = 2; oct >= 0; oct--) {
                         finalNotes.push(
-                            Tonal.Note.fromMidi(parsed.midi + octaveShift * 12 + oct * 12),
+                            Tonal.Note.fromMidi(parsed.midi + octaveShift * 12 + oct * 12)
                         );
                         finalMap.push(index);
                     }

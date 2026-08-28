@@ -116,7 +116,7 @@ describe("URL Preset Domain Module", () => {
             hasPresetChanges(defaultSettings, {
                 ...defaultSettings,
                 baseNotes: ["D4", "F4"],
-            }),
+            })
         ).toBe(true);
 
         // BPM change
@@ -127,7 +127,7 @@ describe("URL Preset Domain Module", () => {
             hasPresetChanges(defaultSettings, {
                 ...defaultSettings,
                 swing: 0.00000000001,
-            }),
+            })
         ).toBe(false);
 
         // Waveform change
@@ -135,7 +135,7 @@ describe("URL Preset Domain Module", () => {
             hasPresetChanges(defaultSettings, {
                 ...defaultSettings,
                 waveform: "square",
-            }),
+            })
         ).toBe(true);
 
         // Effect change (drive, chorus, pan)
@@ -143,19 +143,19 @@ describe("URL Preset Domain Module", () => {
             hasPresetChanges(defaultSettings, {
                 ...defaultSettings,
                 driveMix: 0.5,
-            }),
+            })
         ).toBe(true);
         expect(
             hasPresetChanges(defaultSettings, {
                 ...defaultSettings,
                 chorusMix: 0.3,
-            }),
+            })
         ).toBe(true);
         expect(
             hasPresetChanges(defaultSettings, {
                 ...defaultSettings,
                 autoPanMix: 0.7,
-            }),
+            })
         ).toBe(true);
     });
 

@@ -73,21 +73,25 @@
                 </h2>
                 <div class="space-y-4">
                     <div>
-                        <label for="post-gain" class="block text-sm font-medium mb-1"
-                            >Post Gain: <span id="post-gain-value">85</span>%</label
-                        >
+                        <label for="post-gain" class="block text-sm font-medium mb-1">
+                            Post Gain:
+                            <span id="post-gain-value">85</span>
+                            %
+                        </label>
                         <input type="range" id="post-gain" min="-40" max="0" value="-6" step="1" />
                     </div>
                     <div>
-                        <label for="bpm" class="block text-sm font-medium mb-1"
-                            >BPM: <span id="bpm-value">120</span></label
-                        >
+                        <label for="bpm" class="block text-sm font-medium mb-1">
+                            BPM:
+                            <span id="bpm-value">120</span>
+                        </label>
                         <input type="range" id="bpm" min="40" max="240" value="120" step="1" />
                     </div>
                     <div>
-                        <label for="swing" class="block text-sm font-medium mb-1"
-                            >Swing: <span id="swing-value">0.00</span></label
-                        >
+                        <label for="swing" class="block text-sm font-medium mb-1">
+                            Swing:
+                            <span id="swing-value">0.00</span>
+                        </label>
                         <input type="range" id="swing" min="0" max="1" value="0" step="0.01" />
                     </div>
 
@@ -95,7 +99,7 @@
                     <div id="vu-meter-container" class="relative pt-2 border-t border-gray-600/60">
                         <div class="flex justify-between items-center mb-1.5 text-sm font-medium">
                             <div class="flex items-center gap-1.5 shrink-0 whitespace-nowrap">
-                                <span class="text-gray-100 font-medium"> Peak: </span>
+                                <span class="text-gray-100 font-medium">Peak:</span>
                                 <span
                                     id="vu-db-value"
                                     class="text-sm font-mono tabular-nums text-gray-200 whitespace-nowrap"
@@ -175,28 +179,28 @@
                             <!-- Tick: -60 dB (0%) -->
                             <div class="absolute left-0 top-0 flex flex-col items-start">
                                 <div class="w-px h-1 bg-gray-500"></div>
-                                <span class="leading-none mt-0.5"> -60 </span>
+                                <span class="leading-none mt-0.5">-60</span>
                             </div>
                             <!-- Tick: -24 dB (60%) -->
                             <div
                                 class="absolute left-[60%] -translate-x-1/2 top-0 flex flex-col items-center"
                             >
                                 <div class="w-px h-1 bg-gray-500"></div>
-                                <span class="leading-none mt-0.5"> -24 </span>
+                                <span class="leading-none mt-0.5">-24</span>
                             </div>
                             <!-- Tick: -12 dB (80%) -->
                             <div
                                 class="absolute left-[80%] -translate-x-1/2 top-0 flex flex-col items-center"
                             >
                                 <div class="w-px h-1 bg-amber-400/70"></div>
-                                <span class="leading-none mt-0.5 text-amber-400/80"> -12 </span>
+                                <span class="leading-none mt-0.5 text-amber-400/80">-12</span>
                             </div>
                             <!-- Tick: -6 dB (90%) -->
                             <div
                                 class="absolute left-[90%] -translate-x-1/2 top-0 flex flex-col items-center"
                             >
                                 <div class="w-px h-1 bg-amber-500"></div>
-                                <span class="leading-none mt-0.5 text-amber-400"> -6 </span>
+                                <span class="leading-none mt-0.5 text-amber-400">-6</span>
                             </div>
                             <!-- Tick: 0 dB (100%) -->
                             <div class="absolute right-0 top-0 flex flex-col items-end">
@@ -244,18 +248,19 @@
                 <div class="space-y-4">
                     <div>
                         <div class="flex justify-between items-center mb-1">
-                            <label for="notes" class="block text-sm font-medium"
-                                >Notes
-                                <span class="text-xs text-gray-300 font-normal"
-                                    >e.g., C4 E4 G4 C#4 Eb5</span
-                                ></label
-                            >
+                            <label for="notes" class="block text-sm font-medium">
+                                Notes
+                                <span class="text-xs text-gray-300 font-normal">
+                                    e.g., C4 E4 G4 C#4 Eb5
+                                </span>
+                            </label>
                             <button
                                 id="randomize-notes"
                                 title="Generates a random, musically coherent sequence of 4–6 notes. When Scale Quantization is enabled, notes are drawn strictly from the active scale. When disabled, a random root note and scale mode are also chosen automatically."
                                 class="text-xs font-bold py-1 px-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded transition-all flex items-center gap-1 shadow-md"
                             >
-                                <span>🎲</span> Randomize
+                                <span>🎲</span>
+                                Randomize
                             </button>
                         </div>
 
@@ -275,9 +280,9 @@
 
                     <!-- START Selection: Pattern Direction -->
                     <div class="space-y-2">
-                        <label id="pattern-label" class="block text-sm font-medium mb-1"
-                            >Pattern Direction</label
-                        >
+                        <label id="pattern-label" class="block text-sm font-medium mb-1">
+                            Pattern Direction
+                        </label>
                         <div id="pattern-buttons" role="group" aria-labelledby="pattern-label">
                             <button class="pattern-btn selected" data-pattern="up">
                                 <svg
@@ -352,7 +357,11 @@
                                         stroke-linejoin="round"
                                     />
                                 </svg>
-                                <span class="text-xs font-medium">Up-Down <wbr />(Repeated)</span>
+                                <span class="text-xs font-medium">
+                                    Up-Down
+                                    <wbr />
+                                    (Repeated)
+                                </span>
                             </button>
                             <button class="pattern-btn" data-pattern="downUpRepeat">
                                 <svg
@@ -367,7 +376,11 @@
                                         stroke-linejoin="round"
                                     />
                                 </svg>
-                                <span class="text-xs font-medium">Down-Up <wbr />(Repeated)</span>
+                                <span class="text-xs font-medium">
+                                    Down-Up
+                                    <wbr />
+                                    (Repeated)
+                                </span>
                             </button>
                             <button class="pattern-btn" data-pattern="random">
                                 <svg
@@ -395,7 +408,11 @@
                                     <circle cx="16" cy="16" r="3" fill="#38bdf8" />
                                     <circle cx="24" cy="8" r="3" fill="#38bdf8" />
                                 </svg>
-                                <span class="text-xs font-medium">Octave <wbr />Cycle</span>
+                                <span class="text-xs font-medium">
+                                    Octave
+                                    <wbr />
+                                    Cycle
+                                </span>
                             </button>
                             <button class="pattern-btn" data-pattern="octaveCycleReverse">
                                 <svg
@@ -408,7 +425,11 @@
                                     <circle cx="16" cy="16" r="3" fill="#38bdf8" />
                                     <circle cx="24" cy="24" r="3" fill="#38bdf8" />
                                 </svg>
-                                <span class="text-xs font-medium">Reversed <wbr />Octaves</span>
+                                <span class="text-xs font-medium">
+                                    Reversed
+                                    <wbr />
+                                    Octaves
+                                </span>
                             </button>
                             <button class="pattern-btn" data-pattern="octaveCyclePingPong">
                                 <svg
@@ -423,7 +444,11 @@
                                     <circle cx="22" cy="16" r="2.5" fill="#38bdf8" />
                                     <circle cx="28" cy="24" r="2.5" fill="#38bdf8" />
                                 </svg>
-                                <span class="text-xs font-medium">Ping-Pong <wbr />Octaves</span>
+                                <span class="text-xs font-medium">
+                                    Ping-Pong
+                                    <wbr />
+                                    Octaves
+                                </span>
                             </button>
                             <button class="pattern-btn" data-pattern="randomWalk">
                                 <svg
@@ -438,7 +463,11 @@
                                         stroke-linejoin="round"
                                     />
                                 </svg>
-                                <span class="text-xs font-medium">Random <wbr />Walk</span>
+                                <span class="text-xs font-medium">
+                                    Random
+                                    <wbr />
+                                    Walk
+                                </span>
                             </button>
                             <button class="pattern-btn" data-pattern="randomWalkDrunk">
                                 <svg
@@ -453,7 +482,11 @@
                                         stroke-linejoin="round"
                                     />
                                 </svg>
-                                <span class="text-xs font-medium">Drunkard's <wbr />Walk</span>
+                                <span class="text-xs font-medium">
+                                    Drunkard's
+                                    <wbr />
+                                    Walk
+                                </span>
                             </button>
                         </div>
                     </div>
@@ -461,9 +494,9 @@
 
                     <!-- START Selection: Note Duration -->
                     <div>
-                        <label for="interval" class="block text-sm font-medium mb-1"
-                            >Note Duration</label
-                        >
+                        <label for="interval" class="block text-sm font-medium mb-1">
+                            Note Duration
+                        </label>
                         <select
                             id="interval"
                             class="w-full p-2 bg-gray-800 border border-gray-600 rounded-md text-gray-100"
@@ -497,8 +530,10 @@
                         <div class="flex items-center justify-between mb-3">
                             <p class="text-xs text-gray-400">
                                 This feature "snaps" the notes you enter to the nearest note in the
-                                selected scale, helping you stay in key.<br />Set to "Chromatic
-                                (Off)" to disable, or toggle the checkbox on the right.
+                                selected scale, helping you stay in key.
+                                <br />
+                                Set to "Chromatic (Off)" to disable, or toggle the checkbox on the
+                                right.
                             </p>
                             <label class="flex items-center space-x-1 cursor-pointer pl-4">
                                 <input
@@ -514,9 +549,9 @@
                         <div id="quantizer-controls" class="grid grid-cols-2 gap-4">
                             <!-- START Selector: Root Note -->
                             <div>
-                                <label for="scale-root" class="block text-sm font-medium mb-1"
-                                    >Root Note</label
-                                >
+                                <label for="scale-root" class="block text-sm font-medium mb-1">
+                                    Root Note
+                                </label>
                                 <select
                                     id="scale-root"
                                     class="w-full p-2 bg-gray-800 border border-gray-600 rounded-md text-gray-100"
@@ -539,9 +574,9 @@
 
                             <!-- START Selector: Scale Type -->
                             <div>
-                                <label for="scale-type" class="block text-sm font-medium mb-1"
-                                    >Scale Type</label
-                                >
+                                <label for="scale-type" class="block text-sm font-medium mb-1">
+                                    Scale Type
+                                </label>
                                 <select
                                     id="scale-type"
                                     class="w-full p-2 bg-gray-800 border border-gray-600 rounded-md text-gray-100"
@@ -580,8 +615,9 @@
                             id="keyboard-description"
                             class="text-xs text-gray-400 mb-2 text-left align-middle"
                         >
-                            Press keys on your keyboard to test notes manually.<br />Only one note
-                            can be played at a time.
+                            Press keys on your keyboard to test notes manually.
+                            <br />
+                            Only one note can be played at a time.
                         </p>
                         <label class="flex items-center space-x-1 cursor-pointer pl-4">
                             <input
@@ -615,9 +651,9 @@
                 <div class="space-y-4">
                     <!-- START Selector: Synth Type -->
                     <div>
-                        <label for="synth-type" class="block text-sm font-medium mb-1"
-                            >Synth Type</label
-                        >
+                        <label for="synth-type" class="block text-sm font-medium mb-1">
+                            Synth Type
+                        </label>
                         <select
                             id="synth-type"
                             class="w-full p-2 bg-gray-800 border border-gray-600 rounded-md text-gray-100"
@@ -640,8 +676,9 @@
                             <span
                                 id="carrier-label"
                                 class="text-xs text-gray-400 font-normal hidden"
-                                >(Carrier)</span
                             >
+                                (Carrier)
+                            </span>
                         </label>
                         <div class="relative min-h-[76px]">
                             <!-- Waveform Bypass Overlay for Pluck Synth -->
@@ -770,7 +807,8 @@
                     <div id="basic-synth-params" class="hidden space-y-4">
                         <div id="duty-control">
                             <label for="duty-cycle" class="block text-sm font-medium mb-1">
-                                Duty Cycle: <span id="duty-value">0.50</span>
+                                Duty Cycle:
+                                <span id="duty-value">0.50</span>
                             </label>
                             <input
                                 type="range"
@@ -788,7 +826,8 @@
                     <div id="advanced-synth-params" class="hidden space-y-4">
                         <div id="harmonicity-control">
                             <label for="harmonicity" class="block text-sm font-medium mb-1">
-                                Harmonicity: <span id="harmonicity-value">3.0</span>
+                                Harmonicity:
+                                <span id="harmonicity-value">3.0</span>
                             </label>
                             <input
                                 type="range"
@@ -801,7 +840,8 @@
                         </div>
                         <div id="mod-index-control">
                             <label for="modulation-index" class="block text-sm font-medium mb-1">
-                                Mod. Index: <span id="modulation-index-value">10.0</span>
+                                Mod. Index:
+                                <span id="modulation-index-value">10.0</span>
                             </label>
                             <input
                                 type="range"
@@ -819,7 +859,9 @@
                     <div id="mono-synth-params" class="hidden space-y-4">
                         <div>
                             <label for="mono-cutoff" class="block text-sm font-medium mb-1">
-                                Filter Env Base: <span id="mono-cutoff-value">300</span> Hz
+                                Filter Env Base:
+                                <span id="mono-cutoff-value">300</span>
+                                Hz
                             </label>
                             <input
                                 type="range"
@@ -832,7 +874,8 @@
                         </div>
                         <div>
                             <label for="mono-octaves" class="block text-sm font-medium mb-1">
-                                Filter Env Octaves: <span id="mono-octaves-value">4.0</span>
+                                Filter Env Octaves:
+                                <span id="mono-octaves-value">4.0</span>
                             </label>
                             <input
                                 type="range"
@@ -845,7 +888,8 @@
                         </div>
                         <div>
                             <label for="mono-q" class="block text-sm font-medium mb-1">
-                                Filter Q (Resonance): <span id="mono-q-value">2.0</span>
+                                Filter Q (Resonance):
+                                <span id="mono-q-value">2.0</span>
                             </label>
                             <input
                                 type="range"
@@ -863,7 +907,8 @@
                     <div id="duo-synth-params" class="hidden space-y-4">
                         <div>
                             <label for="duo-harm" class="block text-sm font-medium mb-1">
-                                Voice Ratio: <span id="duo-harm-value">1.50</span>
+                                Voice Ratio:
+                                <span id="duo-harm-value">1.50</span>
                             </label>
                             <input
                                 type="range"
@@ -876,7 +921,8 @@
                         </div>
                         <div>
                             <label for="duo-vibrato" class="block text-sm font-medium mb-1">
-                                Vibrato Depth: <span id="duo-vibrato-value">0.20</span>
+                                Vibrato Depth:
+                                <span id="duo-vibrato-value">0.20</span>
                             </label>
                             <input
                                 type="range"
@@ -894,7 +940,9 @@
                     <div id="pluck-synth-params" class="hidden space-y-4">
                         <div>
                             <label for="pluck-dampening" class="block text-sm font-medium mb-1">
-                                Dampening: <span id="pluck-dampening-value">4000</span> Hz
+                                Dampening:
+                                <span id="pluck-dampening-value">4000</span>
+                                Hz
                             </label>
                             <input
                                 type="range"
@@ -907,7 +955,8 @@
                         </div>
                         <div>
                             <label for="pluck-resonance" class="block text-sm font-medium mb-1">
-                                Resonance: <span id="pluck-resonance-value">0.90</span>
+                                Resonance:
+                                <span id="pluck-resonance-value">0.90</span>
                             </label>
                             <input
                                 type="range"
@@ -920,7 +969,8 @@
                         </div>
                         <div>
                             <label for="pluck-noise" class="block text-sm font-medium mb-1">
-                                Attack Noise: <span id="pluck-noise-value">1.0</span>
+                                Attack Noise:
+                                <span id="pluck-noise-value">1.0</span>
                             </label>
                             <input
                                 type="range"
@@ -942,7 +992,8 @@
                                 class="block text-sm font-medium mb-1"
                             >
                                 Pitch Decay:
-                                <span id="membrane-pitch-decay-value">0.05</span>s
+                                <span id="membrane-pitch-decay-value">0.05</span>
+                                s
                             </label>
                             <input
                                 type="range"
@@ -955,7 +1006,8 @@
                         </div>
                         <div>
                             <label for="membrane-octaves" class="block text-sm font-medium mb-1">
-                                Octaves: <span id="membrane-octaves-value">8.0</span>
+                                Octaves:
+                                <span id="membrane-octaves-value">8.0</span>
                             </label>
                             <input
                                 type="range"
@@ -971,9 +1023,10 @@
 
                     <!-- START Selector: Gate -->
                     <div>
-                        <label for="gate" class="block text-sm font-medium mb-1"
-                            >Gate (Note Length): <span id="gate-value">0.80</span></label
-                        >
+                        <label for="gate" class="block text-sm font-medium mb-1">
+                            Gate (Note Length):
+                            <span id="gate-value">0.80</span>
+                        </label>
                         <input
                             type="range"
                             id="gate"
@@ -998,9 +1051,11 @@
                 <div class="space-y-4">
                     <!-- START Selector: Attack -->
                     <div>
-                        <label for="env-attack" class="block text-sm font-medium mb-1"
-                            >Attack: <span id="env-attack-value">0.01</span>s</label
-                        >
+                        <label for="env-attack" class="block text-sm font-medium mb-1">
+                            Attack:
+                            <span id="env-attack-value">0.01</span>
+                            s
+                        </label>
                         <input
                             type="range"
                             id="env-attack"
@@ -1013,17 +1068,20 @@
                     <!-- END Selector: Attack -->
 
                     <!-- START Selector: Decay -->
-                    <label for="env-decay" class="block text-sm font-medium mb-1"
-                        >Decay: <span id="env-decay-value">0.10</span>s</label
-                    >
+                    <label for="env-decay" class="block text-sm font-medium mb-1">
+                        Decay:
+                        <span id="env-decay-value">0.10</span>
+                        s
+                    </label>
                     <input type="range" id="env-decay" min="0" max="2" value="0.1" step="0.01" />
                     <!-- END Selector: Decay -->
 
                     <!-- START Selector: Sustain -->
                     <div>
-                        <label for="env-sustain" class="block text-sm font-medium mb-1"
-                            >Sustain: <span id="env-sustain-value">0.30</span></label
-                        >
+                        <label for="env-sustain" class="block text-sm font-medium mb-1">
+                            Sustain:
+                            <span id="env-sustain-value">0.30</span>
+                        </label>
                         <input
                             type="range"
                             id="env-sustain"
@@ -1037,9 +1095,11 @@
 
                     <!-- START Selector: Release -->
                     <div>
-                        <label for="env-release" class="block text-sm font-medium mb-1"
-                            >Release: <span id="env-release-value">0.50</span>s</label
-                        >
+                        <label for="env-release" class="block text-sm font-medium mb-1">
+                            Release:
+                            <span id="env-release-value">0.50</span>
+                            s
+                        </label>
                         <input
                             type="range"
                             id="env-release"
@@ -1062,12 +1122,10 @@
                 <div class="space-y-4">
                     <!-- START Selector: Octave Shift -->
                     <div class="space-y-2">
-                        <label id="octave-shift-label" class="block text-sm font-medium"
-                            >Octave Shift
-                            <span class="text-xs text-gray-400 font-normal"
-                                >(0 = no shift)</span
-                            ></label
-                        >
+                        <label id="octave-shift-label" class="block text-sm font-medium">
+                            Octave Shift
+                            <span class="text-xs text-gray-400 font-normal">(0 = no shift)</span>
+                        </label>
                         <div
                             id="octave-shift-buttons"
                             role="group"
@@ -1087,12 +1145,10 @@
 
                     <!-- START Selector: Octave Layers -->
                     <div class="space-y-2">
-                        <label id="octave-range-label" class="block text-sm font-medium"
-                            >Octave Layers
-                            <span class="text-xs text-gray-400 font-normal"
-                                >(1 = base only)</span
-                            ></label
-                        >
+                        <label id="octave-range-label" class="block text-sm font-medium">
+                            Octave Layers
+                            <span class="text-xs text-gray-400 font-normal">(1 = base only)</span>
+                        </label>
                         <div
                             id="octave-range-buttons"
                             role="group"
@@ -1120,7 +1176,9 @@
                     <!-- START Selector: Filter Cutoff -->
                     <div>
                         <label for="filter-cutoff" class="block text-sm font-medium mb-1">
-                            Cutoff: <span id="filter-cutoff-value">4000</span> Hz
+                            Cutoff:
+                            <span id="filter-cutoff-value">4000</span>
+                            Hz
                         </label>
                         <input
                             type="range"
@@ -1136,7 +1194,8 @@
                     <!-- START Selector: Filter Resonance -->
                     <div>
                         <label for="filter-resonance" class="block text-sm font-medium mb-1">
-                            Resonance: <span id="filter-resonance-value">1.0</span>
+                            Resonance:
+                            <span id="filter-resonance-value">1.0</span>
                         </label>
                         <input
                             type="range"
@@ -1161,7 +1220,8 @@
                     <!-- START Selector: Drive Mix -->
                     <div>
                         <label for="drive-mix" class="block text-sm font-medium mb-1">
-                            Drive (Overdrive): <span id="drive-mix-value">0.00</span>
+                            Drive (Overdrive):
+                            <span id="drive-mix-value">0.00</span>
                         </label>
                         <input type="range" id="drive-mix" min="0" max="1" value="0" step="0.01" />
                     </div>
@@ -1170,7 +1230,8 @@
                     <!-- START Selector: Chorus Mix -->
                     <div>
                         <label for="chorus-mix" class="block text-sm font-medium mb-1">
-                            Chorus Mix: <span id="chorus-mix-value">0.00</span>
+                            Chorus Mix:
+                            <span id="chorus-mix-value">0.00</span>
                         </label>
                         <input type="range" id="chorus-mix" min="0" max="1" value="0" step="0.01" />
                     </div>
@@ -1179,7 +1240,8 @@
                     <!-- START Selector: Auto-Pan Mix -->
                     <div>
                         <label for="autopan-mix" class="block text-sm font-medium mb-1">
-                            Auto-Pan Mix: <span id="autopan-mix-value">0.00</span>
+                            Auto-Pan Mix:
+                            <span id="autopan-mix-value">0.00</span>
                         </label>
                         <input
                             type="range"
@@ -1195,7 +1257,8 @@
                     <!-- START Selector: Delay Mix -->
                     <div>
                         <label for="delay-mix" class="block text-sm font-medium mb-1">
-                            Delay Mix: <span id="delay-mix-value">0.20</span>
+                            Delay Mix:
+                            <span id="delay-mix-value">0.20</span>
                         </label>
                         <input
                             type="range"
@@ -1211,7 +1274,8 @@
                     <!-- START Selector: Reverb Mix -->
                     <div>
                         <label for="reverb-mix" class="block text-sm font-medium mb-1">
-                            Reverb Mix: <span id="reverb-mix-value">0.20</span>
+                            Reverb Mix:
+                            <span id="reverb-mix-value">0.20</span>
                         </label>
                         <input
                             type="range"
@@ -1261,8 +1325,9 @@
                                         <label
                                             for="visualizer-mode"
                                             class="text-xs font-semibold text-gray-300"
-                                            >Mode:</label
                                         >
+                                            Mode:
+                                        </label>
                                         <select
                                             id="visualizer-mode"
                                             class="p-2 text-sm bg-gray-800 border border-gray-600 rounded-md text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -1308,8 +1373,9 @@
                                         <label
                                             for="visualizer-zoom"
                                             class="text-xs font-semibold text-gray-300"
-                                            >Zoom:</label
                                         >
+                                            Zoom:
+                                        </label>
                                         <input
                                             type="range"
                                             id="visualizer-zoom"
@@ -1322,8 +1388,9 @@
                                         <span
                                             id="visualizer-zoom-value"
                                             class="text-xs text-gray-400 min-w-[28px] text-right"
-                                            >1.0x</span
                                         >
+                                            1.0x
+                                        </span>
                                     </div>
                                     <!-- Time Window (Oscilloscope only) -->
                                     <div
@@ -1333,8 +1400,9 @@
                                         <label
                                             for="oscilloscope-window"
                                             class="text-xs font-semibold text-gray-300"
-                                            >Time Window:</label
                                         >
+                                            Time Window:
+                                        </label>
                                         <select
                                             id="oscilloscope-window"
                                             class="p-1 text-xs bg-gray-800 border border-gray-600 rounded-md text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -1424,9 +1492,9 @@
                 </h2>
                 <div class="space-y-4">
                     <div class="flex items-center gap-4">
-                        <label for="loop-count" class="text-sm font-medium whitespace-nowrap"
-                            >Number of Loops:</label
-                        >
+                        <label for="loop-count" class="text-sm font-medium whitespace-nowrap">
+                            Number of Loops:
+                        </label>
                         <input
                             type="number"
                             id="loop-count"
@@ -1508,8 +1576,9 @@
                     <label
                         for="preset-name-input"
                         class="block text-xs font-semibold uppercase tracking-wider text-gray-300 mb-1"
-                        >Preset Name</label
                     >
+                        Preset Name
+                    </label>
                     <input
                         type="text"
                         id="preset-name-input"
@@ -1545,8 +1614,9 @@
                             <label
                                 for="saved-preset-select"
                                 class="block text-xs text-gray-300 mb-1"
-                                >Stored Presets</label
                             >
+                                Stored Presets
+                            </label>
                             <select
                                 id="saved-preset-select"
                                 class="w-full p-2 text-xs bg-gray-900 border border-gray-700 rounded-md text-gray-100 focus:ring-2 focus:ring-lime-500"
@@ -1613,9 +1683,9 @@
                                 </svg>
                                 File Backup & Transfer
                             </h3>
-                            <label for="load-preset-input" class="block text-xs text-gray-300 mb-1"
-                                >Upload JSON Preset</label
-                            >
+                            <label for="load-preset-input" class="block text-xs text-gray-300 mb-1">
+                                Upload JSON Preset
+                            </label>
                             <input
                                 type="file"
                                 id="load-preset-input"

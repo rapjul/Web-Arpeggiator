@@ -607,7 +607,7 @@ function initializeApp() {
     function setSelectedPatternDirection(direction) {
         const nextDirection = direction || "up";
         let selectedButton = patternButtons.querySelector(
-            `.pattern-btn[data-pattern="${nextDirection}"]`,
+            `.pattern-btn[data-pattern="${nextDirection}"]`
         );
         if (!selectedButton) {
             selectedButton = patternButtons.querySelector('.pattern-btn[data-pattern="up"]');
@@ -1732,7 +1732,7 @@ function initializeApp() {
                     gateRatio: settings.gateRatio,
                     loopCount: settings.loopCount,
                 },
-                filename,
+                filename
             );
             showToast("Exported MIDI pattern file!", "success");
         });
@@ -2081,7 +2081,7 @@ function initializeApp() {
         if (
             target &&
             target.closest(
-                ".pattern-btn, .waveform-btn, #octave-shift-buttons button, #octave-range-buttons button",
+                ".pattern-btn, .waveform-btn, #octave-shift-buttons button, #octave-range-buttons button"
             )
         ) {
             scheduleLastSessionSave();
@@ -2103,7 +2103,7 @@ function initializeApp() {
                 throw new Error("Browser preset storage is unavailable.");
             const record = await window.WebArpPresetStore.save(
                 settings || getAllSettings(),
-                metadata,
+                metadata
             );
             await refreshSavedPresetList(record.id);
             updateTestState({
