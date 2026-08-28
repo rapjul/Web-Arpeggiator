@@ -168,7 +168,7 @@ export function createMidiFileBytes(options) {
         0x04,
         0x02,
         0x18,
-        0x08 // 4/4
+        0x08, // 4/4
     );
 
     // 2. Meta Event: Set Tempo
@@ -180,7 +180,7 @@ export function createMidiFileBytes(options) {
         0x03,
         (microSecondsPerBeat >> 16) & 0xff,
         (microSecondsPerBeat >> 8) & 0xff,
-        microSecondsPerBeat & 0xff
+        microSecondsPerBeat & 0xff,
     );
 
     // 3. Note Events for each loop iteration
@@ -196,7 +196,7 @@ export function createMidiFileBytes(options) {
                 ...encodeVariableLengthQuantity(onDeltaTime),
                 0x90, // Note On, Channel 0
                 noteNum,
-                safeVelocity
+                safeVelocity,
             );
 
             // Note Off (Channel 0): delta-time = note duration ticks
@@ -204,7 +204,7 @@ export function createMidiFileBytes(options) {
                 ...encodeVariableLengthQuantity(noteDurationTicks),
                 0x80, // Note Off, Channel 0
                 noteNum,
-                0x40 // standard release velocity
+                0x40, // standard release velocity
             );
         }
     }

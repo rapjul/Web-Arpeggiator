@@ -37,7 +37,7 @@
         return new Promise((resolve, reject) => {
             request.addEventListener("success", () => resolve(request.result));
             request.addEventListener("error", () =>
-                reject(request.error || new Error("IndexedDB request failed"))
+                reject(request.error || new Error("IndexedDB request failed")),
             );
         });
     }
@@ -52,10 +52,10 @@
         return new Promise((resolve, reject) => {
             transaction.addEventListener("complete", () => resolve());
             transaction.addEventListener("error", () =>
-                reject(transaction.error || new Error("IndexedDB transaction failed"))
+                reject(transaction.error || new Error("IndexedDB transaction failed")),
             );
             transaction.addEventListener("abort", () =>
-                reject(transaction.error || new Error("IndexedDB transaction aborted"))
+                reject(transaction.error || new Error("IndexedDB transaction aborted")),
             );
         });
     }
@@ -179,7 +179,7 @@
         const records = await requestToPromise(request);
         await transactionToPromise(transaction);
         return records.sort((a, b) =>
-            String(b.savedAt || "").localeCompare(String(a.savedAt || ""))
+            String(b.savedAt || "").localeCompare(String(a.savedAt || "")),
         );
     }
 

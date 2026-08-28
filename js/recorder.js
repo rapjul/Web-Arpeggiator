@@ -185,7 +185,7 @@ export function createRecorderManager(context) {
             if (!recorder) {
                 actions.showToast(
                     "Recorder not initialized. Try starting playback first.",
-                    "error"
+                    "error",
                 );
                 return;
             }
@@ -206,7 +206,7 @@ export function createRecorderManager(context) {
             dom.recordButton.textContent = "Stop Recording (00:00.0)";
             dom.recordButton.setAttribute(
                 "aria-label",
-                "Stop recording (current elapsed time 00:00.0)"
+                "Stop recording (current elapsed time 00:00.0)",
             );
             isRecording = true;
         }
@@ -264,7 +264,7 @@ export function createRecorderManager(context) {
             actions.showToast("Encoding MP3...", "info");
             try {
                 const audioBuffer = await Tone.getContext().decodeAudioData(
-                    await liveRecordedWavBlob.arrayBuffer()
+                    await liveRecordedWavBlob.arrayBuffer(),
                 );
                 const mp3Blob = await audioBufferToMp3Blob(audioBuffer);
                 downloadBlob(mp3Blob, `${filename}.mp3`);
@@ -368,7 +368,7 @@ export function createRecorderManager(context) {
                         }
                     },
                     patternNotes,
-                    patternType
+                    patternType,
                 );
                 offlinePattern.interval = settings.interval;
                 offlinePattern.start(0);
