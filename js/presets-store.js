@@ -5,11 +5,11 @@
  * so users can clear the preset library without losing the current workspace.
  */
 (() => {
-    const DB_NAME = 'web-arpeggiator-presets';
+    const DB_NAME = "web-arpeggiator-presets";
     const DB_VERSION = 2;
-    const STORE_NAME = 'presetSnapshots';
-    const LAST_SESSION_STORE_NAME = 'lastSession';
-    const LAST_SESSION_ID = 'current';
+    const STORE_NAME = "presetSnapshots";
+    const LAST_SESSION_STORE_NAME = "lastSession";
+    const LAST_SESSION_ID = "current";
 
     let databasePromise = null;
 
@@ -20,7 +20,7 @@
      * @returns {object} Deep-cloned settings snapshot.
      */
     function cloneSettings(settings) {
-        if (typeof structuredClone === 'function') {
+        if (typeof structuredClone === "function") {
             return structuredClone(settings);
         }
 
@@ -35,8 +35,10 @@
      */
     function requestToPromise(request) {
         return new Promise((resolve, reject) => {
-            request.addEventListener('success', () => resolve(request.result));
-            request.addEventListener('error', () => reject(request.error || new Error('IndexedDB request failed')));
+            request.addEventListener("success", () => resolve(request.result));
+            request.addEventListener("error", () =>
+                reject(request.error || new Error("IndexedDB request failed")),
+            );
         });
     }
 
@@ -48,9 +50,13 @@
      */
     function transactionToPromise(transaction) {
         return new Promise((resolve, reject) => {
-            transaction.addEventListener('complete', () => resolve());
-            transaction.addEventListener('error', () => reject(transaction.error || new Error('IndexedDB transaction failed')));
-            transaction.addEventListener('abort', () => reject(transaction.error || new Error('IndexedDB transaction aborted')));
+            transaction.addEventListener("complete", () => resolve());
+            transaction.addEventListener("error", () =>
+                reject(transaction.error || new Error("IndexedDB transaction failed")),
+            );
+            transaction.addEventListener("abort", () =>
+                reject(transaction.error || new Error("IndexedDB transaction aborted")),
+            );
         });
     }
 
@@ -60,32 +66,38 @@
      * @returns {Promise<IDBDatabase>} Open IndexedDB database handle.
      */
     function openDatabase() {
-        if (!('indexedDB' in window)) {
-            return Promise.reject(new Error('IndexedDB is not supported in this browser.'));
+        if (!("indexedDB" in window)) {
+            return Promise.reject(new Error("IndexedDB is not supported in this browser."));
         }
 
         if (!databasePromise) {
             databasePromise = new Promise((resolve, reject) => {
                 const request = indexedDB.open(DB_NAME, DB_VERSION);
 
-                request.addEventListener('upgradeneeded', () => {
+                request.addEventListener("upgradeneeded", () => {
                     const database = request.result;
                     if (!database.objectStoreNames.contains(STORE_NAME)) {
-                        const store = database.createObjectStore(STORE_NAME, { keyPath: 'id' });
-                        store.createIndex('savedAt', 'savedAt', { unique: false });
+                        const store = database.createObjectStore(STORE_NAME, {
+                            keyPath: "id",
+                        });
+                        store.createIndex("savedAt", "savedAt", {
+                            unique: false,
+                        });
                     }
 
                     if (!database.objectStoreNames.contains(LAST_SESSION_STORE_NAME)) {
-                        database.createObjectStore(LAST_SESSION_STORE_NAME, { keyPath: 'id' });
+                        database.createObjectStore(LAST_SESSION_STORE_NAME, {
+                            keyPath: "id",
+                        });
                     }
                 });
 
-                request.addEventListener('success', () => {
+                request.addEventListener("success", () => {
                     resolve(request.result);
                 });
 
-                request.addEventListener('error', () => {
-                    reject(request.error || new Error('Unable to open IndexedDB'));
+                request.addEventListener("error", () => {
+                    reject(request.error || new Error("Unable to open IndexedDB"));
                 });
             });
         }
@@ -109,11 +121,11 @@
             name: metadata.name || metadata.filename || `Preset ${now}`,
             savedAt: now,
             filename: metadata.filename || null,
-            source: metadata.source || 'manual',
-            settings: settingsSnapshot
+            source: metadata.source || "manual",
+            settings: settingsSnapshot,
         };
 
-        const transaction = database.transaction(STORE_NAME, 'readwrite');
+        const transaction = database.transaction(STORE_NAME, "readwrite");
         transaction.objectStore(STORE_NAME).put(record);
         await transactionToPromise(transaction);
         return record;
@@ -127,7 +139,7 @@
      */
     async function get(id) {
         const database = await openDatabase();
-        const transaction = database.transaction(STORE_NAME, 'readonly');
+        const transaction = database.transaction(STORE_NAME, "readonly");
         const request = transaction.objectStore(STORE_NAME).get(id);
         const record = await requestToPromise(request);
         await transactionToPromise(transaction);
@@ -141,10 +153,10 @@
      */
     async function loadLatest() {
         const database = await openDatabase();
-        const transaction = database.transaction(STORE_NAME, 'readonly');
+        const transaction = database.transaction(STORE_NAME, "readonly");
         const store = transaction.objectStore(STORE_NAME);
-        const index = store.index('savedAt');
-        const request = index.openCursor(null, 'prev');
+        const index = store.index("savedAt");
+        const request = index.openCursor(null, "prev");
         const cursor = await requestToPromise(request);
         await transactionToPromise(transaction);
 
@@ -162,11 +174,13 @@
      */
     async function list() {
         const database = await openDatabase();
-        const transaction = database.transaction(STORE_NAME, 'readonly');
+        const transaction = database.transaction(STORE_NAME, "readonly");
         const request = transaction.objectStore(STORE_NAME).getAll();
         const records = await requestToPromise(request);
         await transactionToPromise(transaction);
-        return records.sort((a, b) => String(b.savedAt || '').localeCompare(String(a.savedAt || '')));
+        return records.sort((a, b) =>
+            String(b.savedAt || "").localeCompare(String(a.savedAt || "")),
+        );
     }
 
     /**
@@ -177,7 +191,7 @@
      */
     async function remove(id) {
         const database = await openDatabase();
-        const transaction = database.transaction(STORE_NAME, 'readwrite');
+        const transaction = database.transaction(STORE_NAME, "readwrite");
         transaction.objectStore(STORE_NAME).delete(id);
         await transactionToPromise(transaction);
     }
@@ -189,7 +203,7 @@
      */
     async function clear() {
         const database = await openDatabase();
-        const transaction = database.transaction(STORE_NAME, 'readwrite');
+        const transaction = database.transaction(STORE_NAME, "readwrite");
         transaction.objectStore(STORE_NAME).clear();
         await transactionToPromise(transaction);
     }
@@ -206,10 +220,10 @@
         const record = {
             id: LAST_SESSION_ID,
             savedAt: new Date().toISOString(),
-            settings: settingsSnapshot
+            settings: settingsSnapshot,
         };
 
-        const transaction = database.transaction(LAST_SESSION_STORE_NAME, 'readwrite');
+        const transaction = database.transaction(LAST_SESSION_STORE_NAME, "readwrite");
         transaction.objectStore(LAST_SESSION_STORE_NAME).put(record);
         await transactionToPromise(transaction);
         return record;
@@ -222,7 +236,7 @@
      */
     async function loadLastSession() {
         const database = await openDatabase();
-        const transaction = database.transaction(LAST_SESSION_STORE_NAME, 'readonly');
+        const transaction = database.transaction(LAST_SESSION_STORE_NAME, "readonly");
         const request = transaction.objectStore(LAST_SESSION_STORE_NAME).get(LAST_SESSION_ID);
         const record = await requestToPromise(request);
         await transactionToPromise(transaction);
@@ -239,6 +253,6 @@
         clear,
         saveLastSession,
         loadLastSession,
-        dbName: DB_NAME
+        dbName: DB_NAME,
     };
 })();

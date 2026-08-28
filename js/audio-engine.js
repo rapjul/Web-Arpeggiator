@@ -13,7 +13,7 @@
  * @module audio-engine
  */
 
-import * as Tone from 'tone';
+import * as Tone from "tone";
 
 /**
  * Creates the audio engine and all Tone.js nodes.
@@ -57,11 +57,11 @@ export function createAudioEngine(context) {
     const { dom, actions } = context;
 
     // --- Internal state ---
-    let currentWaveform = 'sine';
+    let currentWaveform = "sine";
     let activeSynth = null;
 
     // --- Analyser (shared with visualizer) ---
-    const analyser = new Tone.Analyser('waveform', 1024);
+    const analyser = new Tone.Analyser("waveform", 1024);
 
     // --- Post Gain (pre-limiter) ---
     const postGain = new Tone.Volume(0); // 0 dB = unity gain
@@ -77,39 +77,49 @@ export function createAudioEngine(context) {
     // --- Effects Chain ---
     const reverb = new Tone.Reverb({ decay: 1.5, wet: 0.3 });
     const delay = new Tone.FeedbackDelay({
-        delayTime: '8n',
+        delayTime: "8n",
         feedback: 0.5,
-        wet: 0.2
+        wet: 0.2,
     }).connect(reverb);
     const filter = new Tone.Filter({
-        type: 'lowpass',
+        type: "lowpass",
         frequency: 4000,
-        Q: 1
+        Q: 1,
     }).connect(delay);
 
     // --- Synthesizers ---
     const synths = {
         synth: new Tone.Synth({
-            oscillator: { type: 'sine' },
-            envelope: { attack: 0.01, decay: 0.1, sustain: 0.3, release: 0.5 }
+            oscillator: { type: "sine" },
+            envelope: { attack: 0.01, decay: 0.1, sustain: 0.3, release: 0.5 },
         }),
         fmSynth: new Tone.FMSynth({
             harmonicity: 3,
             modulationIndex: 10,
             detune: 0,
-            oscillator: { type: 'sine' },
+            oscillator: { type: "sine" },
             envelope: { attack: 0.01, decay: 0.1, sustain: 0.3, release: 0.5 },
-            modulation: { type: 'square' },
-            modulationEnvelope: { attack: 0.01, decay: 0, sustain: 1, release: 0.5 }
+            modulation: { type: "square" },
+            modulationEnvelope: {
+                attack: 0.01,
+                decay: 0,
+                sustain: 1,
+                release: 0.5,
+            },
         }),
         amSynth: new Tone.AMSynth({
             harmonicity: 3,
             detune: 0,
-            oscillator: { type: 'sine' },
+            oscillator: { type: "sine" },
             envelope: { attack: 0.01, decay: 0.1, sustain: 0.3, release: 0.5 },
-            modulation: { type: 'square' },
-            modulationEnvelope: { attack: 0.01, decay: 0, sustain: 1, release: 0.5 }
-        })
+            modulation: { type: "square" },
+            modulationEnvelope: {
+                attack: 0.01,
+                decay: 0,
+                sustain: 1,
+                release: 0.5,
+            },
+        }),
     };
 
     // Connect synths → filter (start of effects chain)
@@ -133,7 +143,7 @@ export function createAudioEngine(context) {
      * @param {string} type - Synth key: 'synth', 'fmSynth', or 'amSynth'.
      * @returns {void}
      */
-    function setSynth(type = 'synth') {
+    function setSynth(type = "synth") {
         activeSynth = synths[type];
         actions.syncPatternModuleState();
 
@@ -141,39 +151,39 @@ export function createAudioEngine(context) {
         updateEnvelope();
 
         // Enable all waveform buttons for all synths
-        dom.waveformButtons.querySelectorAll('button').forEach((btn) => {
+        dom.waveformButtons.querySelectorAll("button").forEach((btn) => {
             btn.disabled = false;
         });
 
-        if (type === 'synth') {
+        if (type === "synth") {
             activeSynth.oscillator.type = currentWaveform;
-            dom.advancedSynthParams.classList.add('hidden');
-            if (dom.carrierLabel) dom.carrierLabel.classList.add('hidden');
+            dom.advancedSynthParams.classList.add("hidden");
+            if (dom.carrierLabel) dom.carrierLabel.classList.add("hidden");
 
-            if (currentWaveform === 'square') {
-                dom.dutyControl.classList.remove('hidden');
-                dom.basicSynthParams.classList.remove('hidden');
+            if (currentWaveform === "square") {
+                dom.dutyControl.classList.remove("hidden");
+                dom.basicSynthParams.classList.remove("hidden");
             } else {
-                dom.dutyControl.classList.add('hidden');
-                dom.basicSynthParams.classList.add('hidden');
+                dom.dutyControl.classList.add("hidden");
+                dom.basicSynthParams.classList.add("hidden");
             }
-        } else if (type === 'fmSynth') {
+        } else if (type === "fmSynth") {
             activeSynth.harmonicity.value = parseFloat(dom.harmonicitySlider.value);
             activeSynth.modulationIndex.value = parseFloat(dom.modIndexSlider.value);
             activeSynth.oscillator.type = currentWaveform;
 
-            dom.advancedSynthParams.classList.remove('hidden');
-            dom.harmonicityControl.classList.remove('hidden');
-            dom.modIndexControl.classList.remove('hidden');
-            if (dom.carrierLabel) dom.carrierLabel.classList.remove('hidden');
-        } else if (type === 'amSynth') {
+            dom.advancedSynthParams.classList.remove("hidden");
+            dom.harmonicityControl.classList.remove("hidden");
+            dom.modIndexControl.classList.remove("hidden");
+            if (dom.carrierLabel) dom.carrierLabel.classList.remove("hidden");
+        } else if (type === "amSynth") {
             activeSynth.harmonicity.value = parseFloat(dom.harmonicitySlider.value);
             activeSynth.oscillator.type = currentWaveform;
 
-            dom.advancedSynthParams.classList.remove('hidden');
-            dom.harmonicityControl.classList.remove('hidden');
-            dom.modIndexControl.classList.add('hidden');
-            if (dom.carrierLabel) dom.carrierLabel.classList.remove('hidden');
+            dom.advancedSynthParams.classList.remove("hidden");
+            dom.harmonicityControl.classList.remove("hidden");
+            dom.modIndexControl.classList.add("hidden");
+            if (dom.carrierLabel) dom.carrierLabel.classList.remove("hidden");
         }
     }
 
@@ -229,30 +239,33 @@ export function createAudioEngine(context) {
         }
 
         // 2. Recreate Effects (reverb, delay, filter) connected to each other
-        const offlineReverb = new Tone.Reverb({ decay: 1.5, wet: settings.reverbMix });
+        const offlineReverb = new Tone.Reverb({
+            decay: 1.5,
+            wet: settings.reverbMix,
+        });
         const offlineDelay = new Tone.FeedbackDelay({
-            delayTime: '8n',
+            delayTime: "8n",
             feedback: 0.5,
-            wet: settings.delayMix
+            wet: settings.delayMix,
         }).connect(offlineReverb);
 
         const offlineFilter = new Tone.Filter({
-            type: 'lowpass',
+            type: "lowpass",
             frequency: settings.filterCutoff,
-            Q: settings.filterResonance
+            Q: settings.filterResonance,
         }).connect(offlineDelay);
 
         // 3. Recreate Synth based on type (Basic, FM, or AM Synth) using base configurations
         let offlineSynth;
-        if (settings.synthType === 'fmSynth') {
-            offlineSynth = new Tone.FMSynth(getSynthConfig('fmSynth'));
+        if (settings.synthType === "fmSynth") {
+            offlineSynth = new Tone.FMSynth(getSynthConfig("fmSynth"));
             offlineSynth.harmonicity.value = settings.harmonicity;
             offlineSynth.modulationIndex.value = settings.modulationIndex;
-        } else if (settings.synthType === 'amSynth') {
-            offlineSynth = new Tone.AMSynth(getSynthConfig('amSynth'));
+        } else if (settings.synthType === "amSynth") {
+            offlineSynth = new Tone.AMSynth(getSynthConfig("amSynth"));
             offlineSynth.harmonicity.value = settings.harmonicity;
         } else {
-            offlineSynth = new Tone.Synth(getSynthConfig('synth'));
+            offlineSynth = new Tone.Synth(getSynthConfig("synth"));
         }
         offlineSynth.oscillator.type = settings.waveform;
         offlineSynth.connect(offlineFilter);
@@ -276,7 +289,7 @@ export function createAudioEngine(context) {
     }
 
     // Set default synth
-    setSynth('synth');
+    setSynth("synth");
 
     return {
         analyser,
@@ -286,12 +299,18 @@ export function createAudioEngine(context) {
         postGain,
         limiter,
         synths,
-        get activeSynth() { return activeSynth; },
-        get currentWaveform() { return currentWaveform; },
-        set currentWaveform(val) { currentWaveform = val; },
+        get activeSynth() {
+            return activeSynth;
+        },
+        get currentWaveform() {
+            return currentWaveform;
+        },
+        set currentWaveform(val) {
+            currentWaveform = val;
+        },
         setSynth,
         updateEnvelope,
         getSynthConfig,
-        createOfflineChain
+        createOfflineChain,
     };
 }

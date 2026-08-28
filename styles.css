@@ -2,553 +2,565 @@
 
 /* Card section container configuration for Container Queries */
 section {
-  container-type: inline-size;
+    container-type: inline-size;
 }
 
 /* Custom styles for better-looking sliders */
 input[type="range"] {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 100%;
-  height: 8px;
-  background-color: #D1D5DB;
-  /* bg-gray-300 */
-  border-radius: 9999px;
-  /* rounded-full */
-  outline: none;
-  opacity: 0.7;
-  transition: opacity .2s;
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 8px;
+    background-color: #d1d5db;
+    /* bg-gray-300 */
+    border-radius: 9999px;
+    /* rounded-full */
+    outline: none;
+    opacity: 0.7;
+    transition: opacity 0.2s;
 }
 
 input[type="range"]:hover {
-  opacity: 1;
+    opacity: 1;
 }
 
 input[type="range"]::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 20px;
-  height: 20px;
-  background-color: #2563EB;
-  /* bg-blue-600 */
-  border-radius: 9999px;
-  /* rounded-full */
-  cursor: pointer;
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    background-color: #2563eb;
+    /* bg-blue-600 */
+    border-radius: 9999px;
+    /* rounded-full */
+    cursor: pointer;
 }
 
 input[type="range"]::-moz-range-thumb {
-  width: 20px;
-  height: 20px;
-  background-color: #2563EB;
-  /* bg-blue-600 */
-  border-radius: 9999px;
-  /* rounded-full */
-  cursor: pointer;
+    width: 20px;
+    height: 20px;
+    background-color: #2563eb;
+    /* bg-blue-600 */
+    border-radius: 9999px;
+    /* rounded-full */
+    cursor: pointer;
 }
 
 /* Custom style for recording button */
-.recording {
-  background-color: #DC2626 !important;
-  /* bg-red-600 */
-  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+#record-button.recording {
+    background-color: #dc2626;
+    /* bg-red-600 */
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
-.recording:hover {
-  background-color: #B91C1C !important;
-  /* bg-red-700 */
+#record-button.recording:hover {
+    background-color: #b91c1c;
+    /* bg-red-700 */
 }
 
 @keyframes pulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
+    0%,
+    100% {
+        opacity: 1;
+    }
 
-  50% {
-    opacity: .5;
-  }
+    50% {
+        opacity: 0.5;
+    }
 }
 
 /* Style for number input */
 input[type="number"] {
-  width: 100%;
-  padding: 0.5rem;
-  background-color: #1F2937;
-  /* bg-gray-800 */
-  border: 1px solid #4B5563;
-  /* border-gray-600 */
-  border-radius: 0.375rem;
-  /* rounded-md */
-  color: #F3F4F6;
-  /* text-gray-100 */
+    width: 100%;
+    padding: 0.5rem;
+    background-color: #1f2937;
+    /* bg-gray-800 */
+    border: 1px solid #4b5563;
+    /* border-gray-600 */
+    border-radius: 0.375rem;
+    /* rounded-md */
+    color: #f3f4f6;
+    /* text-gray-100 */
 }
 
 /* Style for AI button when loading */
 button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 
 /* Style for visualizer container */
 #visualizer-container {
-  width: 100%;
-  height: 350px;
-  background-color: #1F2937;
-  display: flex;
-  overflow: hidden;
+    width: 100%;
+    height: 350px;
+    background-color: #1f2937;
+    display: flex;
+    overflow: hidden;
 }
 
 @container (max-width: 600px) {
-  #visualizer-container {
-    height: 200px;
-  }
+    #visualizer-container {
+        height: 200px;
+    }
 }
 
 #visualizer-yaxis {
-  width: 50px;
-  height: 100%;
-  flex-shrink: 0;
-  background-color: #1F2937;
-  border-right: 1px solid #4B5563;
+    width: 50px;
+    height: 100%;
+    flex-shrink: 0;
+    background-color: #1f2937;
+    border-right: 1px solid #4b5563;
 }
 
 #visualizer-viewport {
-  flex-grow: 1;
-  height: 100%;
-  overflow-x: auto;
-  overflow-y: hidden;
-  background-color: #1F2937;
+    flex-grow: 1;
+    height: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    background-color: #1f2937;
 }
 
 #visualizer-plot {
-  display: block;
-  height: 100%;
-  background-color: #1F2937;
+    display: block;
+    height: 100%;
+    background-color: #1f2937;
 }
 
 #visualizer-controls-footer {
-  border-top: none;
+    border-top: none;
 }
 
 /* Custom scrollbar styling for visualizer viewport */
 #visualizer-viewport::-webkit-scrollbar {
-  height: 8px;
+    height: 8px;
 }
 #visualizer-viewport::-webkit-scrollbar-track {
-  background: #111827;
+    background: #111827;
 }
 #visualizer-viewport::-webkit-scrollbar-thumb {
-  background: #4B5563;
-  border-radius: 9999px;
+    background: #4b5563;
+    border-radius: 9999px;
 }
 #visualizer-viewport::-webkit-scrollbar-thumb:hover {
-  background: #6B7280;
+    background: #6b7280;
 }
 
 /* Hide file input */
 #load-preset-input {
-  display: none;
+    display: none;
 }
 
 /* Style for disabled quantizer controls */
 .quantizer-disabled select,
 .quantizer-disabled input {
-  opacity: 0.5;
-  cursor: not-allowed;
-  pointer-events: none;
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
 }
 
 /* NEW TOAST CONTAINER STYLE */
 #toast-container {
-  position: fixed;
-  bottom: 1.25rem;
-  /* bottom-5 */
-  right: 1.25rem;
-  /* right-5 */
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  /* gap-3 */
-  z-index: 50;
+    position: fixed;
+    bottom: 1.25rem;
+    /* bottom-5 */
+    right: 1.25rem;
+    /* right-5 */
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    /* gap-3 */
+    z-index: 50;
 }
 
 /* NEW INDIVIDUAL TOAST STYLE */
 .toast-message {
-  color: white;
-  padding-top: 0.75rem;
-  /* py-3 */
-  padding-bottom: 0.75rem;
-  /* py-3 */
-  padding-left: 1.25rem;
-  /* px-5 */
-  padding-right: 1.25rem;
-  /* px-5 */
-  border-radius: 0.5rem;
-  /* rounded-lg */
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-  /* shadow-lg */
-  opacity: 0;
-  transform: translateX(1.25rem);
-  /* translate-x-5 */
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    color: white;
+    padding-top: 0.75rem;
+    /* py-3 */
+    padding-bottom: 0.75rem;
+    /* py-3 */
+    padding-left: 1.25rem;
+    /* px-5 */
+    padding-right: 1.25rem;
+    /* px-5 */
+    border-radius: 0.5rem;
+    /* rounded-lg */
+    box-shadow:
+        0 10px 15px -3px rgba(0, 0, 0, 0.1),
+        0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    /* shadow-lg */
+    opacity: 0;
+    transform: translateX(1.25rem);
+    /* translate-x-5 */
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .toast-message.show {
-  opacity: 1;
-  transform: translateX(0);
+    opacity: 1;
+    transform: translateX(0);
 }
 
 .toast-message.hide {
-  opacity: 0;
-  transform: translateX(1.25rem);
+    opacity: 0;
+    transform: translateX(1.25rem);
 }
 
 .toast-success {
-  background-color: #22C55E;
-  /* bg-green-500 */
+    background-color: #22c55e;
+    /* bg-green-500 */
 }
 
 .toast-info {
-  background-color: #3B82F6;
-  /* bg-blue-500 */
+    background-color: #3b82f6;
+    /* bg-blue-500 */
 }
 
 .toast-error {
-  background-color: #EF4444;
-  /* bg-red-500 */
+    background-color: #ef4444;
+    /* bg-red-500 */
 }
 
 /* NEW WAVEFORM BUTTON STYLES */
-.waveform-btn, .pattern-btn, .octave-btn {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 0.25rem;
-  /* gap-1 */
-  padding-top: 0.5rem;
-  /* py-2 */
-  padding-bottom: 0.5rem;
-  /* py-2 */
-  min-width: 60px;
-  /* Ensure buttons don't get too small */
-  flex: 1 0 18%;
-  /* Allow flex growth and wrap */
-  border-radius: 0.375rem;
-  /* rounded-md */
-  border: 2px solid transparent;
-  transition: all 0.2s;
-  background-color: #4B5563;
-  /* bg-gray-600 */
-  color: #D1D5DB;
-  /* text-gray-300 */
+.waveform-btn,
+.pattern-btn,
+.octave-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem;
+    /* gap-1 */
+    padding-top: 0.5rem;
+    /* py-2 */
+    padding-bottom: 0.5rem;
+    /* py-2 */
+    min-width: 60px;
+    /* Ensure buttons don't get too small */
+    flex: 1 0 18%;
+    /* Allow flex growth and wrap */
+    border-radius: 0.375rem;
+    /* rounded-md */
+    border: 2px solid transparent;
+    transition: all 0.2s;
+    background-color: #4b5563;
+    /* bg-gray-600 */
+    color: #d1d5db;
+    /* text-gray-300 */
 }
 
-.waveform-btn:hover, .pattern-btn:hover, .octave-btn:hover {
-  background-color: #6B7280;
-  /* bg-gray-500 */
+.waveform-btn:hover,
+.pattern-btn:hover,
+.octave-btn:hover {
+    background-color: #6b7280;
+    /* bg-gray-500 */
 }
 
-.waveform-btn.selected, .pattern-btn.selected, .octave-btn.selected {
-  background-color: #3B82F6;
-  /* bg-blue-600 */
-  color: white;
-  border-color: #60A5FA;
-  /* border-blue-400 */
+.waveform-btn.selected,
+.pattern-btn.selected,
+.octave-btn.selected {
+    background-color: #3b82f6;
+    /* bg-blue-600 */
+    color: white;
+    border-color: #60a5fa;
+    /* border-blue-400 */
 }
 
-.waveform-btn svg, .pattern-btn svg, .octave-btn svg {
-  width: 1.5rem;
-  /* w-6 */
-  height: 1.5rem;
-  /* h-6 */
-  stroke-width: 2;
+.waveform-btn svg,
+.pattern-btn svg,
+.octave-btn svg {
+    width: 1.5rem;
+    /* w-6 */
+    height: 1.5rem;
+    /* h-6 */
+    stroke-width: 2;
 }
 
 /* Pattern buttons grid layout (4 columns on desktop/tablet, wrapping on tight spaces based on section width) */
 #pattern-buttons {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 0.5rem;
-  width: 100%;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.5rem;
+    width: 100%;
 }
 
 @container (max-width: 300px) {
-  #pattern-buttons {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
+    #pattern-buttons {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
 }
 
 @container (max-width: 200px) {
-  #pattern-buttons {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
+    #pattern-buttons {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
 }
 
 /* Octave buttons: compact single-row layout */
 .octave-btn {
-  min-width: 40px;
-  flex: 0 0 auto;
-  padding: 0.375rem 0.625rem;
-  font-size: 0.875rem;
-  font-weight: 600;
+    min-width: 40px;
+    flex: 0 0 auto;
+    padding: 0.375rem 0.625rem;
+    font-size: 0.875rem;
+    font-weight: 600;
 }
 
 /* Note Step Indicator — shows which note is currently playing */
 #note-step-indicator {
-  display: flex;
-  flex-wrap: nowrap;
-  gap: 0.25rem;
-  margin-top: 0.375rem;
-  min-height: 1.5rem;
-  align-items: center;
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 0.25rem;
+    margin-top: 0.375rem;
+    min-height: 1.5rem;
+    align-items: center;
 }
 
 .note-step-pip {
-  flex: 1 1 0;
-  min-width: 0;
-  height: 0.375rem;
-  border-radius: 9999px;
-  background-color: #4B5563;
-  /* bg-gray-600 */
-  transition: background-color 0.08s, transform 0.08s;
+    flex: 1 1 0;
+    min-width: 0;
+    height: 0.375rem;
+    border-radius: 9999px;
+    background-color: #4b5563;
+    /* bg-gray-600 */
+    transition:
+        background-color 0.08s,
+        transform 0.08s;
 }
 
 .note-step-pip.active {
-  background-color: #60A5FA;
-  /* blue-400 */
-  transform: scaleY(2.5);
-  transform-origin: center;
+    background-color: #60a5fa;
+    /* blue-400 */
+    transform: scaleY(2.5);
+    transform-origin: center;
 }
 
 /* KEYBOARD VISUAL CONTAINER - Overall Wrapper (renamed from #keyboard-visual) */
 #keyboard-main-wrapper {
-  display: flex;
-  /* Allow wrapping when there is not enough space, stacking higher octave above lower */
-  flex-wrap: wrap-reverse;
-  gap: 0.5rem;
-  /* Space between octaves */
-  justify-content: center;
-  /* Center the keyboard horizontally */
-  align-items: flex-start;
-  /* Align octaves at the top */
-  width: 100%;
-  max-width: 100%;
-  box-sizing: border-box;
-  height: auto;
-  /* Let content define height */
-  overflow: visible;
-  /* Ensure absolutely positioned black keys are visible */
-  margin-top: 1rem;
-  /* Add some margin above the keyboard */
+    display: flex;
+    /* Allow wrapping when there is not enough space, stacking higher octave above lower */
+    flex-wrap: wrap-reverse;
+    gap: 0.5rem;
+    /* Space between octaves */
+    justify-content: center;
+    /* Center the keyboard horizontally */
+    align-items: flex-start;
+    /* Align octaves at the top */
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    height: auto;
+    /* Let content define height */
+    overflow: visible;
+    /* Ensure absolutely positioned black keys are visible */
+    margin-top: 1rem;
+    /* Add some margin above the keyboard */
 }
 
 /* INDIVIDUAL OCTAVE CONTAINER */
 .piano-octave {
-  display: flex;
-  /* Use flex to lay out white keys horizontally within an octave */
-  position: relative;
-  /* Crucial for absolute positioning of black keys within their octave */
-  height: 6rem;
-  /* Total height: white keys 4.5rem, black keys 2.5rem on top */
-  border-radius: 4px;
-  /* box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); */
-  /* Subtle shadow for octave separation */
-  /* background-color: #333; */
-  /* Background to show black keys clearly against */
+    display: flex;
+    /* Use flex to lay out white keys horizontally within an octave */
+    position: relative;
+    /* Crucial for absolute positioning of black keys within their octave */
+    height: 6rem;
+    /* Total height: white keys 4.5rem, black keys 2.5rem on top */
+    border-radius: 4px;
+    /* box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); */
+    /* Subtle shadow for octave separation */
+    /* background-color: #333; */
+    /* Background to show black keys clearly against */
 }
 
 /* KEYBOARD KEY STYLES - General properties for both white and black keys */
 .piano-key {
-  appearance: none;
-  background: none;
-  border: none;
-  padding: 0;
-  padding-bottom: 0.5rem;
-  box-sizing: border-box;
-  display: flex;
-  align-items: flex-end;
-  /* Align labels at the bottom */
-  justify-content: center;
-  border-radius: 0 0 4px 4px;
-  font-size: 0.75rem;
-  font-weight: bold;
-  cursor: pointer;
-  -webkit-user-select: none;
-  user-select: none;
-  transition: background-color 0.1s, transform 0.1s;
+    appearance: none;
+    background: none;
+    border: none;
+    padding: 0;
+    padding-bottom: 0.5rem;
+    box-sizing: border-box;
+    display: flex;
+    align-items: flex-end;
+    /* Align labels at the bottom */
+    justify-content: center;
+    border-radius: 0 0 4px 4px;
+    font-size: 0.75rem;
+    font-weight: bold;
+    cursor: pointer;
+    -webkit-user-select: none;
+    user-select: none;
+    transition:
+        background-color 0.1s,
+        transform 0.1s;
 }
 
 .key-label {
-  position: relative;
-  z-index: 2;
-  pointer-events: none;
+    position: relative;
+    z-index: 2;
+    pointer-events: none;
 }
 
 /* Ensure white key labels have maximum contrast (dark text) at all times, even when disabled */
 .key-white .key-label {
-  color: #1a1a1a !important;
-  -webkit-text-fill-color: #1a1a1a !important;
-  font-weight: 800 !important;
-  opacity: 1 !important;
+    color: #1a1a1a;
+    -webkit-text-fill-color: #1a1a1a;
+    font-weight: 800;
+    opacity: 1;
 }
 
 /* Ensure black key labels have maximum contrast (light text) at all times, even when disabled */
 .key-black .key-label {
-  color: #ffffff !important;
-  -webkit-text-fill-color: #ffffff !important;
-  font-weight: 800 !important;
-  opacity: 1 !important;
+    color: #ffffff;
+    -webkit-text-fill-color: #ffffff;
+    font-weight: 800;
+    opacity: 1;
 }
 
 .piano-key:disabled {
-  opacity: 1 !important;
-  cursor: default;
+    opacity: 1;
+    cursor: default;
 }
 
-
-
 .key-white {
-  background-color: transparent;
-  color: black;
-  height: 4.5rem;
-  /* White keys are taller */
-  width: 40px;
-  flex-shrink: 0;
-  flex-grow: 0;
-  /* Explicit width for white keys */
-  border: none;
-  z-index: 0;
-  margin-left: -1px;
-  /* Overlap borders for a continuous look */
-  position: relative;
+    background-color: transparent;
+    color: black;
+    height: 4.5rem;
+    /* White keys are taller */
+    width: 40px;
+    flex-shrink: 0;
+    flex-grow: 0;
+    /* Explicit width for white keys */
+    border: none;
+    z-index: 0;
+    margin-left: -1px;
+    /* Overlap borders for a continuous look */
+    position: relative;
 }
 
 .key-bg-svg {
-  overflow: visible;
+    overflow: visible;
 }
 
 .key-bg-path {
-  fill: #ffffff;
-  stroke: #cccccc;
-  stroke-width: 1px;
-  vector-effect: non-scaling-stroke;
-  transition: fill 0.1s;
+    fill: #ffffff;
+    stroke: #cccccc;
+    stroke-width: 1px;
+    vector-effect: non-scaling-stroke;
+    transition: fill 0.1s;
 }
 
 /* First white key in an octave should not have left margin */
 .piano-octave .key-white:first-child {
-  margin-left: 0;
+    margin-left: 0;
 }
 
 .key-white.active {
-  transform: scale(0.98);
+    transform: scale(0.98);
 }
 
 .key-white.active .key-bg-path {
-  fill: #dddddd;
+    fill: #dddddd;
 }
 
 .key-black {
-  background-color: black;
-  color: white;
-  height: 2.5rem;
-  /* Black keys are shorter */
-  width: 24px;
-  flex-shrink: 0;
-  flex-grow: 0;
-  /* Explicit width for black keys */
-  z-index: 10;
-  position: absolute;
-  /* Crucial for overlapping */
-  top: 0;
-  /* Align black keys at the top of the octave wrapper */
-  /* 'left' property will be set via JS inline styles */
-  border: 1px solid #333;
-  border-top: none;
-  /* No top border for a cleaner look */
-  border-radius: 0 0 3px 3px;
-  /* Slightly smaller border radius for black keys */
+    background-color: black;
+    color: white;
+    height: 2.5rem;
+    /* Black keys are shorter */
+    width: 24px;
+    flex-shrink: 0;
+    flex-grow: 0;
+    /* Explicit width for black keys */
+    z-index: 10;
+    position: absolute;
+    /* Crucial for overlapping */
+    top: 0;
+    /* Align black keys at the top of the octave wrapper */
+    /* 'left' property will be set via JS inline styles */
+    border: 1px solid #333;
+    border-top: none;
+    /* No top border for a cleaner look */
+    border-radius: 0 0 3px 3px;
+    /* Slightly smaller border radius for black keys */
 }
 
 .key-black.active {
-  background-color: #333;
-  transform: scale(0.98);
+    background-color: #333;
+    transform: scale(0.98);
 }
 
 @media (prefers-color-scheme: dark) {
-  .key-black {
-    background-color: black;
-    color: white;
-  }
+    .key-black {
+        background-color: black;
+        color: white;
+    }
 
-  .key-black.active {
-    background-color: #333;
-  }
+    .key-black.active {
+        background-color: #333;
+    }
 }
 
 /* Responsive breakpoint for keyboard split */
 @media (max-width: 768px) {
-  /* Adjust breakpoint as needed */
-  .piano-octave {
-    width: min-content;
-    /* Adjust octave width to content on small screens */
-  }
+    /* Adjust breakpoint as needed */
+    .piano-octave {
+        width: min-content;
+        /* Adjust octave width to content on small screens */
+    }
 }
 
 /* Styles for <details> accordion */
 details.card-details > summary {
-  list-style: none;
-  cursor: pointer;
-  padding: 0.5rem;
-  background-color: #4B5563;
-  /* bg-gray-600 */
-  border-radius: 0.5rem;
-  transition: background-color 0.2s;
+    list-style: none;
+    cursor: pointer;
+    padding: 0.5rem;
+    background-color: #4b5563;
+    /* bg-gray-600 */
+    border-radius: 0.5rem;
+    transition: background-color 0.2s;
 }
 
 details.card-details > summary:hover {
-  background-color: #6B7280;
-  /* bg-gray-500 */
+    background-color: #6b7280;
+    /* bg-gray-500 */
 }
 
 details.card-details > summary::-webkit-details-marker {
-  display: none;
+    display: none;
 }
 
 details.card-details > summary {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
 /* Triangle marker */
 details.card-details > summary::after {
-  content: '►';
-  font-size: 0.8em;
-  transition: transform 0.2s;
+    content: "►";
+    font-size: 0.8em;
+    transition: transform 0.2s;
 }
 
 details[open].card-details > summary::after {
-  transform: rotate(90deg);
+    transform: rotate(90deg);
 }
 
 details.card-details > div {
-  padding-top: 1rem;
-  /* pt-4 */
+    padding-top: 1rem;
+    /* pt-4 */
 }
 
 /* Screen reader only utility class for accessibility */
 .sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border-width: 0;
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
 }
 
 /* Focus outlines for all interactive elements to support keyboard navigation */
@@ -556,34 +568,34 @@ button:focus-visible,
 input:focus-visible,
 select:focus-visible,
 details > summary:focus-visible {
-  outline: 2px solid #38BDF8;
-  outline-offset: 2px;
+    outline: 2px solid #38bdf8;
+    outline-offset: 2px;
 }
 
 /* Specific focus outline style inside the piano key boundary to avoid clipping and overlap */
 .key-black:focus-visible {
-  outline: 2px solid #38BDF8;
-  outline-offset: -2px;
-  z-index: 15 !important;
+    outline: 2px solid #38bdf8;
+    outline-offset: -2px;
+    z-index: 15;
 }
 
 .key-white:focus-visible {
-  outline: none !important;
-  z-index: 5 !important;
+    outline: none;
+    z-index: 5;
 }
 
 .key-white:focus-visible .key-bg-path {
-  stroke: #38BDF8;
-  stroke-width: 2px;
+    stroke: #38bdf8;
+    stroke-width: 2px;
 }
 
 /* Class for hidden test state mirror element used in PWA/browser testing */
 .test-state-mirror {
-  position: absolute;
-  left: -9999px;
-  top: -9999px;
-  width: 1px;
-  height: 1px;
-  opacity: 0;
-  pointer-events: none;
+    position: absolute;
+    left: -9999px;
+    top: -9999px;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
 }

@@ -93,7 +93,7 @@ Use spaces to separate multiple notes: `C4 E4 G4`
 ## Pattern Directions
 
 | Direction                  | Behavior                               |
-|----------------------------|----------------------------------------|
+| -------------------------- | -------------------------------------- |
 | **Up**                     | Ascending order                        |
 | **Down**                   | Descending order                       |
 | **Up-Down**                | Up then down (skip endpoint)           |
@@ -189,8 +189,8 @@ Example: With C Major selected, the note "C#4" becomes "D4"
 
 ## Browser Support
 
-| Browser         | Status         |
-|-----------------|----------------|
+| Browser         | Status          |
+| --------------- | --------------- |
 | Chrome/Chromium | ✅ Full support |
 | Firefox         | ✅ Full support |
 | Safari          | ✅ Full support |
