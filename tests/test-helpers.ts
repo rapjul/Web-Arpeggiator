@@ -1,4 +1,4 @@
-import { spawn, type Subprocess } from "bun";
+import { type Subprocess, spawn } from "bun";
 
 /**
  * Array to track all spawned background subprocesses.
@@ -66,7 +66,7 @@ export async function runBrowser(args: string[]): Promise<string> {
 export async function closeBrowser(): Promise<void> {
     try {
         await runBrowser(["close"]);
-    } catch (_) {
+    } catch {
         // Ignore if browser is already closed
     }
 }
@@ -80,7 +80,7 @@ export function cleanupProcesses(): void {
     for (const proc of activeProcesses) {
         try {
             proc.kill();
-        } catch (e) {
+        } catch {
             // Ignore if already dead
         }
     }
@@ -182,7 +182,7 @@ export async function resetBrowserState(): Promise<void> {
                         db.close();
                         reject(tx.error);
                     };
-                } catch (e) {
+                } catch {
                     db.close();
                     // Database or stores might not exist yet on initial run, ignore
                     resolve();

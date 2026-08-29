@@ -86,7 +86,7 @@ Uses Tonal.js to calculate scale pitches and find nearest MIDI note.
 
 ### 3. Transport System
 
-Powered by `Tone.Transport`:
+Powered by `Tone.getTransport()`:
 
 - **BPM**: 40–240 beats per minute
 - **Swing**: 0-1 (applies shuffle/swing feel)

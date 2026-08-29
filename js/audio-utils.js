@@ -28,9 +28,7 @@ export async function fetchWithBackoff(url, options, maxRetries = 5, baseDelay =
                 throw error;
             }
 
-            await new Promise((resolve) =>
-                setTimeout(resolve, baseDelay * Math.pow(2, attempt - 1)),
-            );
+            await new Promise((resolve) => setTimeout(resolve, baseDelay * 2 ** (attempt - 1)));
         }
     }
 
@@ -74,7 +72,7 @@ let lameJsPromise = null;
  * Dynamically loads the lamejs MP3 encoder library from the npm package.
  * Uses a cached promise to ensure it is only fetched once.
  *
- * @returns {Promise<object>} Resolves to the window.lamejs object when loaded.
+ * @returns {Promise<typeof import("@breezystack/lamejs")>} Resolves to the window.lamejs object when loaded.
  */
 export function loadLameJs() {
     if (window.lamejs) {
@@ -133,7 +131,7 @@ if (typeof window !== "undefined") {
  */
 export async function audioBufferToMp3Blob(audioBuffer) {
     // Wait for LameJS to be loaded, if it's not already loaded.
-    await loadLameJs();
+    const lamejs = await loadLameJs();
 
     return new Promise((resolve, reject) => {
         try {
@@ -166,7 +164,11 @@ export async function audioBufferToMp3Blob(audioBuffer) {
                 mp3Data.push(mp3buf);
             }
 
-            resolve(new Blob(mp3Data, { type: "audio/mpeg" }));
+            resolve(
+                new Blob(/** @type {BlobPart[]} */ (/** @type {unknown} */ (mp3Data)), {
+                    type: "audio/mpeg",
+                }),
+            );
         } catch (error) {
             console.error("Error during MP3 encoding:", error);
             reject(error);

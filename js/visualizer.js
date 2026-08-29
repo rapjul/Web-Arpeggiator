@@ -20,7 +20,7 @@ import * as Tone from "tone";
  * @param {HTMLCanvasElement} context.dom.visualizerPlotCanvas   - Canvas element for visualizer drawings.
  * @param {HTMLElement}       context.dom.toggleVisualizerButton - Toggle visualizer button.
  * @param {HTMLSelectElement} context.dom.visualizerModeSelect   - Dropdown select for mode.
- * @param {HTMLButtonElement}  context.dom.pauseVisualizerButton  - Pause visualizer button.
+ * @param {HTMLButtonElement} context.dom.pauseVisualizerButton  - Pause visualizer button.
  * @param {HTMLInputElement}  context.dom.visualizerZoomSlider   - Zoom slider input range.
  * @param {HTMLElement}       context.dom.visualizerZoomValue    - Text readout for zoom.
  * @param {HTMLSelectElement} context.dom.oscilloscopeWindowSelect - Select dropdown for time duration.
@@ -30,16 +30,19 @@ import * as Tone from "tone";
  * @param {HTMLElement}       [context.dom.vuClipContainer]      - Clip reset button wrapper container.
  * @param {HTMLButtonElement} [context.dom.vuClipIndicator]      - Clip reset button indicator.
  * @param {HTMLElement}       [context.dom.vuClipTooltip]        - Clip reset button micro-tooltip.
- * @param {HTMLButtonElement} [context.dom.vuInfoButton]         - Info tooltip trigger button.
+ * @param {HTMLElement}       [context.dom.vuInfoButton]         - Info tooltip trigger button.
  * @param {HTMLElement}       [context.dom.vuInfoTooltip]        - Info tooltip container.
  * @param {HTMLInputElement}  [context.dom.envReleaseSlider]     - Envelope release slider input.
  * @param {object}   context.audio                               - Audio-engine references.
  * @param {Tone.Analyser}     context.audio.analyser             - Waveform/FFT analyser.
+ * @param {Tone.Meter}        [context.audio.meter]              - Real-time smoothed VU meter node.
+ * @param {Tone.Analyser}     [context.audio.peakAnalyser]       - Unsmoothed waveform peak detector.
  * @param {object}   context.state                               - Shared app state.
  * @param {boolean}  context.state.isRecording                   - Is recording active.
  * @param {number}   context.state.recordingStartTime            - Recording start time.
  * @param {HTMLElement}       context.state.recordButton         - Record button.
  * @param {boolean}  context.state.isPlaying                     - Is transport playing.
+ * @param {string|null}       [context.state.activeNote]         - Active keyboard note.
  * @param {object}   context.actions                             - Injected action helpers.
  * @param {Function} context.actions.formatTime                  - Time formatting helper.
  * @returns {object} Public API.
@@ -457,7 +460,7 @@ export function createVisualizer(context) {
                     for (let b = 0; b < barCount; b++) {
                         const ratio = b / barCount;
                         // Interpolate target frequency logarithmically
-                        const freq = minFreq * Math.pow(maxFreq / minFreq, ratio);
+                        const freq = minFreq * (maxFreq / minFreq) ** ratio;
 
                         const nyquist = Tone.context.sampleRate / 2;
                         const binCount = waveformBuffer ? waveformBuffer.length : 1;
@@ -719,21 +722,23 @@ export function createVisualizer(context) {
             let isPeakClipping = false;
             if (peakAnalyser) {
                 const samples = peakAnalyser.getValue();
-                let maxAbs = 0;
-                for (let i = 0; i < samples.length; i++) {
-                    const abs = Math.abs(samples[i]);
-                    if (abs > maxAbs) maxAbs = abs;
-                }
-                if (maxAbs >= 0.994) {
-                    isPeakClipping = true;
+                if (samples instanceof Float32Array) {
+                    let maxAbs = 0;
+                    for (let i = 0; i < samples.length; i++) {
+                        const abs = Math.abs(samples[i]);
+                        if (abs > maxAbs) maxAbs = abs;
+                    }
+                    if (maxAbs >= 0.994) {
+                        isPeakClipping = true;
+                    }
                 }
             }
 
             // 2. Read smoothed RMS meter value for display
             const rawVal = meter.getValue();
-            const db = typeof rawVal === "number" && isFinite(rawVal) ? rawVal : -Infinity;
+            const db = typeof rawVal === "number" && Number.isFinite(rawVal) ? rawVal : -Infinity;
 
-            if (db <= -60 || !isFinite(db)) {
+            if (db <= -60 || !Number.isFinite(db)) {
                 vuMeterBar.style.width = "0%";
                 vuMeterBar.setAttribute("aria-valuenow", "-60");
                 vuMeterBar.setAttribute("aria-valuetext", "Idle");
@@ -869,7 +874,7 @@ export function createVisualizer(context) {
         }
         const releaseSec = envReleaseSlider ? parseFloat(envReleaseSlider.value) : 0.5;
         const decayDurationMs =
-            (isFinite(releaseSec) ? Math.max(0.1, releaseSec) : 0.5) * 1000 + 400;
+            (Number.isFinite(releaseSec) ? Math.max(0.1, releaseSec) : 0.5) * 1000 + 400;
 
         manualNoteDecayTimeout = setTimeout(() => {
             manualNoteDecayTimeout = null;

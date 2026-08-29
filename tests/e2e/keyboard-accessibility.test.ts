@@ -1,19 +1,12 @@
-import { test, expect, beforeAll, afterAll } from "bun:test";
-import { type Subprocess } from "bun";
+import { afterAll, beforeAll, expect, test } from "bun:test";
 import {
-    startTestServer,
-    runBrowser,
-    waitForPwaReady,
-    resetBrowserState,
     cleanupProcesses,
     closeBrowser,
+    resetBrowserState,
+    runBrowser,
+    startTestServer,
+    waitForPwaReady,
 } from "../test-helpers";
-
-/**
- * References the background server process.
- * @type {Subprocess|null}
- */
-let serverProcess: Subprocess | null = null;
 
 /**
  * The port number for the test server instance.
@@ -28,7 +21,7 @@ const PORT: number = 4181;
 const APP_URL: string = `http://127.0.0.1:${PORT}/index.html`;
 
 beforeAll(async (): Promise<void> => {
-    serverProcess = await startTestServer(PORT);
+    await startTestServer(PORT);
 });
 
 afterAll(async (): Promise<void> => {
@@ -57,50 +50,50 @@ test("UI Keyboard Arrow Accessibility Navigation Suite", async (): Promise<void>
         "eval",
         `(async () => {
         const patternGroup = document.getElementById('pattern-buttons');
-        const buttons = Array.from(patternGroup.querySelectorAll('button.pattern-btn'));
-        
+        const buttons = Array.from(patternGroup.querySelectorAll('input[type="radio"], button.pattern-btn'));
+
         if (buttons.length < 2) {
             return 'missing-pattern-buttons';
         }
-        
+
         // Focus the first button
         buttons[0].focus();
         if (document.activeElement !== buttons[0]) {
             return 'failed-to-focus-first';
         }
-        
+
         // Simulate ArrowRight keydown
         patternGroup.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
         if (document.activeElement !== buttons[1]) {
             return 'failed-arrow-right: ' + document.activeElement.outerHTML;
         }
-        
+
         // Simulate ArrowDown keydown
         patternGroup.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
         if (document.activeElement !== buttons[2]) {
             return 'failed-arrow-down: ' + document.activeElement.outerHTML;
         }
-        
+
         // Simulate ArrowLeft keydown
         patternGroup.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
         if (document.activeElement !== buttons[1]) {
             return 'failed-arrow-left';
         }
-        
+
         // Simulate wrap-around by going Left from the first button
         buttons[0].focus();
         patternGroup.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
         if (document.activeElement !== buttons[buttons.length - 1]) {
             return 'failed-wrap-left';
         }
-        
+
         // Go Right from the last button to test wrap-around in opposite direction
         buttons[buttons.length - 1].focus();
         patternGroup.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
         if (document.activeElement !== buttons[0]) {
             return 'failed-wrap-right';
         }
-        
+
         return 'success';
     })()`,
     ]);
@@ -113,17 +106,17 @@ test("UI Keyboard Arrow Accessibility Navigation Suite", async (): Promise<void>
         `(async () => {
         const waveGroup = document.getElementById('waveform-buttons');
         const buttons = Array.from(waveGroup.querySelectorAll('button.waveform-btn'));
-        
+
         if (buttons.length < 2) {
             return 'missing-waveform-buttons';
         }
-        
+
         buttons[0].focus();
         waveGroup.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
         if (document.activeElement !== buttons[1]) {
             return 'failed-wave-arrow-right';
         }
-        
+
         return 'success';
     })()`,
     ]);
@@ -135,18 +128,18 @@ test("UI Keyboard Arrow Accessibility Navigation Suite", async (): Promise<void>
         "eval",
         `(async () => {
         const shiftGroup = document.getElementById('octave-shift-buttons');
-        const buttons = Array.from(shiftGroup.querySelectorAll('button.octave-btn'));
-        
+        const buttons = Array.from(shiftGroup.querySelectorAll('input[type="radio"], button.octave-btn'));
+
         if (buttons.length < 2) {
             return 'missing-octave-shift-buttons';
         }
-        
+
         buttons[0].focus();
         shiftGroup.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
         if (document.activeElement !== buttons[1]) {
             return 'failed-shift-arrow-right';
         }
-        
+
         return 'success';
     })()`,
     ]);
@@ -158,18 +151,18 @@ test("UI Keyboard Arrow Accessibility Navigation Suite", async (): Promise<void>
         "eval",
         `(async () => {
         const rangeGroup = document.getElementById('octave-range-buttons');
-        const buttons = Array.from(rangeGroup.querySelectorAll('button.octave-btn'));
-        
+        const buttons = Array.from(rangeGroup.querySelectorAll('input[type="radio"], button.octave-btn'));
+
         if (buttons.length < 2) {
             return 'missing-octave-range-buttons';
         }
-        
+
         buttons[0].focus();
         rangeGroup.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
         if (document.activeElement !== buttons[1]) {
             return 'failed-range-arrow-right';
         }
-        
+
         return 'success';
     })()`,
     ]);

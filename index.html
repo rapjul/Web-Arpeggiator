@@ -34,6 +34,7 @@
                 <p class="text-lg text-gray-300 mb-6">Press anywhere to enable audio</p>
                 <button
                     id="start-button"
+                    type="button"
                     class="text-xl font-bold py-3 px-6 bg-orange-600 hover:bg-orange-700 rounded-lg shadow-lg transition-all animate-pulse"
                 >
                     Enable Audio
@@ -56,6 +57,7 @@
                 <!-- `onclick` attribute to start the synth -->
                 <button
                     id="play-stop"
+                    type="button"
                     aria-label="Press anywhere on screen to enable audio context first (play/stop control currently disabled)"
                     class="col-span-2 text-lg font-bold py-3 px-6 bg-gray-600 rounded-lg shadow-lg transition-all opacity-50 cursor-not-allowed"
                 >
@@ -130,6 +132,7 @@
                                         viewBox="0 0 24 24"
                                         aria-hidden="true"
                                     >
+                                        <title>Output Meter Info</title>
                                         <circle cx="12" cy="12" r="10" stroke-width="2" />
                                         <path
                                             d="M12 16v-4M12 8h.01"
@@ -169,7 +172,7 @@
                         >
                             <div
                                 id="vu-meter-bar"
-                                class="w-0 h-full rounded-sm transition-all duration-75 ease-out bg-gradient-to-r from-emerald-500 via-amber-400 to-rose-500"
+                                class="w-0 h-full rounded-sm transition-all duration-75 ease-out bg-linear-to-r from-emerald-500 via-amber-400 to-rose-500"
                                 role="meter"
                                 aria-label="Final audio output peak level"
                                 aria-valuemin="-60"
@@ -264,6 +267,7 @@
                             </label>
                             <button
                                 id="randomize-notes"
+                                type="button"
                                 title="Generates a random, musically coherent sequence of 4–6 notes. When Scale Quantization is enabled, notes are drawn strictly from the active scale. When disabled, a random root note and scale mode are also chosen automatically."
                                 class="text-xs font-bold py-1 px-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded transition-all flex items-center gap-1 shadow-md"
                             >
@@ -288,263 +292,384 @@
 
                     <!-- START Selection: Pattern Direction -->
                     <div class="space-y-2">
-                        <label id="pattern-label" class="block text-sm font-medium mb-1">
+                        <span id="pattern-label" class="block text-sm font-medium mb-1">
                             Pattern Direction
-                        </label>
-                        <div id="pattern-buttons" role="group" aria-labelledby="pattern-label">
-                            <button
-                                class="pattern-btn selected"
-                                data-pattern="up"
-                                title="Ascending order: lowest to highest pitch"
-                            >
-                                <svg
-                                    class="stroke-current"
-                                    fill="none"
-                                    viewBox="0 0 32 32"
-                                    xmlns="http://www.w3.org/2000/svg"
+                        </span>
+                        <fieldset id="pattern-buttons" aria-labelledby="pattern-label">
+                            <label class="cursor-pointer">
+                                <input
+                                    type="radio"
+                                    name="pattern-direction"
+                                    value="up"
+                                    checked
+                                    class="sr-only peer"
+                                    data-pattern="up"
+                                />
+                                <span
+                                    class="pattern-btn"
+                                    data-pattern="up"
+                                    title="Ascending order: lowest to highest pitch"
                                 >
-                                    <path
-                                        d="M2 16 L30 2"
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                    />
-                                </svg>
-                                <span class="text-xs font-medium">Up</span>
-                            </button>
-                            <button
-                                class="pattern-btn"
-                                data-pattern="down"
-                                title="Descending order: highest to lowest pitch"
-                            >
-                                <svg
-                                    class="stroke-current"
-                                    fill="none"
-                                    viewBox="0 0 32 32"
-                                    xmlns="http://www.w3.org/2000/svg"
-                                >
-                                    <path
-                                        d="M30 16 L2 2"
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                    />
-                                </svg>
-                                <span class="text-xs font-medium">Down</span>
-                            </button>
-                            <button
-                                class="pattern-btn"
-                                data-pattern="upDown"
-                                title="Ascending then descending with exclusive endpoints"
-                            >
-                                <svg
-                                    class="stroke-current"
-                                    fill="none"
-                                    viewBox="0 0 32 32"
-                                    xmlns="http://www.w3.org/2000/svg"
-                                >
-                                    <path
-                                        d="M2 16 L16 2 L30 16"
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                    />
-                                </svg>
-                                <span class="text-xs font-medium">Up-Down</span>
-                            </button>
-                            <button
-                                class="pattern-btn"
-                                data-pattern="downUp"
-                                title="Descending then ascending with exclusive endpoints"
-                            >
-                                <svg
-                                    class="stroke-current"
-                                    fill="none"
-                                    viewBox="0 0 32 32"
-                                    xmlns="http://www.w3.org/2000/svg"
-                                >
-                                    <path
-                                        d="M30 2L16 16 2 2"
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                    />
-                                </svg>
-                                <span class="text-xs font-medium">Down-Up</span>
-                            </button>
-                            <button
-                                class="pattern-btn"
-                                data-pattern="upDownRepeat"
-                                title="Ascending then descending repeating apex notes"
-                            >
-                                <svg
-                                    class="stroke-current"
-                                    fill="none"
-                                    viewBox="0 0 32 32"
-                                    xmlns="http://www.w3.org/2000/svg"
-                                >
-                                    <path
-                                        d="M2 16L10 2l2.0-.0 6 14 2.54.0 8.0-14 1.5-.0"
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                    />
-                                </svg>
-                                <span class="text-xs font-medium">
-                                    Up-Down
-                                    <wbr />
-                                    (Repeated)
+                                    <svg
+                                        class="stroke-current"
+                                        fill="none"
+                                        viewBox="0 0 32 32"
+                                        xmlns="http://www.w3.org/2000/svg"
+                                    >
+                                        <title>Up</title>
+                                        <path
+                                            d="M2 16 L30 2"
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                        />
+                                    </svg>
+                                    <span class="text-xs font-medium">Up</span>
                                 </span>
-                            </button>
-                            <button
-                                class="pattern-btn"
-                                data-pattern="downUpRepeat"
-                                title="Descending then ascending repeating apex notes"
-                            >
-                                <svg
-                                    class="stroke-current"
-                                    fill="none"
-                                    viewBox="0 0 32 32"
-                                    xmlns="http://www.w3.org/2000/svg"
+                            </label>
+                            <label class="cursor-pointer">
+                                <input
+                                    type="radio"
+                                    name="pattern-direction"
+                                    value="down"
+                                    class="sr-only peer"
+                                    data-pattern="down"
+                                />
+                                <span
+                                    class="pattern-btn"
+                                    data-pattern="down"
+                                    title="Descending order: highest to lowest pitch"
                                 >
-                                    <path
-                                        d="M2 2 l8 14 2.57.00 L18 2l2.50.0 8.0 14 1.01.0"
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                    />
-                                </svg>
-                                <span class="text-xs font-medium">
-                                    Down-Up
-                                    <wbr />
-                                    (Repeated)
+                                    <svg
+                                        class="stroke-current"
+                                        fill="none"
+                                        viewBox="0 0 32 32"
+                                        xmlns="http://www.w3.org/2000/svg"
+                                    >
+                                        <title>Down</title>
+                                        <path
+                                            d="M30 16 L2 2"
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                        />
+                                    </svg>
+                                    <span class="text-xs font-medium">Down</span>
                                 </span>
-                            </button>
-                            <button
-                                class="pattern-btn"
-                                data-pattern="random"
-                                title="Completely random note selection on every step"
-                            >
-                                <svg
-                                    class="stroke-current"
-                                    fill="none"
-                                    viewBox="0 0 32 32"
-                                    xmlns="http://www.w3.org/2000/svg"
+                            </label>
+                            <label class="cursor-pointer">
+                                <input
+                                    type="radio"
+                                    name="pattern-direction"
+                                    value="upDown"
+                                    class="sr-only peer"
+                                    data-pattern="upDown"
+                                />
+                                <span
+                                    class="pattern-btn"
+                                    data-pattern="upDown"
+                                    title="Ascending then descending with exclusive endpoints"
                                 >
-                                    <path
-                                        d="M2 2 l8 14 2.57.00 L18 2 l2.5 0.0 8.0 14 1.01.0"
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                    />
-                                </svg>
-                                <span class="text-xs font-medium">Random</span>
-                            </button>
-                            <button
-                                class="pattern-btn"
-                                data-pattern="octaveCycle"
-                                title="Each note played across 3 octaves, repeated twice"
-                            >
-                                <svg
-                                    class="stroke-current"
-                                    fill="none"
-                                    viewBox="0 0 32 32"
-                                    xmlns="http://www.w3.org/2000/svg"
-                                >
-                                    <circle cx="8" cy="24" r="3" fill="#38bdf8" />
-                                    <circle cx="16" cy="16" r="3" fill="#38bdf8" />
-                                    <circle cx="24" cy="8" r="3" fill="#38bdf8" />
-                                </svg>
-                                <span class="text-xs font-medium">
-                                    Octave
-                                    <wbr />
-                                    Cycle
+                                    <svg
+                                        class="stroke-current"
+                                        fill="none"
+                                        viewBox="0 0 32 32"
+                                        xmlns="http://www.w3.org/2000/svg"
+                                    >
+                                        <title>Up-Down</title>
+                                        <path
+                                            d="M2 16 L16 2 L30 16"
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                        />
+                                    </svg>
+                                    <span class="text-xs font-medium">Up-Down</span>
                                 </span>
-                            </button>
-                            <button
-                                class="pattern-btn"
-                                data-pattern="octaveCycleReverse"
-                                title="Octave cycle in descending order across 3 octaves"
-                            >
-                                <svg
-                                    class="stroke-current"
-                                    fill="none"
-                                    viewBox="0 0 32 32"
-                                    xmlns="http://www.w3.org/2000/svg"
+                            </label>
+                            <label class="cursor-pointer">
+                                <input
+                                    type="radio"
+                                    name="pattern-direction"
+                                    value="downUp"
+                                    class="sr-only peer"
+                                    data-pattern="downUp"
+                                />
+                                <span
+                                    class="pattern-btn"
+                                    data-pattern="downUp"
+                                    title="Descending then ascending with exclusive endpoints"
                                 >
-                                    <circle cx="8" cy="8" r="3" fill="#38bdf8" />
-                                    <circle cx="16" cy="16" r="3" fill="#38bdf8" />
-                                    <circle cx="24" cy="24" r="3" fill="#38bdf8" />
-                                </svg>
-                                <span class="text-xs font-medium">
-                                    Reversed
-                                    <wbr />
-                                    Octaves
+                                    <svg
+                                        class="stroke-current"
+                                        fill="none"
+                                        viewBox="0 0 32 32"
+                                        xmlns="http://www.w3.org/2000/svg"
+                                    >
+                                        <title>Down-Up</title>
+                                        <path
+                                            d="M30 2L16 16 2 2"
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                        />
+                                    </svg>
+                                    <span class="text-xs font-medium">Down-Up</span>
                                 </span>
-                            </button>
-                            <button
-                                class="pattern-btn"
-                                data-pattern="octaveCyclePingPong"
-                                title="Octave cycle alternating ascending and descending"
-                            >
-                                <svg
-                                    class="stroke-current"
-                                    fill="none"
-                                    viewBox="0 0 32 32"
-                                    xmlns="http://www.w3.org/2000/svg"
+                            </label>
+                            <label class="cursor-pointer">
+                                <input
+                                    type="radio"
+                                    name="pattern-direction"
+                                    value="upDownRepeat"
+                                    class="sr-only peer"
+                                    data-pattern="upDownRepeat"
+                                />
+                                <span
+                                    class="pattern-btn"
+                                    data-pattern="upDownRepeat"
+                                    title="Ascending then descending repeating apex notes"
                                 >
-                                    <circle cx="4" cy="24" r="2.5" fill="#38bdf8" />
-                                    <circle cx="10" cy="16" r="2.5" fill="#38bdf8" />
-                                    <circle cx="16" cy="8" r="2.5" fill="#38bdf8" />
-                                    <circle cx="22" cy="16" r="2.5" fill="#38bdf8" />
-                                    <circle cx="28" cy="24" r="2.5" fill="#38bdf8" />
-                                </svg>
-                                <span class="text-xs font-medium">
-                                    Ping-Pong
-                                    <wbr />
-                                    Octaves
+                                    <svg
+                                        class="stroke-current"
+                                        fill="none"
+                                        viewBox="0 0 32 32"
+                                        xmlns="http://www.w3.org/2000/svg"
+                                    >
+                                        <title>Up-Down (Repeated)</title>
+                                        <path
+                                            d="M2 16L10 2l2.0-.0 6 14 2.54.0 8.0-14 1.5-.0"
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                        />
+                                    </svg>
+                                    <span class="text-xs font-medium">
+                                        Up-Down
+                                        <wbr />
+                                        (Repeated)
+                                    </span>
                                 </span>
-                            </button>
-                            <button
-                                class="pattern-btn"
-                                data-pattern="randomWalk"
-                                title="Constrained random progression moving to adjacent notes"
-                            >
-                                <svg
-                                    class="stroke-current"
-                                    fill="none"
-                                    viewBox="0 0 32 32"
-                                    xmlns="http://www.w3.org/2000/svg"
+                            </label>
+                            <label class="cursor-pointer">
+                                <input
+                                    type="radio"
+                                    name="pattern-direction"
+                                    value="downUpRepeat"
+                                    class="sr-only peer"
+                                    data-pattern="downUpRepeat"
+                                />
+                                <span
+                                    class="pattern-btn"
+                                    data-pattern="downUpRepeat"
+                                    title="Descending then ascending repeating apex notes"
                                 >
-                                    <path
-                                        d="M2 16 Q6 12, 10 16 T18 12 T24 16 T30 12"
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                    />
-                                </svg>
-                                <span class="text-xs font-medium">
-                                    Random
-                                    <wbr />
-                                    Walk
+                                    <svg
+                                        class="stroke-current"
+                                        fill="none"
+                                        viewBox="0 0 32 32"
+                                        xmlns="http://www.w3.org/2000/svg"
+                                    >
+                                        <title>Down-Up (Repeated)</title>
+                                        <path
+                                            d="M2 2 l8 14 2.57.00 L18 2l2.50.0 8.0 14 1.01.0"
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                        />
+                                    </svg>
+                                    <span class="text-xs font-medium">
+                                        Down-Up
+                                        <wbr />
+                                        (Repeated)
+                                    </span>
                                 </span>
-                            </button>
-                            <button
-                                class="pattern-btn"
-                                data-pattern="randomWalkDrunk"
-                                title="Random walk with occasional unexpected leaps"
-                            >
-                                <svg
-                                    class="stroke-current"
-                                    fill="none"
-                                    viewBox="0 0 32 32"
-                                    xmlns="http://www.w3.org/2000/svg"
+                            </label>
+                            <label class="cursor-pointer">
+                                <input
+                                    type="radio"
+                                    name="pattern-direction"
+                                    value="random"
+                                    class="sr-only peer"
+                                    data-pattern="random"
+                                />
+                                <span
+                                    class="pattern-btn"
+                                    data-pattern="random"
+                                    title="Completely random note selection on every step"
                                 >
-                                    <path
-                                        d="M2 16 Q8 2, 12 7 T22 4 T30 24"
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                    />
-                                </svg>
-                                <span class="text-xs font-medium">
-                                    Drunkard's
-                                    <wbr />
-                                    Walk
+                                    <svg
+                                        class="stroke-current"
+                                        fill="none"
+                                        viewBox="0 0 32 32"
+                                        xmlns="http://www.w3.org/2000/svg"
+                                    >
+                                        <title>Random</title>
+                                        <path
+                                            d="M2 2 l8 14 2.57.00 L18 2 l2.5 0.0 8.0 14 1.01.0"
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                        />
+                                    </svg>
+                                    <span class="text-xs font-medium">Random</span>
                                 </span>
-                            </button>
-                        </div>
+                            </label>
+                            <label class="cursor-pointer">
+                                <input
+                                    type="radio"
+                                    name="pattern-direction"
+                                    value="octaveCycle"
+                                    class="sr-only peer"
+                                    data-pattern="octaveCycle"
+                                />
+                                <span
+                                    class="pattern-btn"
+                                    data-pattern="octaveCycle"
+                                    title="Each note played across 3 octaves, repeated twice"
+                                >
+                                    <svg
+                                        class="stroke-current"
+                                        fill="none"
+                                        viewBox="0 0 32 32"
+                                        xmlns="http://www.w3.org/2000/svg"
+                                    >
+                                        <title>Octave Cycle</title>
+                                        <circle cx="8" cy="24" r="3" fill="#38bdf8" />
+                                        <circle cx="16" cy="16" r="3" fill="#38bdf8" />
+                                        <circle cx="24" cy="8" r="3" fill="#38bdf8" />
+                                    </svg>
+                                    <span class="text-xs font-medium">
+                                        Octave
+                                        <wbr />
+                                        Cycle
+                                    </span>
+                                </span>
+                            </label>
+                            <label class="cursor-pointer">
+                                <input
+                                    type="radio"
+                                    name="pattern-direction"
+                                    value="octaveCycleReverse"
+                                    class="sr-only peer"
+                                    data-pattern="octaveCycleReverse"
+                                />
+                                <span
+                                    class="pattern-btn"
+                                    data-pattern="octaveCycleReverse"
+                                    title="Octave cycle in descending order across 3 octaves"
+                                >
+                                    <svg
+                                        class="stroke-current"
+                                        fill="none"
+                                        viewBox="0 0 32 32"
+                                        xmlns="http://www.w3.org/2000/svg"
+                                    >
+                                        <title>Octave Cycle Reverse</title>
+                                        <circle cx="8" cy="8" r="3" fill="#38bdf8" />
+                                        <circle cx="16" cy="16" r="3" fill="#38bdf8" />
+                                        <circle cx="24" cy="24" r="3" fill="#38bdf8" />
+                                    </svg>
+                                    <span class="text-xs font-medium">
+                                        Reversed
+                                        <wbr />
+                                        Octaves
+                                    </span>
+                                </span>
+                            </label>
+                            <label class="cursor-pointer">
+                                <input
+                                    type="radio"
+                                    name="pattern-direction"
+                                    value="octaveCyclePingPong"
+                                    class="sr-only peer"
+                                    data-pattern="octaveCyclePingPong"
+                                />
+                                <span
+                                    class="pattern-btn"
+                                    data-pattern="octaveCyclePingPong"
+                                    title="Octave cycle alternating ascending and descending"
+                                >
+                                    <svg
+                                        class="stroke-current"
+                                        fill="none"
+                                        viewBox="0 0 32 32"
+                                        xmlns="http://www.w3.org/2000/svg"
+                                    >
+                                        <title>Octave Cycle Ping-Pong</title>
+                                        <circle cx="4" cy="24" r="2.5" fill="#38bdf8" />
+                                        <circle cx="10" cy="16" r="2.5" fill="#38bdf8" />
+                                        <circle cx="16" cy="8" r="2.5" fill="#38bdf8" />
+                                        <circle cx="22" cy="16" r="2.5" fill="#38bdf8" />
+                                        <circle cx="28" cy="24" r="2.5" fill="#38bdf8" />
+                                    </svg>
+                                    <span class="text-xs font-medium">
+                                        Ping-Pong
+                                        <wbr />
+                                        Octaves
+                                    </span>
+                                </span>
+                            </label>
+                            <label class="cursor-pointer">
+                                <input
+                                    type="radio"
+                                    name="pattern-direction"
+                                    value="randomWalk"
+                                    class="sr-only peer"
+                                    data-pattern="randomWalk"
+                                />
+                                <span
+                                    class="pattern-btn"
+                                    data-pattern="randomWalk"
+                                    title="Constrained random progression moving to adjacent notes"
+                                >
+                                    <svg
+                                        class="stroke-current"
+                                        fill="none"
+                                        viewBox="0 0 32 32"
+                                        xmlns="http://www.w3.org/2000/svg"
+                                    >
+                                        <title>Random Walk</title>
+                                        <path
+                                            d="M2 16 Q6 12, 10 16 T18 12 T24 16 T30 12"
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                        />
+                                    </svg>
+                                    <span class="text-xs font-medium">
+                                        Random
+                                        <wbr />
+                                        Walk
+                                    </span>
+                                </span>
+                            </label>
+                            <label class="cursor-pointer">
+                                <input
+                                    type="radio"
+                                    name="pattern-direction"
+                                    value="randomWalkDrunk"
+                                    class="sr-only peer"
+                                    data-pattern="randomWalkDrunk"
+                                />
+                                <span
+                                    class="pattern-btn"
+                                    data-pattern="randomWalkDrunk"
+                                    title="Random walk with occasional unexpected leaps"
+                                >
+                                    <svg
+                                        class="stroke-current"
+                                        fill="none"
+                                        viewBox="0 0 32 32"
+                                        xmlns="http://www.w3.org/2000/svg"
+                                    >
+                                        <title>Random Walk (Drunkard)</title>
+                                        <path
+                                            d="M2 16 Q8 2, 12 7 T22 4 T30 24"
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                        />
+                                    </svg>
+                                    <span class="text-xs font-medium">
+                                        Drunkard's
+                                        <wbr />
+                                        Walk
+                                    </span>
+                                </span>
+                            </label>
+                        </fieldset>
                     </div>
                     <!-- END Selection: Pattern Direction -->
 
@@ -747,7 +872,7 @@
 
                     <!-- START Selector: Visual Waveform -->
                     <div id="waveform-buttons-container">
-                        <label id="waveform-label" class="block text-sm font-medium mb-1">
+                        <span id="waveform-label" class="block text-sm font-medium mb-1">
                             Waveform
                             <span
                                 id="carrier-label"
@@ -755,12 +880,12 @@
                             >
                                 (Carrier)
                             </span>
-                        </label>
-                        <div class="relative min-h-[76px]">
+                        </span>
+                        <div class="relative min-h-19">
                             <!-- Waveform Bypass Overlay for Pluck Synth -->
                             <div
                                 id="waveform-pluck-overlay"
-                                class="hidden absolute inset-0 z-10 rounded-lg bg-gray-900/95 border border-gray-700 flex flex-col items-center justify-center px-4 py-2 text-center transition-all duration-200"
+                                class="hidden absolute inset-0 z-10 rounded-lg bg-gray-900/95 border border-gray-700 flex-col items-center justify-center px-4 py-2 text-center transition-all duration-200"
                             >
                                 <div
                                     class="flex items-center gap-1.5 px-3 py-1 rounded-full bg-gray-800 border border-gray-600 text-xs font-semibold text-gray-100 shadow-sm"
@@ -771,6 +896,7 @@
                                         stroke="currentColor"
                                         viewBox="0 0 24 24"
                                     >
+                                        <title>Physical String Model</title>
                                         <path
                                             stroke-linecap="round"
                                             stroke-linejoin="round"
@@ -788,13 +914,12 @@
                             </div>
 
                             <!-- flex layout for responsive overflow -->
-                            <div
+                            <fieldset
                                 id="waveform-buttons"
-                                role="group"
                                 aria-labelledby="waveform-label"
                                 class="flex flex-wrap gap-2"
                             >
-                                <button class="waveform-btn" data-wave="sine">
+                                <button type="button" class="waveform-btn" data-wave="sine">
                                     <svg
                                         id="svg-sine"
                                         class="stroke-current"
@@ -802,6 +927,7 @@
                                         viewBox="0 0 32 32"
                                         xmlns="http://www.w3.org/2000/svg"
                                     >
+                                        <title>Sine Wave</title>
                                         <path
                                             d="M2 16 C2 16 6 4 10 4 C14 4 18 28 22 28 C26 28 30 16 30 16"
                                             stroke-linecap="round"
@@ -810,7 +936,7 @@
                                     </svg>
                                     <span class="text-xs font-medium">Sine</span>
                                 </button>
-                                <button class="waveform-btn" data-wave="sawtooth">
+                                <button type="button" class="waveform-btn" data-wave="sawtooth">
                                     <svg
                                         id="svg-sawtooth"
                                         class="stroke-current"
@@ -818,6 +944,7 @@
                                         viewBox="0 0 32 32"
                                         xmlns="http://www.w3.org/2000/svg"
                                     >
+                                        <title>Sawtooth Wave</title>
                                         <path
                                             d="M2 24 L10 8 V24 L18 8 V24 L26 8 V24 H30"
                                             stroke-linecap="round"
@@ -826,7 +953,7 @@
                                     </svg>
                                     <span class="text-xs font-medium">Sawtooth</span>
                                 </button>
-                                <button class="waveform-btn" data-wave="triangle">
+                                <button type="button" class="waveform-btn" data-wave="triangle">
                                     <svg
                                         id="svg-triangle"
                                         class="stroke-current"
@@ -834,6 +961,7 @@
                                         viewBox="0 0 32 32"
                                         xmlns="http://www.w3.org/2000/svg"
                                     >
+                                        <title>Triangle Wave</title>
                                         <path
                                             d="M2 16 L6 8 L14 24 L22 8 L30 16"
                                             stroke-linecap="round"
@@ -842,7 +970,7 @@
                                     </svg>
                                     <span class="text-xs font-medium">Triangle</span>
                                 </button>
-                                <button class="waveform-btn" data-wave="square">
+                                <button type="button" class="waveform-btn" data-wave="square">
                                     <svg
                                         id="svg-square"
                                         class="stroke-current"
@@ -850,6 +978,7 @@
                                         viewBox="0 0 32 32"
                                         xmlns="http://www.w3.org/2000/svg"
                                     >
+                                        <title>Square Wave</title>
                                         <path
                                             d="M2 24 V8 H10 V24 H18 V8 H26 V24 H30"
                                             stroke-linecap="round"
@@ -858,7 +987,7 @@
                                     </svg>
                                     <span class="text-xs font-medium">Square</span>
                                 </button>
-                                <button class="waveform-btn" data-wave="pulse">
+                                <button type="button" class="waveform-btn" data-wave="pulse">
                                     <svg
                                         id="svg-pulse"
                                         class="stroke-current"
@@ -866,6 +995,7 @@
                                         viewBox="0 0 32 32"
                                         xmlns="http://www.w3.org/2000/svg"
                                     >
+                                        <title>Pulse Wave</title>
                                         <path
                                             d="M2 24 V8 H6 V24 H14 V8 H18 V24 H26 V8 H30"
                                             stroke-linecap="round"
@@ -874,7 +1004,7 @@
                                     </svg>
                                     <span class="text-xs font-medium">Pulse</span>
                                 </button>
-                            </div>
+                            </fieldset>
                         </div>
                     </div>
                     <!-- END Selector: Visual Waveform -->
@@ -1261,51 +1391,159 @@
                 <div class="space-y-4">
                     <!-- START Selector: Octave Shift -->
                     <div class="space-y-2">
-                        <label id="octave-shift-label" class="block text-sm font-medium">
+                        <span id="octave-shift-label" class="block text-sm font-medium">
                             Octave Shift
                             <span class="text-xs text-gray-400 font-normal">(0 = no shift)</span>
-                        </label>
+                        </span>
                         <p class="text-[11px] text-gray-400 mb-1">
                             Transposition offset (-3 to +3 octaves)
                         </p>
-                        <div
+                        <fieldset
                             id="octave-shift-buttons"
-                            role="group"
                             aria-labelledby="octave-shift-label"
                             class="flex flex-wrap justify-center gap-2"
                         >
-                            <button class="octave-btn" data-shift="-3">-3</button>
-                            <button class="octave-btn" data-shift="-2">-2</button>
-                            <button class="octave-btn" data-shift="-1">-1</button>
-                            <button class="octave-btn" data-shift="0">0</button>
-                            <button class="octave-btn" data-shift="1">+1</button>
-                            <button class="octave-btn" data-shift="2">+2</button>
-                            <button class="octave-btn" data-shift="3">+3</button>
-                        </div>
+                            <label class="cursor-pointer">
+                                <input
+                                    type="radio"
+                                    name="octave-shift"
+                                    value="-3"
+                                    class="sr-only peer"
+                                    data-shift="-3"
+                                />
+                                <span class="octave-btn" data-shift="-3">-3</span>
+                            </label>
+                            <label class="cursor-pointer">
+                                <input
+                                    type="radio"
+                                    name="octave-shift"
+                                    value="-2"
+                                    class="sr-only peer"
+                                    data-shift="-2"
+                                />
+                                <span class="octave-btn" data-shift="-2">-2</span>
+                            </label>
+                            <label class="cursor-pointer">
+                                <input
+                                    type="radio"
+                                    name="octave-shift"
+                                    value="-1"
+                                    class="sr-only peer"
+                                    data-shift="-1"
+                                />
+                                <span class="octave-btn" data-shift="-1">-1</span>
+                            </label>
+                            <label class="cursor-pointer">
+                                <input
+                                    type="radio"
+                                    name="octave-shift"
+                                    value="0"
+                                    checked
+                                    class="sr-only peer"
+                                    data-shift="0"
+                                />
+                                <span class="octave-btn" data-shift="0">0</span>
+                            </label>
+                            <label class="cursor-pointer">
+                                <input
+                                    type="radio"
+                                    name="octave-shift"
+                                    value="1"
+                                    class="sr-only peer"
+                                    data-shift="1"
+                                />
+                                <span class="octave-btn" data-shift="1">+1</span>
+                            </label>
+                            <label class="cursor-pointer">
+                                <input
+                                    type="radio"
+                                    name="octave-shift"
+                                    value="2"
+                                    class="sr-only peer"
+                                    data-shift="2"
+                                />
+                                <span class="octave-btn" data-shift="2">+2</span>
+                            </label>
+                            <label class="cursor-pointer">
+                                <input
+                                    type="radio"
+                                    name="octave-shift"
+                                    value="3"
+                                    class="sr-only peer"
+                                    data-shift="3"
+                                />
+                                <span class="octave-btn" data-shift="3">+3</span>
+                            </label>
+                        </fieldset>
                     </div>
                     <!-- END Selector: Octave Shift -->
 
                     <!-- START Selector: Octave Layers -->
                     <div class="space-y-2">
-                        <label id="octave-range-label" class="block text-sm font-medium">
+                        <span id="octave-range-label" class="block text-sm font-medium">
                             Octave Layers
                             <span class="text-xs text-gray-400 font-normal">(1 = base only)</span>
-                        </label>
+                        </span>
                         <p class="text-[11px] text-gray-400 mb-1">
                             Number of octave duplications (1 to 5 octaves)
                         </p>
-                        <div
+                        <fieldset
                             id="octave-range-buttons"
-                            role="group"
                             aria-labelledby="octave-range-label"
                             class="flex flex-wrap justify-center gap-2"
                         >
-                            <button class="octave-btn" data-range="1">1</button>
-                            <button class="octave-btn" data-range="2">2</button>
-                            <button class="octave-btn" data-range="3">3</button>
-                            <button class="octave-btn" data-range="4">4</button>
-                            <button class="octave-btn" data-range="5">5</button>
-                        </div>
+                            <label class="cursor-pointer">
+                                <input
+                                    type="radio"
+                                    name="octave-range"
+                                    value="1"
+                                    checked
+                                    class="sr-only peer"
+                                    data-range="1"
+                                />
+                                <span class="octave-btn" data-range="1">1</span>
+                            </label>
+                            <label class="cursor-pointer">
+                                <input
+                                    type="radio"
+                                    name="octave-range"
+                                    value="2"
+                                    class="sr-only peer"
+                                    data-range="2"
+                                />
+                                <span class="octave-btn" data-range="2">2</span>
+                            </label>
+                            <label class="cursor-pointer">
+                                <input
+                                    type="radio"
+                                    name="octave-range"
+                                    value="3"
+                                    class="sr-only peer"
+                                    data-range="3"
+                                />
+                                <span class="octave-btn" data-range="3">3</span>
+                            </label>
+                            <label class="cursor-pointer">
+                                <input
+                                    type="radio"
+                                    name="octave-range"
+                                    value="4"
+                                    class="sr-only peer"
+                                    data-range="4"
+                                />
+                                <span class="octave-btn" data-range="4">4</span>
+                            </label>
+                            <label class="cursor-pointer">
+                                <input
+                                    type="radio"
+                                    name="octave-range"
+                                    value="5"
+                                    class="sr-only peer"
+                                    data-range="5"
+                                />
+                                <span class="octave-btn" data-range="5">5</span>
+                            </label>
+                        </fieldset>
                     </div>
                     <!-- END Selector: Octave Layers -->
                 </div>
@@ -1474,12 +1712,14 @@
                                 <div class="flex items-center gap-2">
                                     <button
                                         id="toggle-visualizer"
+                                        type="button"
                                         class="text-sm font-bold py-2 px-4 bg-green-600 hover:bg-green-700 rounded-lg shadow-lg transition-all"
                                     >
                                         Enable Visualizer
                                     </button>
                                     <button
                                         id="pause-visualizer"
+                                        type="button"
                                         disabled
                                         class="text-sm font-bold py-2 px-4 bg-gray-600 hover:bg-gray-500 rounded-lg shadow-lg transition-all opacity-50 cursor-not-allowed"
                                     >
@@ -1535,7 +1775,7 @@
                                     class="flex flex-wrap items-center justify-between gap-4 p-3 bg-gray-700 rounded-b-md border-x border-b border-gray-600"
                                 >
                                     <!-- Zoom Slider -->
-                                    <div class="flex items-center space-x-2 flex-1 min-w-[200px]">
+                                    <div class="flex items-center space-x-2 flex-1 min-w-50">
                                         <label
                                             for="visualizer-zoom"
                                             class="text-xs font-semibold text-gray-300"
@@ -1553,7 +1793,7 @@
                                         />
                                         <span
                                             id="visualizer-zoom-value"
-                                            class="text-xs text-gray-400 min-w-[28px] text-right"
+                                            class="text-xs text-gray-400 min-w-7 text-right"
                                         >
                                             1.0x
                                         </span>
@@ -1600,6 +1840,7 @@
                     <!-- START Record Button -->
                     <button
                         id="record-button"
+                        type="button"
                         aria-label="Start recording"
                         class="w-full text-lg font-bold py-2 px-4 bg-green-600 hover:bg-green-700 rounded-lg shadow-lg transition-all"
                     >
@@ -1638,6 +1879,7 @@
                         </div>
                         <button
                             id="realtime-export-button"
+                            type="button"
                             aria-label="Export recording as audio files"
                             class="w-full text-lg font-bold py-2 px-4 bg-blue-600 hover:bg-blue-700 rounded-lg shadow-lg transition-all"
                         >
@@ -1699,6 +1941,7 @@
                     <div class="flex flex-col sm:flex-row gap-3">
                         <button
                             id="offline-export-button"
+                            type="button"
                             aria-label="Generate & Export perfect loop audio"
                             class="flex-1 text-lg font-bold py-2 px-4 bg-purple-600 hover:bg-purple-700 rounded-lg shadow-lg transition-all"
                         >
@@ -1706,6 +1949,7 @@
                         </button>
                         <button
                             id="offline-export-midi-button"
+                            type="button"
                             aria-label="Export arpeggio pattern as standard MIDI file (.mid)"
                             class="flex-1 text-lg font-bold py-2 px-4 bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-lg transition-all"
                         >
@@ -1735,6 +1979,7 @@
                         class="text-xl font-semibold text-blue-300 inline-flex items-center gap-2"
                     >
                         <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                            <title>Preset Management</title>
                             <path
                                 d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zM12 6c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3zm0 4.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm0 3.5c-2.33 0-7 1.17-7 3.5V18h14v-.5c0-2.33-4.67-3.5-7-3.5z"
                             />
@@ -1777,6 +2022,7 @@
                                     stroke="currentColor"
                                     viewBox="0 0 24 24"
                                 >
+                                    <title>Local Browser Storage</title>
                                     <path
                                         stroke-linecap="round"
                                         stroke-linejoin="round"
@@ -1859,6 +2105,7 @@
                                     stroke="currentColor"
                                     viewBox="0 0 24 24"
                                 >
+                                    <title>File Backup &amp; Transfer</title>
                                     <path
                                         stroke-linecap="round"
                                         stroke-linejoin="round"
@@ -1912,6 +2159,7 @@
                                     stroke="currentColor"
                                     viewBox="0 0 24 24"
                                 >
+                                    <title>Shareable Preset Link</title>
                                     <path
                                         stroke-linecap="round"
                                         stroke-linejoin="round"
@@ -1932,6 +2180,7 @@
                             class="w-full text-sm font-semibold py-2.5 px-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-md shadow-sm transition-all flex items-center justify-center gap-2"
                         >
                             <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                                <title>Copy Share Link</title>
                                 <path
                                     d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z"
                                 />

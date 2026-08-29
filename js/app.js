@@ -7,6 +7,28 @@
  *
  * @module app
  */
+import * as Tone from "tone";
+import { createAudioEngine } from "./audio-engine.js";
+import { downloadBlob } from "./audio-utils.js";
+import { initializeKeyboardControls } from "./keyboard-controller.js";
+import { createMidiBlob, exportMidiFile } from "./midi-export.js";
+import { materializePatternSequence, normalizeNotesSequence } from "./pattern-core.js";
+import {
+    calculateNoteMarkers,
+    createOrUpdatePattern as createOrUpdatePatternFromModule,
+    getArpeggioNotes as getArpeggioNotesFromModule,
+} from "./pattern-generator.js";
+import { generateRandomNotes } from "./randomizer.js";
+import { createRecorderManager } from "./recorder.js";
+import { createSettingsManager } from "./settings-manager.js";
+import { createToastManager } from "./ui-feedback.js";
+import {
+    hasPresetChanges,
+    parsePresetFromUrlParams,
+    serializePresetToUrlParams,
+} from "./url-preset.js";
+import { createVisualizer } from "./visualizer.js";
+
 // --- Global Config ---
 // Set to true to show a toast message when audio is ready (for testing)
 const SHOW_AUDIO_READY_TOAST = true;
@@ -29,33 +51,6 @@ function log(...args) {
         console.log(...args);
     }
 }
-
-import * as Tone from "tone";
-import * as Tonal from "tonal";
-import { createAudioEngine } from "./audio-engine.js";
-import { createVisualizer } from "./visualizer.js";
-import { createRecorderManager } from "./recorder.js";
-import {
-    createOrUpdatePattern as createOrUpdatePatternFromModule,
-    getArpeggioNotes as getArpeggioNotesFromModule,
-    calculateNoteMarkers,
-} from "./pattern-generator.js";
-import { audioBufferToMp3Blob, audioBufferToWav, downloadBlob } from "./audio-utils.js";
-import { createSettingsManager } from "./settings-manager.js";
-import { initializeKeyboardControls } from "./keyboard-controller.js";
-import { generateRandomNotes } from "./randomizer.js";
-import {
-    serializePresetToUrlParams,
-    parsePresetFromUrlParams,
-    hasPresetChanges,
-} from "./url-preset.js";
-import { createToastManager } from "./ui-feedback.js";
-import { exportMidiFile, createMidiBlob } from "./midi-export.js";
-import {
-    buildPatternSequence,
-    materializePatternSequence,
-    normalizeNotesSequence,
-} from "./pattern-core.js";
 
 /**
  * Filters keydown events for the notes input.
@@ -176,7 +171,6 @@ function initializeApp() {
     );
 
     // Waveform Elements
-    const waveformButtonsContainer = document.getElementById("waveform-buttons-container");
     const waveformButtons = document.getElementById("waveform-buttons");
     const carrierLabel = document.getElementById("carrier-label");
     const waveformPluckOverlay = document.getElementById("waveform-pluck-overlay");
@@ -282,8 +276,6 @@ function initializeApp() {
     const octaveRangeButtons = document.getElementById("octave-range-buttons");
 
     // Scale Quantizer card
-    const quantizerCard = document.getElementById("quantizer-card");
-    const quantizerControls = document.getElementById("quantizer-controls");
     const scaleQuantizeToggle = /** @type {HTMLInputElement} */ (
         document.getElementById("scale-quantize-toggle")
     );
@@ -451,7 +443,7 @@ function initializeApp() {
         get activeSynth() {
             return audioEngine.activeSynth;
         },
-        set activeSynth(value) {
+        set activeSynth(_value) {
             // activeSynth is owned by audio-engine; this is a no-op passthrough
         },
         get currentWaveform() {
@@ -599,25 +591,46 @@ function initializeApp() {
      * @returns {string} Direction slug (e.g. 'up', 'down').
      */
     function getSelectedPatternDirection() {
+        const checkedRadio = /** @type {HTMLInputElement | null} */ (
+            patternButtons.querySelector("input[name='pattern-direction']:checked")
+        );
+        if (checkedRadio?.value) {
+            return checkedRadio.value;
+        }
         const selectedPatternButton = patternButtons.querySelector(".pattern-btn.selected");
         return selectedPatternButton ? selectedPatternButton.getAttribute("data-pattern") : "up";
     }
 
     /**
-     * Sets the currently selected pattern direction button.
+     * Sets the currently selected pattern direction button or radio input.
      * @param {string} direction - Direction slug to select.
      * @returns {void}
      */
     function setSelectedPatternDirection(direction) {
         const nextDirection = direction || "up";
+        const radio = /** @type {HTMLInputElement | null} */ (
+            patternButtons.querySelector(
+                `input[name='pattern-direction'][value="${nextDirection}"]`,
+            ) ||
+                patternButtons.querySelector(
+                    `input[name='pattern-direction'][data-pattern="${nextDirection}"]`,
+                )
+        );
+        if (radio) {
+            radio.checked = true;
+        }
         let selectedButton = patternButtons.querySelector(
             `.pattern-btn[data-pattern="${nextDirection}"]`,
         );
         if (!selectedButton) {
             selectedButton = patternButtons.querySelector('.pattern-btn[data-pattern="up"]');
         }
-        patternButtons.querySelectorAll("button").forEach((b) => b.classList.remove("selected"));
-        selectedButton.classList.add("selected");
+        patternButtons.querySelectorAll(".pattern-btn, button").forEach((b) => {
+            b.classList.remove("selected");
+        });
+        if (selectedButton) {
+            selectedButton.classList.add("selected");
+        }
     }
 
     // --- Preset UI Helpers ---
@@ -947,7 +960,7 @@ function initializeApp() {
         liveRegion: document.getElementById("sr-announcements"),
         logger: log,
     });
-    const { showToast, announce } = toastManager;
+    const { showToast } = toastManager;
 
     // 1. Audio Engine — synths, effects, filter, analyzer
     let audioEngine;
@@ -1033,6 +1046,9 @@ function initializeApp() {
             },
             get isPlaying() {
                 return isPlaying;
+            },
+            get activeNote() {
+                return activeNote;
             },
             recordButton,
         },
@@ -1215,14 +1231,22 @@ function initializeApp() {
     // ==================================================================
 
     /**
-     * Updates a button group to mark the matching button as selected.
-     * @param {HTMLElement} container - The button group container.
-     * @param {string|number} selectedValue - The value matching the data attribute.
+     * Updates button group selection state by setting the selected class on elements
+     * and checking the corresponding radio input.
+     * @param {HTMLElement} container - The container element holding the buttons or radio inputs.
+     * @param {string|number} selectedValue - The value matching the data attribute or radio value.
      * @param {string} dataAttribute - e.g. 'data-shift', 'data-range'.
      * @returns {void}
      */
     function updateButtonGroup(container, selectedValue, dataAttribute) {
-        container.querySelectorAll("button").forEach((btn) => {
+        const radio = container.querySelector(
+            `input[type="radio"][${dataAttribute}="${selectedValue}"], input[type="radio"][value="${selectedValue}"]`,
+        );
+        if (radio) {
+            /** @type {HTMLInputElement} */ (radio).checked = true;
+        }
+
+        container.querySelectorAll(".octave-btn, button").forEach((btn) => {
             btn.classList.remove("selected");
             const btnVal = btn.getAttribute(dataAttribute);
             if (btnVal !== null) {
@@ -1339,22 +1363,37 @@ function initializeApp() {
         });
     }
 
-    setupKeyboardNavigation(patternButtons, "button.pattern-btn");
+    setupKeyboardNavigation(patternButtons, "input[type='radio'], button.pattern-btn");
     setupKeyboardNavigation(waveformButtons, "button.waveform-btn");
-    setupKeyboardNavigation(octaveShiftButtons, "button.octave-btn");
-    setupKeyboardNavigation(octaveRangeButtons, "button.octave-btn");
+    setupKeyboardNavigation(octaveShiftButtons, "input[type='radio'], button.octave-btn");
+    setupKeyboardNavigation(octaveRangeButtons, "input[type='radio'], button.octave-btn");
 
     // ==================================================================
     //    Event Listeners
     // ==================================================================
 
-    // --- Pattern Button Selection ---
+    // --- Pattern Button Selection (Native change & Click delegation) ---
+    patternButtons.addEventListener("change", (e) => {
+        const target = /** @type {HTMLInputElement} */ (e.target);
+        if (target && target.name === "pattern-direction") {
+            setSelectedPatternDirection(target.value);
+            createOrUpdatePattern();
+        }
+    });
+
     patternButtons.addEventListener("click", (e) => {
-        const btn = /** @type {Element} */ (e.target).closest("button.pattern-btn");
-        if (!btn) return;
-        patternButtons.querySelectorAll("button").forEach((b) => b.classList.remove("selected"));
-        btn.classList.add("selected");
-        createOrUpdatePattern();
+        const target = /** @type {Element} */ (e.target).closest(".pattern-btn, button, label");
+        if (!target) return;
+        const btn = target.classList.contains("pattern-btn")
+            ? target
+            : target.querySelector(".pattern-btn, [data-pattern]");
+        if (btn) {
+            const pattern = btn.getAttribute("data-pattern");
+            if (pattern) {
+                setSelectedPatternDirection(pattern);
+                createOrUpdatePattern();
+            }
+        }
     });
 
     /**
@@ -1380,7 +1419,7 @@ function initializeApp() {
             })
             .catch((err) => {
                 console.error("Failed to copy share link:", err);
-                showToast("Failed to copy link. Generated URL: " + shareUrl, "error");
+                showToast(`Failed to copy link. Generated URL: ${shareUrl}`, "error");
             });
     }
 
@@ -1454,7 +1493,7 @@ function initializeApp() {
         createOrUpdatePattern();
         if (!isPlaying) {
             if (arpPattern) arpPattern.start();
-            Tone.Transport.start();
+            Tone.getTransport().start();
             if (playStopButton) {
                 playStopButton.textContent = "Stop Audio";
                 playStopButton.setAttribute("aria-label", "Press to stop arpeggio");
@@ -1473,7 +1512,7 @@ function initializeApp() {
      */
     function stopPlayback() {
         if (isPlaying) {
-            Tone.Transport.stop();
+            Tone.getTransport().stop();
             if (arpPattern) arpPattern.stop();
             if (playStopButton) {
                 playStopButton.textContent = "Restart Audio";
@@ -1484,7 +1523,9 @@ function initializeApp() {
             isPlaying = false;
             syncPatternModuleState();
             if (visualizer) visualizer.stopUiLoop();
-            noteStepPips.forEach((p) => p.classList.remove("active"));
+            noteStepPips.forEach((p) => {
+                p.classList.remove("active");
+            });
             currentStepIndex = -1;
         }
     }
@@ -1500,23 +1541,26 @@ function initializeApp() {
 
     /**
      * Creates a debounced function that delays invoking the callback.
-     * @param {Function} func - The callback function to debounce.
+     * @template {(...args: any[]) => any} T
+     * @param {T} func - The callback function to debounce.
      * @param {number} wait - The delay in milliseconds.
-     * @returns {Function} The debounced function.
+     * @returns {T} The debounced function.
      */
     function debounce(func, wait) {
         let timeout;
-        return function (...args) {
-            clearTimeout(timeout);
-            timeout = setTimeout(() => {
-                func.apply(this, args);
-            }, wait);
-        };
+        return /** @type {any} */ (
+            function (...args) {
+                clearTimeout(timeout);
+                timeout = setTimeout(() => {
+                    func.apply(this, args);
+                }, wait);
+            }
+        );
     }
 
     /**
      * Debounced wrapper to update the synth envelope.
-     * @type {Function}
+     * @type {() => void}
      */
     const debouncedUpdateEnvelope = debounce(() => {
         audioEngine.updateEnvelope();
@@ -1580,33 +1624,33 @@ function initializeApp() {
 
     /**
      * Debounced wrapper to set post gain volume.
-     * @type {Function}
+     * @type {(db: number) => void}
      */
-    const debouncedSetPostGain = debounce((db) => {
+    const debouncedSetPostGain = debounce((/** @type {number} */ db) => {
         audioEngine.postGain.volume.value = db;
     }, 16);
 
     /**
      * Debounced wrapper to set BPM.
-     * @type {Function}
+     * @type {(val: number) => void}
      */
-    const debouncedSetBpm = debounce((val) => {
-        Tone.Transport.bpm.value = val;
+    const debouncedSetBpm = debounce((/** @type {number} */ val) => {
+        Tone.getTransport().bpm.value = val;
     }, 16);
 
     /**
      * Debounced wrapper to set swing.
-     * @type {Function}
+     * @type {(val: number) => void}
      */
-    const debouncedSetSwing = debounce((val) => {
-        Tone.Transport.swing = val;
+    const debouncedSetSwing = debounce((/** @type {number} */ val) => {
+        Tone.getTransport().swing = val;
     }, 16);
 
     /**
      * Debounced wrapper to set harmonicity.
-     * @type {Function}
+     * @type {(val: number) => void}
      */
-    const debouncedSetHarmonicity = debounce((val) => {
+    const debouncedSetHarmonicity = debounce((/** @type {number} */ val) => {
         if (audioEngine.activeSynth && "harmonicity" in audioEngine.activeSynth) {
             audioEngine.activeSynth.harmonicity.value = val;
         }
@@ -1614,9 +1658,9 @@ function initializeApp() {
 
     /**
      * Debounced wrapper to set modulation index.
-     * @type {Function}
+     * @type {(val: number) => void}
      */
-    const debouncedSetModIndex = debounce((val) => {
+    const debouncedSetModIndex = debounce((/** @type {number} */ val) => {
         if (audioEngine.activeSynth && "modulationIndex" in audioEngine.activeSynth) {
             audioEngine.activeSynth.modulationIndex.value = val;
         }
@@ -1624,21 +1668,24 @@ function initializeApp() {
 
     /**
      * Debounced wrapper to set duty cycle.
-     * @type {Function}
+     * @type {(val: number) => void}
      */
-    const debouncedSetDuty = debounce((val) => {
+    const debouncedSetDuty = debounce((/** @type {number} */ val) => {
+        const synth = audioEngine.activeSynth;
         if (
-            audioEngine.activeSynth &&
-            audioEngine.activeSynth.oscillator &&
+            synth &&
+            "oscillator" in synth &&
+            synth.oscillator &&
+            /** @type {any} */ (synth.oscillator).width &&
             audioEngine.currentWaveform === "square"
         ) {
-            audioEngine.activeSynth.oscillator.width.value = val;
+            /** @type {any} */ (synth.oscillator).width.value = val;
         }
     }, 16);
 
     /**
      * Debounced wrapper to create or update pattern at 50ms.
-     * @type {Function}
+     * @type {() => void}
      */
     const debouncedCreateOrUpdatePattern50 = debounce(() => {
         createOrUpdatePattern();
@@ -1646,33 +1693,33 @@ function initializeApp() {
 
     /**
      * Debounced wrapper to set filter cutoff frequency.
-     * @type {Function}
+     * @type {(val: number) => void}
      */
-    const debouncedSetFilterCutoff = debounce((val) => {
+    const debouncedSetFilterCutoff = debounce((/** @type {number} */ val) => {
         audioEngine.filter.frequency.value = val;
     }, 16);
 
     /**
      * Debounced wrapper to set filter Q.
-     * @type {Function}
+     * @type {(val: number) => void}
      */
-    const debouncedSetFilterQ = debounce((val) => {
+    const debouncedSetFilterQ = debounce((/** @type {number} */ val) => {
         audioEngine.filter.Q.value = val;
     }, 16);
 
     /**
      * Debounced wrapper to set delay mix.
-     * @type {Function}
+     * @type {(val: number) => void}
      */
-    const debouncedSetDelayMix = debounce((val) => {
+    const debouncedSetDelayMix = debounce((/** @type {number} */ val) => {
         audioEngine.delay.wet.value = val;
     }, 16);
 
     /**
      * Debounced wrapper to set reverb mix.
-     * @type {Function}
+     * @type {(val: number) => void}
      */
-    const debouncedSetReverbMix = debounce((val) => {
+    const debouncedSetReverbMix = debounce((/** @type {number} */ val) => {
         audioEngine.reverb.wet.value = val;
     }, 16);
 
@@ -1683,8 +1730,8 @@ function initializeApp() {
     });
 
     bpmSlider.addEventListener("input", () => {
-        debouncedSetBpm(parseInt(bpmSlider.value));
         bpmValue.textContent = bpmSlider.value;
+        debouncedSetBpm(parseInt(bpmSlider.value, 10));
     });
 
     swingSlider.addEventListener("input", () => {
@@ -1776,24 +1823,54 @@ function initializeApp() {
         debouncedSetDuty(val);
     });
 
-    // --- Octave Controls ---
-    octaveShiftButtons.addEventListener("click", (e) => {
-        const target = /** @type {Element} */ (e.target);
-        if (target.tagName === "BUTTON") {
-            currentOctaveShift = parseInt(target.getAttribute("data-shift") || "0");
+    // --- Octave Controls (Native change events & Click delegation) ---
+    octaveShiftButtons.addEventListener("change", (e) => {
+        const target = /** @type {HTMLInputElement} */ (e.target);
+        if (target && target.value !== undefined) {
+            currentOctaveShift = parseInt(target.value, 10) || 0;
             syncPatternModuleState();
             updateButtonGroup(octaveShiftButtons, currentOctaveShift, "data-shift");
             createOrUpdatePattern();
         }
     });
 
-    octaveRangeButtons.addEventListener("click", (e) => {
-        const target = /** @type {Element} */ (e.target);
-        if (target.tagName === "BUTTON") {
-            currentOctaveRange = parseInt(target.getAttribute("data-range") || "1");
+    octaveShiftButtons.addEventListener("click", (e) => {
+        const target = /** @type {Element} */ (e.target).closest("button, label");
+        if (!target) return;
+        const btn = target.tagName === "BUTTON" ? target : target.querySelector("[data-shift]");
+        if (btn) {
+            const shiftVal = btn.getAttribute("data-shift");
+            if (shiftVal !== null) {
+                currentOctaveShift = parseInt(shiftVal, 10);
+                syncPatternModuleState();
+                updateButtonGroup(octaveShiftButtons, currentOctaveShift, "data-shift");
+                createOrUpdatePattern();
+            }
+        }
+    });
+
+    octaveRangeButtons.addEventListener("change", (e) => {
+        const target = /** @type {HTMLInputElement} */ (e.target);
+        if (target && target.value !== undefined) {
+            currentOctaveRange = parseInt(target.value, 10) || 1;
             syncPatternModuleState();
             updateButtonGroup(octaveRangeButtons, currentOctaveRange, "data-range");
             createOrUpdatePattern();
+        }
+    });
+
+    octaveRangeButtons.addEventListener("click", (e) => {
+        const target = /** @type {Element} */ (e.target).closest("button, label");
+        if (!target) return;
+        const btn = target.tagName === "BUTTON" ? target : target.querySelector("[data-range]");
+        if (btn) {
+            const rangeVal = btn.getAttribute("data-range");
+            if (rangeVal !== null) {
+                currentOctaveRange = parseInt(rangeVal, 10);
+                syncPatternModuleState();
+                updateButtonGroup(octaveRangeButtons, currentOctaveRange, "data-range");
+                createOrUpdatePattern();
+            }
         }
     });
 
@@ -2335,7 +2412,7 @@ function initializeApp() {
 
     /**
      * Debounced wrapper to trigger the static loop map background render.
-     * @type {Function}
+     * @type {() => void}
      */
     const debouncedRenderStaticLoop = debounce(() => {
         if (visualizer && visualizer.currentMode === "loopMap") {
@@ -2377,8 +2454,7 @@ function initializeApp() {
     document.addEventListener("click", (event) => {
         const target = /** @type {Element} */ (event.target);
         if (
-            target &&
-            target.closest(
+            target?.closest(
                 ".pattern-btn, .waveform-btn, #octave-shift-buttons button, #octave-range-buttons button",
             )
         ) {
@@ -2534,7 +2610,7 @@ function initializeApp() {
     // ==================================================================
 
     audioEngine.setSynth(synthTypeSelect.value);
-    Tone.Transport.bpm.value = parseInt(bpmSlider.value);
+    Tone.getTransport().bpm.value = parseInt(bpmSlider.value, 10);
     currentNotes = notesInput.value.trim().split(/\s+/).filter(Boolean);
     syncPatternModuleState();
 
@@ -2548,7 +2624,7 @@ function initializeApp() {
     updateKeyboardControlUi();
     audioEngine.setSynth(synthTypeSelect.value);
 
-    document.querySelector('.pattern-btn[data-pattern="up"]').classList.add("selected");
+    setSelectedPatternDirection("up");
     syncPatternModuleState();
     createOrUpdatePattern();
 

@@ -1,5 +1,5 @@
-import { describe, test, expect } from "bun:test";
-import { float32ToInt16, interleave, writeString, audioBufferToWav } from "../../js/audio-utils.js";
+import { describe, expect, test } from "bun:test";
+import { audioBufferToWav, float32ToInt16, interleave, writeString } from "../../js/audio-utils.js";
 
 describe("Audio Utils Domain Module", () => {
     test("converts Float32Array PCM samples to signed 16-bit integers", () => {
@@ -56,7 +56,7 @@ describe("Audio Utils Domain Module", () => {
         const mockAudioBuffer = {
             numberOfChannels: 1,
             sampleRate: 44100,
-            getChannelData: (ch: number) => new Float32Array([0.0, 0.5, -0.5, 0.0]),
+            getChannelData: (_ch: number) => new Float32Array([0.0, 0.5, -0.5, 0.0]),
         } as unknown as AudioBuffer;
 
         const wavBlob = audioBufferToWav(mockAudioBuffer);

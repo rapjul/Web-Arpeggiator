@@ -1,12 +1,11 @@
-import { describe, test, expect } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import {
-    serializePresetToUrlParams,
-    parsePresetFromUrlParams,
-    hasPresetChanges,
-    clampInt,
     clampFloat,
-    PRESET_URL_KEYS,
+    clampInt,
+    hasPresetChanges,
     NOTES_REGEX,
+    parsePresetFromUrlParams,
+    serializePresetToUrlParams,
 } from "../../js/url-preset.js";
 
 describe("URL Preset Domain Module", () => {
@@ -36,6 +35,9 @@ describe("URL Preset Domain Module", () => {
         filterResonance: 1.0,
         delayMix: 0.2,
         reverbMix: 0.3,
+        driveMix: 0,
+        chorusMix: 0,
+        autoPanMix: 0,
         loopCount: 2,
     };
 

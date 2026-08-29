@@ -5,9 +5,17 @@ import * as Tone from "tone";
  */
 
 /**
+ * @typedef {object} SettingsManagerContext
+ * @property {object} state - App state references.
+ * @property {object} dom - Bound DOM element references.
+ * @property {object} actions - Bound app action functions.
+ * @property {object} audio - Bound audio engine references.
+ */
+
+/**
  * Builds a settings API bound to the app's live DOM and state.
  *
- * @param {object} context - Bound app references.
+ * @param {SettingsManagerContext} context - Bound app references.
  * @returns {{getAllSettings: Function, loadAllSettings: Function, generateFilename: Function}} Settings helpers.
  */
 export function createSettingsManager(context) {
@@ -28,7 +36,7 @@ export function createSettingsManager(context) {
 
         return {
             // Transport
-            bpm: parseInt(dom.bpmSlider.value),
+            bpm: parseInt(dom.bpmSlider.value, 10),
             swing: parseFloat(dom.swingSlider.value),
             postGain: parseFloat(dom.postGainSlider.value),
             // Pattern
@@ -82,7 +90,7 @@ export function createSettingsManager(context) {
             autoPanMix: dom.autoPanMixSlider ? parseFloat(dom.autoPanMixSlider.value) : 0.0,
             delayMix: parseFloat(dom.delayMixSlider.value),
             reverbMix: parseFloat(dom.reverbMixSlider.value),
-            loopCount: parseInt(dom.loopCountInput.value),
+            loopCount: parseInt(dom.loopCountInput.value, 10),
         };
     }
 
@@ -96,13 +104,14 @@ export function createSettingsManager(context) {
         try {
             dom.bpmSlider.value = settings.bpm;
             dom.bpmValue.textContent = settings.bpm;
-            if (Tone && Tone.Transport && Tone.Transport.bpm) {
-                Tone.Transport.bpm.value = settings.bpm;
+            const transport = Tone?.getTransport ? Tone.getTransport() : Tone?.Transport;
+            if (transport?.bpm) {
+                transport.bpm.value = settings.bpm;
             }
             dom.swingSlider.value = settings.swing;
             dom.swingValue.textContent = settings.swing.toFixed(2);
-            if (Tone && Tone.Transport) {
-                Tone.Transport.swing = settings.swing;
+            if (transport) {
+                transport.swing = settings.swing;
             }
 
             // Restore post gain
@@ -138,7 +147,7 @@ export function createSettingsManager(context) {
 
             state.currentWaveform = settings.waveform;
             actions.updateWaveformButtons(state.currentWaveform);
-            if (state.activeSynth && state.activeSynth.oscillator) {
+            if (state.activeSynth?.oscillator) {
                 state.activeSynth.oscillator.type = settings.waveform;
             }
 

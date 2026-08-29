@@ -168,9 +168,53 @@ export function clampFloat(val, min, max, fallback) {
 }
 
 /**
+ * @typedef {Object} PresetSettings
+ * @property {string[]} [baseNotes] - Active base notes array.
+ * @property {string[]} [notes] - Expanded octave notes array.
+ * @property {number} [bpm] - Beats per minute.
+ * @property {number} [swing] - Swing feel ratio.
+ * @property {number} [postGain] - Master output gain in dB.
+ * @property {string} [direction] - Pattern direction slug.
+ * @property {string} [interval] - Note subdivision interval.
+ * @property {boolean} [scaleQuantize] - Whether scale quantization is active.
+ * @property {string} [scaleRoot] - Musical root note for quantization.
+ * @property {string} [scaleType] - Musical scale mode for quantization.
+ * @property {string} [synthType] - Selected synthesizer engine.
+ * @property {string} [waveform] - Selected oscillator waveform.
+ * @property {number} [harmonicity] - FM/AM harmonicity ratio.
+ * @property {number} [modulationIndex] - FM modulation index.
+ * @property {number} [dutyCycle] - Pulse/square wave duty cycle.
+ * @property {number} [gateRatio] - Note gate length ratio.
+ * @property {number} [octaveShift] - Octave transposition shift.
+ * @property {number} [octaveRange] - Number of octaves spanned.
+ * @property {number} [envAttack] - Envelope attack time in seconds.
+ * @property {number} [envDecay] - Envelope decay time in seconds.
+ * @property {number} [envSustain] - Envelope sustain level (0-1).
+ * @property {number} [envRelease] - Envelope release time in seconds.
+ * @property {number} [filterCutoff] - Filter cutoff frequency in Hz.
+ * @property {number} [filterResonance] - Filter resonance (Q factor).
+ * @property {number} [driveMix] - Distortion drive wet mix.
+ * @property {number} [chorusMix] - Chorus effect wet mix.
+ * @property {number} [autoPanMix] - Auto-pan effect wet mix.
+ * @property {number} [delayMix] - Delay effect wet mix.
+ * @property {number} [reverbMix] - Reverb effect wet mix.
+ * @property {number} [loopCount] - Number of loops for export.
+ * @property {number} [monoCutoff] - MonoSynth filter cutoff.
+ * @property {number} [monoOctaves] - MonoSynth filter octave span.
+ * @property {number} [monoQ] - MonoSynth filter resonance.
+ * @property {number} [duoHarm] - DuoSynth harmonicity.
+ * @property {number} [duoVibrato] - DuoSynth vibrato amount.
+ * @property {number} [pluckDampening] - PluckSynth string dampening frequency.
+ * @property {number} [pluckResonance] - PluckSynth resonance.
+ * @property {number} [pluckNoise] - PluckSynth noise floor level.
+ * @property {number} [membranePitchDecay] - MembraneSynth pitch decay.
+ * @property {number} [membraneOctaves] - MembraneSynth pitch octaves.
+ */
+
+/**
  * Serializes a full settings snapshot into URL search parameters.
  *
- * @param {object} settings - Application settings object.
+ * @param {PresetSettings|Record<string, any>} settings - Application settings object.
  * @returns {URLSearchParams} Encoded URL search parameters.
  */
 export function serializePresetToUrlParams(settings) {
@@ -230,9 +274,10 @@ export function serializePresetToUrlParams(settings) {
 /**
  * Parses and strictly validates preset search parameters against default or current settings.
  *
+ * @template {PresetSettings|Record<string, any>} T
  * @param {URLSearchParams|string} searchParams - URL search parameters instance or query string.
- * @param {object} currentSettings - Current baseline application settings.
- * @returns {object|null} Updated settings object if any preset keys were recognized, or null otherwise.
+ * @param {T} currentSettings - Current baseline application settings.
+ * @returns {T|null} Updated settings object if any preset keys were recognized, or null otherwise.
  */
 export function parsePresetFromUrlParams(searchParams, currentSettings) {
     const params =
@@ -243,6 +288,7 @@ export function parsePresetFromUrlParams(searchParams, currentSettings) {
     const hasRecognizedKey = [...params.keys()].some((k) => PRESET_URL_KEYS.has(k));
     if (!hasRecognizedKey) return null;
 
+    /** @type {T & Record<string, any>} */
     const settings = { ...currentSettings };
 
     if (params.has("notes")) {
@@ -353,8 +399,8 @@ export function parsePresetFromUrlParams(searchParams, currentSettings) {
 /**
  * Compares two settings objects to determine if any configuration parameters differ.
  *
- * @param {object} a - First settings snapshot.
- * @param {object} b - Second settings snapshot.
+ * @param {PresetSettings|Record<string, any>} a - First settings snapshot.
+ * @param {PresetSettings|Record<string, any>} b - Second settings snapshot.
  * @returns {boolean} True if any setting has changed, false otherwise.
  */
 export function hasPresetChanges(a, b) {

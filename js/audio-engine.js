@@ -24,6 +24,7 @@ import * as Tone from "tone";
  * @param {HTMLElement} context.dom.harmonicityControl - Harmonicity slider wrapper.
  * @param {HTMLElement} context.dom.modIndexControl - Modulation-index slider wrapper.
  * @param {HTMLElement} context.dom.carrierLabel - "(Carrier)" label element.
+ * @param {HTMLElement} [context.dom.waveformPluckOverlay] - Waveform overlay element for Pluck Synth.
  * @param {HTMLElement} context.dom.dutyControl - Duty-cycle control wrapper.
  * @param {HTMLElement} context.dom.basicSynthParams - Basic synth params wrapper.
  * @param {HTMLElement} context.dom.waveformButtons - Waveform button container.
@@ -58,6 +59,7 @@ import * as Tone from "tone";
  * @property {Tone.Meter} meter - Real-time smoothed VU meter node.
  * @property {Tone.Analyser} peakAnalyser - Unsmoothed waveform peak detector.
  * @property {Tone.Distortion} distortion - Master distortion effect node.
+ * @property {Tone.Filter} filter - Master lowpass filter node.
  * @property {Tone.Chorus} chorus - Stereo chorus effect node.
  * @property {Tone.AutoPanner} autoPanner - Tempo-synced auto-panner node.
  * @property {Tone.FeedbackDelay} delay - Feedback delay.
@@ -96,7 +98,7 @@ export function createAudioEngine(context) {
     }
 
     // --- Real-time Meter (for smoothed VU level metering) ---
-    const meter = new Tone.Meter({ channels: 1, smoothing: 0.8 });
+    const meter = new Tone.Meter({ smoothing: 0.8 });
 
     // --- Unsmoothed Peak Analyser (for instantaneous true peak & clipping detection) ---
     const peakAnalyser = new Tone.Analyser("waveform", 256);
@@ -173,7 +175,7 @@ export function createAudioEngine(context) {
         monoSynth: new Tone.MonoSynth({
             oscillator: { type: "sine" },
             envelope: { attack: 0.01, decay: 0.1, sustain: 0.3, release: 0.5 },
-            filter: { Q: 2, type: "lowpass", rollover: -12 },
+            filter: { Q: 2, type: "lowpass", rolloff: -12 },
             filterEnvelope: {
                 attack: 0.05,
                 decay: 0.2,
@@ -190,11 +192,21 @@ export function createAudioEngine(context) {
             vibratoAmount: 0.2,
             voice0: {
                 oscillator: { type: "sine" },
-                envelope: { attack: 0.01, decay: 0.1, sustain: 0.3, release: 0.5 },
+                envelope: {
+                    attack: 0.01,
+                    decay: 0.1,
+                    sustain: 0.3,
+                    release: 0.5,
+                },
             },
             voice1: {
                 oscillator: { type: "sine" },
-                envelope: { attack: 0.01, decay: 0.1, sustain: 0.3, release: 0.5 },
+                envelope: {
+                    attack: 0.01,
+                    decay: 0.1,
+                    sustain: 0.3,
+                    release: 0.5,
+                },
             },
         }),
         pluckSynth: new Tone.PluckSynth({
@@ -206,7 +218,12 @@ export function createAudioEngine(context) {
             pitchDecay: 0.05,
             octaves: 8,
             oscillator: { type: "sine" },
-            envelope: { attack: 0.001, decay: 0.4, sustain: 0.01, release: 1.4 },
+            envelope: {
+                attack: 0.001,
+                decay: 0.4,
+                sustain: 0.01,
+                release: 1.4,
+            },
         }),
     };
 
@@ -282,7 +299,9 @@ export function createAudioEngine(context) {
         if (dom.waveformPluckOverlay) {
             if (type === "pluckSynth") {
                 dom.waveformPluckOverlay.classList.remove("hidden");
+                dom.waveformPluckOverlay.classList.add("flex");
             } else {
+                dom.waveformPluckOverlay.classList.remove("flex");
                 dom.waveformPluckOverlay.classList.add("hidden");
             }
         }
@@ -328,10 +347,10 @@ export function createAudioEngine(context) {
             }
             if (dom.monoSynthParams) dom.monoSynthParams.classList.remove("hidden");
         } else if (type === "duoSynth") {
-            if (activeSynth.voice0 && activeSynth.voice0.oscillator) {
+            if ("voice0" in activeSynth && activeSynth.voice0?.oscillator) {
                 activeSynth.voice0.oscillator.type = currentWaveform;
             }
-            if (activeSynth.voice1 && activeSynth.voice1.oscillator) {
+            if ("voice1" in activeSynth && activeSynth.voice1?.oscillator) {
                 activeSynth.voice1.oscillator.type = currentWaveform;
             }
             if (dom.duoHarmSlider) {
@@ -378,21 +397,21 @@ export function createAudioEngine(context) {
         const sustain = parseFloat(dom.envSustainSlider.value);
         const release = parseFloat(dom.envReleaseSlider.value);
 
-        if (activeSynth.envelope) {
+        if ("envelope" in activeSynth && activeSynth.envelope) {
             activeSynth.envelope.attack = attack;
             activeSynth.envelope.decay = decay;
             activeSynth.envelope.sustain = sustain;
             activeSynth.envelope.release = release;
         }
 
-        if (activeSynth.voice0 && activeSynth.voice0.envelope) {
+        if ("voice0" in activeSynth && activeSynth.voice0?.envelope) {
             activeSynth.voice0.envelope.attack = attack;
             activeSynth.voice0.envelope.decay = decay;
             activeSynth.voice0.envelope.sustain = sustain;
             activeSynth.voice0.envelope.release = release;
         }
 
-        if (activeSynth.voice1 && activeSynth.voice1.envelope) {
+        if ("voice1" in activeSynth && activeSynth.voice1?.envelope) {
             activeSynth.voice1.envelope.attack = attack;
             activeSynth.voice1.envelope.decay = decay;
             activeSynth.voice1.envelope.sustain = sustain;
@@ -425,7 +444,7 @@ export function createAudioEngine(context) {
         let offlineLimiter;
         try {
             offlineLimiter = new Tone.Limiter(0).toDestination();
-        } catch (e) {
+        } catch {
             // Fallback if context doesn't support limiters
         }
 
@@ -493,10 +512,10 @@ export function createAudioEngine(context) {
             offlineSynth = new Tone.DuoSynth(getSynthConfig("duoSynth"));
             if (settings.duoHarm) offlineSynth.harmonicity.value = settings.duoHarm;
             if (settings.duoVibrato) offlineSynth.vibratoAmount.value = settings.duoVibrato;
-            if (offlineSynth.voice0 && offlineSynth.voice0.oscillator) {
+            if (offlineSynth.voice0?.oscillator) {
                 offlineSynth.voice0.oscillator.type = settings.waveform;
             }
-            if (offlineSynth.voice1 && offlineSynth.voice1.oscillator) {
+            if (offlineSynth.voice1?.oscillator) {
                 offlineSynth.voice1.oscillator.type = settings.waveform;
             }
         } else if (synthType === "pluckSynth") {
@@ -517,19 +536,19 @@ export function createAudioEngine(context) {
         offlineSynth.connect(offlineDistortion);
 
         // Apply active ADSR Envelope settings
-        if (offlineSynth.envelope) {
+        if ("envelope" in offlineSynth && offlineSynth.envelope) {
             offlineSynth.envelope.attack = settings.envAttack;
             offlineSynth.envelope.decay = settings.envDecay;
             offlineSynth.envelope.sustain = settings.envSustain;
             offlineSynth.envelope.release = settings.envRelease;
         }
-        if (offlineSynth.voice0 && offlineSynth.voice0.envelope) {
+        if ("voice0" in offlineSynth && offlineSynth.voice0?.envelope) {
             offlineSynth.voice0.envelope.attack = settings.envAttack;
             offlineSynth.voice0.envelope.decay = settings.envDecay;
             offlineSynth.voice0.envelope.sustain = settings.envSustain;
             offlineSynth.voice0.envelope.release = settings.envRelease;
         }
-        if (offlineSynth.voice1 && offlineSynth.voice1.envelope) {
+        if ("voice1" in offlineSynth && offlineSynth.voice1?.envelope) {
             offlineSynth.voice1.envelope.attack = settings.envAttack;
             offlineSynth.voice1.envelope.decay = settings.envDecay;
             offlineSynth.voice1.envelope.sustain = settings.envSustain;

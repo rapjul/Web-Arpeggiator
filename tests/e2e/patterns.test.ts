@@ -1,20 +1,13 @@
-import { test, expect, beforeAll, afterAll } from "bun:test";
-import { type Subprocess } from "bun";
+import { afterAll, beforeAll, expect, test } from "bun:test";
 import {
-    startTestServer,
-    runBrowser,
-    waitForPwaReady,
-    initializeAudio,
-    resetBrowserState,
     cleanupProcesses,
     closeBrowser,
+    initializeAudio,
+    resetBrowserState,
+    runBrowser,
+    startTestServer,
+    waitForPwaReady,
 } from "../test-helpers";
-
-/**
- * References the background server process.
- * @type {Subprocess|null}
- */
-let serverProcess: Subprocess | null = null;
 
 /**
  * The port number for the test server instance.
@@ -29,7 +22,7 @@ const PORT: number = 4174;
 const APP_URL: string = `http://127.0.0.1:${PORT}/index.html`;
 
 beforeAll(async (): Promise<void> => {
-    serverProcess = await startTestServer(PORT);
+    await startTestServer(PORT);
 });
 
 afterAll(async (): Promise<void> => {
@@ -72,7 +65,7 @@ test("Arpeggiator Pattern Direction Verification Suite", async (): Promise<void>
         console.log(`Testing pattern selection: ${pattern}`);
 
         // Click the matching pattern direction button in the DOM
-        await runBrowser(["click", `button[data-pattern='${pattern}']`]);
+        await runBrowser(["click", `[data-pattern='${pattern}']`]);
 
         // Wait briefly for pattern update
         await new Promise((resolve) => setTimeout(resolve, 300));
