@@ -311,24 +311,34 @@ Web Arpeggiator/
 ├── manifest.json           # PWA manifest
 ├── sw.js                   # Service worker
 ├── AGENTS.md               # This file
-├── docs/                   # Specifications & architectural guides
+├── docs/                   # Specifications, ADRs & architectural guides
+│   ├── adr/                # Architectural Decision Records (MADR standard)
+│   │   ├── 0001-vitest-and-v8-coverage-tooling.md
+│   │   ├── 0002-modular-es-source-architecture.md
+│   │   └── 0003-defensive-input-validation-and-edge-case-testing-policy.md
 │   ├── midi-specification.md # Standard MIDI specification & implementation reference
 │   └── pattern-directions.md # Detailed pattern descriptions & visual guide
 ├── src/                    # Modular source code
 │   ├── core/               # Pure algorithms & domain logic (zero DOM/Audio dependencies)
 │   │   ├── audio-utils.js  # WAV/MP3 encoding, PCM conversions, download helpers
+│   │   ├── input-filters.js# Keyboard note & numeric input filtering
+│   │   ├── meter-utils.js  # Audio meter decibel & percentage calculations
 │   │   ├── midi-export.js  # Standard MIDI File (.mid) binary encoder
 │   │   ├── pattern-core.js # Core note transformations, directions, quantization math
 │   │   ├── randomizer.js   # Musical scale-quantized randomizer
-│   │   └── url-preset.js   # URL query parameter preset serialization
+│   │   ├── url-preset.js   # URL query parameter preset serialization
+│   │   └── visualizer-math.js # Signal processing & FFT peak detection helpers
 │   ├── audio/              # Web Audio / Tone.js synthesis and scheduling
 │   │   ├── audio-engine.js # Tone.js synths, effects chain, setSynth, updateEnvelope
 │   │   ├── pattern-generator.js # Pattern scheduling & transport sync
 │   │   └── recorder.js     # Real-time recording + offline Tone.Offline export
 │   ├── storage/            # Persistence and configuration management
+│   │   ├── navigation-manager.js # URL routing & query-state management
 │   │   ├── presets-store.js# IndexedDB preset persistence
+│   │   ├── session-manager.js # Workspace auto-save and restoration lifecycle
 │   │   └── settings-manager.js # Settings serialization/restoration
 │   ├── ui/                 # DOM controllers and visual rendering
+│   │   ├── a11y-navigation.js # WAI-ARIA arrow-key navigation for button groups
 │   │   ├── keyboard-controller.js # Virtual keyboard input handling
 │   │   ├── ui-feedback.js  # Toast alerts and UI status indicators
 │   │   └── visualizer.js   # Canvas waveform rendering, UI update loop, toggle
@@ -443,22 +453,51 @@ Potential areas for expansion:
 - Multi-track recording
 - WebAssembly-based MP3 encoding for performance
 
+## Testing & Defensive Coding Standards
+
+The project uses **Vitest** with `@vitest/coverage-v8` to guarantee quality, enforce minimum thresholds, and verify defensive programming standards across all modules.
+
+### Automated Coverage Threshold Gates
+
+Configured in [`vitest.config.ts`](./vitest.config.ts) and enforced on every Pull Request in [`.github/workflows/ci.yaml`](./.github/workflows/ci.yaml):
+- **Statements**: $\ge 80\%$
+- **Branches**: $\ge 70\%$
+- **Functions**: $\ge 80\%$
+- **Lines**: $\ge 80\%$
+
+### Mandatory Edge-Case Testing Requirements
+
+When adding or modifying code, contributors and AI agents must test:
+1. **Parsers & Deserializers (`url-preset.js`, `settings-manager.js`, `presets-store.js`)**:
+   - Out-of-bounds numbers (below minimum, above maximum, `NaN`, `Infinity`, `null`, `undefined`).
+   - Unknown synth models, unrecognized waveforms, unsupported scale modes, and invalid pattern directions.
+   - Corrupted note strings and empty collections.
+2. **Dispatchers & Synthesizer Graphs (`audio-engine.js`, `pattern-generator.js`)**:
+   - Unknown synth models falling back safely to default `synth`.
+   - Complete signal chain recreation in `createOfflineChain` matching live synthesis routing.
+3. **Accessibility & Interactions (`a11y-navigation.js`, `keyboard-controller.js`)**:
+   - Arrow-key navigation in radio button groups updating `.checked` state and firing `change` events.
+
+See [`docs/adr/0003-defensive-input-validation-and-edge-case-testing-policy.md`](./docs/adr/0003-defensive-input-validation-and-edge-case-testing-policy.md) for full policy details.
+
 ## Contributing
 
 When modifying the codebase:
 
 1. **Maintain Modular ES Module Architecture**: Keep logic separated into focused modules under the `src/` directory
-2. **Test Audio Initialization**: Verify autoplay policy compliance
-3. **Validate Presets**: Ensure all parameters save/load correctly
-4. **Check Responsive Design**: Test on mobile and desktop
-5. **Update Documentation**: Keep AGENTS.md synchronized with changes
-6. **Version Control**: Save working versions to `Previous Versions/`
+2. **Run Tests & Verify Coverage**: Always run `bun run test:coverage` before submitting PRs
+3. **Document Decisions in ADRs**: Add new Architectural Decision Records in [`docs/adr/`](./docs/adr/) when introducing significant architectural shifts
+4. **Test Audio Initialization**: Verify autoplay policy compliance
+5. **Validate Presets**: Ensure all parameters save/load correctly
+6. **Check Responsive Design**: Test on mobile and desktop
+7. **Update Documentation**: Keep `AGENTS.md` and `README.md` synchronized with changes
 
 ## Version History
 
 This is a living document. Major architectural changes are tracked in:
 
 - Git commit history
+- Architectural Decision Records in [`docs/adr/`](./docs/adr/)
 - Technical guides and specifications in [`docs/`](./docs/)
 
 ---

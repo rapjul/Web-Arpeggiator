@@ -292,24 +292,34 @@ Web Arpeggiator/
 ├── sw.js                        # Service worker
 ├── README.md                    # Project documentation & overview
 ├── AGENTS.md                    # Architecture & development guide
-├── docs/                        # Technical guides & specifications
+├── docs/                        # Technical guides, ADRs & specifications
+│   ├── adr/                     # Architectural Decision Records (MADR standard)
+│   │   ├── 0001-vitest-and-v8-coverage-tooling.md
+│   │   ├── 0002-modular-es-source-architecture.md
+│   │   └── 0003-defensive-input-validation-and-edge-case-testing-policy.md
 │   ├── midi-specification.md    # Standard MIDI binary specification reference
 │   └── pattern-directions.md    # Visual guide to arpeggiator patterns
 ├── src/                         # Modular source code
 │   ├── core/                    # Pure algorithms & domain logic (zero DOM/Audio dependencies)
 │   │   ├── audio-utils.js       # Audio encoding and file download utilities
+│   │   ├── input-filters.js     # Keyboard note & numeric input filtering
+│   │   ├── meter-utils.js       # Audio meter decibel & percentage calculations
 │   │   ├── midi-export.js       # SMF Format 0 binary generator
 │   │   ├── pattern-core.js      # Core math & note generation logic
 │   │   ├── randomizer.js        # Scale-quantized pattern randomizer
-│   │   └── url-preset.js        # URL query parameter preset serialization
+│   │   ├── url-preset.js        # URL query parameter preset serialization
+│   │   └── visualizer-math.js   # Signal processing & FFT peak detection helpers
 │   ├── audio/                   # Web Audio / Tone.js synthesis and scheduling
 │   │   ├── audio-engine.js      # Tone.js synths & audio processing chain
 │   │   ├── pattern-generator.js # Tone.Pattern controller & quantization
 │   │   └── recorder.js          # Real-time capture & offline loop renderer
 │   ├── storage/                 # Persistence and configuration management
+│   │   ├── navigation-manager.js# URL routing & query-state management
 │   │   ├── presets-store.js     # IndexedDB preset persistence
+│   │   ├── session-manager.js   # Workspace auto-save and restoration lifecycle
 │   │   └── settings-manager.js  # Configuration state persistence
 │   ├── ui/                      # DOM controllers and visual rendering
+│   │   ├── a11y-navigation.js   # WAI-ARIA arrow-key navigation for button groups
 │   │   ├── keyboard-controller.js # Interactive virtual keyboard
 │   │   ├── ui-feedback.js       # Toast alerts and visual status indicators
 │   │   └── visualizer.js        # Real-time oscilloscope canvas
