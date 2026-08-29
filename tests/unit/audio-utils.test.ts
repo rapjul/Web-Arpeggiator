@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { audioBufferToWav, float32ToInt16, interleave, writeString } from "../../js/audio-utils.js";
+import { audioBufferToWav, float32ToInt16, interleave, writeString } from "@core/audio-utils.js";
 
 describe("Audio Utils Domain Module", () => {
     test("converts Float32Array PCM samples to signed 16-bit integers", () => {

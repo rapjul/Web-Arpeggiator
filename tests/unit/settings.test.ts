@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { createSettingsManager } from "../../js/settings-manager.js";
+import { createSettingsManager } from "@storage/settings-manager.js";
 
 describe("Settings Manager Domain Module", () => {
     test("creates settings snapshot and formats filenames accurately", () => {

@@ -8,7 +8,6 @@
     "strict": false,
     "noEmit": true,
     "skipLibCheck": true,
-    "maxNodeModuleJsDepth": 0,
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"],
@@ -20,6 +19,6 @@
     },
     "lib": ["DOM", "DOM.Iterable", "ESNext"]
   },
-  "include": ["src/**/*.js", "types.d.ts"],
+  "include": ["src/**/*.js", "src/**/*.ts", "tests/**/*.ts", "types.d.ts"],
   "exclude": ["node_modules", "dist", "sw.js"]
 }

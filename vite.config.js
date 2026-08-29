@@ -1,9 +1,20 @@
+import { fileURLToPath, URL } from "node:url";
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig({
     base: "./",
+    resolve: {
+        alias: {
+            "@": fileURLToPath(new URL("./src", import.meta.url)),
+            "@core": fileURLToPath(new URL("./src/core", import.meta.url)),
+            "@audio": fileURLToPath(new URL("./src/audio", import.meta.url)),
+            "@storage": fileURLToPath(new URL("./src/storage", import.meta.url)),
+            "@ui": fileURLToPath(new URL("./src/ui", import.meta.url)),
+            "@pwa": fileURLToPath(new URL("./src/pwa", import.meta.url)),
+        },
+    },
     plugins: [
         tailwindcss(),
         VitePWA({

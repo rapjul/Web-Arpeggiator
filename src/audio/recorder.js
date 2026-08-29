@@ -10,7 +10,7 @@
  */
 
 import * as Tone from "tone";
-import { audioBufferToMp3Blob, audioBufferToWav, downloadBlob } from "./audio-utils.js";
+import { audioBufferToMp3Blob, audioBufferToWav, downloadBlob } from "@core/audio-utils.js";
 
 /**
  * Creates the recorder manager with real-time and offline export control.

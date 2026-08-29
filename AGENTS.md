@@ -314,22 +314,27 @@ Web Arpeggiator/
 ├── docs/                   # Specifications & architectural guides
 │   ├── midi-specification.md # Standard MIDI specification & implementation reference
 │   └── pattern-directions.md # Detailed pattern descriptions & visual guide
-├── js/                     # ES modules (no bundler needed)
-│   ├── app.js              # Main entry point, DOM wiring, transport, presets, randomizer
-│   ├── audio-engine.js     # Tone.js synths, effects chain, setSynth, updateEnvelope
-│   ├── audio-utils.js      # WAV/MP3 encoding, download helpers
-│   ├── keyboard-controller.js   # Virtual keyboard input handling
-│   ├── midi-export.js      # Standard MIDI File (.mid) binary encoder
-│   ├── pattern-core.js     # Core note transformations and math
-│   ├── pattern-generator.js     # Pattern logic (11 directions), scale quantization
-│   ├── presets-store.js         # IndexedDB preset persistence
-│   ├── pwa.js                   # Service worker registration
-│   ├── randomizer.js            # Musical scale-quantized randomizer
-│   ├── recorder.js              # Real-time recording + offline Tone.Offline export
-│   ├── settings-manager.js      # Settings serialization/restoration
-│   ├── ui-feedback.js           # Toast alerts and UI status indicators
-│   ├── url-preset.js            # URL query parameter preset serialization
-│   └── visualizer.js            # Canvas waveform rendering, UI update loop, toggle
+├── src/                    # Modular source code
+│   ├── core/               # Pure algorithms & domain logic (zero DOM/Audio dependencies)
+│   │   ├── audio-utils.js  # WAV/MP3 encoding, PCM conversions, download helpers
+│   │   ├── midi-export.js  # Standard MIDI File (.mid) binary encoder
+│   │   ├── pattern-core.js # Core note transformations, directions, quantization math
+│   │   ├── randomizer.js   # Musical scale-quantized randomizer
+│   │   └── url-preset.js   # URL query parameter preset serialization
+│   ├── audio/              # Web Audio / Tone.js synthesis and scheduling
+│   │   ├── audio-engine.js # Tone.js synths, effects chain, setSynth, updateEnvelope
+│   │   ├── pattern-generator.js # Pattern scheduling & transport sync
+│   │   └── recorder.js     # Real-time recording + offline Tone.Offline export
+│   ├── storage/            # Persistence and configuration management
+│   │   ├── presets-store.js# IndexedDB preset persistence
+│   │   └── settings-manager.js # Settings serialization/restoration
+│   ├── ui/                 # DOM controllers and visual rendering
+│   │   ├── keyboard-controller.js # Virtual keyboard input handling
+│   │   ├── ui-feedback.js  # Toast alerts and UI status indicators
+│   │   └── visualizer.js   # Canvas waveform rendering, UI update loop, toggle
+│   ├── pwa/                # Service Worker & PWA lifecycle
+│   │   └── pwa.js          # Service worker registration
+│   └── app.js              # Application entry point, DOM wiring, transport coordination
 ├── exports/                # Generated audio test files
 │   ├── realtime-recordings/
 │   └── perfect-loops/
@@ -442,7 +447,7 @@ Potential areas for expansion:
 
 When modifying the codebase:
 
-1. **Maintain Modular ES Module Architecture**: Keep logic separated into focused modules under the `js/` directory
+1. **Maintain Modular ES Module Architecture**: Keep logic separated into focused modules under the `src/` directory
 2. **Test Audio Initialization**: Verify autoplay policy compliance
 3. **Validate Presets**: Ensure all parameters save/load correctly
 4. **Check Responsive Design**: Test on mobile and desktop
@@ -458,4 +463,4 @@ This is a living document. Major architectural changes are tracked in:
 
 ---
 
-**For AI Coding Agents**: This document provides the architectural context needed to understand, modify, and extend the Web Arpeggiator application. The application follows a modular architecture using ES modules located in the `js/` folder, with styling managed in `styles.css` and the entry point in `index.html`.
+**For AI Coding Agents**: This document provides the architectural context needed to understand, modify, and extend the Web Arpeggiator application. The application follows a modular architecture using ES modules located in the `src/` folder, with styling managed in `styles.css` and the entry point in `index.html`.

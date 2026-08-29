@@ -6,7 +6,7 @@ import {
     NOTES_REGEX,
     parsePresetFromUrlParams,
     serializePresetToUrlParams,
-} from "../../js/url-preset.js";
+} from "@core/url-preset.js";
 
 describe("URL Preset Domain Module", () => {
     const defaultSettings = {

@@ -8,26 +8,26 @@
  * @module app
  */
 import * as Tone from "tone";
-import { createAudioEngine } from "./audio-engine.js";
-import { downloadBlob } from "./audio-utils.js";
-import { initializeKeyboardControls } from "./keyboard-controller.js";
-import { createMidiBlob, exportMidiFile } from "./midi-export.js";
-import { materializePatternSequence, normalizeNotesSequence } from "./pattern-core.js";
+import { createAudioEngine } from "@audio/audio-engine.js";
+import { downloadBlob } from "@core/audio-utils.js";
+import { initializeKeyboardControls } from "@ui/keyboard-controller.js";
+import { createMidiBlob, exportMidiFile } from "@core/midi-export.js";
+import { materializePatternSequence, normalizeNotesSequence } from "@core/pattern-core.js";
 import {
     calculateNoteMarkers,
     createOrUpdatePattern as createOrUpdatePatternFromModule,
     getArpeggioNotes as getArpeggioNotesFromModule,
-} from "./pattern-generator.js";
-import { generateRandomNotes } from "./randomizer.js";
-import { createRecorderManager } from "./recorder.js";
-import { createSettingsManager } from "./settings-manager.js";
-import { createToastManager } from "./ui-feedback.js";
+} from "@audio/pattern-generator.js";
+import { generateRandomNotes } from "@core/randomizer.js";
+import { createRecorderManager } from "@audio/recorder.js";
+import { createSettingsManager } from "@storage/settings-manager.js";
+import { createToastManager } from "@ui/ui-feedback.js";
 import {
     hasPresetChanges,
     parsePresetFromUrlParams,
     serializePresetToUrlParams,
-} from "./url-preset.js";
-import { createVisualizer } from "./visualizer.js";
+} from "@core/url-preset.js";
+import { createVisualizer } from "@ui/visualizer.js";
 
 // --- Global Config ---
 // Set to true to show a toast message when audio is ready (for testing)

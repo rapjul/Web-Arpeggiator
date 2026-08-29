@@ -7,7 +7,7 @@ import {
     TICKS_PER_BEAT,
     uint16ToBytes,
     uint32ToBytes,
-} from "../../js/midi-export.js";
+} from "@core/midi-export.js";
 
 describe("MIDI Export Domain Module", () => {
     test("noteNameToMidiNumber accurately converts scientific pitch notation to standard MIDI numbers", () => {

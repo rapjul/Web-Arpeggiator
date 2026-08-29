@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import * as Tonal from "tonal";
-import { DEFAULT_SCALE_FALLBACKS, generateRandomNotes } from "../../js/randomizer.js";
+import { DEFAULT_SCALE_FALLBACKS, generateRandomNotes } from "@core/randomizer.js";
 
 describe("Randomizer Domain Module", () => {
     test("exports expected default scale fallbacks", () => {

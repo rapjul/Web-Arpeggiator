@@ -17,7 +17,7 @@ import {
     getArpeggioNotes,
     materializePatternSequence,
     quantizeToScale,
-} from "./pattern-core.js";
+} from "@core/pattern-core.js";
 
 // Re-export pure domain helpers for backwards compatibility
 export {

@@ -11,7 +11,7 @@ import {
     normalizeNotesSequence,
     parseNoteWithOctave,
     quantizeToScale,
-} from "../../js/pattern-core.js";
+} from "@core/pattern-core.js";
 
 describe("Pattern Core - Note Parsing & Auto-Resolution", () => {
     test("parseNoteWithOctave parses standard and bare pitch classes", () => {
