@@ -1205,6 +1205,7 @@ function initializeApp() {
             getAllSettings,
             generateFilename,
             formatTime,
+            startPlayback,
         },
     });
 
@@ -1431,44 +1432,61 @@ function initializeApp() {
         startOverlay.addEventListener("click", handleStartOverlayClick);
     }
 
-    // --- Transport: Play / Stop ---
-    playStopButton.addEventListener("click", async () => {
-        await startAudio();
-
-        // Lazy-init recorder on first play press
-        if (!recorderManager.isRecording) {
+    /**
+     * Starts audio playback if not already running.
+     * @returns {Promise<void>}
+     */
+    async function startPlayback() {
+        if (!isAudioContextStarted) {
+            await startAudio();
+        }
+        if (recorderManager && !recorderManager.isRecording) {
             await recorderManager.initRecorder();
         }
-
         createOrUpdatePattern();
+        if (!isPlaying) {
+            if (arpPattern) arpPattern.start();
+            Tone.Transport.start();
+            if (playStopButton) {
+                playStopButton.textContent = "Stop Audio";
+                playStopButton.setAttribute("aria-label", "Press to stop arpeggio");
+                playStopButton.classList.add("bg-yellow-600", "hover:bg-yellow-700");
+                playStopButton.classList.remove("bg-blue-600", "hover:bg-blue-700");
+            }
+            isPlaying = true;
+            syncPatternModuleState();
+            if (visualizer) visualizer.startUiLoop();
+        }
+    }
 
+    /**
+     * Stops audio playback if currently running.
+     * @returns {void}
+     */
+    function stopPlayback() {
         if (isPlaying) {
             Tone.Transport.stop();
             if (arpPattern) arpPattern.stop();
-            playStopButton.textContent = "Restart Audio";
-            playStopButton.setAttribute("aria-label", "Press to restart arpeggio");
-            playStopButton.classList.remove("bg-yellow-600", "hover:bg-yellow-700");
-            playStopButton.classList.add("bg-blue-600", "hover:bg-blue-700");
+            if (playStopButton) {
+                playStopButton.textContent = "Restart Audio";
+                playStopButton.setAttribute("aria-label", "Press to restart arpeggio");
+                playStopButton.classList.remove("bg-yellow-600", "hover:bg-yellow-700");
+                playStopButton.classList.add("bg-blue-600", "hover:bg-blue-700");
+            }
             isPlaying = false;
             syncPatternModuleState();
-        } else {
-            if (arpPattern) arpPattern.start();
-            Tone.Transport.start();
-            playStopButton.textContent = "Stop Audio";
-            playStopButton.setAttribute("aria-label", "Press to stop arpeggio");
-            playStopButton.classList.add("bg-yellow-600", "hover:bg-yellow-700");
-            playStopButton.classList.remove("bg-blue-600", "hover:bg-blue-700");
-            isPlaying = true;
-            syncPatternModuleState();
-        }
-
-        if (isPlaying) {
-            visualizer.startUiLoop();
-        } else {
-            visualizer.stopUiLoop();
-            // Clear the note step indicator when stopped
+            if (visualizer) visualizer.stopUiLoop();
             noteStepPips.forEach((p) => p.classList.remove("active"));
             currentStepIndex = -1;
+        }
+    }
+
+    // --- Transport: Play / Stop ---
+    playStopButton.addEventListener("click", async () => {
+        if (isPlaying) {
+            stopPlayback();
+        } else {
+            await startPlayback();
         }
     });
 

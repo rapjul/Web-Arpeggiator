@@ -103,6 +103,13 @@ test("Audio Recording, Exports, & Preset Management Suite", async (): Promise<vo
         if (!recordBtn.classList.contains('recording')) {
             return 'record-btn-missing-recording-class';
         }
+
+        // Verify transport auto-started playback
+        const playBtn = document.getElementById('play-stop');
+        if (playBtn && !playBtn.textContent.includes('Stop Audio')) {
+            return 'playback-not-autostarted-on-record: ' + playBtn.textContent;
+        }
+
         return 'success';
     })()`,
     ]);

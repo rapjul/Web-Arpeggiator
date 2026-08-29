@@ -192,6 +192,11 @@ export function createRecorderManager(context) {
 
             liveRecordedWavBlob = null;
 
+            // If transport is currently stopped, auto-start playback so recording captures active audio
+            if (!state.isPlaying && typeof actions.startPlayback === "function") {
+                actions.startPlayback();
+            }
+
             if (recorderType === "MediaRecorder") {
                 recordedChunks = [];
                 recorder.start();
