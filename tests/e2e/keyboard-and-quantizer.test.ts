@@ -84,6 +84,38 @@ test("Keyboard Controls & Scale Quantizer Suite", async (): Promise<void> => {
             return 'key-remained-active';
         }
 
+        // Verify pitch label is rendered
+        const pitchLabelEl = keyEl.querySelector('.key-pitch-label');
+        if (!pitchLabelEl || pitchLabelEl.textContent !== 'C4') {
+            return 'missing-or-invalid-pitch-label';
+        }
+
+        // Test "Add to Pattern" mode
+        const addModeBtn = document.getElementById('keyboard-mode-add');
+        const notesInput = document.getElementById('notes');
+        if (addModeBtn && notesInput) {
+            notesInput.value = 'C4 E4';
+            notesInput.dispatchEvent(new Event('change'));
+
+            // Enable Add to Pattern mode
+            addModeBtn.click();
+
+            // Click piano key for G4
+            const g4Key = document.querySelector('.piano-key[data-note="G4"]');
+            if (g4Key) {
+                g4Key.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+                g4Key.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+
+                // Verify notes input was appended
+                if (!notesInput.value.includes('G4')) {
+                    return 'add-to-pattern-failed: notes value is ' + notesInput.value;
+                }
+            }
+
+            // Disable Add to Pattern mode
+            addModeBtn.click();
+        }
+
         return 'success';
     })()`,
     ]);

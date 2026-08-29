@@ -938,6 +938,7 @@ function initializeApp() {
             keyboardToggle,
             keyboardToggleStatus,
             keyboardDescription,
+            notesInput,
         },
         actions: {
             onNoteAttack: () => {

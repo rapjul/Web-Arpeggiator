@@ -229,11 +229,42 @@ export function initializeKeyboardControls(context) {
         // Wrap label text in a relative span to ensure it renders on top of the absolute SVG background
         const labelSpan = document.createElement("span");
         labelSpan.classList.add("key-label");
-        labelSpan.textContent = keyData.label;
+
+        const notePitchSpan = document.createElement("span");
+        notePitchSpan.classList.add("key-pitch-label");
+        notePitchSpan.textContent = keyData.note;
+
+        const keyShortcutSpan = document.createElement("span");
+        keyShortcutSpan.classList.add("key-shortcut-label");
+        keyShortcutSpan.textContent = keyData.label;
+
+        labelSpan.appendChild(notePitchSpan);
+        labelSpan.appendChild(keyShortcutSpan);
         el.appendChild(labelSpan);
 
         currentOctaveTarget.appendChild(el);
     });
+
+    // --- Add to Pattern Mode ---
+    const keyboardModeAddBtn = document.getElementById("keyboard-mode-add");
+    let isAddToPatternMode = false;
+
+    if (keyboardModeAddBtn) {
+        keyboardModeAddBtn.addEventListener("click", () => {
+            isAddToPatternMode = !isAddToPatternMode;
+            keyboardModeAddBtn.setAttribute("aria-pressed", isAddToPatternMode ? "true" : "false");
+            const statusSpan = keyboardModeAddBtn.querySelector(".keyboard-mode-status");
+            if (isAddToPatternMode) {
+                keyboardModeAddBtn.classList.remove("bg-gray-800", "text-blue-300");
+                keyboardModeAddBtn.classList.add("bg-blue-600", "text-white");
+                if (statusSpan) statusSpan.textContent = "Add to Pattern: On";
+            } else {
+                keyboardModeAddBtn.classList.remove("bg-blue-600", "text-white");
+                keyboardModeAddBtn.classList.add("bg-gray-800", "text-blue-300");
+                if (statusSpan) statusSpan.textContent = "Add to Pattern: Off";
+            }
+        });
+    }
 
     /**
      * Triggers an attack for a note if keyboard input is enabled.
@@ -251,6 +282,14 @@ export function initializeKeyboardControls(context) {
             state.activeSynth.triggerAttack(note, Tone.now());
             state.activeNote = note;
             highlightKey(note, true);
+
+            if (isAddToPatternMode && dom.notesInput) {
+                const current = dom.notesInput.value.trim();
+                const updated = current ? `${current} ${note}` : note;
+                dom.notesInput.value = updated;
+                dom.notesInput.dispatchEvent(new Event("change"));
+            }
+
             if (typeof actions.onNoteAttack === "function") {
                 actions.onNoteAttack(note);
             }

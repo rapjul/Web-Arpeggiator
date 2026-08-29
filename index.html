@@ -616,26 +616,37 @@
                             ⌨️ Keyboard Control
                         </h2>
                     </summary>
-                    <div class="flex items-center justify-between mb-3 mt-4">
+                    <div class="flex flex-wrap items-center justify-between gap-2 mb-3 mt-4">
                         <p
                             id="keyboard-description"
-                            class="text-xs text-gray-400 mb-2 text-left align-middle"
+                            class="text-xs text-gray-400 text-left align-middle"
                         >
-                            Press keys on your keyboard to test notes manually.
-                            <br />
-                            Only one note can be played at a time.
+                            Press keys to test notes, or enable "Add to Pattern" to append notes
+                            directly.
                         </p>
-                        <label class="flex items-center space-x-1 cursor-pointer pl-4">
-                            <input
-                                role="switch"
-                                type="checkbox"
-                                id="keyboard-toggle"
-                                aria-checked="true"
-                                checked
-                                class="h-5 w-5 rounded border-radius-full bg-gray-800 border-gray-600 text-blue-500 focus:ring-blue-600"
-                            />
-                            <span id="keyboard-toggle-status" class="text-sm">Off</span>
-                        </label>
+                        <div class="flex items-center gap-2">
+                            <button
+                                type="button"
+                                id="keyboard-mode-add"
+                                class="text-xs font-semibold py-1 px-2 bg-gray-800 hover:bg-gray-700 text-blue-300 border border-gray-600 rounded transition-all flex items-center gap-1 cursor-pointer"
+                                aria-pressed="false"
+                                title="When enabled, clicking piano keys appends the note directly to your notes sequence"
+                            >
+                                <span aria-hidden="true">➕</span>
+                                <span class="keyboard-mode-status">Add to Pattern: Off</span>
+                            </button>
+                            <label class="flex items-center space-x-1 cursor-pointer">
+                                <input
+                                    role="switch"
+                                    type="checkbox"
+                                    id="keyboard-toggle"
+                                    aria-checked="true"
+                                    checked
+                                    class="h-5 w-5 rounded border-radius-full bg-gray-800 border-gray-600 text-blue-500 focus:ring-blue-600"
+                                />
+                                <span id="keyboard-toggle-status" class="text-sm">Off</span>
+                            </label>
+                        </div>
                     </div>
 
                     <!-- START Visual Keyboard -->
