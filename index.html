@@ -169,8 +169,7 @@
                         >
                             <div
                                 id="vu-meter-bar"
-                                class="h-full rounded-sm transition-all duration-75 ease-out bg-gradient-to-r from-emerald-500 via-amber-400 to-rose-500"
-                                style="width: 0%"
+                                class="w-0 h-full rounded-sm transition-all duration-75 ease-out bg-gradient-to-r from-emerald-500 via-amber-400 to-rose-500"
                                 role="meter"
                                 aria-label="Final audio output peak level"
                                 aria-valuemin="-60"
@@ -1713,8 +1712,12 @@
                             Export MIDI (.mid)
                         </button>
                     </div>
-                    <p id="offline-export-status" class="text-sm text-center text-gray-300">
-                        Generate audio loops or standard MIDI files from current settings.
+                    <p
+                        id="offline-export-status"
+                        class="text-sm text-center text-gray-300 text-balance"
+                    >
+                        Generate and export audio loops or Standard MIDI files from current
+                        settings.
                     </p>
                 </div>
             </section>
