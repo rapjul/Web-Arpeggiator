@@ -13,7 +13,7 @@
     "format:check": "bunx biome format .",
     "test:unit": "vitest run tests/unit",
     "test:coverage": "vitest run --coverage tests/unit",
-    "test:bun": "bun test tests/unit",
+    "test:watch": "vitest tests/unit",
     "test:e2e": "bun run build && bun test --timeout 60000 tests/e2e",
     "test": "vitest run tests/unit",
     "test:all": "vitest run tests/unit && bun run test:e2e",

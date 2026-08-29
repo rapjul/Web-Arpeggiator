@@ -197,9 +197,25 @@ describe("Presets Store Domain Module", () => {
             const all = await list();
             expect(all.length).toBe(0);
         });
+
+        it("returns null when retrieving a nonexistent preset ID", async () => {
+            const result = await get("nonexistent-id-99999");
+            expect(result).toBeNull();
+        });
+
+        it("returns null when loadLatest is called on an empty database", async () => {
+            await clear();
+            const latest = await loadLatest();
+            expect(latest).toBeNull();
+        });
     });
 
     describe("Last Session persistence", () => {
+        it("returns null when no previous session exists", async () => {
+            const emptySession = await loadLastSession();
+            expect(emptySession).toBeNull();
+        });
+
         it("saves and loads the workspace last-session snapshot", async () => {
             const sessionSettings = { bpm: 150, currentNotes: ["F4", "A4", "C5"] };
             const record = await saveLastSession(sessionSettings);

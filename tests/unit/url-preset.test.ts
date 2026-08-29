@@ -113,6 +113,25 @@ describe("URL Preset Domain Module", () => {
         expect(parsed?.filterCutoff).toBe(8000);
     });
 
+    test("safely handles unknown or invalid query parameters by applying defaults", () => {
+        // Unknown synth, unknown waveform, unknown direction, and corrupted note inputs
+        const query =
+            "?synth=hyperSynth&wave=plasma&dir=zigzagPattern&notes=InvalidNote123&root=Z&scale=alienMode&bpm=invalidBpm&gate=-5&swing=10";
+
+        const parsed = parsePresetFromUrlParams(query, defaultSettings);
+        expect(parsed).not.toBeNull();
+
+        expect(parsed?.synthType).toBe("synth");
+        expect(parsed?.waveform).toBe("sine");
+        expect(parsed?.direction).toBe("up");
+        expect(parsed?.baseNotes).toEqual(["C4", "E4", "G4"]);
+        expect(parsed?.scaleRoot).toBe("C");
+        expect(parsed?.scaleType).toBe("major");
+        expect(parsed?.bpm).toBe(120);
+        expect(parsed?.gateRatio).toBe(0.05);
+        expect(parsed?.swing).toBe(1.0);
+    });
+
     test("returns null when no recognized preset keys are present", () => {
         expect(parsePresetFromUrlParams("?pwa=true", defaultSettings)).toBeNull();
         expect(parsePresetFromUrlParams("?unknown=value&foo=bar", defaultSettings)).toBeNull();

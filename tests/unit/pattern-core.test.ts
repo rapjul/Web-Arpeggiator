@@ -545,5 +545,13 @@ describe("Pattern Core - materializePatternSequence Deterministic Unrolling", ()
             notes: [],
             map: [],
         });
+        expect(getArpeggioNotes([], { octaveRange: 1, octaveShift: 0 })).toEqual([]);
+        expect(getArpeggioNotes(["C4"], { octaveRange: -2, octaveShift: 0 })).toEqual(["C4"]);
+        expect(quantizeToScale(["NotANote", "H9", ""], "C", "major")).toEqual([
+            "NotANote",
+            "H9",
+            "",
+        ]);
+        expect(quantizeToScale(["C4", "E4"], "C", "completelyUnknownScale")).toEqual(["C4", "E4"]);
     });
 });

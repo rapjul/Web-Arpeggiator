@@ -1,5 +1,5 @@
 /**
- * @file Unit tests for Web Arpeggiator Audio Engine configurations and supported synth models.
+ * @file Unit tests for Web Arpeggiator Audio Engine configurations, synth models, and offline chains.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -61,6 +61,10 @@ vi.mock("tone", async (importOriginal) => {
         },
         Volume: class extends MockNode {
             volume = new MockParam();
+            constructor(vol?: number) {
+                super();
+                if (vol !== undefined) this.volume.value = vol;
+            }
         },
         Limiter: MockNode,
         Meter: class extends MockNode {
@@ -105,9 +109,6 @@ vi.mock("tone", async (importOriginal) => {
         DuoSynth: MockSynth,
         PluckSynth: MockSynth,
         MembraneSynth: MockSynth,
-        PolySynth: class extends MockNode {
-            set() {}
-        },
         Offline: vi.fn(),
     };
 });
@@ -123,13 +124,12 @@ describe("Audio Engine Model Definitions", () => {
         "duoSynth",
         "pluckSynth",
         "membraneSynth",
-        "polySynth",
     ] as const;
 
     const supportedWaveforms = ["sine", "square", "sawtooth", "triangle", "pulse"] as const;
 
-    it("verifies all 8 expected synth models are registered", () => {
-        expect(supportedSynthTypes).toHaveLength(8);
+    it("verifies all 7 expected synth models are registered", () => {
+        expect(supportedSynthTypes).toHaveLength(7);
         expect(supportedSynthTypes).toContain("synth");
         expect(supportedSynthTypes).toContain("fmSynth");
         expect(supportedSynthTypes).toContain("amSynth");
@@ -137,7 +137,6 @@ describe("Audio Engine Model Definitions", () => {
         expect(supportedSynthTypes).toContain("duoSynth");
         expect(supportedSynthTypes).toContain("pluckSynth");
         expect(supportedSynthTypes).toContain("membraneSynth");
-        expect(supportedSynthTypes).toContain("polySynth");
     });
 
     it("verifies all 5 standard oscillator waveforms are supported", () => {
@@ -210,14 +209,24 @@ describe("Audio Engine Model Definitions", () => {
             expect(engine.currentWaveform).toBe("triangle");
         });
 
-        it("switches synth models and updates activeSynth", () => {
+        it("switches synth models and strictly matches registered instance", () => {
             const engine = createAudioEngine({ dom: mockDom as any, actions: mockActions as any });
 
             for (const synthType of supportedSynthTypes) {
                 engine.setSynth(synthType);
-                expect(engine.activeSynth).toBeDefined();
+                expect(engine.activeSynth).toBe(engine.synths[synthType]);
                 expect(mockActions.syncPatternModuleState).toHaveBeenCalled();
             }
+        });
+
+        it("safely falls back to basic synth when an unknown synth type is requested", () => {
+            const engine = createAudioEngine({ dom: mockDom as any, actions: mockActions as any });
+
+            engine.setSynth("unknownAlienSynth" as any);
+            expect(engine.activeSynth).toBe(engine.synths.synth);
+
+            engine.setSynth("polySynth" as any);
+            expect(engine.activeSynth).toBe(engine.synths.synth);
         });
 
         it("updates envelope settings on active synths", () => {
@@ -241,21 +250,11 @@ describe("Audio Engine Model Definitions", () => {
             expect(config.type).toBe("synth");
         });
 
-        it("creates offline audio graph chains for all synth types", () => {
+        it("creates offline audio graph chains with postGain for all synth types", () => {
             const engine = createAudioEngine({ dom: mockDom as any, actions: mockActions as any });
             const mockOfflineContext = { destination: {} };
 
-            const synthModels = [
-                "synth",
-                "fmSynth",
-                "amSynth",
-                "monoSynth",
-                "duoSynth",
-                "pluckSynth",
-                "membraneSynth",
-            ];
-
-            for (const synthType of synthModels) {
+            for (const synthType of supportedSynthTypes) {
                 const chain = engine.createOfflineChain(mockOfflineContext, {
                     synthType,
                     waveform: "sawtooth",
@@ -282,10 +281,13 @@ describe("Audio Engine Model Definitions", () => {
                     autoPanMix: 0.4,
                     delayMix: 0.3,
                     reverbMix: 0.4,
+                    postGain: -4.5,
                 });
 
                 expect(chain.offlineSynth).toBeDefined();
                 expect(chain.offlineOutput).toBeDefined();
+                expect(chain.offlinePostGain).toBeDefined();
+                expect(chain.offlinePostGain.volume.value).toBe(-4.5);
             }
         });
     });

@@ -2,7 +2,7 @@
  * @file Unit tests for ARIA keyboard arrow-key navigation in button/radio groups.
  */
 
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { setupKeyboardNavigation } from "@ui/a11y-navigation.js";
 
 describe("A11y Navigation Domain Module", () => {
@@ -74,6 +74,40 @@ describe("A11y Navigation Domain Module", () => {
 
         container.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true }));
         expect(document.activeElement).toBe(button1);
+    });
+
+    it("checks radio inputs and dispatches change and input events on arrow navigation", () => {
+        const fieldset = document.createElement("fieldset");
+        const radio1 = document.createElement("input");
+        const radio2 = document.createElement("input");
+
+        radio1.type = "radio";
+        radio1.name = "pattern";
+        radio1.value = "up";
+        radio1.checked = true;
+        radio1.className = "pattern-radio";
+
+        radio2.type = "radio";
+        radio2.name = "pattern";
+        radio2.value = "down";
+        radio2.checked = false;
+        radio2.className = "pattern-radio";
+
+        fieldset.appendChild(radio1);
+        fieldset.appendChild(radio2);
+        document.body.appendChild(fieldset);
+
+        const changeHandler = vi.fn();
+        radio2.addEventListener("change", changeHandler);
+
+        setupKeyboardNavigation(fieldset, ".pattern-radio");
+
+        radio1.focus();
+        fieldset.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+
+        expect(document.activeElement).toBe(radio2);
+        expect(radio2.checked).toBe(true);
+        expect(changeHandler).toHaveBeenCalled();
     });
 
     it("ignores key events when activeElement is not a member of the button group", () => {

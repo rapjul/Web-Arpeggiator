@@ -15,7 +15,7 @@ export default mergeConfig(
                 exclude: ["src/pwa/pwa.js", "src/app.js"],
                 thresholds: {
                     statements: 80,
-                    branches: 68,
+                    branches: 70,
                     functions: 80,
                     lines: 80,
                 },
