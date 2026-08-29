@@ -46,6 +46,8 @@ import { audioBufferToMp3Blob, audioBufferToWav, downloadBlob } from "./audio-ut
  * @param {Function} context.actions.getAllSettings         - Current settings snapshot.
  * @param {Function} context.actions.generateFilename       - Timestamped filename.
  * @param {Function} context.actions.formatTime             - Time formatting helper.
+ * @param {Function} [context.actions.startAudio]           - Start Web Audio context helper.
+ * @param {Function} [context.actions.startPlayback]        - Start transport playback helper.
  * @typedef {object} RecorderManager
  * @property {Function} initRecorder - Creates recorder instance (lazy, called once).
  * @property {Function} toggleRecording - Start/stop recording.
@@ -104,8 +106,6 @@ export function createRecorderManager(context) {
     async function initRecorder() {
         if (recorder) return;
 
-        let mediaRecorderSuccess = false;
-
         // Try Tone.Recorder first (works in HTTP and Canvas contexts)
         try {
             recorder = new Tone.Recorder();
@@ -113,7 +113,7 @@ export function createRecorderManager(context) {
             recorderType = "ToneRecorder";
             dom.recordStatus.textContent = "Ready to record (Tone.Recorder).";
             actions.showToast("Recorder ready (Fallback)", "info");
-        } catch (e) {
+        } catch {
             // Fall back to MediaRecorder (HTTPS only)
             if (window.isSecureContext && typeof MediaRecorder !== "undefined") {
                 try {
@@ -134,10 +134,9 @@ export function createRecorderManager(context) {
                         onRecordingStop();
                     };
 
-                    mediaRecorderSuccess = true;
                     dom.recordStatus.textContent = "Ready to record (MediaRecorder).";
                     actions.showToast("Recorder ready (Native)", "success");
-                } catch (e2) {
+                } catch {
                     recorder = null;
                 }
             }

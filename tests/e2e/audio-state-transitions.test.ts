@@ -1,19 +1,12 @@
-import { test, expect, beforeAll, afterAll } from "bun:test";
-import { type Subprocess } from "bun";
+import { afterAll, beforeAll, expect, test } from "bun:test";
 import {
-    startTestServer,
-    runBrowser,
-    waitForPwaReady,
-    resetBrowserState,
     cleanupProcesses,
     closeBrowser,
+    resetBrowserState,
+    runBrowser,
+    startTestServer,
+    waitForPwaReady,
 } from "../test-helpers";
-
-/**
- * References the background server process.
- * @type {Subprocess|null}
- */
-let serverProcess: Subprocess | null = null;
 
 /**
  * The port number for the test server instance.
@@ -28,7 +21,7 @@ const PORT: number = 4186;
 const APP_URL: string = `http://127.0.0.1:${PORT}/index.html`;
 
 beforeAll(async (): Promise<void> => {
-    serverProcess = await startTestServer(PORT);
+    await startTestServer(PORT);
 });
 
 afterAll(async (): Promise<void> => {
@@ -189,7 +182,7 @@ test("Audio Engine & Recording State Transitions Suite", async (): Promise<void>
         "eval",
         `(() => {
         // Change pattern direction
-        const downBtn = document.querySelector('button[data-pattern="down"]');
+        const downBtn = document.querySelector('[data-pattern="down"]');
         if (downBtn) downBtn.click();
 
         // Change BPM slider

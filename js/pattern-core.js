@@ -127,7 +127,7 @@ export function quantizeToScale(baseNotes, root, scaleType) {
         }
 
         const scale = Tonal.Scale.get(`${root} ${scaleType}`);
-        if (!scale || !scale.notes || scale.notes.length === 0) {
+        if (!scale?.notes || scale.notes.length === 0) {
             return baseNotes.slice();
         }
 
@@ -154,7 +154,7 @@ export function quantizeToScale(baseNotes, root, scaleType) {
                 );
 
                 return Tonal.Note.fromMidi(closest);
-            } catch (_) {
+            } catch {
                 return note;
             }
         });
@@ -199,7 +199,7 @@ export function getArpeggioNotes(baseNotes, opts = {}) {
         }
     }
 
-    if (opts.quantize && opts.quantize.enabled && opts.quantize.root && opts.quantize.scale) {
+    if (opts.quantize?.enabled && opts.quantize.root && opts.quantize.scale) {
         expanded = quantizeToScale(expanded, opts.quantize.root, opts.quantize.scale);
     }
 
@@ -238,7 +238,7 @@ export function buildPatternNotesAndMap(baseNotes, octaveRange, octaveShift, qua
         }
     }
 
-    if (quantize && quantize.enabled && quantize.root && quantize.scale) {
+    if (quantize?.enabled && quantize.root && quantize.scale) {
         const quantized = quantizeToScale(notes, quantize.root, quantize.scale);
         return { notes: quantized, map };
     }
@@ -251,7 +251,7 @@ export function buildPatternNotesAndMap(baseNotes, octaveRange, octaveShift, qua
  * @typedef {object} PatternSequenceResult
  * @property {string[]} finalNotes - Final ordered note sequence to schedule.
  * @property {number[]} stepToBaseIndexMap - Array mapping each step index back to the base note index.
- * @property {string} finalDirection - Direction identifier passed to Tone.Pattern (e.g. 'up', 'down', 'random').
+ * @property {import('../types.d.ts').TonePatternDirection} finalDirection - Direction identifier passed to Tone.Pattern (e.g. 'up', 'down', 'random').
  */
 
 /**
@@ -280,7 +280,8 @@ export function buildPatternSequence(baseNotes, options = {}) {
     }
 
     let finalNotes = [];
-    let finalDirection = direction;
+    /** @type {import("../types.d.ts").TonePatternDirection} */
+    let finalDirection = "up";
     let stepToBaseIndexMap = [];
 
     if (direction === "upDownRepeat") {
@@ -312,10 +313,9 @@ export function buildPatternSequence(baseNotes, options = {}) {
             finalDirection = "up";
         }
     } else if (direction === "octaveCycle") {
-        const quantizedBaseNotes =
-            quantize && quantize.enabled
-                ? quantizeToScale(baseNotes, quantize.root, quantize.scale)
-                : baseNotes;
+        const quantizedBaseNotes = quantize?.enabled
+            ? quantizeToScale(baseNotes, quantize.root, quantize.scale)
+            : baseNotes;
 
         quantizedBaseNotes.forEach((baseNote, i) => {
             const parsed = parseNoteWithOctave(baseNote);
@@ -330,10 +330,9 @@ export function buildPatternSequence(baseNotes, options = {}) {
         });
         finalDirection = "up";
     } else if (direction === "octaveCycleReverse") {
-        const quantizedBaseNotes =
-            quantize && quantize.enabled
-                ? quantizeToScale(baseNotes, quantize.root, quantize.scale)
-                : baseNotes;
+        const quantizedBaseNotes = quantize?.enabled
+            ? quantizeToScale(baseNotes, quantize.root, quantize.scale)
+            : baseNotes;
 
         const indexedNotes = quantizedBaseNotes.map((note, index) => ({
             note,
@@ -354,10 +353,9 @@ export function buildPatternSequence(baseNotes, options = {}) {
         });
         finalDirection = "up";
     } else if (direction === "octaveCyclePingPong") {
-        const quantizedBaseNotes =
-            quantize && quantize.enabled
-                ? quantizeToScale(baseNotes, quantize.root, quantize.scale)
-                : baseNotes;
+        const quantizedBaseNotes = quantize?.enabled
+            ? quantizeToScale(baseNotes, quantize.root, quantize.scale)
+            : baseNotes;
 
         quantizedBaseNotes.forEach((baseNote, i) => {
             const parsed = parseNoteWithOctave(baseNote);
@@ -421,7 +419,7 @@ export function buildPatternSequence(baseNotes, options = {}) {
         );
         finalNotes = notes;
         stepToBaseIndexMap = map;
-        finalDirection = direction;
+        finalDirection = /** @type {import("../types.d.ts").TonePatternDirection} */ (direction);
     }
 
     return {
@@ -511,10 +509,9 @@ export function materializePatternSequence(baseNotes, options = {}) {
             finalMap = [...[...map].reverse(), ...map];
             break;
         case "octaveCycle": {
-            const quantizedBaseNotes =
-                quantize && quantize.enabled
-                    ? quantizeToScale(baseNotes, quantize.root, quantize.scale)
-                    : baseNotes;
+            const quantizedBaseNotes = quantize?.enabled
+                ? quantizeToScale(baseNotes, quantize.root, quantize.scale)
+                : baseNotes;
             quantizedBaseNotes.forEach((baseNote, i) => {
                 const parsed = parseNoteWithOctave(baseNote);
                 if (!parsed || parsed.midi === undefined) return;
@@ -530,10 +527,9 @@ export function materializePatternSequence(baseNotes, options = {}) {
             break;
         }
         case "octaveCycleReverse": {
-            const quantizedBaseNotes =
-                quantize && quantize.enabled
-                    ? quantizeToScale(baseNotes, quantize.root, quantize.scale)
-                    : baseNotes;
+            const quantizedBaseNotes = quantize?.enabled
+                ? quantizeToScale(baseNotes, quantize.root, quantize.scale)
+                : baseNotes;
             const indexed = [...quantizedBaseNotes]
                 .map((note, index) => ({ note, index }))
                 .reverse();
@@ -552,10 +548,9 @@ export function materializePatternSequence(baseNotes, options = {}) {
             break;
         }
         case "octaveCyclePingPong": {
-            const quantizedBaseNotes =
-                quantize && quantize.enabled
-                    ? quantizeToScale(baseNotes, quantize.root, quantize.scale)
-                    : baseNotes;
+            const quantizedBaseNotes = quantize?.enabled
+                ? quantizeToScale(baseNotes, quantize.root, quantize.scale)
+                : baseNotes;
             quantizedBaseNotes.forEach((baseNote, i) => {
                 const parsed = parseNoteWithOctave(baseNote);
                 if (!parsed || parsed.midi === undefined) return;
@@ -648,7 +643,7 @@ export function materializePatternSequence(baseNotes, options = {}) {
  * @returns {NoteMarker[]} Ordered array of note triggers and normalized timestamps.
  */
 export function calculateNoteMarkers(settings) {
-    if (!settings || !settings.baseNotes || settings.baseNotes.length === 0) {
+    if (!settings?.baseNotes || settings.baseNotes.length === 0) {
         return [];
     }
 

@@ -3,6 +3,7 @@
  * service worker.
  */
 (() => {
+    /** @type {import('../types.d.ts').WebArpAssetManifest} */
     const manifest = window.__WEB_ARP_ASSET_MANIFEST__ || {
         cacheVersion: "dev",
         appShell: "./index.html",
@@ -10,13 +11,17 @@
         assets: [],
     };
 
-    const state = (window.__WEB_ARP_PWA_STATE__ = window.__WEB_ARP_PWA_STATE__ || {
-        cacheVersion: manifest.cacheVersion || "dev",
-        serviceWorkerRegistered: false,
-        serviceWorkerUrl: null,
-        serviceWorkerError: null,
-        hasWaitingWorker: false,
-    });
+    if (!window.__WEB_ARP_PWA_STATE__) {
+        window.__WEB_ARP_PWA_STATE__ = {
+            cacheVersion: manifest.cacheVersion || "dev",
+            serviceWorkerRegistered: false,
+            serviceWorkerUrl: null,
+            serviceWorkerError: null,
+            hasWaitingWorker: false,
+        };
+    }
+    /** @type {import('../types.d.ts').WebArpPWAState} */
+    const state = window.__WEB_ARP_PWA_STATE__;
 
     let registration = null;
     let messageCounter = 0;
@@ -179,7 +184,8 @@
                 return;
             }
 
-            const messageId = `web-arp-${Date.now()}-${(messageCounter += 1)}`;
+            messageCounter += 1;
+            const messageId = `web-arp-${Date.now()}-${messageCounter}`;
             const timeoutId = window.setTimeout(() => {
                 navigator.serviceWorker.removeEventListener("message", onMessage);
                 reject(new Error(`Timed out waiting for service worker response: ${type}`));

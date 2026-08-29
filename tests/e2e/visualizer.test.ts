@@ -1,22 +1,15 @@
-import { test, expect, beforeAll, afterAll } from "bun:test";
-import { type Subprocess } from "bun";
-import {
-    startTestServer,
-    runBrowser,
-    waitForPwaReady,
-    initializeAudio,
-    resetBrowserState,
-    cleanupProcesses,
-    closeBrowser,
-} from "../test-helpers";
+import { afterAll, beforeAll, test } from "bun:test";
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
-
-/**
- * References the background server process.
- * @type {Subprocess|null}
- */
-let serverProcess: Subprocess | null = null;
+import {
+    cleanupProcesses,
+    closeBrowser,
+    initializeAudio,
+    resetBrowserState,
+    runBrowser,
+    startTestServer,
+    waitForPwaReady,
+} from "../test-helpers";
 
 /**
  * The port number for the test server instance.
@@ -38,7 +31,7 @@ const SNAPSHOTS_DIR: string = join(import.meta.dir, "visualizer-snapshots");
 
 beforeAll(async (): Promise<void> => {
     await mkdir(SNAPSHOTS_DIR, { recursive: true });
-    serverProcess = await startTestServer(PORT);
+    await startTestServer(PORT);
 });
 
 afterAll(async (): Promise<void> => {

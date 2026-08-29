@@ -115,8 +115,8 @@ export function uint16ToBytes(value) {
 /**
  * Builds a complete Standard MIDI File (Format 0) binary Uint8Array from arpeggiator pattern parameters.
  *
- * @param {object} options - Generation parameters.
- * @param {string[]} options.notes - Sequence of note names in playback order.
+ * @param {object} [options={}] - Generation parameters.
+ * @param {string[]} [options.notes] - Sequence of note names in playback order.
  * @param {number} [options.bpm=120] - Tempo in beats per minute.
  * @param {string} [options.interval='16n'] - Note duration interval string.
  * @param {number} [options.gateRatio=0.8] - Note gate duration ratio (0.05 to 1.0).
@@ -124,7 +124,7 @@ export function uint16ToBytes(value) {
  * @param {number} [options.velocity=100] - Note-On MIDI velocity (1–127).
  * @returns {Uint8Array} Standard MIDI File binary data.
  */
-export function createMidiFileBytes(options) {
+export function createMidiFileBytes(options = {}) {
     const {
         notes = ["C4", "E4", "G4"],
         bpm = 120,
@@ -134,16 +134,16 @@ export function createMidiFileBytes(options) {
         velocity = 100,
     } = options || {};
 
-    const parsedBpm = parseFloat(bpm);
+    const parsedBpm = Number(bpm);
     const safeBpm = Number.isFinite(parsedBpm) ? Math.max(20, Math.min(300, parsedBpm)) : 120;
 
-    const parsedGate = parseFloat(gateRatio);
+    const parsedGate = Number(gateRatio);
     const safeGate = Number.isFinite(parsedGate) ? Math.max(0.05, Math.min(1.0, parsedGate)) : 0.8;
 
-    const parsedLoops = parseInt(loopCount, 10);
+    const parsedLoops = Math.trunc(Number(loopCount));
     const safeLoops = Number.isFinite(parsedLoops) ? Math.max(1, Math.min(100, parsedLoops)) : 1;
 
-    const parsedVelocity = parseInt(velocity, 10);
+    const parsedVelocity = Math.trunc(Number(velocity));
     const safeVelocity = Number.isFinite(parsedVelocity)
         ? Math.max(1, Math.min(127, parsedVelocity))
         : 100;
@@ -249,9 +249,11 @@ export function createMidiFileBytes(options) {
  * @param {object} options - Arpeggiator pattern and timing parameters.
  * @returns {Blob} Standard MIDI file Blob with MIME type 'audio/midi'.
  */
-export function createMidiBlob(options) {
+export function createMidiBlob(options = {}) {
     const bytes = createMidiFileBytes(options);
-    return new Blob([bytes], { type: "audio/midi" });
+    const buffer =
+        bytes.buffer instanceof ArrayBuffer ? bytes.buffer : new Uint8Array(bytes).buffer;
+    return new Blob([buffer], { type: "audio/midi" });
 }
 
 /**

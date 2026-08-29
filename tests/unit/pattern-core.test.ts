@@ -1,16 +1,16 @@
-import { describe, test, expect } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import {
-    parseNoteWithOctave,
-    normalizeNoteName,
-    normalizeNotesSequence,
-    quantizeToScale,
-    getArpeggioNotes,
     buildPatternNotesAndMap,
     buildPatternSequence,
-    materializePatternSequence,
-    calculateNoteMarkers,
     CHROMATIC_PITCHES,
     CHROMATIC_RANGE,
+    calculateNoteMarkers,
+    getArpeggioNotes,
+    materializePatternSequence,
+    normalizeNoteName,
+    normalizeNotesSequence,
+    parseNoteWithOctave,
+    quantizeToScale,
 } from "../../js/pattern-core.js";
 
 describe("Pattern Core - Note Parsing & Auto-Resolution", () => {
@@ -19,7 +19,10 @@ describe("Pattern Core - Note Parsing & Auto-Resolution", () => {
         expect(parseNoteWithOctave("C")).toEqual({ name: "C4", midi: 60 });
         expect(parseNoteWithOctave("eb")).toEqual({ name: "Eb4", midi: 63 });
         expect(parseNoteWithOctave("f#2")).toEqual({ name: "F#2", midi: 42 });
-        expect(parseNoteWithOctave("   g#   ")).toEqual({ name: "G#4", midi: 68 });
+        expect(parseNoteWithOctave("   g#   ")).toEqual({
+            name: "G#4",
+            midi: 68,
+        });
         expect(parseNoteWithOctave("invalid")).toBeNull();
         expect(parseNoteWithOctave("")).toBeNull();
     });
@@ -208,6 +211,7 @@ describe("Pattern Core - All 12 Pattern Directions", () => {
             direction: "randomWalkDrunk",
             rng: mockRng,
         });
+        expect(callCount).toBeGreaterThan(0);
 
         expect(drunk.finalNotes.length).toBe(16);
         expect(drunk.stepToBaseIndexMap.length).toBe(16);
@@ -328,7 +332,9 @@ describe("Pattern Core - Note Marker Calculations", () => {
 
     test("returns empty array for empty inputs", () => {
         expect(calculateNoteMarkers({ baseNotes: [] })).toEqual([]);
-        expect(calculateNoteMarkers(null as any)).toEqual([]);
+        expect(
+            calculateNoteMarkers(null as unknown as Parameters<typeof calculateNoteMarkers>[0]),
+        ).toEqual([]);
     });
 });
 
@@ -346,11 +352,15 @@ describe("Pattern Core - materializePatternSequence Deterministic Unrolling", ()
     });
 
     test("materializes 'upDown' and 'downUp' sequences with exclusive endpoints", () => {
-        const upDown = materializePatternSequence(base, { direction: "upDown" });
+        const upDown = materializePatternSequence(base, {
+            direction: "upDown",
+        });
         expect(upDown.notes).toEqual(["C4", "E4", "G4", "E4"]);
         expect(upDown.map).toEqual([0, 1, 2, 1]);
 
-        const downUp = materializePatternSequence(base, { direction: "downUp" });
+        const downUp = materializePatternSequence(base, {
+            direction: "downUp",
+        });
         expect(downUp.notes).toEqual(["G4", "E4", "C4", "E4"]);
         expect(downUp.map).toEqual([2, 1, 0, 1]);
     });
@@ -370,7 +380,9 @@ describe("Pattern Core - materializePatternSequence Deterministic Unrolling", ()
     });
 
     test("materializes octave cycle variants", () => {
-        const oct = materializePatternSequence(["C4"], { direction: "octaveCycle" });
+        const oct = materializePatternSequence(["C4"], {
+            direction: "octaveCycle",
+        });
         expect(oct.notes).toEqual(["C4", "C5", "C6", "C4", "C5", "C6"]);
 
         const octRev = materializePatternSequence(["C4"], {
@@ -419,7 +431,9 @@ describe("Pattern Core - materializePatternSequence Deterministic Unrolling", ()
             rng: alternatingRng,
         });
         expect(walk.notes.length).toBe(2);
-        walk.notes.forEach((n) => expect(["C4", "E4"]).toContain(n));
+        walk.notes.forEach((n) => {
+            expect(["C4", "E4"]).toContain(n);
+        });
 
         // 2. Test randomWalkDrunk leap branch (rng >= 0.8) and negative leap step = -3 with 2 notes
         // Sequence of RNG values:
@@ -480,7 +494,9 @@ describe("Pattern Core - materializePatternSequence Deterministic Unrolling", ()
         scaleTypes.forEach((scale) => {
             const notes = quantizeToScale(["C4", "D#4", "F#4"], "C", scale);
             expect(notes.length).toBe(3);
-            notes.forEach((n) => expect(typeof n).toBe("string"));
+            notes.forEach((n) => {
+                expect(typeof n).toBe("string");
+            });
         });
     });
 
@@ -510,7 +526,9 @@ describe("Pattern Core - materializePatternSequence Deterministic Unrolling", ()
 
     test("handles fallback/unrecognized direction branches gracefully", () => {
         // @ts-expect-error test unrecognized direction
-        const matFallback = materializePatternSequence(["C4", "E4"], { direction: "invalid" });
+        const matFallback = materializePatternSequence(["C4", "E4"], {
+            direction: "invalid",
+        });
         expect(matFallback.notes).toEqual(["C4", "E4"]);
 
         // @ts-expect-error test unrecognized direction in marker calculation
@@ -523,6 +541,9 @@ describe("Pattern Core - materializePatternSequence Deterministic Unrolling", ()
 
     test("handles empty or invalid inputs gracefully", () => {
         expect(materializePatternSequence([])).toEqual({ notes: [], map: [] });
-        expect(materializePatternSequence(null as any)).toEqual({ notes: [], map: [] });
+        expect(materializePatternSequence(null as unknown as string[])).toEqual({
+            notes: [],
+            map: [],
+        });
     });
 });

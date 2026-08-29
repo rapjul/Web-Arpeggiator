@@ -9,26 +9,26 @@
 
 import * as Tone from "tone";
 import {
-    quantizeToScale,
-    getArpeggioNotes,
-    buildPatternSequence,
-    materializePatternSequence,
     buildPatternNotesAndMap,
-    calculateNoteMarkers,
+    buildPatternSequence,
     CHROMATIC_PITCHES,
     CHROMATIC_RANGE,
+    calculateNoteMarkers,
+    getArpeggioNotes,
+    materializePatternSequence,
+    quantizeToScale,
 } from "./pattern-core.js";
 
 // Re-export pure domain helpers for backwards compatibility
 export {
-    quantizeToScale,
-    getArpeggioNotes,
-    buildPatternSequence,
-    materializePatternSequence,
     buildPatternNotesAndMap,
-    calculateNoteMarkers,
+    buildPatternSequence,
     CHROMATIC_PITCHES,
     CHROMATIC_RANGE,
+    calculateNoteMarkers,
+    getArpeggioNotes,
+    materializePatternSequence,
+    quantizeToScale,
 };
 
 /**
@@ -112,7 +112,7 @@ export function createOrUpdatePattern() {
         if (window.arpPattern) {
             try {
                 window.arpPattern.dispose();
-            } catch (e) {}
+            } catch {}
             window.arpPattern = null;
         }
 
@@ -122,7 +122,7 @@ export function createOrUpdatePattern() {
         // Create Tone.Pattern with direction mapping
         const patternInstance = new Tone.Pattern(
             (time, note) => {
-                const synth = window.activeSynth || null;
+                const synth = window.activeSynth;
                 if (synth) {
                     try {
                         if (
@@ -134,7 +134,7 @@ export function createOrUpdatePattern() {
                         } else if (typeof synth.triggerAttackRelease === "function") {
                             synth.triggerAttackRelease(note, durationSeconds, time);
                         }
-                    } catch (e) {
+                    } catch {
                         try {
                             if (
                                 typeof synth.triggerAttack === "function" &&
@@ -145,7 +145,7 @@ export function createOrUpdatePattern() {
                             } else if (typeof synth.triggerAttackRelease === "function") {
                                 synth.triggerAttackRelease(note, durationSeconds);
                             }
-                        } catch (_) {}
+                        } catch {}
                     }
                 }
 
@@ -167,10 +167,10 @@ export function createOrUpdatePattern() {
             finalDirection,
         );
 
+        patternInstance.interval = interval;
         window.arpPattern = patternInstance;
-        window.arpPattern.interval = interval;
 
-        if (window.isPlaying) window.arpPattern.start(0);
+        if (window.isPlaying) patternInstance.start(0);
     } catch (e) {
         console.error("createOrUpdatePattern error", e);
     }

@@ -1,4 +1,4 @@
-import { describe, test, expect } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import { createSettingsManager } from "../../js/settings-manager.js";
 
 describe("Settings Manager Domain Module", () => {
@@ -54,7 +54,7 @@ describe("Settings Manager Domain Module", () => {
         };
 
         const mockActions = {
-            getArpeggioNotes: (notes: string[], range: number, shift: number) => [
+            getArpeggioNotes: (_notes: string[], _range: number, _shift: number) => [
                 "D5",
                 "D6",
                 "F5",
@@ -81,10 +81,12 @@ describe("Settings Manager Domain Module", () => {
         };
 
         const manager = createSettingsManager({
-            state: mockState as any,
-            dom: mockDom as any,
-            actions: mockActions as any,
-            audio: mockAudio as any,
+            state: mockState as unknown as Parameters<typeof createSettingsManager>[0]["state"],
+            dom: mockDom as unknown as Parameters<typeof createSettingsManager>[0]["dom"],
+            actions: mockActions as unknown as Parameters<
+                typeof createSettingsManager
+            >[0]["actions"],
+            audio: mockAudio as unknown as Parameters<typeof createSettingsManager>[0]["audio"],
         });
 
         const settings = manager.getAllSettings();
@@ -187,10 +189,12 @@ describe("Settings Manager Domain Module", () => {
         };
 
         const manager = createSettingsManager({
-            state: mockState as any,
-            dom: mockDom as any,
-            actions: mockActions as any,
-            audio: mockAudio as any,
+            state: mockState as unknown as Parameters<typeof createSettingsManager>[0]["state"],
+            dom: mockDom as unknown as Parameters<typeof createSettingsManager>[0]["dom"],
+            actions: mockActions as unknown as Parameters<
+                typeof createSettingsManager
+            >[0]["actions"],
+            audio: mockAudio as unknown as Parameters<typeof createSettingsManager>[0]["audio"],
         });
 
         manager.loadAllSettings({

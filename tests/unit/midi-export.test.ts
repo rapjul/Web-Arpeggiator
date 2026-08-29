@@ -1,13 +1,12 @@
-import { describe, test, expect } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import {
-    noteNameToMidiNumber,
+    createMidiBlob,
+    createMidiFileBytes,
     encodeVariableLengthQuantity,
+    noteNameToMidiNumber,
+    TICKS_PER_BEAT,
     uint16ToBytes,
     uint32ToBytes,
-    createMidiFileBytes,
-    createMidiBlob,
-    TICKS_PER_BEAT,
-    INTERVAL_BEAT_MULTIPLIERS,
 } from "../../js/midi-export.js";
 
 describe("MIDI Export Domain Module", () => {
@@ -117,13 +116,10 @@ describe("MIDI Export Domain Module", () => {
     });
 
     test("createMidiFileBytes defensively normalizes non-finite or invalid parameters", () => {
-        // @ts-expect-error test non-finite inputs
         const bytesNaN = createMidiFileBytes({
             notes: ["C4"],
             bpm: Number.NaN,
-            // @ts-expect-error test NaN loopCount
             loopCount: Number.NaN,
-            // @ts-expect-error test NaN gateRatio
             gateRatio: Number.NaN,
         });
         expect(bytesNaN instanceof Uint8Array).toBe(true);
