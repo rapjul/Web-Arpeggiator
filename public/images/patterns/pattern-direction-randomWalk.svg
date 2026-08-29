@@ -1,5 +1,6 @@
-<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-   <path
-      d="M2 16 Q6 12, 10 16 T18 12 T24 16 T30 12"
-      stroke="#38bdf8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+<svg id="pattern-direction-randomWalk" xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none">
+  <title>Pattern Direction: Random Walk</title>
+  <path
+    d="M2 16 Q6 12, 10 16 T18 12 T24 16 T30 12"
+    stroke="#38bdf8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
 </svg>

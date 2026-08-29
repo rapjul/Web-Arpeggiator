@@ -1,4 +1,5 @@
-<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<svg id="pattern-direction-octaveCycleReversed" xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none">
+  <title>Pattern Direction: Octave Cycle Reversed</title>
   <circle cx="8" cy="8" r="3" fill="#38bdf8" />
   <circle cx="16" cy="16" r="3" fill="#38bdf8" />
   <circle cx="24" cy="24" r="3" fill="#38bdf8" />
