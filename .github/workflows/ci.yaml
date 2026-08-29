@@ -32,7 +32,7 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Check code formatting (Biome)
-        run: bun run format --check
+        run: bun run format:check
 
       - name: Run test suite with V8 coverage gates
         run: bun run test:coverage
