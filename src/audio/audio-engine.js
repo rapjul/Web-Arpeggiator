@@ -555,14 +555,20 @@ export function createAudioEngine(context) {
             offlineSynth.voice1.envelope.release = settings.envRelease;
         }
 
-        // 4. Connect final output to virtual destination
+        // 4. Recreate Post-Gain (Volume)
+        const offlinePostGain = new Tone.Volume(
+            settings.postGain !== undefined ? settings.postGain : 0,
+        );
+        offlineReverb.connect(offlinePostGain);
+
+        // 5. Connect final output to virtual destination
         if (offlineLimiter) {
-            offlineReverb.connect(offlineLimiter);
+            offlinePostGain.connect(offlineLimiter);
         } else {
-            offlineReverb.connect(offlineContext.destination);
+            offlinePostGain.connect(offlineContext.destination);
         }
 
-        return { offlineSynth, offlineOutput: offlineReverb };
+        return { offlineSynth, offlineOutput: offlinePostGain, offlinePostGain };
     }
 
     // Set default synth

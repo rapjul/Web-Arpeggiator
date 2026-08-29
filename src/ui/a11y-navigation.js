@@ -50,7 +50,14 @@ export function setupKeyboardNavigation(container, buttonSelector) {
             buttons[nextIndex] &&
             typeof buttons[nextIndex].focus === "function"
         ) {
-            buttons[nextIndex].focus();
+            const nextEl = buttons[nextIndex];
+            nextEl.focus();
+
+            if (nextEl instanceof HTMLInputElement && nextEl.type === "radio") {
+                nextEl.checked = true;
+                nextEl.dispatchEvent(new Event("change", { bubbles: true }));
+                nextEl.dispatchEvent(new Event("input", { bubbles: true }));
+            }
         }
     });
 }

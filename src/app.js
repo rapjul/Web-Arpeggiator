@@ -840,64 +840,29 @@ function initializeApp() {
         }
     }
 
-    /**
-     * Immediately saves the current settings as "last session".
-     * @returns {Promise<void>}
-     */
-    async function saveLastSessionNow() {
-        if (!window.WebArpPresetStore || isLoadingStoredSettings) return;
-        try {
-            const record = await window.WebArpPresetStore.saveLastSession(getAllSettings());
-            updateTestState({
-                lastSessionId: record.id,
-                lastSessionSavedAt: record.savedAt,
-            });
-        } catch (error) {
-            console.warn("Failed to save last session:", error);
-        }
-    }
+    // ------------------------------------------------------------------
+    // Session Manager — Auto-save and workspace restoration
+    // ------------------------------------------------------------------
 
-    /**
-     * Schedules a debounced last-session save.
-     * @returns {void}
-     */
-    function scheduleLastSessionSave() {
-        if (isLoadingStoredSettings) return;
-        if (lastSessionSaveTimer) clearTimeout(lastSessionSaveTimer);
-        lastSessionSaveTimer = setTimeout(() => {
-            saveLastSessionNow();
-        }, 2000);
-    }
-
-    /**
-     * Restores the "last session" from IndexedDB on startup.
-     * @returns {Promise<void>}
-     */
-    async function restoreLastSession() {
-        if (!window.WebArpPresetStore) {
-            updateTestState({ lastSessionRestoreFinished: true });
-            return;
-        }
-        try {
-            const record = await window.WebArpPresetStore.loadLastSession();
-            if (record?.settings) {
-                isLoadingStoredSettings = true;
-                loadAllSettings(record.settings);
-                // Fall back to up if the direction is valid
-                if (getSelectedPatternDirection()) {
-                    setSelectedPatternDirection(getSelectedPatternDirection());
-                } else {
-                    setSelectedPatternDirection("up");
-                }
-                isLoadingStoredSettings = false;
+    const sessionManager = createSessionManager({
+        getPresetStore: () => window.WebArpPresetStore,
+        getSettings: () => getAllSettings(),
+        onRestore: (settings) => {
+            isLoadingStoredSettings = true;
+            loadAllSettings(settings);
+            if (getSelectedPatternDirection()) {
+                setSelectedPatternDirection(getSelectedPatternDirection());
+            } else {
+                setSelectedPatternDirection("up");
             }
-        } catch (error) {
             isLoadingStoredSettings = false;
-            console.warn("Failed to restore last session:", error);
-        } finally {
-            updateTestState({ lastSessionRestoreFinished: true });
-        }
-    }
+        },
+        updateTestState,
+    });
+
+    const saveLastSessionNow = () => sessionManager.saveNow();
+    const scheduleLastSessionSave = () => sessionManager.scheduleSave();
+    const restoreLastSession = () => sessionManager.restoreSession();
 
     // ==================================================================
     //    Module Initialization
