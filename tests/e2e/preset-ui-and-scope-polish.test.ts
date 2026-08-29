@@ -77,11 +77,9 @@ test("Preset UI Hierarchy & Visualizer Status Suite", async (): Promise<void> =>
             return "not-saved";
         }
         const selectEl = document.getElementById("saved-preset-select");
-        if (selectEl.options.length === 0 || selectEl.options[0].value === "") {
+        const hasOption = [...selectEl.options].some((opt) => opt.text.includes("Cyberpunk Test Preset"));
+        if (!hasOption) {
             return "preset-not-added-to-dropdown";
-        }
-        if (!selectEl.options[0].text.includes("Cyberpunk Test Preset")) {
-            return "preset-name-mismatch: " + selectEl.options[0].text;
         }
         return "success";
     })()`,
@@ -136,6 +134,34 @@ test("Preset UI Hierarchy & Visualizer Status Suite", async (): Promise<void> =>
     })()`,
     ]);
     expect(visualizerControlsResult).toBe('"success"');
+
+    // 5. Test Factory Preset Loading
+    console.log("Step 5: Testing Factory Preset loading...");
+    const factoryPresetResult: string = await runBrowser([
+        "eval",
+        `(async () => {
+        const selectEl = document.getElementById("saved-preset-select");
+        const loadStoredBtn = document.getElementById("load-saved-preset-button");
+        const bpmSlider = document.getElementById("bpm");
+        const synthTypeSelect = document.getElementById("synth-type");
+
+        // Select Classic Synthwave
+        selectEl.value = "factory-synthwave";
+        selectEl.dispatchEvent(new Event("change"));
+        loadStoredBtn.click();
+
+        // Check that BPM was set to 128 and synth to Basic Synth
+        if (bpmSlider.value !== "128") {
+            return "factory-preset-bpm-failed: " + bpmSlider.value;
+        }
+        if (synthTypeSelect.value !== "synth") {
+            return "factory-preset-synth-failed: " + synthTypeSelect.value;
+        }
+
+        return "success";
+    })()`,
+    ]);
+    expect(factoryPresetResult).toBe('"success"');
 
     console.log("Preset UI Hierarchy & Visualizer Status Suite complete!");
 }, 30000);

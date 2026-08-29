@@ -635,7 +635,200 @@ function initializeApp() {
     }
 
     /**
-     * Rebuilds the saved-preset <select> from IndexedDB.
+     * Curated factory presets demonstrating synthesis modes and pattern possibilities.
+     * @type {Array<{id: string, name: string, isFactory: boolean, settings: object}>}
+     */
+    const FACTORY_PRESETS = [
+        {
+            id: "factory-synthwave",
+            name: "Classic Synthwave",
+            isFactory: true,
+            settings: {
+                bpm: 128,
+                swing: 0,
+                postGain: 0,
+                baseNotes: ["C4", "E4", "G4", "B4"],
+                direction: "up",
+                interval: "16n",
+                octaveShift: 0,
+                octaveRange: 2,
+                scaleQuantize: true,
+                scaleRoot: "C",
+                scaleType: "major",
+                synthType: "synth",
+                waveform: "sawtooth",
+                envAttack: 0.01,
+                envDecay: 0.2,
+                envSustain: 0.4,
+                envRelease: 0.4,
+                filterCutoff: 4500,
+                filterResonance: 2,
+                delayMix: 0.25,
+                reverbMix: 0.35,
+                loopCount: 4,
+            },
+        },
+        {
+            id: "factory-ambient",
+            name: "Ambient Dreamscape",
+            isFactory: true,
+            settings: {
+                bpm: 85,
+                swing: 0.1,
+                postGain: 0,
+                baseNotes: ["C4", "G4", "C5", "D5"],
+                direction: "upDown",
+                interval: "8n",
+                octaveShift: 0,
+                octaveRange: 2,
+                scaleQuantize: true,
+                scaleRoot: "C",
+                scaleType: "lydian",
+                synthType: "fmSynth",
+                waveform: "sine",
+                harmonicity: 2.0,
+                modulationIndex: 5.0,
+                envAttack: 0.1,
+                envDecay: 0.6,
+                envSustain: 0.7,
+                envRelease: 1.2,
+                filterCutoff: 3000,
+                filterResonance: 1.5,
+                delayMix: 0.45,
+                reverbMix: 0.65,
+                loopCount: 4,
+            },
+        },
+        {
+            id: "factory-cyberpunk",
+            name: "Cyberpunk Bassline",
+            isFactory: true,
+            settings: {
+                bpm: 140,
+                swing: 0,
+                postGain: 0,
+                baseNotes: ["C2", "C3", "D#2", "G2"],
+                direction: "octaveCycle",
+                interval: "16n",
+                octaveShift: -1,
+                octaveRange: 1,
+                scaleQuantize: true,
+                scaleRoot: "C",
+                scaleType: "minor",
+                synthType: "monoSynth",
+                waveform: "sawtooth",
+                monoCutoff: 1200,
+                monoOctaves: 3,
+                monoQ: 4,
+                driveMix: 0.4,
+                envAttack: 0.005,
+                envDecay: 0.15,
+                envSustain: 0.1,
+                envRelease: 0.2,
+                filterCutoff: 2200,
+                filterResonance: 4.0,
+                delayMix: 0.15,
+                reverbMix: 0.2,
+                loopCount: 4,
+            },
+        },
+        {
+            id: "factory-harp",
+            name: "Plucked Acoustic Harp",
+            isFactory: true,
+            settings: {
+                bpm: 110,
+                swing: 0.05,
+                postGain: 0,
+                baseNotes: ["D4", "F#4", "A4", "C#5"],
+                direction: "randomWalk",
+                interval: "16n",
+                octaveShift: 0,
+                octaveRange: 2,
+                scaleQuantize: true,
+                scaleRoot: "D",
+                scaleType: "major",
+                synthType: "pluckSynth",
+                waveform: "sine",
+                pluckDampening: 5000,
+                pluckResonance: 0.95,
+                envAttack: 0.001,
+                envDecay: 0.5,
+                envSustain: 0.0,
+                envRelease: 0.8,
+                filterCutoff: 6000,
+                filterResonance: 1.0,
+                delayMix: 0.2,
+                reverbMix: 0.5,
+                loopCount: 4,
+            },
+        },
+        {
+            id: "factory-chiptune",
+            name: "Chiptune Nostalgia",
+            isFactory: true,
+            settings: {
+                bpm: 150,
+                swing: 0,
+                postGain: 0,
+                baseNotes: ["C4", "E4", "G4", "C5"],
+                direction: "upDownRepeat",
+                interval: "32n",
+                octaveShift: 0,
+                octaveRange: 2,
+                scaleQuantize: true,
+                scaleRoot: "C",
+                scaleType: "majorPentatonic",
+                synthType: "synth",
+                waveform: "square",
+                dutyCycle: 0.5,
+                envAttack: 0.001,
+                envDecay: 0.08,
+                envSustain: 0.2,
+                envRelease: 0.05,
+                filterCutoff: 8000,
+                filterResonance: 0.5,
+                delayMix: 0.1,
+                reverbMix: 0.15,
+                loopCount: 4,
+            },
+        },
+        {
+            id: "factory-neosoul",
+            name: "Jazzy Neo-Soul",
+            isFactory: true,
+            settings: {
+                bpm: 92,
+                swing: 0.35,
+                postGain: 0,
+                baseNotes: ["D4", "F4", "A4", "C5", "E5"],
+                direction: "up",
+                interval: "8n",
+                octaveShift: 0,
+                octaveRange: 2,
+                scaleQuantize: true,
+                scaleRoot: "D",
+                scaleType: "dorian",
+                synthType: "duoSynth",
+                waveform: "sine",
+                duoHarm: 1.5,
+                duoVibrato: 0.3,
+                chorusMix: 0.3,
+                envAttack: 0.02,
+                envDecay: 0.3,
+                envSustain: 0.5,
+                envRelease: 0.6,
+                filterCutoff: 3800,
+                filterResonance: 1.8,
+                delayMix: 0.25,
+                reverbMix: 0.4,
+                loopCount: 4,
+            },
+        },
+    ];
+
+    /**
+     * Rebuilds the saved-preset <select> from factory presets and IndexedDB.
      * @param {string} [selectedId=''] - The preset id to select after refresh.
      * @returns {Promise<void>}
      */
@@ -643,21 +836,39 @@ function initializeApp() {
         if (selectedId === undefined) selectedId = savedPresetSelect?.value || "";
         if (!savedPresetSelect) return;
         try {
-            const records = await window.WebArpPresetStore.list();
+            const records = window.WebArpPresetStore ? await window.WebArpPresetStore.list() : [];
             savedPresetSelect.innerHTML = "";
+
+            // 1. Factory Presets group
+            const factoryGroup = document.createElement("optgroup");
+            factoryGroup.label = "Factory Presets";
+            FACTORY_PRESETS.forEach((preset) => {
+                const option = document.createElement("option");
+                option.value = preset.id;
+                option.textContent = preset.name;
+                factoryGroup.appendChild(option);
+            });
+            savedPresetSelect.appendChild(factoryGroup);
+
+            // 2. User Presets group
+            const userGroup = document.createElement("optgroup");
+            userGroup.label = "User Presets";
             if (records.length === 0) {
                 const option = document.createElement("option");
                 option.value = "";
-                option.textContent = "— No saved presets —";
-                savedPresetSelect.appendChild(option);
-                return;
+                option.disabled = true;
+                option.textContent = "— No saved user presets —";
+                userGroup.appendChild(option);
+            } else {
+                records.forEach((record) => {
+                    const option = document.createElement("option");
+                    option.value = record.id;
+                    option.textContent = getPresetDisplayName(record);
+                    userGroup.appendChild(option);
+                });
             }
-            records.forEach((record) => {
-                const option = document.createElement("option");
-                option.value = record.id;
-                option.textContent = getPresetDisplayName(record);
-                savedPresetSelect.appendChild(option);
-            });
+            savedPresetSelect.appendChild(userGroup);
+
             // Try to re-select the previously selected id
             if (selectedId && [...savedPresetSelect.options].some((o) => o.value === selectedId)) {
                 savedPresetSelect.value = selectedId;
@@ -1908,6 +2119,22 @@ function initializeApp() {
         loadSavedPresetButton.addEventListener("click", async () => {
             log("Load saved preset button clicked.");
             updateTestState({ lastLoadFinished: false });
+            const selectedId = savedPresetSelect?.value || "";
+
+            // Check if selected preset is a Factory Preset
+            const factoryPreset = FACTORY_PRESETS.find((p) => p.id === selectedId);
+            if (factoryPreset) {
+                loadAllSettings(factoryPreset.settings);
+                if (presetNameInput) presetNameInput.value = factoryPreset.name;
+                updateTestState({
+                    lastLoadedPreset: factoryPreset.settings,
+                    lastLoadedPresetRecord: factoryPreset,
+                    lastLoadFinished: true,
+                });
+                showToast(`Loaded factory preset: ${factoryPreset.name}`, "success");
+                return;
+            }
+
             if (!window.WebArpPresetStore) {
                 updateTestState({
                     lastLoadError: "Browser preset storage is unavailable.",
@@ -1917,7 +2144,6 @@ function initializeApp() {
                 return;
             }
             try {
-                const selectedId = savedPresetSelect?.value || "";
                 const record = selectedId
                     ? await window.WebArpPresetStore.get(selectedId)
                     : await window.WebArpPresetStore.loadLatest();
@@ -1961,6 +2187,18 @@ function initializeApp() {
                 showToast("Browser preset storage is unavailable.", "error");
                 return;
             }
+
+            const confirmed = window.__WEB_ARP_TEST__?.skipConfirm
+                ? true
+                : confirm(
+                      "Are you sure you want to clear all your saved user presets? This action cannot be undone.",
+                  );
+
+            if (!confirmed) {
+                updateTestState({ lastClearFinished: true });
+                return;
+            }
+
             try {
                 await window.WebArpPresetStore.clear();
                 await refreshSavedPresetList();
@@ -1981,15 +2219,8 @@ function initializeApp() {
         deleteSavedPresetButton.addEventListener("click", async () => {
             log("Delete saved preset button clicked.");
             updateTestState({ lastDeleteFinished: false });
-            if (!window.WebArpPresetStore) {
-                updateTestState({
-                    lastDeleteError: "Browser preset storage is unavailable.",
-                    lastDeleteFinished: true,
-                });
-                showToast("Browser preset storage is unavailable.", "error");
-                return;
-            }
             const selectedId = savedPresetSelect?.value || "";
+
             if (!selectedId) {
                 updateTestState({
                     lastDeleteError: "No saved preset selected.",
@@ -1998,6 +2229,22 @@ function initializeApp() {
                 showToast("No saved preset selected.", "info");
                 return;
             }
+
+            if (selectedId.startsWith("factory-")) {
+                showToast("Factory presets cannot be deleted.", "info");
+                updateTestState({ lastDeleteFinished: true });
+                return;
+            }
+
+            if (!window.WebArpPresetStore) {
+                updateTestState({
+                    lastDeleteError: "Browser preset storage is unavailable.",
+                    lastDeleteFinished: true,
+                });
+                showToast("Browser preset storage is unavailable.", "error");
+                return;
+            }
+
             try {
                 await window.WebArpPresetStore.remove(selectedId);
                 await refreshSavedPresetList();
