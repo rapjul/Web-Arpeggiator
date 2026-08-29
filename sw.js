@@ -65,7 +65,7 @@ async function cacheFirst(request) {
         }
 
         return networkResponse;
-    } catch (error) {
+    } catch {
         return cachedResponse || Response.error();
     }
 }
@@ -87,7 +87,7 @@ async function networkFirst(request, fallbackUrl = FALLBACK_URL) {
         }
 
         return networkResponse;
-    } catch (error) {
+    } catch {
         const cachedResponse = (await cache.match(request)) || (await cache.match(fallbackUrl));
         if (cachedResponse) {
             return cachedResponse;

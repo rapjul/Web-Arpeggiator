@@ -1,7 +1,5 @@
 {
-  "extends": [
-    "development"
-  ],
+  "extends": ["development"],
   "browserslist": [
     "> 0.5%",
     "last 3 versions",
