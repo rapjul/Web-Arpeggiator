@@ -2,7 +2,7 @@
  * @file Unit tests for Web Arpeggiator Audio Engine configurations and supported synth models.
  */
 
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import type { WebArpSynth } from "../../types.d.ts";
 
 describe("Audio Engine Model Definitions", () => {

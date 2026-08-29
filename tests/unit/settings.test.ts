@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { createSettingsManager } from "@storage/settings-manager.js";
 
 describe("Settings Manager Domain Module", () => {

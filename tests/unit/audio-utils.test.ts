@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { audioBufferToWav, float32ToInt16, interleave, writeString } from "@core/audio-utils.js";
 
 describe("Audio Utils Domain Module", () => {
