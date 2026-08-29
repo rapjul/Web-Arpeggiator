@@ -117,7 +117,12 @@ export function createOrUpdatePattern() {
         }
 
         // Calculate note duration in seconds once outside the scheduling callback
-        const durationSeconds = Tone.Time(interval).toSeconds() * gate;
+        let durationSeconds = 0.1;
+        try {
+            durationSeconds = Tone.Time(interval).toSeconds() * gate;
+        } catch {
+            durationSeconds = 0.1 * gate;
+        }
 
         // Create Tone.Pattern with direction mapping
         const patternInstance = new Tone.Pattern(

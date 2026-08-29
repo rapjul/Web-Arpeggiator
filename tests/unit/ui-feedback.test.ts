@@ -41,6 +41,30 @@ describe("UI Feedback Toast Manager", () => {
         expect(toast?.classList.contains("toast-success")).toBe(true);
     });
 
+    it("uses default document elements when context is omitted", () => {
+        const manager = createToastManager();
+        manager.showToast("Default context toast", "info");
+
+        const toast = toastContainer.querySelector(".toast-message");
+        expect(toast).not.toBeNull();
+        expect(toast?.textContent).toBe("Default context toast");
+    });
+
+    it("handles showToast when requestAnimationFrame is unavailable", () => {
+        const originalRaf = (window as any).requestAnimationFrame;
+        try {
+            (window as any).requestAnimationFrame = undefined;
+            const manager = createToastManager({ toastContainer, liveRegion });
+            manager.showToast("No RAF toast", "info");
+
+            const toast = toastContainer.querySelector(".toast-message");
+            expect(toast).not.toBeNull();
+            expect(toast?.classList.contains("show")).toBe(true);
+        } finally {
+            (window as any).requestAnimationFrame = originalRaf;
+        }
+    });
+
     it("announces messages to the ARIA live region with timer delay", () => {
         const manager = createToastManager({ toastContainer, liveRegion });
 

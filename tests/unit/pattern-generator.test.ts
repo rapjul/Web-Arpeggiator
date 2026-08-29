@@ -1,0 +1,197 @@
+/**
+ * @file Unit tests for Pattern Generator scheduling, duration calculations, and DOM integration.
+ */
+
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("tone", async (importOriginal) => {
+    const actual = await importOriginal<typeof import("tone")>();
+    class MockPattern {
+        values: string[];
+        pattern: string;
+        interval = "16n";
+        isStarted = false;
+        isDisposed = false;
+        callback: Function;
+
+        constructor(callback: any, values: string[], pattern: string) {
+            this.callback = callback;
+            this.values = values;
+            this.pattern = pattern;
+        }
+
+        start() {
+            this.isStarted = true;
+        }
+
+        dispose() {
+            this.isDisposed = true;
+        }
+    }
+
+    return {
+        ...actual,
+        Pattern: MockPattern,
+        Draw: {
+            schedule: (fn: Function) => fn(),
+        },
+    };
+});
+
+import { createOrUpdatePattern } from "@audio/pattern-generator.js";
+
+describe("Pattern Generator Module", () => {
+    let container: HTMLElement;
+    let notesInput: HTMLInputElement;
+    let intervalSelect: HTMLSelectElement;
+    let gateSlider: HTMLInputElement;
+    let patternButtons: HTMLElement;
+    let scaleQuantizeToggle: HTMLInputElement;
+    let scaleRootSelect: HTMLSelectElement;
+    let scaleTypeSelect: HTMLSelectElement;
+
+    beforeEach(() => {
+        container = document.createElement("div");
+
+        notesInput = document.createElement("input");
+        notesInput.id = "notes";
+        notesInput.value = "C4 E4 G4";
+
+        intervalSelect = document.createElement("select");
+        intervalSelect.id = "interval";
+        intervalSelect.innerHTML =
+            "<option value='16n' selected>16n</option><option value='8n'>8n</option>";
+
+        gateSlider = document.createElement("input");
+        gateSlider.id = "gate";
+        gateSlider.value = "0.75";
+
+        patternButtons = document.createElement("div");
+        patternButtons.id = "pattern-buttons";
+        const upBtn = document.createElement("button");
+        upBtn.className = "selected";
+        upBtn.setAttribute("data-pattern", "up");
+        patternButtons.appendChild(upBtn);
+
+        scaleQuantizeToggle = document.createElement("input");
+        scaleQuantizeToggle.id = "scale-quantize-toggle";
+        scaleQuantizeToggle.type = "checkbox";
+        scaleQuantizeToggle.checked = false;
+
+        scaleRootSelect = document.createElement("select");
+        scaleRootSelect.id = "scale-root";
+        scaleRootSelect.innerHTML = "<option value='C' selected>C</option>";
+
+        scaleTypeSelect = document.createElement("select");
+        scaleTypeSelect.id = "scale-type";
+        scaleTypeSelect.innerHTML = "<option value='major' selected>major</option>";
+
+        container.appendChild(notesInput);
+        container.appendChild(intervalSelect);
+        container.appendChild(gateSlider);
+        container.appendChild(patternButtons);
+        container.appendChild(scaleQuantizeToggle);
+        container.appendChild(scaleRootSelect);
+        container.appendChild(scaleTypeSelect);
+        document.body.appendChild(container);
+
+        (window as any).currentOctaveRange = 1;
+        (window as any).currentOctaveShift = 0;
+        (window as any).isPlaying = false;
+        (window as any).activeSynth = null;
+    });
+
+    afterEach(() => {
+        if ((window as any).arpPattern) {
+            try {
+                (window as any).arpPattern.dispose();
+            } catch {}
+            (window as any).arpPattern = null;
+        }
+        delete (window as any).__WEB_ARP_STEP_HIGHLIGHT__;
+        document.body.innerHTML = "";
+    });
+
+    it("creates a Tone.Pattern instance when notes are provided", () => {
+        createOrUpdatePattern();
+
+        const pattern = (window as any).arpPattern;
+        expect(pattern).toBeDefined();
+        expect(pattern.values).toEqual(["C4", "E4", "G4"]);
+        expect(pattern.interval).toBe("16n");
+    });
+
+    it("executes the pattern scheduling callback to trigger note attacks and step highlights", () => {
+        const mockSynth = {
+            triggerAttack: vi.fn(),
+            triggerRelease: vi.fn(),
+        };
+        const mockHighlight = vi.fn();
+
+        (window as any).activeSynth = mockSynth;
+        (window as any).__WEB_ARP_STEP_HIGHLIGHT__ = mockHighlight;
+        (window as any).isPlaying = true;
+
+        createOrUpdatePattern();
+
+        const pattern = (window as any).arpPattern;
+        expect(pattern).toBeDefined();
+        expect(pattern.isStarted).toBe(true);
+
+        // Execute scheduled step
+        pattern.callback(0.25, "C4");
+        expect(mockSynth.triggerAttack).toHaveBeenCalledWith("C4", 0.25);
+        expect(mockSynth.triggerRelease).toHaveBeenCalled();
+        expect(mockHighlight).toHaveBeenCalled();
+    });
+
+    it("triggers synth with triggerAttackRelease when triggerAttack is not available", () => {
+        const mockSynth = {
+            triggerAttackRelease: vi.fn(),
+        };
+
+        (window as any).activeSynth = mockSynth;
+        createOrUpdatePattern();
+
+        const pattern = (window as any).arpPattern;
+        pattern.callback(0.5, "E4");
+        expect(mockSynth.triggerAttackRelease).toHaveBeenCalledWith("E4", expect.any(Number), 0.5);
+    });
+
+    it("applies octave shifts and scale quantization from DOM controls", () => {
+        (window as any).currentOctaveRange = 2;
+        (window as any).currentOctaveShift = 1;
+        scaleQuantizeToggle.checked = true;
+
+        createOrUpdatePattern();
+
+        const pattern = (window as any).arpPattern;
+        expect(pattern).toBeDefined();
+        // Octaves shifted by +1 and duplicated across 2 octaves
+        expect(pattern.values).toContain("C5");
+        expect(pattern.values).toContain("C6");
+    });
+
+    it("disposes previous pattern when updating", () => {
+        createOrUpdatePattern();
+        const firstPattern = (window as any).arpPattern;
+
+        notesInput.value = "D4 F4 A4";
+        createOrUpdatePattern();
+
+        expect(firstPattern.isDisposed).toBe(true);
+        expect((window as any).arpPattern).not.toBe(firstPattern);
+        expect((window as any).arpPattern.values).toEqual(["D4", "F4", "A4"]);
+    });
+
+    it("handles missing notes element gracefully", () => {
+        notesInput.remove();
+        expect(() => createOrUpdatePattern()).not.toThrow();
+    });
+
+    it("handles empty note input gracefully without creating pattern", () => {
+        notesInput.value = "";
+        createOrUpdatePattern();
+        expect((window as any).arpPattern).toBeNull();
+    });
+});

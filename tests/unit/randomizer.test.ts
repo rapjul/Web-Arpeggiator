@@ -70,8 +70,12 @@ describe("Randomizer Domain Module", () => {
     });
 
     test("gracefully falls back when invalid root or scale is passed", () => {
-        const notes = generateRandomNotes("", "");
-        expect(notes.length).toBeGreaterThanOrEqual(4);
-        expect(notes.length).toBeLessThanOrEqual(6);
+        const notes1 = generateRandomNotes("", "");
+        expect(notes1.length).toBeGreaterThanOrEqual(4);
+        expect(notes1.length).toBeLessThanOrEqual(6);
+
+        const notes2 = generateRandomNotes("C", "nonexistent-scale-name-xyz");
+        expect(notes2.length).toBeGreaterThanOrEqual(4);
+        expect(notes2.length).toBeLessThanOrEqual(6);
     });
 });

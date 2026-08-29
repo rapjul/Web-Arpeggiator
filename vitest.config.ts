@@ -13,6 +13,12 @@ export default mergeConfig(
                 reporter: ["text", "json", "html", "lcov"],
                 include: ["src/**/*.{js,ts}"],
                 exclude: ["src/pwa/pwa.js", "src/app.js"],
+                thresholds: {
+                    statements: 80,
+                    branches: 68,
+                    functions: 80,
+                    lines: 80,
+                },
             },
         },
     }),
