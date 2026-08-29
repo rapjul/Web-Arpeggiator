@@ -106,4 +106,119 @@ describe("Settings Manager Domain Module", () => {
         const realtimeFilename = manager.generateFilename(true);
         expect(realtimeFilename).toContain("arp-realtime-");
     });
+
+    test("loadAllSettings synchronizes scale type and quantization toggle state", () => {
+        const mockDom = {
+            bpmSlider: { value: "120" },
+            bpmValue: { textContent: "" },
+            swingSlider: { value: "0" },
+            swingValue: { textContent: "" },
+            postGainSlider: { value: "0" },
+            postGainValue: { textContent: "" },
+            notesInput: { value: "" },
+            intervalSelect: { value: "16n" },
+            scaleQuantizeToggle: { checked: false },
+            scaleRootSelect: { value: "C" },
+            scaleTypeSelect: { value: "major" },
+            synthTypeSelect: { value: "synth" },
+            harmonicitySlider: { value: "3" },
+            harmonicityValue: { textContent: "" },
+            modIndexSlider: { value: "10" },
+            modIndexValue: { textContent: "" },
+            dutySlider: { value: "0.5" },
+            dutyValue: { textContent: "" },
+            gateSlider: { value: "0.8" },
+            gateValue: { textContent: "" },
+            envAttackSlider: { value: "0.01" },
+            envAttackValue: { textContent: "" },
+            envDecaySlider: { value: "0.1" },
+            envDecayValue: { textContent: "" },
+            envSustainSlider: { value: "0.3" },
+            envSustainValue: { textContent: "" },
+            envReleaseSlider: { value: "0.5" },
+            envReleaseValue: { textContent: "" },
+            filterCutoffSlider: { value: "4000" },
+            filterCutoffValue: { textContent: "" },
+            filterResonanceSlider: { value: "1" },
+            filterResonanceValue: { textContent: "" },
+            delayMixSlider: { value: "0.2" },
+            delayMixValue: { textContent: "" },
+            reverbMixSlider: { value: "0.3" },
+            reverbMixValue: { textContent: "" },
+            loopCountInput: { value: "2" },
+            octaveShiftButtons: {},
+            octaveRangeButtons: {},
+        };
+
+        const mockState = {
+            currentNotes: ["C4"],
+            currentOctaveShift: 0,
+            currentOctaveRange: 1,
+            currentWaveform: "sine",
+            activeSynth: null,
+        };
+
+        let uiUpdated = false;
+        let toggleTextUpdated = false;
+
+        const mockActions = {
+            getArpeggioNotes: () => ["C4"],
+            getSelectedPatternDirection: () => "up",
+            setSelectedPatternDirection: () => {},
+            updateScaleQuantizeUi: () => {
+                uiUpdated = true;
+            },
+            updateScaleQuantizeToggleText: () => {
+                toggleTextUpdated = true;
+            },
+            updateWaveformButtons: () => {},
+            setSynth: () => {},
+            updateButtonGroup: () => {},
+            syncPatternModuleState: () => {},
+            createOrUpdatePattern: () => {},
+            showToast: () => {},
+        };
+
+        const mockAudio = {
+            filter: { frequency: { value: 0 }, Q: { value: 0 } },
+            delay: { wet: { value: 0 } },
+            reverb: { wet: { value: 0 } },
+            postGain: { volume: { value: 0 } },
+        };
+
+        const manager = createSettingsManager({
+            state: mockState as any,
+            dom: mockDom as any,
+            actions: mockActions as any,
+            audio: mockAudio as any,
+        });
+
+        manager.loadAllSettings({
+            bpm: 120,
+            swing: 0,
+            baseNotes: ["C4", "E4"],
+            direction: "up",
+            interval: "16n",
+            scaleQuantize: true,
+            scaleRoot: "F",
+            scaleType: "minor",
+            synthType: "synth",
+            waveform: "sine",
+            envAttack: 0.01,
+            envDecay: 0.1,
+            envSustain: 0.3,
+            envRelease: 0.5,
+            filterCutoff: 4000,
+            filterResonance: 1,
+            delayMix: 0.2,
+            reverbMix: 0.3,
+            loopCount: 2,
+        });
+
+        expect(mockDom.scaleQuantizeToggle.checked).toBe(true);
+        expect(mockDom.scaleRootSelect.value).toBe("F");
+        expect(mockDom.scaleTypeSelect.value).toBe("minor");
+        expect(uiUpdated).toBe(true);
+        expect(toggleTextUpdated).toBe(true);
+    });
 });

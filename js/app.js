@@ -909,6 +909,7 @@ function initializeApp() {
             getSelectedPatternDirection,
             setSelectedPatternDirection,
             updateScaleQuantizeUi,
+            updateScaleQuantizeToggleText,
             updateWaveformButtons,
             setSynth: audioEngine.setSynth,
             updateButtonGroup,
@@ -1052,28 +1053,35 @@ function initializeApp() {
     }
 
     /**
-     * Updates the UI for the quantizer (enables/disables controls).
+     * Tracks the last selected non-chromatic scale type so it can be restored when re-enabling.
+     * @type {string}
+     */
+    let lastActiveScaleType = "major";
+
+    /**
+     * Updates the UI for the quantizer (enables/disables visual emphasis without locking dropdowns).
      * @returns {void}
      */
     function updateScaleQuantizeUi() {
-        const isEnabled = scaleQuantizeToggle.checked;
+        const isEnabled = scaleQuantizeToggle.checked && scaleTypeSelect.value !== "chromatic";
         if (isEnabled) {
-            quantizerControls.classList.remove("opacity-50");
+            scaleRootSelect.classList.remove("opacity-50");
             scaleRootSelect.disabled = false;
-            scaleTypeSelect.disabled = false;
         } else {
-            quantizerControls.classList.add("opacity-50");
+            scaleRootSelect.classList.add("opacity-50");
             scaleRootSelect.disabled = true;
-            scaleTypeSelect.disabled = true;
         }
+        scaleTypeSelect.disabled = false;
     }
 
     /**
-     * Updates the quantizer toggle button label text.
+     * Updates the quantizer toggle button label text and aria-checked attribute.
      * @returns {void}
      */
     function updateScaleQuantizeToggleText() {
-        if (scaleQuantizeToggle.checked) {
+        const isEnabled = scaleQuantizeToggle.checked && scaleTypeSelect.value !== "chromatic";
+        scaleQuantizeToggle.setAttribute("aria-checked", isEnabled ? "true" : "false");
+        if (isEnabled) {
             scaleQuantizeToggleStatus.textContent = "Enabled";
             scaleQuantizeToggleStatus.classList.remove("text-gray-400");
             scaleQuantizeToggleStatus.classList.add("text-green-400");
@@ -1296,43 +1304,27 @@ function initializeApp() {
 
     // --- Randomize Notes ---
     randomizeNotesButton.addEventListener("click", () => {
+        const isQuantized = scaleQuantizeToggle.checked && scaleTypeSelect.value !== "chromatic";
         let root = scaleRootSelect.value;
         let scaleType = scaleTypeSelect.value;
-        const isQuantized = scaleQuantizeToggle.checked;
 
-        // If scale quantization is disabled, randomize the scale configuration first.
+        // If scale quantization is disabled, pick a random root note without forcing quantization on
         if (!isQuantized) {
-            // Select a random root note from the configured root note dropdown options.
             const rootOptions = scaleRootSelect.options;
             root = rootOptions[Math.floor(Math.random() * rootOptions.length)].value;
             scaleRootSelect.value = root;
-            scaleRootSelect.dispatchEvent(new Event("change"));
-
-            // Select a random scale type from the configured scale type dropdown options (excluding 'chromatic').
-            const typeOptions = scaleTypeSelect.options;
-            let randomTypeOption;
-            do {
-                randomTypeOption =
-                    typeOptions[Math.floor(Math.random() * typeOptions.length)].value;
-            } while (randomTypeOption === "chromatic" && typeOptions.length > 1);
-
-            scaleType = randomTypeOption;
-            scaleTypeSelect.value = scaleType;
-            scaleTypeSelect.dispatchEvent(new Event("change"));
+            scaleType = "chromatic";
         }
 
-        // Determine the actual scale type to use for generation.
-        // If quantization is on, respect the user's selected scale; if off, use the newly randomized scale.
-        const activeScaleType = isQuantized && scaleType === "chromatic" ? "chromatic" : scaleType;
-        const randomizedNotes = generateRandomNotes(root, activeScaleType);
+        const randomizedNotes = generateRandomNotes(root, scaleType);
 
         // Update the notes input field and trigger change events to refresh Tone.Pattern.
         notesInput.value = randomizedNotes.join(" ");
         notesInput.dispatchEvent(new Event("change"));
 
         const formattedScaleName =
-            activeScaleType === "chromatic"
-                ? `${root} Chromatic (Random Selection)`
+            scaleType === "chromatic"
+                ? `${root} Mode (Chromatic)`
                 : `${root} ${scaleType.charAt(0).toUpperCase() + scaleType.slice(1)}`;
         showToast(`Randomized notes using ${formattedScaleName}!`, "success");
     });
@@ -1481,12 +1473,34 @@ function initializeApp() {
     });
 
     scaleQuantizeToggle.addEventListener("change", () => {
+        if (scaleQuantizeToggle.checked) {
+            if (scaleTypeSelect.value === "chromatic") {
+                scaleTypeSelect.value = lastActiveScaleType || "major";
+            }
+        } else {
+            if (scaleTypeSelect.value !== "chromatic") {
+                lastActiveScaleType = scaleTypeSelect.value;
+            }
+            scaleTypeSelect.value = "chromatic";
+        }
         updateScaleQuantizeUi();
-        createOrUpdatePattern();
         updateScaleQuantizeToggleText();
+        createOrUpdatePattern();
     });
+
+    scaleTypeSelect.addEventListener("change", () => {
+        if (scaleTypeSelect.value === "chromatic") {
+            scaleQuantizeToggle.checked = false;
+        } else {
+            scaleQuantizeToggle.checked = true;
+            lastActiveScaleType = scaleTypeSelect.value;
+        }
+        updateScaleQuantizeUi();
+        updateScaleQuantizeToggleText();
+        createOrUpdatePattern();
+    });
+
     scaleRootSelect.addEventListener("change", createOrUpdatePattern);
-    scaleTypeSelect.addEventListener("change", createOrUpdatePattern);
 
     intervalSelect.addEventListener("change", createOrUpdatePattern);
 

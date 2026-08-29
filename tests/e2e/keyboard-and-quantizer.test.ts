@@ -137,5 +137,63 @@ test("Keyboard Controls & Scale Quantizer Suite", async (): Promise<void> => {
     ]);
     expect(quantizerResult).toBe('"success"');
 
+    // 5. Verify Scale Quantizer 13-State Dropdown <-> Toggle Synchronization
+    console.log("Step 5: Testing bidirectional scale quantization sync...");
+    const syncResult: string = await runBrowser([
+        "eval",
+        `(async () => {
+        const quantizeToggle = document.getElementById('scale-quantize-toggle');
+        const scaleType = document.getElementById('scale-type');
+        const statusLabel = document.getElementById('scale-quantize-toggle-status');
+
+        // 1. Select 'chromatic' in dropdown -> should uncheck toggle and update status
+        scaleType.value = 'chromatic';
+        scaleType.dispatchEvent(new Event('change'));
+
+        if (quantizeToggle.checked) {
+            return 'sync-failed: toggle remained checked after selecting chromatic';
+        }
+        if (statusLabel.textContent !== 'Disabled') {
+            return 'sync-failed: status not Disabled after chromatic: ' + statusLabel.textContent;
+        }
+        if (scaleType.disabled) {
+            return 'lockout-bug: scaleType select was disabled!';
+        }
+
+        // 2. Select 'minor' in dropdown -> should check toggle and update status
+        scaleType.value = 'minor';
+        scaleType.dispatchEvent(new Event('change'));
+
+        if (!quantizeToggle.checked) {
+            return 'sync-failed: toggle not checked after selecting minor';
+        }
+        if (statusLabel.textContent !== 'Enabled') {
+            return 'sync-failed: status not Enabled after selecting minor: ' + statusLabel.textContent;
+        }
+
+        // 3. Uncheck toggle -> dropdown should change to 'chromatic'
+        quantizeToggle.checked = false;
+        quantizeToggle.dispatchEvent(new Event('change'));
+
+        if (scaleType.value !== 'chromatic') {
+            return 'sync-failed: scaleType did not change to chromatic on toggle off: ' + scaleType.value;
+        }
+        if (scaleType.disabled) {
+            return 'lockout-bug: scaleType select was disabled after toggle off!';
+        }
+
+        // 4. Check toggle -> dropdown should restore 'minor'
+        quantizeToggle.checked = true;
+        quantizeToggle.dispatchEvent(new Event('change'));
+
+        if (scaleType.value !== 'minor') {
+            return 'sync-failed: scaleType did not restore minor on toggle on: ' + scaleType.value;
+        }
+
+        return 'success';
+    })()`,
+    ]);
+    expect(syncResult).toBe('"success"');
+
     console.log("Keyboard Controls & Scale Quantizer Integration Suite complete!");
 }, 30000);

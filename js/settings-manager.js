@@ -96,10 +96,14 @@ export function createSettingsManager(context) {
         try {
             dom.bpmSlider.value = settings.bpm;
             dom.bpmValue.textContent = settings.bpm;
-            Tone.Transport.bpm.value = settings.bpm;
+            if (Tone && Tone.Transport && Tone.Transport.bpm) {
+                Tone.Transport.bpm.value = settings.bpm;
+            }
             dom.swingSlider.value = settings.swing;
             dom.swingValue.textContent = settings.swing.toFixed(2);
-            Tone.Transport.swing = settings.swing;
+            if (Tone && Tone.Transport) {
+                Tone.Transport.swing = settings.swing;
+            }
 
             // Restore post gain
             if (settings.postGain !== undefined && dom.postGainSlider) {
@@ -114,10 +118,21 @@ export function createSettingsManager(context) {
             actions.setSelectedPatternDirection(settings.direction);
             dom.intervalSelect.value = settings.interval;
 
-            dom.scaleQuantizeToggle.checked = settings.scaleQuantize;
-            dom.scaleRootSelect.value = settings.scaleRoot;
-            dom.scaleTypeSelect.value = settings.scaleType;
+            if (settings.scaleType) {
+                dom.scaleTypeSelect.value = settings.scaleType;
+            }
+            if (settings.scaleRoot) {
+                dom.scaleRootSelect.value = settings.scaleRoot;
+            }
+            if (settings.scaleQuantize !== undefined) {
+                dom.scaleQuantizeToggle.checked = settings.scaleQuantize;
+            } else if (settings.scaleType) {
+                dom.scaleQuantizeToggle.checked = settings.scaleType !== "chromatic";
+            }
             actions.updateScaleQuantizeUi();
+            if (typeof actions.updateScaleQuantizeToggleText === "function") {
+                actions.updateScaleQuantizeToggleText();
+            }
 
             dom.synthTypeSelect.value = settings.synthType;
 
@@ -269,7 +284,14 @@ export function createSettingsManager(context) {
             actions.createOrUpdatePattern();
         } catch (error) {
             console.error("Failed to parse preset:", error);
-            alert("Error loading preset. File may be corrupt or from an older version.");
+            if (typeof actions.showToast === "function") {
+                actions.showToast(
+                    "Error loading preset. File may be corrupt or from an older version.",
+                    "error",
+                );
+            } else if (typeof alert === "function") {
+                alert("Error loading preset. File may be corrupt or from an older version.");
+            }
         }
     }
 
