@@ -1,0 +1,10 @@
+<svg id="waveform-sine" xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none">
+    <title>Sine Wave</title>
+    <path
+        d="M2 16 C2 16 6 4 10 4 C14 4 18 28 22 28 C26 28 30 16 30 16"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+    />
+</svg>

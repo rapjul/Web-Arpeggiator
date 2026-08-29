@@ -1,4 +1,5 @@
-<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<svg id="pattern-direction-octaveCyclePingPong" xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none">
+  <title>Pattern Direction: Octave Cycle Ping Pong</title>
   <circle cx="4" cy="24" r="2.5" fill="#38bdf8" />
   <circle cx="10" cy="16" r="2.5" fill="#38bdf8" />
   <circle cx="16" cy="8" r="2.5" fill="#38bdf8" />
