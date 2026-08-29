@@ -122,10 +122,24 @@ export function createSettingsManager(context) {
                 if (audio.postGain) audio.postGain.volume.value = settings.postGain;
             }
 
-            dom.notesInput.value = settings.baseNotes.join(" ");
-            state.currentNotes = settings.baseNotes;
-            actions.setSelectedPatternDirection(settings.direction);
-            dom.intervalSelect.value = settings.interval;
+            const notesArr = Array.isArray(settings.baseNotes)
+                ? settings.baseNotes
+                : Array.isArray(settings.notes)
+                  ? settings.notes
+                  : typeof settings.notes === "string"
+                    ? settings.notes.trim().split(/\s+/)
+                    : ["C4", "E4", "G4"];
+
+            if (dom.notesInput) {
+                dom.notesInput.value = notesArr.join(" ");
+            }
+            state.currentNotes = notesArr;
+            if (settings.direction) {
+                actions.setSelectedPatternDirection(settings.direction);
+            }
+            if (settings.interval && dom.intervalSelect) {
+                dom.intervalSelect.value = settings.interval;
+            }
 
             if (settings.scaleType) {
                 dom.scaleTypeSelect.value = settings.scaleType;

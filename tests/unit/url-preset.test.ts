@@ -150,25 +150,58 @@ describe("URL Preset Domain Module", () => {
             }),
         ).toBe(true);
 
-        // Effect change (drive, chorus, pan)
-        expect(
-            hasPresetChanges(defaultSettings, {
-                ...defaultSettings,
-                driveMix: 0.5,
-            }),
-        ).toBe(true);
-        expect(
-            hasPresetChanges(defaultSettings, {
-                ...defaultSettings,
-                chorusMix: 0.3,
-            }),
-        ).toBe(true);
-        expect(
-            hasPresetChanges(defaultSettings, {
-                ...defaultSettings,
-                autoPanMix: 0.7,
-            }),
-        ).toBe(true);
+        // All scalar and numeric property change branches
+        const keysToTest: (keyof typeof defaultSettings)[] = [
+            "direction",
+            "interval",
+            "synthType",
+            "waveform",
+            "scaleRoot",
+            "scaleType",
+            "scaleQuantize",
+            "bpm",
+            "swing",
+            "postGain",
+            "harmonicity",
+            "modulationIndex",
+            "dutyCycle",
+            "gateRatio",
+            "octaveShift",
+            "octaveRange",
+            "envAttack",
+            "envDecay",
+            "envSustain",
+            "envRelease",
+            "filterCutoff",
+            "filterResonance",
+            "driveMix",
+            "chorusMix",
+            "autoPanMix",
+            "delayMix",
+            "reverbMix",
+            "loopCount",
+        ];
+
+        for (const key of keysToTest) {
+            const val = defaultSettings[key];
+            const modifiedVal =
+                typeof val === "number"
+                    ? val + 1
+                    : typeof val === "boolean"
+                      ? !val
+                      : `${String(val)}-diff`;
+
+            expect(
+                hasPresetChanges(defaultSettings, {
+                    ...defaultSettings,
+                    [key]: modifiedVal,
+                }),
+            ).toBe(true);
+        }
+
+        // Null / undefined objects check
+        expect(hasPresetChanges(null as any, defaultSettings)).toBe(true);
+        expect(hasPresetChanges(defaultSettings, null as any)).toBe(true);
     });
 
     test("serializes and parses new synths and studio effect parameters", () => {

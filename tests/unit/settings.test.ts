@@ -1,8 +1,12 @@
-import { describe, expect, test } from "vitest";
+/**
+ * @file Unit tests for settings serialization, preset loading, and filename generation.
+ */
+
+import { describe, expect, it, vi } from "vitest";
 import { createSettingsManager } from "@storage/settings-manager.js";
 
 describe("Settings Manager Domain Module", () => {
-    test("creates settings snapshot and formats filenames accurately", () => {
+    it("creates settings snapshot and formats filenames accurately", () => {
         const mockDom = {
             bpmSlider: { value: "135" },
             swingSlider: { value: "0.25" },
@@ -109,7 +113,7 @@ describe("Settings Manager Domain Module", () => {
         expect(realtimeFilename).toContain("arp-realtime-");
     });
 
-    test("loadAllSettings synchronizes scale type and quantization toggle state", () => {
+    it("loadAllSettings synchronizes scale type and quantization toggle state", () => {
         const mockDom = {
             bpmSlider: { value: "120" },
             bpmValue: { textContent: "" },
@@ -224,5 +228,109 @@ describe("Settings Manager Domain Module", () => {
         expect(mockDom.scaleTypeSelect.value).toBe("minor");
         expect(uiUpdated).toBe(true);
         expect(toggleTextUpdated).toBe(true);
+    });
+
+    it("loads all synthesis and studio effect parameters", () => {
+        const mockDom = {
+            bpmSlider: { value: "120" },
+            bpmValue: { textContent: "" },
+            swingSlider: { value: "0" },
+            swingValue: { textContent: "" },
+            postGainSlider: { value: "0" },
+            postGainValue: { textContent: "" },
+            notesInput: { value: "C4 E4 G4" },
+            intervalSelect: { value: "16n" },
+            scaleQuantizeToggle: { checked: false },
+            scaleRootSelect: { value: "C" },
+            scaleTypeSelect: { value: "major" },
+            synthTypeSelect: { value: "synth" },
+            harmonicitySlider: { value: "3" },
+            harmonicityValue: { textContent: "" },
+            modIndexSlider: { value: "10" },
+            modIndexValue: { textContent: "" },
+            dutySlider: { value: "0.5" },
+            dutyValue: { textContent: "" },
+            gateSlider: { value: "0.8" },
+            gateValue: { textContent: "" },
+            envAttackSlider: { value: "0.01" },
+            envAttackValue: { textContent: "" },
+            envDecaySlider: { value: "0.1" },
+            envDecayValue: { textContent: "" },
+            envSustainSlider: { value: "0.3" },
+            envSustainValue: { textContent: "" },
+            envReleaseSlider: { value: "0.5" },
+            envReleaseValue: { textContent: "" },
+            filterCutoffSlider: { value: "4000" },
+            filterCutoffValue: { textContent: "" },
+            filterResonanceSlider: { value: "1" },
+            filterResonanceValue: { textContent: "" },
+            delayMixSlider: { value: "0.2" },
+            delayMixValue: { textContent: "" },
+            reverbMixSlider: { value: "0.3" },
+            reverbMixValue: { textContent: "" },
+            loopCountInput: { value: "2" },
+            octaveShiftButtons: {},
+            octaveRangeButtons: {},
+        };
+
+        const mockState = {
+            currentNotes: ["C4", "E4", "G4"],
+            currentOctaveShift: 0,
+            currentOctaveRange: 1,
+            currentWaveform: "sine",
+            activeSynth: null,
+        };
+
+        let selectedSynth = "";
+        const mockActions = {
+            getArpeggioNotes: () => ["C4", "E4", "G4"],
+            getSelectedPatternDirection: () => "up",
+            setSelectedPatternDirection: () => {},
+            updateScaleQuantizeUi: () => {},
+            updateScaleQuantizeToggleText: () => {},
+            updateWaveformButtons: () => {},
+            setSynth: (synth: string) => {
+                selectedSynth = synth;
+            },
+            updateButtonGroup: () => {},
+            syncPatternModuleState: () => {},
+            createOrUpdatePattern: () => {},
+            showToast: () => {},
+        };
+
+        const mockAudio = {
+            filter: { frequency: { value: 0 }, Q: { value: 0 } },
+            delay: { wet: { value: 0 } },
+            reverb: { wet: { value: 0 } },
+            postGain: { volume: { value: 0 } },
+        };
+
+        const manager = createSettingsManager({
+            state: mockState as unknown as Parameters<typeof createSettingsManager>[0]["state"],
+            dom: mockDom as unknown as Parameters<typeof createSettingsManager>[0]["dom"],
+            actions: mockActions as unknown as Parameters<
+                typeof createSettingsManager
+            >[0]["actions"],
+            audio: mockAudio as unknown as Parameters<typeof createSettingsManager>[0]["audio"],
+        });
+
+        manager.loadAllSettings({
+            bpm: 160,
+            swing: 0.5,
+            postGain: -3,
+            notes: "C4 E4 G4",
+            synthType: "fmSynth",
+            waveform: "square",
+            harmonicity: 4.5,
+            modulationIndex: 12,
+            dutyCycle: 0.6,
+            gateLength: 0.9,
+            scaleQuantize: false,
+            scaleType: "chromatic",
+        });
+
+        expect(Number(mockDom.bpmSlider.value)).toBe(160);
+        expect(Number(mockDom.swingSlider.value)).toBe(0.5);
+        expect(selectedSynth).toBe("fmSynth");
     });
 });
