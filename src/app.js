@@ -27,6 +27,10 @@ import {
     parsePresetFromUrlParams,
     serializePresetToUrlParams,
 } from "@core/url-preset.js";
+import { filterNoteInput, filterNumericInput } from "@core/input-filters.js";
+import { dbToPercent } from "@core/meter-utils.js";
+import { setupKeyboardNavigation } from "@ui/a11y-navigation.js";
+import { debounce, createSessionManager } from "@storage/session-manager.js";
 import { createVisualizer } from "@ui/visualizer.js";
 
 // --- Global Config ---
@@ -52,64 +56,9 @@ function log(...args) {
     }
 }
 
-/**
- * Filters keydown events for the notes input.
- * Allows: A-G, a-g, 0-9, #, b, Space, Backspace, Tab, Arrows, Delete, Ctrl/Cmd+A/C/V/X
- * @param {KeyboardEvent} event - The keyboard event.
- * @returns {boolean} True if the key is allowed, false otherwise.
- */
-function filterNoteInput(event) {
-    const key = event.key;
-    const keyCode = event.keyCode;
-
-    // Allow letters A-G (and a-g)
-    if (keyCode >= 65 && keyCode <= 71) {
-        return true;
-    }
-
-    // Allow numbers 0-9
-    if (keyCode >= 48 && keyCode <= 57 && !event.shiftKey) {
-        return true;
-    }
-
-    // Allow Space, #, b
-    if (key === " " || key === "#" || key === "b") {
-        return true;
-    }
-
-    // Allow control keys
-    if ([8, 9, 37, 38, 39, 40, 46].includes(keyCode)) {
-        return true;
-    }
-
-    // Allow Ctrl/Cmd + A, C, V, X
-    if ((event.ctrlKey || event.metaKey) && [65, 67, 86, 88].includes(keyCode)) {
-        return true;
-    }
-
-    // Block all other keys
-    event.preventDefault();
-    return false;
-}
-
-/**
- * Filters keydown events for numeric inputs to allow only digits and control keys.
- * @param {KeyboardEvent} event - The keyboard event.
- * @returns {boolean} True if the key is allowed, false otherwise.
- */
-function filterNumericInput(event) {
-    if (
-        (event.keyCode >= 48 && event.keyCode <= 57) ||
-        (event.keyCode >= 96 && event.keyCode <= 105) ||
-        [8, 9, 37, 38, 39, 40, 46].includes(event.keyCode) ||
-        ((event.ctrlKey || event.metaKey) && [65, 67, 86, 88].includes(event.keyCode))
-    ) {
-        return true;
-    } else {
-        event.preventDefault();
-        return false;
-    }
-}
+// Attach filter functions to window for global inline event handlers / test assertions
+window.filterNoteInput = filterNoteInput;
+window.filterNumericInput = filterNumericInput;
 
 // --- State (must be global for onclick) ---
 var isAudioContextStarted = false;
@@ -1330,39 +1279,6 @@ function initializeApp() {
         }
     }
 
-    /**
-     * Sets up arrow key keyboard navigation for a group of buttons.
-     * Allows using Left/Right or Up/Down arrows to move focus within the group.
-     * @param {HTMLElement} container - The container element holding the buttons.
-     * @param {string} buttonSelector - CSS selector to identify the focusable buttons.
-     * @returns {void}
-     */
-    function setupKeyboardNavigation(container, buttonSelector) {
-        if (!container) return;
-        container.addEventListener("keydown", (event) => {
-            const buttons = /** @type {HTMLElement[]} */ (
-                Array.from(container.querySelectorAll(buttonSelector))
-            );
-            const activeEl = /** @type {HTMLElement | null} */ (document.activeElement);
-            const index = buttons.indexOf(activeEl);
-
-            if (index === -1) return;
-
-            let nextIndex = index;
-            if (event.key === "ArrowRight" || event.key === "ArrowDown") {
-                nextIndex = (index + 1) % buttons.length;
-                event.preventDefault();
-            } else if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
-                nextIndex = (index - 1 + buttons.length) % buttons.length;
-                event.preventDefault();
-            }
-
-            if (nextIndex !== index) {
-                buttons[nextIndex].focus();
-            }
-        });
-    }
-
     setupKeyboardNavigation(patternButtons, "input[type='radio'], button.pattern-btn");
     setupKeyboardNavigation(waveformButtons, "button.waveform-btn");
     setupKeyboardNavigation(octaveShiftButtons, "input[type='radio'], button.octave-btn");
@@ -1540,25 +1456,6 @@ function initializeApp() {
     });
 
     /**
-     * Creates a debounced function that delays invoking the callback.
-     * @template {(...args: any[]) => any} T
-     * @param {T} func - The callback function to debounce.
-     * @param {number} wait - The delay in milliseconds.
-     * @returns {T} The debounced function.
-     */
-    function debounce(func, wait) {
-        let timeout;
-        return /** @type {any} */ (
-            function (...args) {
-                clearTimeout(timeout);
-                timeout = setTimeout(() => {
-                    func.apply(this, args);
-                }, wait);
-            }
-        );
-    }
-
-    /**
      * Debounced wrapper to update the synth envelope.
      * @type {() => void}
      */
@@ -1612,15 +1509,6 @@ function initializeApp() {
     });
 
     // --- Transport & Pattern ---
-
-    /**
-     * Converts the post gain slider's dB value to a 0–100% display label.
-     * @param {number} db - Decibel value (-40 to 0).
-     * @returns {number} Percentage (0–100).
-     */
-    function dbToPercent(db) {
-        return Math.round(((db + 40) / 40) * 100);
-    }
 
     /**
      * Debounced wrapper to set post gain volume.
