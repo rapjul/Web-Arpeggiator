@@ -398,6 +398,22 @@ button:disabled {
     position: relative;
     z-index: 2;
     pointer-events: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    line-height: 1.1;
+}
+
+.key-pitch-label {
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+}
+
+.key-shortcut-label {
+    font-size: 8px;
+    opacity: 0.75;
 }
 
 /* Ensure white key labels have maximum contrast (dark text) at all times, even when disabled */

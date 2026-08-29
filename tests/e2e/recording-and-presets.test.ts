@@ -47,9 +47,27 @@ test("Audio Recording, Exports, & Preset Management Suite", async (): Promise<vo
     console.log("Step 1b: Resetting browser state...");
     await resetBrowserState();
 
-    // 2. Initialize Audio playback
-    console.log("Step 2: Initializing audio...");
-    await initializeAudio();
+    // 2. Dismiss overlay to enable UI controls (playback is not playing yet)
+    console.log("Step 2: Dismissing overlay to enable controls...");
+    await runBrowser(["click", "#start-overlay"]);
+    await runBrowser(["wait", "--fn", "document.getElementById('play-stop')?.disabled === false"]);
+
+    // 2b. Test clicking Record when audio playback is not playing
+    console.log("Step 2b: Testing record button click when audio is idle...");
+    await runBrowser(["click", "#record-button"]);
+    await runBrowser([
+        "wait",
+        "--fn",
+        "document.getElementById('record-button')?.classList.contains('recording') && document.getElementById('play-stop')?.textContent === 'Stop Audio'",
+    ]);
+
+    // Stop recording to reset for next steps
+    await runBrowser(["click", "#record-button"]);
+    await runBrowser([
+        "wait",
+        "--fn",
+        "!document.getElementById('record-button')?.classList.contains('recording')",
+    ]);
 
     // 3. Verify Preset Saving (IndexedDB & file download hook)
     console.log("Step 3: Testing preset saving...");
@@ -103,6 +121,13 @@ test("Audio Recording, Exports, & Preset Management Suite", async (): Promise<vo
         if (!recordBtn.classList.contains('recording')) {
             return 'record-btn-missing-recording-class';
         }
+
+        // Verify transport auto-started playback
+        const playBtn = document.getElementById('play-stop');
+        if (playBtn && !playBtn.textContent.includes('Stop Audio')) {
+            return 'playback-not-autostarted-on-record: ' + playBtn.textContent;
+        }
+
         return 'success';
     })()`,
     ]);

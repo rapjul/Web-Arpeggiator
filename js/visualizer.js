@@ -802,10 +802,10 @@ export function createVisualizer(context) {
     function shouldRunUiLoop() {
         return Boolean(
             state.isRecording ||
-            state.isPlaying ||
-            manualNoteActive ||
-            Boolean(state.activeNote) ||
-            manualNoteDecayTimeout,
+                state.isPlaying ||
+                manualNoteActive ||
+                Boolean(state.activeNote) ||
+                manualNoteDecayTimeout,
         );
     }
 

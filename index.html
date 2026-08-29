@@ -78,6 +78,9 @@
                             <span id="post-gain-value">85</span>
                             %
                         </label>
+                        <p class="text-[11px] text-gray-400 mb-1">
+                            Master output volume level (-40 dB to 0 dB)
+                        </p>
                         <input type="range" id="post-gain" min="-40" max="0" value="-6" step="1" />
                     </div>
                     <div>
@@ -85,6 +88,9 @@
                             BPM:
                             <span id="bpm-value">120</span>
                         </label>
+                        <p class="text-[11px] text-gray-400 mb-1">
+                            Tempo speed in beats per minute (40 to 240)
+                        </p>
                         <input type="range" id="bpm" min="40" max="240" value="120" step="1" />
                     </div>
                     <div>
@@ -92,6 +98,9 @@
                             Swing:
                             <span id="swing-value">0.00</span>
                         </label>
+                        <p class="text-[11px] text-gray-400 mb-1">
+                            Adds groove & shuffle to straight rhythms
+                        </p>
                         <input type="range" id="swing" min="0" max="1" value="0" step="0.01" />
                     </div>
 
@@ -284,7 +293,11 @@
                             Pattern Direction
                         </label>
                         <div id="pattern-buttons" role="group" aria-labelledby="pattern-label">
-                            <button class="pattern-btn selected" data-pattern="up">
+                            <button
+                                class="pattern-btn selected"
+                                data-pattern="up"
+                                title="Ascending order: lowest to highest pitch"
+                            >
                                 <svg
                                     class="stroke-current"
                                     fill="none"
@@ -299,7 +312,11 @@
                                 </svg>
                                 <span class="text-xs font-medium">Up</span>
                             </button>
-                            <button class="pattern-btn" data-pattern="down">
+                            <button
+                                class="pattern-btn"
+                                data-pattern="down"
+                                title="Descending order: highest to lowest pitch"
+                            >
                                 <svg
                                     class="stroke-current"
                                     fill="none"
@@ -314,7 +331,11 @@
                                 </svg>
                                 <span class="text-xs font-medium">Down</span>
                             </button>
-                            <button class="pattern-btn" data-pattern="upDown">
+                            <button
+                                class="pattern-btn"
+                                data-pattern="upDown"
+                                title="Ascending then descending with exclusive endpoints"
+                            >
                                 <svg
                                     class="stroke-current"
                                     fill="none"
@@ -329,7 +350,11 @@
                                 </svg>
                                 <span class="text-xs font-medium">Up-Down</span>
                             </button>
-                            <button class="pattern-btn" data-pattern="downUp">
+                            <button
+                                class="pattern-btn"
+                                data-pattern="downUp"
+                                title="Descending then ascending with exclusive endpoints"
+                            >
                                 <svg
                                     class="stroke-current"
                                     fill="none"
@@ -344,7 +369,11 @@
                                 </svg>
                                 <span class="text-xs font-medium">Down-Up</span>
                             </button>
-                            <button class="pattern-btn" data-pattern="upDownRepeat">
+                            <button
+                                class="pattern-btn"
+                                data-pattern="upDownRepeat"
+                                title="Ascending then descending repeating apex notes"
+                            >
                                 <svg
                                     class="stroke-current"
                                     fill="none"
@@ -363,7 +392,11 @@
                                     (Repeated)
                                 </span>
                             </button>
-                            <button class="pattern-btn" data-pattern="downUpRepeat">
+                            <button
+                                class="pattern-btn"
+                                data-pattern="downUpRepeat"
+                                title="Descending then ascending repeating apex notes"
+                            >
                                 <svg
                                     class="stroke-current"
                                     fill="none"
@@ -382,7 +415,11 @@
                                     (Repeated)
                                 </span>
                             </button>
-                            <button class="pattern-btn" data-pattern="random">
+                            <button
+                                class="pattern-btn"
+                                data-pattern="random"
+                                title="Completely random note selection on every step"
+                            >
                                 <svg
                                     class="stroke-current"
                                     fill="none"
@@ -397,7 +434,11 @@
                                 </svg>
                                 <span class="text-xs font-medium">Random</span>
                             </button>
-                            <button class="pattern-btn" data-pattern="octaveCycle">
+                            <button
+                                class="pattern-btn"
+                                data-pattern="octaveCycle"
+                                title="Each note played across 3 octaves, repeated twice"
+                            >
                                 <svg
                                     class="stroke-current"
                                     fill="none"
@@ -414,7 +455,11 @@
                                     Cycle
                                 </span>
                             </button>
-                            <button class="pattern-btn" data-pattern="octaveCycleReverse">
+                            <button
+                                class="pattern-btn"
+                                data-pattern="octaveCycleReverse"
+                                title="Octave cycle in descending order across 3 octaves"
+                            >
                                 <svg
                                     class="stroke-current"
                                     fill="none"
@@ -431,7 +476,11 @@
                                     Octaves
                                 </span>
                             </button>
-                            <button class="pattern-btn" data-pattern="octaveCyclePingPong">
+                            <button
+                                class="pattern-btn"
+                                data-pattern="octaveCyclePingPong"
+                                title="Octave cycle alternating ascending and descending"
+                            >
                                 <svg
                                     class="stroke-current"
                                     fill="none"
@@ -450,7 +499,11 @@
                                     Octaves
                                 </span>
                             </button>
-                            <button class="pattern-btn" data-pattern="randomWalk">
+                            <button
+                                class="pattern-btn"
+                                data-pattern="randomWalk"
+                                title="Constrained random progression moving to adjacent notes"
+                            >
                                 <svg
                                     class="stroke-current"
                                     fill="none"
@@ -469,7 +522,11 @@
                                     Walk
                                 </span>
                             </button>
-                            <button class="pattern-btn" data-pattern="randomWalkDrunk">
+                            <button
+                                class="pattern-btn"
+                                data-pattern="randomWalkDrunk"
+                                title="Random walk with occasional unexpected leaps"
+                            >
                                 <svg
                                     class="stroke-current"
                                     fill="none"
@@ -497,6 +554,9 @@
                         <label for="interval" class="block text-sm font-medium mb-1">
                             Note Duration
                         </label>
+                        <p class="text-[11px] text-gray-400 mb-1">
+                            Rhythmic step subdivision (32nd note to Half note)
+                        </p>
                         <select
                             id="interval"
                             class="w-full p-2 bg-gray-800 border border-gray-600 rounded-md text-gray-100"
@@ -581,16 +641,22 @@
                                     id="scale-type"
                                     class="w-full p-2 bg-gray-800 border border-gray-600 rounded-md text-gray-100"
                                 >
-                                    <option value="major" selected>Major</option>
-                                    <option value="minor">Minor</option>
-                                    <option value="majorPentatonic">Major Pentatonic</option>
-                                    <option value="minorPentatonic">Minor Pentatonic</option>
                                     <option value="chromatic">Chromatic (Off)</option>
-                                    <option value="dorian">Dorian</option>
-                                    <option value="phrygian">Phrygian</option>
-                                    <option value="lydian">Lydian</option>
-                                    <option value="mixolydian">Mixolydian</option>
-                                    <option value="locrian">Locrian</option>
+                                    <option value="major" selected>Major (Bright / Happy)</option>
+                                    <option value="minor">Minor (Dark / Melancholic)</option>
+                                    <option value="majorPentatonic">
+                                        Major Pentatonic (Simple / Uplifting)
+                                    </option>
+                                    <option value="minorPentatonic">
+                                        Minor Pentatonic (Bluesy / Rock)
+                                    </option>
+                                    <option value="dorian">Dorian (Jazzy Minor)</option>
+                                    <option value="phrygian">Phrygian (Spanish / Tension)</option>
+                                    <option value="lydian">Lydian (Dreamy / Ethereal)</option>
+                                    <option value="mixolydian">
+                                        Mixolydian (Bluesy Major / Classic Rock)
+                                    </option>
+                                    <option value="locrian">Locrian (Dark / Dissonant)</option>
                                 </select>
                             </div>
                             <!-- END Selector: Scale Type -->
@@ -610,26 +676,37 @@
                             ⌨️ Keyboard Control
                         </h2>
                     </summary>
-                    <div class="flex items-center justify-between mb-3 mt-4">
+                    <div class="flex flex-wrap items-center justify-between gap-2 mb-3 mt-4">
                         <p
                             id="keyboard-description"
-                            class="text-xs text-gray-400 mb-2 text-left align-middle"
+                            class="text-xs text-gray-400 text-left align-middle"
                         >
-                            Press keys on your keyboard to test notes manually.
-                            <br />
-                            Only one note can be played at a time.
+                            Press keys to test notes, or enable "Add to Pattern" to append notes
+                            directly.
                         </p>
-                        <label class="flex items-center space-x-1 cursor-pointer pl-4">
-                            <input
-                                role="switch"
-                                type="checkbox"
-                                id="keyboard-toggle"
-                                aria-checked="true"
-                                checked
-                                class="h-5 w-5 rounded border-radius-full bg-gray-800 border-gray-600 text-blue-500 focus:ring-blue-600"
-                            />
-                            <span id="keyboard-toggle-status" class="text-sm">Off</span>
-                        </label>
+                        <div class="flex items-center gap-2">
+                            <button
+                                type="button"
+                                id="keyboard-mode-add"
+                                class="text-xs font-semibold py-1 px-2 bg-gray-800 hover:bg-gray-700 text-blue-300 border border-gray-600 rounded transition-all flex items-center gap-1 cursor-pointer"
+                                aria-pressed="false"
+                                title="When enabled, clicking piano keys appends the note directly to your notes sequence"
+                            >
+                                <span aria-hidden="true">➕</span>
+                                <span class="keyboard-mode-status">Add to Pattern: Off</span>
+                            </button>
+                            <label class="flex items-center space-x-1 cursor-pointer">
+                                <input
+                                    role="switch"
+                                    type="checkbox"
+                                    id="keyboard-toggle"
+                                    aria-checked="true"
+                                    checked
+                                    class="h-5 w-5 rounded border-radius-full bg-gray-800 border-gray-600 text-blue-500 focus:ring-blue-600"
+                                />
+                                <span id="keyboard-toggle-status" class="text-sm">Off</span>
+                            </label>
+                        </div>
                     </div>
 
                     <!-- START Visual Keyboard -->
@@ -810,6 +887,9 @@
                                 Duty Cycle:
                                 <span id="duty-value">0.50</span>
                             </label>
+                            <p class="text-[11px] text-gray-400 mb-1">
+                                Pulse width / square wave timbre balance
+                            </p>
                             <input
                                 type="range"
                                 id="duty-cycle"
@@ -829,6 +909,9 @@
                                 Harmonicity:
                                 <span id="harmonicity-value">3.0</span>
                             </label>
+                            <p class="text-[11px] text-gray-400 mb-1">
+                                Frequency ratio of modulating oscillator (dissonance/metallic)
+                            </p>
                             <input
                                 type="range"
                                 id="harmonicity"
@@ -843,6 +926,9 @@
                                 Mod. Index:
                                 <span id="modulation-index-value">10.0</span>
                             </label>
+                            <p class="text-[11px] text-gray-400 mb-1">
+                                Intensity / depth of timbre modulation
+                            </p>
                             <input
                                 type="range"
                                 id="modulation-index"
@@ -863,6 +949,9 @@
                                 <span id="mono-cutoff-value">300</span>
                                 Hz
                             </label>
+                            <p class="text-[11px] text-gray-400 mb-1">
+                                Starting cutoff frequency for filter envelope sweep
+                            </p>
                             <input
                                 type="range"
                                 id="mono-cutoff"
@@ -877,6 +966,9 @@
                                 Filter Env Octaves:
                                 <span id="mono-octaves-value">4.0</span>
                             </label>
+                            <p class="text-[11px] text-gray-400 mb-1">
+                                Number of octaves modulated by the envelope
+                            </p>
                             <input
                                 type="range"
                                 id="mono-octaves"
@@ -891,6 +983,9 @@
                                 Filter Q (Resonance):
                                 <span id="mono-q-value">2.0</span>
                             </label>
+                            <p class="text-[11px] text-gray-400 mb-1">
+                                Resonance sharpness of the dedicated mono filter
+                            </p>
                             <input
                                 type="range"
                                 id="mono-q"
@@ -910,6 +1005,9 @@
                                 Voice Ratio:
                                 <span id="duo-harm-value">1.50</span>
                             </label>
+                            <p class="text-[11px] text-gray-400 mb-1">
+                                Harmonic interval ratio between Voice 1 and Voice 2
+                            </p>
                             <input
                                 type="range"
                                 id="duo-harm"
@@ -924,6 +1022,9 @@
                                 Vibrato Depth:
                                 <span id="duo-vibrato-value">0.20</span>
                             </label>
+                            <p class="text-[11px] text-gray-400 mb-1">
+                                Pitch modulation vibrato intensity on second voice
+                            </p>
                             <input
                                 type="range"
                                 id="duo-vibrato"
@@ -944,6 +1045,9 @@
                                 <span id="pluck-dampening-value">4000</span>
                                 Hz
                             </label>
+                            <p class="text-[11px] text-gray-400 mb-1">
+                                String material dampening frequency (lower = warmer nylon)
+                            </p>
                             <input
                                 type="range"
                                 id="pluck-dampening"
@@ -958,6 +1062,9 @@
                                 Resonance:
                                 <span id="pluck-resonance-value">0.90</span>
                             </label>
+                            <p class="text-[11px] text-gray-400 mb-1">
+                                String resonance sustain and body ring duration
+                            </p>
                             <input
                                 type="range"
                                 id="pluck-resonance"
@@ -972,6 +1079,9 @@
                                 Attack Noise:
                                 <span id="pluck-noise-value">1.0</span>
                             </label>
+                            <p class="text-[11px] text-gray-400 mb-1">
+                                Initial plectrum pick/pluck strike transient strength
+                            </p>
                             <input
                                 type="range"
                                 id="pluck-noise"
@@ -995,6 +1105,9 @@
                                 <span id="membrane-pitch-decay-value">0.05</span>
                                 s
                             </label>
+                            <p class="text-[11px] text-gray-400 mb-1">
+                                Duration of initial pitch drop on percussive strike
+                            </p>
                             <input
                                 type="range"
                                 id="membrane-pitch-decay"
@@ -1009,6 +1122,9 @@
                                 Octaves:
                                 <span id="membrane-octaves-value">8.0</span>
                             </label>
+                            <p class="text-[11px] text-gray-400 mb-1">
+                                Pitch sweep range for percussive punch / 808 drop
+                            </p>
                             <input
                                 type="range"
                                 id="membrane-octaves"
@@ -1027,6 +1143,9 @@
                             Gate (Note Length):
                             <span id="gate-value">0.80</span>
                         </label>
+                        <p class="text-[11px] text-gray-400 mb-1">
+                            Short = staccato & punchy; Long = smooth & sustained
+                        </p>
                         <input
                             type="range"
                             id="gate"
@@ -1056,6 +1175,9 @@
                             <span id="env-attack-value">0.01</span>
                             s
                         </label>
+                        <p class="text-[11px] text-gray-400 mb-1">
+                            Time to reach peak volume from key strike
+                        </p>
                         <input
                             type="range"
                             id="env-attack"
@@ -1068,12 +1190,24 @@
                     <!-- END Selector: Attack -->
 
                     <!-- START Selector: Decay -->
-                    <label for="env-decay" class="block text-sm font-medium mb-1">
-                        Decay:
-                        <span id="env-decay-value">0.10</span>
-                        s
-                    </label>
-                    <input type="range" id="env-decay" min="0" max="2" value="0.1" step="0.01" />
+                    <div>
+                        <label for="env-decay" class="block text-sm font-medium mb-1">
+                            Decay:
+                            <span id="env-decay-value">0.10</span>
+                            s
+                        </label>
+                        <p class="text-[11px] text-gray-400 mb-1">
+                            Time to drop from peak to sustain level
+                        </p>
+                        <input
+                            type="range"
+                            id="env-decay"
+                            min="0"
+                            max="2"
+                            value="0.1"
+                            step="0.01"
+                        />
+                    </div>
                     <!-- END Selector: Decay -->
 
                     <!-- START Selector: Sustain -->
@@ -1082,6 +1216,9 @@
                             Sustain:
                             <span id="env-sustain-value">0.30</span>
                         </label>
+                        <p class="text-[11px] text-gray-400 mb-1">
+                            Held volume level while note is active
+                        </p>
                         <input
                             type="range"
                             id="env-sustain"
@@ -1100,6 +1237,9 @@
                             <span id="env-release-value">0.50</span>
                             s
                         </label>
+                        <p class="text-[11px] text-gray-400 mb-1">
+                            Fade-out duration after note stops
+                        </p>
                         <input
                             type="range"
                             id="env-release"
@@ -1126,6 +1266,9 @@
                             Octave Shift
                             <span class="text-xs text-gray-400 font-normal">(0 = no shift)</span>
                         </label>
+                        <p class="text-[11px] text-gray-400 mb-1">
+                            Transposition offset (-3 to +3 octaves)
+                        </p>
                         <div
                             id="octave-shift-buttons"
                             role="group"
@@ -1149,6 +1292,9 @@
                             Octave Layers
                             <span class="text-xs text-gray-400 font-normal">(1 = base only)</span>
                         </label>
+                        <p class="text-[11px] text-gray-400 mb-1">
+                            Number of octave duplications (1 to 5 octaves)
+                        </p>
                         <div
                             id="octave-range-buttons"
                             role="group"
@@ -1180,6 +1326,9 @@
                             <span id="filter-cutoff-value">4000</span>
                             Hz
                         </label>
+                        <p class="text-[11px] text-gray-400 mb-1">
+                            Tone brightness; low = warm/dark, high = bright/crisp
+                        </p>
                         <input
                             type="range"
                             id="filter-cutoff"
@@ -1197,6 +1346,9 @@
                             Resonance:
                             <span id="filter-resonance-value">1.0</span>
                         </label>
+                        <p class="text-[11px] text-gray-400 mb-1">
+                            Sharpness / vocal emphasis at cutoff peak
+                        </p>
                         <input
                             type="range"
                             id="filter-resonance"
@@ -1223,6 +1375,9 @@
                             Drive (Overdrive):
                             <span id="drive-mix-value">0.00</span>
                         </label>
+                        <p class="text-[11px] text-gray-400 mb-1">
+                            Harmonic saturation and distortion warmth
+                        </p>
                         <input type="range" id="drive-mix" min="0" max="1" value="0" step="0.01" />
                     </div>
                     <!-- END Selector: Drive Mix -->
@@ -1233,6 +1388,9 @@
                             Chorus Mix:
                             <span id="chorus-mix-value">0.00</span>
                         </label>
+                        <p class="text-[11px] text-gray-400 mb-1">
+                            Stereo shimmer and modulated detune blend
+                        </p>
                         <input type="range" id="chorus-mix" min="0" max="1" value="0" step="0.01" />
                     </div>
                     <!-- END Selector: Chorus Mix -->
@@ -1243,6 +1401,9 @@
                             Auto-Pan Mix:
                             <span id="autopan-mix-value">0.00</span>
                         </label>
+                        <p class="text-[11px] text-gray-400 mb-1">
+                            Left/right stereo oscillation depth
+                        </p>
                         <input
                             type="range"
                             id="autopan-mix"
@@ -1260,6 +1421,9 @@
                             Delay Mix:
                             <span id="delay-mix-value">0.20</span>
                         </label>
+                        <p class="text-[11px] text-gray-400 mb-1">
+                            Echo wet/dry blend (fixed 8th note delay)
+                        </p>
                         <input
                             type="range"
                             id="delay-mix"
@@ -1277,6 +1441,9 @@
                             Reverb Mix:
                             <span id="reverb-mix-value">0.20</span>
                         </label>
+                        <p class="text-[11px] text-gray-400 mb-1">
+                            Room acoustic space and decay wet/dry blend
+                        </p>
                         <input
                             type="range"
                             id="reverb-mix"
@@ -1491,19 +1658,24 @@
                     Offline Export (Perfect Loop)
                 </h2>
                 <div class="space-y-4">
-                    <div class="flex items-center gap-4">
-                        <label for="loop-count" class="text-sm font-medium whitespace-nowrap">
-                            Number of Loops:
-                        </label>
-                        <input
-                            type="number"
-                            id="loop-count"
-                            value="4"
-                            min="1"
-                            max="100"
-                            class="w-20 p-2 bg-gray-800 border border-gray-600 rounded-md text-gray-100"
-                            onkeydown="return filterNumericInput(event);"
-                        />
+                    <div>
+                        <div class="flex items-center gap-4">
+                            <label for="loop-count" class="text-sm font-medium whitespace-nowrap">
+                                Number of Loops:
+                            </label>
+                            <input
+                                type="number"
+                                id="loop-count"
+                                value="4"
+                                min="1"
+                                max="100"
+                                class="w-20 p-2 bg-gray-800 border border-gray-600 rounded-md text-gray-100"
+                                onkeydown="return filterNumericInput(event);"
+                            />
+                        </div>
+                        <p class="text-[11px] text-gray-400 mt-1">
+                            Number of complete pattern cycles rendered into export audio
+                        </p>
                     </div>
                     <div class="flex justify-center gap-6">
                         <label class="flex items-center space-x-2 cursor-pointer">
@@ -1621,7 +1793,17 @@
                                 id="saved-preset-select"
                                 class="w-full p-2 text-xs bg-gray-900 border border-gray-700 rounded-md text-gray-100 focus:ring-2 focus:ring-lime-500"
                             >
-                                <option value="">No saved presets</option>
+                                <optgroup label="Factory Presets">
+                                    <option value="factory-synthwave">Classic Synthwave</option>
+                                    <option value="factory-ambient">Ambient Dreamscape</option>
+                                    <option value="factory-cyberpunk">Cyberpunk Bassline</option>
+                                    <option value="factory-harp">Plucked Acoustic Harp</option>
+                                    <option value="factory-chiptune">Chiptune Nostalgia</option>
+                                    <option value="factory-neosoul">Jazzy Neo-Soul</option>
+                                </optgroup>
+                                <optgroup label="User Presets">
+                                    <option value="" disabled>No saved user presets</option>
+                                </optgroup>
                             </select>
                         </div>
                         <div class="space-y-2">
