@@ -5,8 +5,12 @@
  * scaling (80%) and positioning (25px offset up) to align the content properly.
  */
 
-const fs = require("fs");
-const path = require("path");
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 /**
  * Main execution function that reads the source SVG, applies transformations,
@@ -51,7 +55,7 @@ function main() {
   <g transform="translate(256, 231) scale(0.8) translate(-256, -261)">
 ${innerContent
     .split("\n")
-    .map((line) => "    " + line)
+    .map((line) => `    ${line}`)
     .join("\n")}
   </g>`;
 
