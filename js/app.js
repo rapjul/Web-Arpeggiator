@@ -51,7 +51,11 @@ import {
 } from "./url-preset.js";
 import { createToastManager } from "./ui-feedback.js";
 import { exportMidiFile, createMidiBlob } from "./midi-export.js";
-import { buildPatternSequence, materializePatternSequence } from "./pattern-core.js";
+import {
+    buildPatternSequence,
+    materializePatternSequence,
+    normalizeNotesSequence,
+} from "./pattern-core.js";
 
 /**
  * Filters keydown events for the notes input.
@@ -1459,8 +1463,14 @@ function initializeApp() {
     });
 
     notesInput.addEventListener("change", () => {
-        currentNotes = notesInput.value.trim().split(/\s+/).filter(Boolean);
-        if (currentNotes.length === 0) currentNotes = ["C4"];
+        const raw = notesInput.value.trim().split(/\s+/).filter(Boolean);
+        const normalized = normalizeNotesSequence(raw);
+        if (normalized.length > 0) {
+            notesInput.value = normalized.join(" ");
+            currentNotes = normalized;
+        } else {
+            currentNotes = raw.length ? raw : ["C4"];
+        }
         syncPatternModuleState();
         createOrUpdatePattern();
     });

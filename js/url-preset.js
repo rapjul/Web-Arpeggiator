@@ -7,6 +7,8 @@
  * @module url-preset
  */
 
+import { normalizeNotesSequence } from "./pattern-core.js";
+
 /**
  * Recognized query parameter keys mapped to preset settings.
  * @type {ReadonlySet<string>}
@@ -128,10 +130,10 @@ export const ALLOWED_SYNTHS = Object.freeze([
 export const ALLOWED_WAVEFORMS = Object.freeze(["sine", "square", "sawtooth", "triangle", "pulse"]);
 
 /**
- * Regular expression to validate space-separated note sequences (e.g. "C4 E4 G4").
+ * Regular expression to validate space-separated note sequences with optional octaves and case-insensitivity (e.g. "C4 E4 G4", "c e g", "C#4 Eb5").
  * @type {RegExp}
  */
-export const NOTES_REGEX = /^[A-G][b#]?[0-9](\s+[A-G][b#]?[0-9])*$/;
+export const NOTES_REGEX = /^[A-Ga-g][b#]?[0-9]?(\s+[A-Ga-g][b#]?[0-9]?)*$/;
 
 /**
  * Parses and clamps an integer value between minimum and maximum bounds.
@@ -177,7 +179,10 @@ export function serializePresetToUrlParams(settings) {
     if (!settings) return params;
 
     if (Array.isArray(settings.baseNotes) && settings.baseNotes.length > 0) {
-        params.set("notes", settings.baseNotes.join(" "));
+        const normalized = normalizeNotesSequence(settings.baseNotes);
+        if (normalized.length > 0) {
+            params.set("notes", normalized.join(" "));
+        }
     }
     if (settings.bpm !== undefined) params.set("bpm", String(settings.bpm));
     if (settings.swing !== undefined) params.set("swing", Number(settings.swing).toFixed(2));
@@ -243,7 +248,10 @@ export function parsePresetFromUrlParams(searchParams, currentSettings) {
     if (params.has("notes")) {
         const rawNotes = params.get("notes")?.trim() || "";
         if (NOTES_REGEX.test(rawNotes)) {
-            settings.baseNotes = rawNotes.split(/\s+/).filter(Boolean);
+            const normalized = normalizeNotesSequence(rawNotes);
+            if (normalized.length > 0) {
+                settings.baseNotes = normalized;
+            }
         }
     }
 

@@ -1,5 +1,8 @@
 import { describe, test, expect } from "bun:test";
 import {
+    parseNoteWithOctave,
+    normalizeNoteName,
+    normalizeNotesSequence,
     quantizeToScale,
     getArpeggioNotes,
     buildPatternNotesAndMap,
@@ -9,6 +12,43 @@ import {
     CHROMATIC_PITCHES,
     CHROMATIC_RANGE,
 } from "../../js/pattern-core.js";
+
+describe("Pattern Core - Note Parsing & Auto-Resolution", () => {
+    test("parseNoteWithOctave parses standard and bare pitch classes", () => {
+        expect(parseNoteWithOctave("C4")).toEqual({ name: "C4", midi: 60 });
+        expect(parseNoteWithOctave("C")).toEqual({ name: "C4", midi: 60 });
+        expect(parseNoteWithOctave("eb")).toEqual({ name: "Eb4", midi: 63 });
+        expect(parseNoteWithOctave("f#2")).toEqual({ name: "F#2", midi: 42 });
+        expect(parseNoteWithOctave("   g#   ")).toEqual({ name: "G#4", midi: 68 });
+        expect(parseNoteWithOctave("invalid")).toBeNull();
+        expect(parseNoteWithOctave("")).toBeNull();
+    });
+
+    test("normalizeNoteName and normalizeNotesSequence normalize sequences", () => {
+        expect(normalizeNoteName("c")).toBe("C4");
+        expect(normalizeNoteName("eb3")).toBe("Eb3");
+        expect(normalizeNoteName("f#")).toBe("F#4");
+
+        const normalized = normalizeNotesSequence("c4   e   g#4   bb");
+        expect(normalized).toEqual(["C4", "E4", "G#4", "Bb4"]);
+
+        const arrayNormalized = normalizeNotesSequence(["c", "d#4", "e", "f5", "g"]);
+        expect(arrayNormalized).toEqual(["C4", "D#4", "E4", "F5", "G4"]);
+    });
+
+    test("buildPatternNotesAndMap resolves bare notes without dropping them", () => {
+        const { notes, map } = buildPatternNotesAndMap(["c", "e", "g"], 1, 0);
+        expect(notes).toEqual(["C4", "E4", "G4"]);
+        expect(map).toEqual([0, 1, 2]);
+    });
+
+    test("quantizeToScale resolves bare notes during quantization", () => {
+        const quantized = quantizeToScale(["c", "f#"], "C", "major");
+        expect(quantized.length).toBe(2);
+        expect(quantized[0]).toBe("C4");
+        expect(["F4", "G4"]).toContain(quantized[1]);
+    });
+});
 
 describe("Pattern Core - Scale Quantization & Octave Expansion", () => {
     test("defines 12 chromatic pitches and 9-octave range", () => {

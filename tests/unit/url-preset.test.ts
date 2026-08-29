@@ -54,13 +54,23 @@ describe("URL Preset Domain Module", () => {
         expect(clampFloat("abc", 0.0, 1.0, 0.5)).toBe(0.5);
     });
 
-    test("NOTES_REGEX strictly validates note sequences", () => {
+    test("NOTES_REGEX strictly validates note sequences including bare notes", () => {
         expect(NOTES_REGEX.test("C4 E4 G4")).toBe(true);
         expect(NOTES_REGEX.test("F#3 Bb4 Db5")).toBe(true);
         expect(NOTES_REGEX.test("C4")).toBe(true);
+        expect(NOTES_REGEX.test("C E G")).toBe(true);
+        expect(NOTES_REGEX.test("c e g")).toBe(true);
+        expect(NOTES_REGEX.test("c4 eb g# bb")).toBe(true);
         expect(NOTES_REGEX.test("InvalidNote")).toBe(false);
         expect(NOTES_REGEX.test("<script>")).toBe(false);
         expect(NOTES_REGEX.test("C4 E4 123")).toBe(false);
+    });
+
+    test("parses bare note sequences from URL params into normalized fourth-octave notes", () => {
+        const query = "?notes=c%20e%20g";
+        const parsed = parsePresetFromUrlParams(query, defaultSettings);
+        expect(parsed).not.toBeNull();
+        expect(parsed?.baseNotes).toEqual(["C4", "E4", "G4"]);
     });
 
     test("serializes settings to URLSearchParams with formatted numeric fields", () => {

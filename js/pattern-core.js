@@ -46,6 +46,69 @@ export const CHROMATIC_RANGE = Object.freeze(
 );
 
 /**
+ * Parses a note string, resolving bare pitch classes without octaves to a default octave.
+ *
+ * @param {string} note - Input note string (e.g. "C", "c4", "f#", "Bb4").
+ * @param {number} [defaultOctave=4] - Fallback octave number if omitted.
+ * @returns {{name: string, midi: number}|null} Parsed note metadata or null if invalid.
+ */
+export function parseNoteWithOctave(note, defaultOctave = 4) {
+    if (!note || typeof note !== "string") return null;
+    const trimmed = note.trim();
+    if (!trimmed) return null;
+
+    let parsed = Tonal.Note.get(trimmed);
+    if (parsed && typeof parsed.midi === "number") {
+        return { name: parsed.name, midi: parsed.midi };
+    }
+
+    // If oct is null/undefined, try attaching defaultOctave
+    const pc = Tonal.Note.pitchClass(trimmed);
+    if (pc) {
+        const withOct = `${pc}${defaultOctave}`;
+        parsed = Tonal.Note.get(withOct);
+        if (parsed && typeof parsed.midi === "number") {
+            return { name: parsed.name, midi: parsed.midi };
+        }
+    }
+
+    return null;
+}
+
+/**
+ * Normalizes a note token to canonical scientific pitch notation (e.g. "c" -> "C4", "eb4" -> "Eb4").
+ *
+ * @param {string} note - Raw note token.
+ * @param {number} [defaultOctave=4] - Fallback octave if omitted.
+ * @returns {string|null} Canonical scientific pitch notation or null if unparseable.
+ */
+export function normalizeNoteName(note, defaultOctave = 4) {
+    const parsed = parseNoteWithOctave(note, defaultOctave);
+    return parsed ? parsed.name : null;
+}
+
+/**
+ * Parses and normalizes a sequence of space-separated or array notes into canonical note strings.
+ *
+ * @param {string|string[]} notes - Space-separated note string or note array.
+ * @param {number} [defaultOctave=4] - Fallback octave for bare pitch classes.
+ * @returns {string[]} Array of normalized note strings.
+ */
+export function normalizeNotesSequence(notes, defaultOctave = 4) {
+    if (!notes) return [];
+    const tokens = Array.isArray(notes) ? notes : String(notes).trim().split(/\s+/);
+    const normalized = [];
+    for (const token of tokens) {
+        if (!token) continue;
+        const norm = normalizeNoteName(token, defaultOctave);
+        if (norm) {
+            normalized.push(norm);
+        }
+    }
+    return normalized;
+}
+
+/**
  * Quantizes a list of notes to the closest matching pitches in a given scale.
  *
  * @param {string[]} baseNotes - Input note strings (e.g. ['C4', 'E4', 'G4']).
@@ -81,13 +144,13 @@ export function quantizeToScale(baseNotes, root, scaleType) {
 
         return baseNotes.map((note) => {
             try {
-                const noteMidi = Tonal.Note.midi(note);
-                if (noteMidi === undefined || noteMidi === null) {
+                const parsed = parseNoteWithOctave(note);
+                if (!parsed || parsed.midi === undefined || parsed.midi === null) {
                     return note;
                 }
 
                 const closest = scaleMidis.reduce((prev, curr) =>
-                    Math.abs(curr - noteMidi) < Math.abs(prev - noteMidi) ? curr : prev,
+                    Math.abs(curr - parsed.midi) < Math.abs(prev - parsed.midi) ? curr : prev,
                 );
 
                 return Tonal.Note.fromMidi(closest);
@@ -127,7 +190,7 @@ export function getArpeggioNotes(baseNotes, opts = {}) {
     let expanded = [];
     for (let i = 0; i < baseNotes.length; i++) {
         const note = baseNotes[i];
-        const parsed = Tonal.Note.get(note);
+        const parsed = parseNoteWithOctave(note);
         if (!parsed || parsed.midi === undefined) continue;
 
         for (let o = 0; o < octaveRange; o++) {
@@ -165,7 +228,7 @@ export function buildPatternNotesAndMap(baseNotes, octaveRange, octaveShift, qua
 
     for (let i = 0; i < baseNotes.length; i++) {
         const note = baseNotes[i];
-        const parsed = Tonal.Note.get(note);
+        const parsed = parseNoteWithOctave(note);
         if (!parsed || parsed.midi === undefined) continue;
 
         for (let o = 0; o < validRange; o++) {
@@ -255,7 +318,7 @@ export function buildPatternSequence(baseNotes, options = {}) {
                 : baseNotes;
 
         quantizedBaseNotes.forEach((baseNote, i) => {
-            const parsed = Tonal.Note.get(baseNote);
+            const parsed = parseNoteWithOctave(baseNote);
             if (!parsed || parsed.midi === undefined) return;
             for (let rep = 0; rep < 2; rep++) {
                 for (let oct = 0; oct < 3; oct++) {
@@ -279,7 +342,7 @@ export function buildPatternSequence(baseNotes, options = {}) {
         const reversedIndexed = [...indexedNotes].reverse();
 
         reversedIndexed.forEach(({ note, index }) => {
-            const parsed = Tonal.Note.get(note);
+            const parsed = parseNoteWithOctave(note);
             if (!parsed || parsed.midi === undefined) return;
             for (let rep = 0; rep < 2; rep++) {
                 for (let oct = 2; oct >= 0; oct--) {
@@ -297,7 +360,7 @@ export function buildPatternSequence(baseNotes, options = {}) {
                 : baseNotes;
 
         quantizedBaseNotes.forEach((baseNote, i) => {
-            const parsed = Tonal.Note.get(baseNote);
+            const parsed = parseNoteWithOctave(baseNote);
             if (!parsed || parsed.midi === undefined) return;
 
             // Up: 0, 1, 2
@@ -453,7 +516,7 @@ export function materializePatternSequence(baseNotes, options = {}) {
                     ? quantizeToScale(baseNotes, quantize.root, quantize.scale)
                     : baseNotes;
             quantizedBaseNotes.forEach((baseNote, i) => {
-                const parsed = Tonal.Note.get(baseNote);
+                const parsed = parseNoteWithOctave(baseNote);
                 if (!parsed || parsed.midi === undefined) return;
                 for (let rep = 0; rep < 2; rep++) {
                     for (let oct = 0; oct < 3; oct++) {
@@ -475,7 +538,7 @@ export function materializePatternSequence(baseNotes, options = {}) {
                 .map((note, index) => ({ note, index }))
                 .reverse();
             indexed.forEach(({ note, index }) => {
-                const parsed = Tonal.Note.get(note);
+                const parsed = parseNoteWithOctave(note);
                 if (!parsed || parsed.midi === undefined) return;
                 for (let rep = 0; rep < 2; rep++) {
                     for (let oct = 2; oct >= 0; oct--) {
@@ -494,7 +557,7 @@ export function materializePatternSequence(baseNotes, options = {}) {
                     ? quantizeToScale(baseNotes, quantize.root, quantize.scale)
                     : baseNotes;
             quantizedBaseNotes.forEach((baseNote, i) => {
-                const parsed = Tonal.Note.get(baseNote);
+                const parsed = parseNoteWithOctave(baseNote);
                 if (!parsed || parsed.midi === undefined) return;
                 for (let oct = 0; oct < 3; oct++) {
                     finalNotes.push(Tonal.Note.fromMidi(parsed.midi + octaveShift * 12 + oct * 12));
