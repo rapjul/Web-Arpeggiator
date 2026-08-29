@@ -161,9 +161,9 @@ export function createRecorderManager(context) {
     /**
      * Starts or stops real-time recording.
      *
-     * @returns {void}
+     * @returns {Promise<void>}
      */
-    function toggleRecording() {
+    async function toggleRecording() {
         if (isRecording) {
             // --- Stop recording ---
             isRecording = false;
@@ -178,15 +178,20 @@ export function createRecorderManager(context) {
             }
         } else {
             // --- Start recording ---
-            if (!state.isAudioContextStarted) {
-                actions.showToast("Please start audio playback first.", "error");
-                return;
+            // If audio context is not yet started, initialize audio context first
+            if (!state.isAudioContextStarted && typeof actions.startAudio === "function") {
+                await actions.startAudio();
             }
+
+            // Lazy initialize recorder instance if not yet created
             if (!recorder) {
-                actions.showToast(
-                    "Recorder not initialized. Try starting playback first.",
-                    "error",
-                );
+                await initRecorder();
+            }
+
+            if (!recorder) {
+                dom.recordButton.disabled = true;
+                dom.recordStatus.textContent = "Recording not available on this device.";
+                actions.showToast("Recording not supported on this device.", "error");
                 return;
             }
 
@@ -194,7 +199,7 @@ export function createRecorderManager(context) {
 
             // If transport is currently stopped, auto-start playback so recording captures active audio
             if (!state.isPlaying && typeof actions.startPlayback === "function") {
-                actions.startPlayback();
+                await actions.startPlayback();
             }
 
             if (recorderType === "MediaRecorder") {

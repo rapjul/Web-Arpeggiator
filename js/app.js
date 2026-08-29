@@ -1205,6 +1205,7 @@ function initializeApp() {
             getAllSettings,
             generateFilename,
             formatTime,
+            startAudio,
             startPlayback,
         },
     });
@@ -1438,6 +1439,13 @@ function initializeApp() {
      */
     async function startPlayback() {
         if (!isAudioContextStarted) {
+            if (startOverlay) {
+                startOverlay.style.display = "none";
+            }
+            if (playStopButton) {
+                playStopButton.disabled = false;
+                playStopButton.classList.remove("opacity-50", "cursor-not-allowed", "bg-gray-600");
+            }
             await startAudio();
         }
         if (recorderManager && !recorderManager.isRecording) {
@@ -1951,8 +1959,8 @@ function initializeApp() {
     });
 
     // --- Recording Controls ---
-    recordButton.addEventListener("click", () => {
-        recorderManager.toggleRecording();
+    recordButton.addEventListener("click", async () => {
+        await recorderManager.toggleRecording();
     });
 
     exportButton.addEventListener("click", async () => {
