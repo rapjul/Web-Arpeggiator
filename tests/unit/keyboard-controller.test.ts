@@ -185,4 +185,97 @@ describe("Virtual Keyboard Controller", () => {
 
         expect(() => controls.updateKeyboardControlUi()).not.toThrow();
     });
+
+    it("handles keydown/keyup with Space/Enter and blur on virtual key elements", () => {
+        initializeKeyboardControls({
+            state: mockState as any,
+            dom: {
+                keyboardVisual,
+                keyboardToggle,
+                keyboardToggleStatus,
+                keyboardDescription,
+                notesInput,
+            } as any,
+            actions: mockActions as any,
+        });
+
+        const c4Key = keyboardVisual.querySelector('[data-note="C4"]') as HTMLElement;
+
+        // Space keydown
+        c4Key.dispatchEvent(new KeyboardEvent("keydown", { key: " " }));
+        expect(mockActions.onNoteAttack).toHaveBeenCalledWith("C4");
+
+        // Repeat Space keydown ignored
+        c4Key.dispatchEvent(new KeyboardEvent("keydown", { key: " ", repeat: true }));
+
+        // Space keyup
+        c4Key.dispatchEvent(new KeyboardEvent("keyup", { key: " " }));
+        expect(mockActions.onNoteRelease).toHaveBeenCalledWith("C4");
+
+        // Enter keydown and blur
+        c4Key.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+        expect(mockActions.onNoteAttack).toHaveBeenCalledWith("C4");
+
+        c4Key.dispatchEvent(new Event("blur"));
+        expect(mockActions.onNoteRelease).toHaveBeenCalledWith("C4");
+    });
+
+    it("toggles Add-to-Pattern mode and appends played notes to note input", () => {
+        const keyboardModeAddBtn = document.createElement("button");
+        keyboardModeAddBtn.id = "keyboard-mode-add";
+        const statusSpan = document.createElement("span");
+        statusSpan.className = "keyboard-mode-status";
+        keyboardModeAddBtn.appendChild(statusSpan);
+        document.body.appendChild(keyboardModeAddBtn);
+
+        initializeKeyboardControls({
+            state: mockState as any,
+            dom: {
+                keyboardVisual,
+                keyboardToggle,
+                keyboardToggleStatus,
+                keyboardDescription,
+                keyboardModeAddBtn,
+                notesInput,
+            } as any,
+            actions: mockActions as any,
+        });
+
+        // Turn on Add to Pattern mode
+        keyboardModeAddBtn.click();
+        expect(statusSpan.textContent).toBe("Add to Pattern: On");
+
+        // Play key
+        notesInput.value = "C4";
+        window.dispatchEvent(new KeyboardEvent("keydown", { key: "x" }));
+        expect(notesInput.value).toBe("C4 D4");
+
+        // Turn off Add to Pattern mode
+        keyboardModeAddBtn.click();
+        expect(statusSpan.textContent).toBe("Add to Pattern: Off");
+    });
+
+    it("ignores repeating keydown events and unmapped keys", () => {
+        initializeKeyboardControls({
+            state: mockState as any,
+            dom: {
+                keyboardVisual,
+                keyboardToggle,
+                keyboardToggleStatus,
+                keyboardDescription,
+                notesInput,
+            } as any,
+            actions: mockActions as any,
+        });
+
+        mockActions.onNoteAttack.mockClear();
+
+        // Repeating keydown
+        window.dispatchEvent(new KeyboardEvent("keydown", { key: "z", repeat: true }));
+        expect(mockActions.onNoteAttack).not.toHaveBeenCalled();
+
+        // Unmapped key
+        window.dispatchEvent(new KeyboardEvent("keydown", { key: "1" }));
+        expect(mockActions.onNoteAttack).not.toHaveBeenCalled();
+    });
 });

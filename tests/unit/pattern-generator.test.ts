@@ -194,4 +194,41 @@ describe("Pattern Generator Module", () => {
         createOrUpdatePattern();
         expect((window as any).arpPattern).toBeNull();
     });
+
+    it("creates patterns for various directions (upDownRepeat, downUpRepeat, octaveCycle, randomWalk)", () => {
+        const directions = ["upDownRepeat", "downUpRepeat", "octaveCycle", "randomWalk", "down"];
+        for (const dir of directions) {
+            patternButtons.innerHTML = `<button class="selected" data-pattern="${dir}"></button>`;
+            createOrUpdatePattern();
+            const pattern = (window as any).arpPattern;
+            expect(pattern).toBeDefined();
+            expect(pattern.values.length).toBeGreaterThan(0);
+        }
+    });
+
+    it("falls back to default interval and gate when elements are absent", () => {
+        intervalSelect.remove();
+        gateSlider.remove();
+        patternButtons.remove();
+        createOrUpdatePattern();
+        const pattern = (window as any).arpPattern;
+        expect(pattern).toBeDefined();
+        expect(pattern.interval).toBe("16n");
+    });
+
+    it("handles synth trigger fallback when scheduling with exact time fails", () => {
+        const mockSynth = {
+            triggerAttack: vi.fn((_n, time) => {
+                if (time !== undefined) throw new Error("Time scheduling failed");
+            }),
+            triggerRelease: vi.fn(),
+        };
+
+        (window as any).activeSynth = mockSynth;
+        createOrUpdatePattern();
+
+        const pattern = (window as any).arpPattern;
+        expect(() => pattern.callback(0.5, "C4")).not.toThrow();
+        expect(mockSynth.triggerAttack).toHaveBeenCalledWith("C4");
+    });
 });

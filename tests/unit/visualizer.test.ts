@@ -27,6 +27,7 @@ vi.mock("tone", async (importOriginal) => {
         context: {
             sampleRate: 44100,
         },
+        now: () => 1.0,
         getContext: () => ({
             rawContext: {
                 sampleRate: 44100,
@@ -52,6 +53,7 @@ describe("Visualizer Module", () => {
             lineTo: vi.fn(),
             stroke: vi.fn(),
             fill: vi.fn(),
+            fillRect: vi.fn(),
             fillText: vi.fn(),
             save: vi.fn(),
             restore: vi.fn(),
@@ -318,5 +320,182 @@ describe("Visualizer Module", () => {
             visualizer.startUiLoop();
             visualizer.stopUiLoop();
         }).not.toThrow();
+    });
+
+    it("triggers clipping state when VU meter levels reach or exceed 0 dB", () => {
+        mockAudio.meter.getValue = vi.fn(() => 1.5);
+
+        const visualizer = createVisualizer({
+            dom: mockDom as any,
+            audio: mockAudio as any,
+            state: mockState as any,
+            actions: mockActions as any,
+        });
+
+        visualizer.runUiUpdate();
+        expect(visualizer.isClipped).toBe(true);
+        expect(mockDom.vuClipIndicator.classList.contains("animate-pulse")).toBe(true);
+        expect(mockDom.vuClipIndicator.classList.contains("bg-rose-600")).toBe(true);
+    });
+
+    it("updates elapsed recording time in button label during recording", () => {
+        mockState.isRecording = true;
+        mockState.recordingStartTime = 0.5;
+
+        const visualizer = createVisualizer({
+            dom: mockDom as any,
+            audio: mockAudio as any,
+            state: mockState as any,
+            actions: mockActions as any,
+        });
+
+        visualizer.runUiUpdate();
+        expect(mockState.recordButton.textContent).toContain("Stop Recording");
+    });
+
+    it("handles window resize events by recalculating canvas dimensions", () => {
+        createVisualizer({
+            dom: mockDom as any,
+            audio: mockAudio as any,
+            state: mockState as any,
+            actions: mockActions as any,
+        });
+
+        expect(() => {
+            window.dispatchEvent(new Event("resize"));
+        }).not.toThrow();
+    });
+
+    it("renders oscilloscope and FFT waveforms onto canvas contexts across time windows", () => {
+        const visualizer = createVisualizer({
+            dom: mockDom as any,
+            audio: mockAudio as any,
+            state: mockState as any,
+            actions: mockActions as any,
+        });
+
+        visualizer.toggle();
+
+        // Oscilloscope with multiple time window sizes
+        const windowSizes = ["50", "100", "200", "500"];
+        for (const winSize of windowSizes) {
+            mockDom.oscilloscopeWindowSelect.value = winSize;
+            mockDom.oscilloscopeWindowSelect.dispatchEvent(new Event("change"));
+            visualizer.runUiUpdate();
+            expect(mockCanvasCtx.stroke).toHaveBeenCalled();
+        }
+
+        // FFT spectrum rendering
+        mockDom.visualizerModeSelect.value = "fft";
+        mockDom.visualizerModeSelect.dispatchEvent(new Event("change"));
+        visualizer.runUiUpdate();
+        expect(mockCanvasCtx.fillRect).toHaveBeenCalled();
+    });
+
+    it("handles clip tooltip interactions (mouseenter, mouseleave, focusin, focusout)", () => {
+        createVisualizer({
+            dom: mockDom as any,
+            audio: mockAudio as any,
+            state: mockState as any,
+            actions: mockActions as any,
+        });
+
+        const target = mockDom.vuClipContainer || mockDom.vuClipIndicator;
+
+        target.dispatchEvent(new Event("mouseenter"));
+        expect(mockDom.vuClipTooltip.classList.contains("hidden")).toBe(false);
+
+        target.dispatchEvent(new Event("mouseleave"));
+        expect(mockDom.vuClipTooltip.classList.contains("hidden")).toBe(true);
+
+        target.dispatchEvent(new Event("focusin"));
+        expect(mockDom.vuClipTooltip.classList.contains("hidden")).toBe(false);
+
+        target.dispatchEvent(new Event("focusout"));
+        expect(mockDom.vuClipTooltip.classList.contains("hidden")).toBe(true);
+    });
+
+    it("displays -- dB when VU meter value is -Infinity or NaN", () => {
+        mockAudio.meter.getValue = vi.fn(() => -Infinity);
+
+        const visualizer = createVisualizer({
+            dom: mockDom as any,
+            audio: mockAudio as any,
+            state: mockState as any,
+            actions: mockActions as any,
+        });
+
+        visualizer.runUiUpdate();
+        expect(mockDom.vuDbValue.textContent).toBe("-- dB");
+    });
+
+    it("toggles and closes info tooltip when clicked repeatedly or blurred", () => {
+        createVisualizer({
+            dom: mockDom as any,
+            audio: mockAudio as any,
+            state: mockState as any,
+            actions: mockActions as any,
+        });
+
+        // First click opens
+        mockDom.vuInfoButton.click();
+        expect(mockDom.vuInfoTooltip.classList.contains("hidden")).toBe(false);
+
+        // Second click closes
+        mockDom.vuInfoButton.click();
+        expect(mockDom.vuInfoTooltip.classList.contains("hidden")).toBe(true);
+
+        // Focus and blur
+        mockDom.vuInfoButton.dispatchEvent(new Event("focus"));
+        expect(mockDom.vuInfoTooltip.classList.contains("hidden")).toBe(false);
+
+        mockDom.vuInfoButton.dispatchEvent(new Event("blur"));
+        expect(mockDom.vuInfoTooltip.classList.contains("hidden")).toBe(true);
+    });
+
+    it("switches visualizer modes while active during playback and stopped states", () => {
+        mockState.isPlaying = true;
+
+        const visualizer = createVisualizer({
+            dom: mockDom as any,
+            audio: mockAudio as any,
+            state: mockState as any,
+            actions: mockActions as any,
+        });
+
+        visualizer.toggle();
+
+        // Switch to loopMap
+        mockDom.visualizerModeSelect.value = "loopMap";
+        mockDom.visualizerModeSelect.dispatchEvent(new Event("change"));
+
+        // Switch back to oscilloscope with playback stopped
+        mockState.isPlaying = false;
+        mockDom.visualizerModeSelect.value = "oscilloscope";
+        mockDom.visualizerModeSelect.dispatchEvent(new Event("change"));
+        expect(visualizer.currentMode).toBe("oscilloscope");
+    });
+
+    it("runs manual note release decay timeout and toggles in loopMap mode", () => {
+        vi.useFakeTimers();
+        try {
+            const visualizer = createVisualizer({
+                dom: mockDom as any,
+                audio: mockAudio as any,
+                state: mockState as any,
+                actions: mockActions as any,
+            });
+
+            visualizer.onManualNoteAttack("C4");
+            visualizer.onManualNoteRelease("C4");
+            vi.advanceTimersByTime(2000);
+
+            // Toggle while in loopMap mode
+            mockDom.visualizerModeSelect.value = "loopMap";
+            visualizer.toggle();
+            expect(visualizer.isVisualizerOn).toBe(true);
+        } finally {
+            vi.useRealTimers();
+        }
     });
 });

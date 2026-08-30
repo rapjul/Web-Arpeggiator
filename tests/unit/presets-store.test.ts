@@ -227,4 +227,40 @@ describe("Presets Store Domain Module", () => {
             expect(loaded).toEqual(record);
         });
     });
+
+    describe("Utility and edge case helpers", () => {
+        it("falls back to JSON cloning when structuredClone is unavailable", () => {
+            const originalStructuredClone = globalThis.structuredClone;
+            try {
+                // @ts-expect-error intentionally removing structuredClone
+                delete globalThis.structuredClone;
+                const obj = { bpm: 120, arr: [1, 2, 3] };
+                const cloned = cloneSettings(obj);
+                expect(cloned).toEqual(obj);
+                expect(cloned).not.toBe(obj);
+            } finally {
+                globalThis.structuredClone = originalStructuredClone;
+            }
+        });
+
+        it("saves preset records with custom filename and source metadata", async () => {
+            const record = await save(
+                { bpm: 128 },
+                { id: "custom-meta", name: "Custom", filename: "custom.json", source: "export" },
+            );
+            expect(record.filename).toBe("custom.json");
+            expect(record.source).toBe("export");
+        });
+
+        it("rejects openDatabase when indexedDB is missing in window", async () => {
+            const originalIndexedDB = window.indexedDB;
+            try {
+                // @ts-expect-error removing indexedDB
+                delete window.indexedDB;
+                await expect(openDatabase()).rejects.toThrow("IndexedDB is not supported");
+            } finally {
+                window.indexedDB = originalIndexedDB;
+            }
+        });
+    });
 });

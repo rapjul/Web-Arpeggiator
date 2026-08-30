@@ -10,6 +10,26 @@ vi.mock("@core/audio-utils.js", () => ({
     downloadBlob: vi.fn(),
 }));
 
+const mockContext = {
+    decodeAudioData: vi.fn(async (_buf: any) => ({
+        duration: 1.0,
+        sampleRate: 44100,
+        numberOfChannels: 2,
+        getChannelData: () => new Float32Array(44100),
+    })),
+    rawContext: {
+        createMediaStreamDestination: () => ({
+            stream: {},
+        }),
+        decodeAudioData: async (_buf: any) => ({
+            duration: 1.0,
+            sampleRate: 44100,
+            numberOfChannels: 2,
+            getChannelData: () => new Float32Array(44100),
+        }),
+    },
+};
+
 vi.mock("tone", async (importOriginal) => {
     return {
         Recorder: class MockRecorder {
@@ -31,25 +51,7 @@ vi.mock("tone", async (importOriginal) => {
             start() {}
             dispose() {}
         },
-        getContext: () => ({
-            decodeAudioData: async (_buf: any) => ({
-                duration: 1.0,
-                sampleRate: 44100,
-                numberOfChannels: 2,
-                getChannelData: () => new Float32Array(44100),
-            }),
-            rawContext: {
-                createMediaStreamDestination: () => ({
-                    stream: {},
-                }),
-                decodeAudioData: async (_buf: any) => ({
-                    duration: 1.0,
-                    sampleRate: 44100,
-                    numberOfChannels: 2,
-                    getChannelData: () => new Float32Array(44100),
-                }),
-            },
-        }),
+        getContext: () => mockContext,
         now: () => 1.0,
         Time: (_t: string) => ({
             toSeconds: () => 0.125,
@@ -267,5 +269,104 @@ describe("Recorder Manager Module", () => {
             "Please start audio playback first.",
             "error",
         );
+    });
+
+    it("renders offline loops with various pattern directions (upDown, downUp, downUpRepeat)", async () => {
+        const manager = createRecorderManager({
+            audio: mockAudio as any,
+            dom: mockDom as any,
+            state: mockState as any,
+            actions: mockActions as any,
+        });
+
+        mockDom.offlineExportWavCheck.checked = true;
+        mockDom.offlineExportMp3Check.checked = false;
+
+        const directions = ["upDown", "downUp", "downUpRepeat", "up"];
+        for (const direction of directions) {
+            mockActions.getAllSettings = vi.fn(() => ({
+                bpm: 120,
+                swing: 0,
+                notes: ["C4", "E4", "G4"],
+                direction,
+                interval: "16n",
+                gateRatio: 0.8,
+                loopCount: 1,
+            }));
+
+            await manager.exportOffline();
+            expect(mockActions.showToast).toHaveBeenCalledWith("Export complete!", "success");
+        }
+    });
+
+    it("handles offline export with only MP3 format selected and handles render errors", async () => {
+        const manager = createRecorderManager({
+            audio: mockAudio as any,
+            dom: mockDom as any,
+            state: mockState as any,
+            actions: mockActions as any,
+        });
+
+        mockDom.offlineExportWavCheck.checked = false;
+        mockDom.offlineExportMp3Check.checked = true;
+
+        await manager.exportOffline();
+        expect(mockActions.showToast).toHaveBeenCalledWith("Export complete!", "success");
+
+        // Error during offline render
+        const Tone = await import("tone");
+        vi.spyOn(Tone, "Offline").mockRejectedValueOnce(new Error("Offline render crash"));
+        await manager.exportOffline();
+        expect(mockActions.showToast).toHaveBeenCalledWith("Offline render failed.", "error");
+    });
+
+    it("handles real-time export with only WAV format selected and decode failures", async () => {
+        const manager = createRecorderManager({
+            audio: mockAudio as any,
+            dom: mockDom as any,
+            state: mockState as any,
+            actions: mockActions as any,
+        });
+
+        const testBlob = new Blob([new Uint8Array(2048)], { type: "audio/wav" });
+        manager.setRecorderBlob(testBlob);
+
+        // WAV only
+        mockDom.realtimeExportWavCheck.checked = true;
+        mockDom.realtimeExportMp3Check.checked = false;
+        await manager.exportRealtime();
+        expect(mockActions.showToast).toHaveBeenCalledWith("Export complete!", "success");
+
+        // MP3 decode failure
+        mockActions.showToast.mockClear();
+        mockDom.realtimeExportWavCheck.checked = false;
+        mockDom.realtimeExportMp3Check.checked = true;
+        const Tone = await import("tone");
+        vi.spyOn(Tone.getContext(), "decodeAudioData").mockRejectedValueOnce(
+            new Error("Decode failed"),
+        );
+        await manager.exportRealtime();
+        expect(mockActions.showToast).toHaveBeenCalledWith("MP3 encoding failed.", "error");
+    });
+
+    it("auto-starts audio and playback when recording begins from stopped state", async () => {
+        mockState.isAudioContextStarted = false;
+        mockState.isPlaying = false;
+
+        const manager = createRecorderManager({
+            audio: mockAudio as any,
+            dom: mockDom as any,
+            state: mockState as any,
+            actions: mockActions as any,
+        });
+
+        await manager.toggleRecording();
+        expect(mockActions.startAudio).toHaveBeenCalled();
+        expect(mockActions.startPlayback).toHaveBeenCalled();
+        expect(manager.isRecording).toBe(true);
+
+        // Stop recording
+        await manager.toggleRecording();
+        expect(manager.isRecording).toBe(false);
     });
 });

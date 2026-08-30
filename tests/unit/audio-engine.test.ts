@@ -26,6 +26,30 @@ vi.mock("tone", async (importOriginal) => {
     class MockSynth extends MockNode {
         oscillator = { type: "sine" };
         envelope = { attack: 0.01, decay: 0.1, sustain: 0.5, release: 1.0 };
+        triggerAttack() {}
+        triggerRelease() {}
+        triggerAttackRelease() {}
+        set() {}
+        get() {
+            return { type: "synth", oscillator: { type: "sine" } };
+        }
+    }
+
+    class MockFMSynth extends MockSynth {
+        harmonicity = new MockParam();
+        modulationIndex = new MockParam();
+    }
+
+    class MockAMSynth extends MockSynth {
+        harmonicity = new MockParam();
+    }
+
+    class MockMonoSynth extends MockSynth {
+        filterEnvelope = { baseFrequency: 2000, octaves: 3, exponent: 2 };
+        filter = { Q: new MockParam() };
+    }
+
+    class MockDuoSynth extends MockNode {
         voice0 = {
             oscillator: { type: "sine" },
             envelope: { attack: 0.01, decay: 0.1, sustain: 0.5, release: 1.0 },
@@ -35,21 +59,34 @@ vi.mock("tone", async (importOriginal) => {
             envelope: { attack: 0.01, decay: 0.1, sustain: 0.5, release: 1.0 },
         };
         harmonicity = new MockParam();
-        modulationIndex = new MockParam();
-        filterEnvelope = { baseFrequency: 2000, octaves: 3, exponent: 2 };
-        filter = { Q: new MockParam() };
         vibratoAmount = new MockParam();
-        dampening = 4000;
-        resonance = 0.8;
-        attackNoise = 1.0;
-        pitchDecay = 0.05;
-        octaves = 4;
         triggerAttack() {}
         triggerRelease() {}
         triggerAttackRelease() {}
         set() {}
         get() {
-            return { type: "synth", oscillator: { type: "sine" } };
+            return { type: "duoSynth" };
+        }
+    }
+
+    class MockPluckSynth extends MockNode {
+        dampening = 4000;
+        resonance = 0.8;
+        attackNoise = 1.0;
+        triggerAttack() {}
+        triggerRelease() {}
+        triggerAttackRelease() {}
+        set() {}
+        get() {
+            return { type: "pluckSynth" };
+        }
+    }
+
+    class MockMembraneSynth extends MockSynth {
+        pitchDecay = 0.05;
+        octaves = 4;
+        get() {
+            return { type: "membraneSynth", oscillator: { type: "sine" } };
         }
     }
 
@@ -103,12 +140,12 @@ vi.mock("tone", async (importOriginal) => {
             decay = 1.5;
         },
         Synth: MockSynth,
-        FMSynth: MockSynth,
-        AMSynth: MockSynth,
-        MonoSynth: MockSynth,
-        DuoSynth: MockSynth,
-        PluckSynth: MockSynth,
-        MembraneSynth: MockSynth,
+        FMSynth: MockFMSynth,
+        AMSynth: MockAMSynth,
+        MonoSynth: MockMonoSynth,
+        DuoSynth: MockDuoSynth,
+        PluckSynth: MockPluckSynth,
+        MembraneSynth: MockMembraneSynth,
         Offline: vi.fn(),
     };
 });
@@ -289,6 +326,178 @@ describe("Audio Engine Model Definitions", () => {
                 expect(chain.offlinePostGain).toBeDefined();
                 expect(chain.offlinePostGain.volume.value).toBe(-4.5);
             }
+        });
+
+        it("updates envelope settings on multi-voice synths like duoSynth", () => {
+            const engine = createAudioEngine({ dom: mockDom as any, actions: mockActions as any });
+            engine.setSynth("duoSynth");
+
+            mockDom.envAttackSlider.value = "0.02";
+            mockDom.envDecaySlider.value = "0.15";
+            mockDom.envSustainSlider.value = "0.6";
+            mockDom.envReleaseSlider.value = "1.2";
+
+            expect(() => engine.updateEnvelope()).not.toThrow();
+        });
+
+        it("manages waveform controls and overlays for pluckSynth and square waves", () => {
+            mockDom.waveformPluckOverlay = document.createElement("div");
+            mockDom.waveformButtons = document.createElement("div");
+            const btn = document.createElement("button");
+            mockDom.waveformButtons.appendChild(btn);
+
+            const engine = createAudioEngine({ dom: mockDom as any, actions: mockActions as any });
+
+            // Pluck Synth disables waveform buttons
+            engine.setSynth("pluckSynth");
+            expect(btn.disabled).toBe(true);
+            expect(mockDom.waveformPluckOverlay.classList.contains("flex")).toBe(true);
+
+            // Basic Synth enables waveform buttons
+            engine.setSynth("synth");
+            expect(btn.disabled).toBe(false);
+            expect(mockDom.waveformPluckOverlay.classList.contains("hidden")).toBe(true);
+
+            // Square wave displays duty cycle
+            engine.currentWaveform = "square";
+            engine.setSynth("synth");
+            expect(mockDom.dutyControl.classList.contains("hidden")).toBe(false);
+        });
+
+        it("switches parameters visibility for fmSynth, amSynth, monoSynth, duoSynth, membraneSynth", () => {
+            const engine = createAudioEngine({ dom: mockDom as any, actions: mockActions as any });
+
+            engine.setSynth("fmSynth");
+            expect(mockDom.advancedSynthParams.classList.contains("hidden")).toBe(false);
+            expect(mockDom.harmonicityControl.classList.contains("hidden")).toBe(false);
+
+            engine.setSynth("amSynth");
+            expect(mockDom.advancedSynthParams.classList.contains("hidden")).toBe(false);
+            expect(mockDom.modIndexControl.classList.contains("hidden")).toBe(true);
+
+            engine.setSynth("monoSynth");
+            expect(mockDom.monoSynthParams.classList.contains("hidden")).toBe(false);
+
+            engine.setSynth("duoSynth");
+            expect(mockDom.duoSynthParams.classList.contains("hidden")).toBe(false);
+
+            engine.setSynth("membraneSynth");
+            expect(mockDom.membraneSynthParams.classList.contains("hidden")).toBe(false);
+
+            engine.setSynth("pluckSynth");
+            expect(mockDom.pluckSynthParams.classList.contains("hidden")).toBe(false);
+        });
+
+        it("handles limiter instantiation failure gracefully and routes directly to destination", async () => {
+            const Tone = await import("tone");
+            const originalLimiter = Tone.Limiter;
+            try {
+                // @ts-expect-error mocking Limiter failure
+                Tone.Limiter = class FailingLimiter {
+                    constructor() {
+                        throw new Error("Limiter unsupported");
+                    }
+                };
+
+                const engine = createAudioEngine({
+                    dom: mockDom as any,
+                    actions: mockActions as any,
+                });
+                expect(engine).toBeDefined();
+
+                // Test offline chain without limiter
+                const chain = engine.createOfflineChain(
+                    { destination: {} },
+                    { synthType: "synth" },
+                );
+                expect(chain.offlineOutput).toBeDefined();
+            } finally {
+                // @ts-expect-error restoring Limiter
+                Tone.Limiter = originalLimiter;
+            }
+        });
+
+        it("applies pluck and membrane synth parameters in createOfflineChain", () => {
+            const engine = createAudioEngine({ dom: mockDom as any, actions: mockActions as any });
+            const mockOfflineContext = { destination: {} };
+
+            // Duo synth with voice envelopes
+            const duoChain = engine.createOfflineChain(mockOfflineContext, {
+                synthType: "duoSynth",
+                duoHarm: 2.5,
+                duoVibrato: 0.45,
+                envAttack: 0.05,
+                envDecay: 0.2,
+                envSustain: 0.6,
+                envRelease: 1.1,
+            });
+            expect(duoChain.offlineSynth).toBeDefined();
+
+            // Pluck synth
+            const pluckChain = engine.createOfflineChain(mockOfflineContext, {
+                synthType: "pluckSynth",
+                pluckDampening: 4500,
+                pluckResonance: 0.85,
+                pluckNoise: 1.8,
+            });
+            expect(pluckChain.offlineSynth).toBeDefined();
+
+            // Membrane synth
+            const membraneChain = engine.createOfflineChain(mockOfflineContext, {
+                synthType: "membraneSynth",
+                waveform: "sine",
+                membranePitchDecay: 0.08,
+                membraneOctaves: 6,
+            });
+            expect(membraneChain.offlineSynth).toBeDefined();
+
+            // FM, AM, Mono synths
+            const fmChain = engine.createOfflineChain(mockOfflineContext, {
+                synthType: "fmSynth",
+                harmonicity: 3.5,
+                modulationIndex: 8.0,
+                waveform: "sawtooth",
+            });
+            expect(fmChain.offlineSynth).toBeDefined();
+
+            const amChain = engine.createOfflineChain(mockOfflineContext, {
+                synthType: "amSynth",
+                harmonicity: 2.5,
+                waveform: "triangle",
+            });
+            expect(amChain.offlineSynth).toBeDefined();
+
+            const monoChain = engine.createOfflineChain(mockOfflineContext, {
+                synthType: "monoSynth",
+                monoCutoff: 1800,
+                monoOctaves: 4,
+                monoQ: 3,
+                waveform: "square",
+            });
+            expect(monoChain.offlineSynth).toBeDefined();
+        });
+
+        it("returns null for unknown synth config and handles empty active synth in updateEnvelope", () => {
+            const engine = createAudioEngine({ dom: mockDom as any, actions: mockActions as any });
+
+            expect(engine.getSynthConfig("invalidSynthType")).toBeNull();
+
+            // Set sliders
+            mockDom.duoHarmSlider.value = "3.2";
+            mockDom.duoVibratoSlider.value = "0.7";
+            engine.setSynth("duoSynth");
+            expect(engine.activeSynth).toBe(engine.synths.duoSynth);
+
+            mockDom.pluckDampeningSlider.value = "5500";
+            mockDom.pluckResonanceSlider.value = "0.95";
+            mockDom.pluckNoiseSlider.value = "2.1";
+            engine.setSynth("pluckSynth");
+            expect(engine.activeSynth).toBe(engine.synths.pluckSynth);
+
+            mockDom.membranePitchDecaySlider.value = "0.12";
+            mockDom.membraneOctavesSlider.value = "7.5";
+            engine.setSynth("membraneSynth");
+            expect(engine.activeSynth).toBe(engine.synths.membraneSynth);
         });
     });
 });

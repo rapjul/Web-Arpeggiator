@@ -388,7 +388,9 @@ export function createVisualizer(context) {
                     } else if (typeof analyser.getValue === "function") {
                         const val = analyser.getValue();
                         if (val instanceof Float32Array) {
-                            waveformBuffer.set(val);
+                            waveformBuffer.set(
+                                val.subarray(0, Math.min(val.length, waveformBuffer.length)),
+                            );
                             if (currentMode === "oscilloscope") {
                                 pushToRollingBuffer(val);
                             }
@@ -420,7 +422,7 @@ export function createVisualizer(context) {
                     plotCtx.strokeStyle = lineGrad;
                     plotCtx.lineWidth = 2;
 
-                    const activePoints = displayLength - triggerIndex;
+                    const activePoints = chronBuffer.length - triggerIndex;
                     for (let i = 0; i < activePoints; i++) {
                         const val = chronBuffer[triggerIndex + i];
                         const x = leftPadding + (i / activePoints) * plotWidth;

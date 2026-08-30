@@ -331,4 +331,52 @@ describe("Settings Manager Domain Module", () => {
             "error",
         );
     });
+
+    it("handles legacy string-formatted note sequences in loadAllSettings", () => {
+        const mockDom = createMockDom();
+        const mockState = {
+            currentNotes: ["C4"],
+            currentOctaveShift: 0,
+            currentOctaveRange: 1,
+            currentWaveform: "sine",
+            activeSynth: null,
+        };
+
+        const mockActions = {
+            getArpeggioNotes: () => ["C4", "E4", "G4"],
+            getSelectedPatternDirection: () => "up",
+            setSelectedPatternDirection: vi.fn(),
+            updateScaleQuantizeUi: vi.fn(),
+            updateScaleQuantizeToggleText: vi.fn(),
+            updateWaveformButtons: vi.fn(),
+            setSynth: vi.fn(),
+            updateButtonGroup: vi.fn(),
+            syncPatternModuleState: vi.fn(),
+            createOrUpdatePattern: vi.fn(),
+            showToast: vi.fn(),
+        };
+
+        const manager = createSettingsManager({
+            state: mockState as any,
+            dom: mockDom as any,
+            actions: mockActions as any,
+            audio: {
+                filter: { frequency: { value: 0 }, Q: { value: 0 } },
+                delay: { wet: { value: 0 } },
+                reverb: { wet: { value: 0 } },
+                postGain: { volume: { value: 0 } },
+            } as any,
+        });
+
+        // notes passed as space-separated string
+        manager.loadAllSettings({
+            bpm: 120,
+            swing: 0,
+            notes: "C4 E4 G4",
+            direction: "downUp",
+        });
+
+        expect(mockDom.notesInput.value).toBe("C4 E4 G4");
+        expect(mockActions.setSelectedPatternDirection).toHaveBeenCalledWith("downUp");
+    });
 });
