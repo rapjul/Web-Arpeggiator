@@ -71,11 +71,20 @@ describe("Production DOM Parity Suite", () => {
     beforeEach(() => {
         const htmlPath = resolve(__dirname, "../../index.html");
         htmlContent = readFileSync(htmlPath, "utf-8");
-        // Remove link and script tags to avoid network fetch aborts in HappyDOM
-        const sanitizedHtml = htmlContent
-            .replace(/<link\b[^>]*>/gi, "")
-            .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "");
-        document.body.innerHTML = sanitizedHtml;
+        // Extract only <body> content to avoid <head> stylesheet network fetch requests in HappyDOM
+        const bodyStart = htmlContent.indexOf("<body");
+        const bodyEnd = htmlContent.indexOf("</body>");
+        const bodyHtml =
+            bodyStart !== -1 && bodyEnd !== -1
+                ? htmlContent.slice(bodyStart, bodyEnd + 7)
+                : htmlContent;
+
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(bodyHtml, "text/html");
+        doc.querySelectorAll("script").forEach((element) => {
+            element.remove();
+        });
+        document.body.innerHTML = doc.body.innerHTML;
 
         appWindow.currentOctaveRange = 1;
         appWindow.currentOctaveShift = 0;
