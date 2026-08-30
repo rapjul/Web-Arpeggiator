@@ -565,6 +565,13 @@ function initializeApp() {
         );
         if (radio) {
             radio.checked = true;
+        } else {
+            const fallbackRadio = /** @type {HTMLInputElement | null} */ (
+                patternButtons.querySelector("input[name='pattern-direction'][value='up']")
+            );
+            if (fallbackRadio) {
+                fallbackRadio.checked = true;
+            }
         }
         let selectedButton = patternButtons.querySelector(
             `.pattern-btn[data-pattern="${nextDirection}"]`,

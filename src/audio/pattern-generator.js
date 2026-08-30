@@ -71,8 +71,7 @@ export function createOrUpdatePattern() {
         let direction = "up";
         if (patternButtons) {
             const checkedRadio = /** @type {HTMLInputElement|null} */ (
-                patternButtons.querySelector("input[name='pattern-direction']:checked") ||
-                    patternButtons.querySelector("input[type='radio']:checked")
+                patternButtons.querySelector("input[name='pattern-direction']:checked")
             );
             if (checkedRadio?.value) {
                 direction = checkedRadio.value;
@@ -116,8 +115,6 @@ export function createOrUpdatePattern() {
 
         stepToBaseIndexMap = computedMap;
 
-        if (!finalNotes || finalNotes.length === 0) return;
-
         // Dispose old pattern if present
         if (window.arpPattern) {
             try {
@@ -125,6 +122,8 @@ export function createOrUpdatePattern() {
             } catch {}
             window.arpPattern = null;
         }
+
+        if (!finalNotes || finalNotes.length === 0) return;
 
         // Calculate note duration in seconds once outside the scheduling callback
         let durationSeconds = 0.1;

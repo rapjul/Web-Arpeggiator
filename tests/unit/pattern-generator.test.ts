@@ -224,6 +224,18 @@ describe("Pattern Generator Module", () => {
         expect(appWindow.arpPattern).toBeNull();
     });
 
+    it("disposes an existing active pattern when note input is cleared during playback", () => {
+        notesInput.value = "C4 E4 G4";
+        createOrUpdatePattern();
+        const activePattern = appWindow.arpPattern;
+        expect(activePattern).toBeDefined();
+
+        notesInput.value = "";
+        createOrUpdatePattern();
+        expect(activePattern?.isDisposed).toBe(true);
+        expect(appWindow.arpPattern).toBeNull();
+    });
+
     it("creates patterns for all 12 directions using realistic radio button DOM markup", () => {
         const directions = [
             { dir: "up", expectedPattern: "up", expectedValues: ["C4", "E4", "G4"] },
