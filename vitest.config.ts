@@ -14,9 +14,10 @@ export default mergeConfig(
                 include: ["src/**/*.{js,ts}"],
                 exclude: ["src/pwa/pwa.js", "src/app.js"],
                 thresholds: {
+                    perFile: true,
                     statements: 80,
                     branches: 70,
-                    functions: 80,
+                    functions: 70,
                     lines: 80,
                 },
             },

@@ -368,5 +368,32 @@ describe("Recorder Manager Module", () => {
         // Stop recording
         await manager.toggleRecording();
         expect(manager.isRecording).toBe(false);
+        expect(manager.recordingStartTime).toBeDefined();
+    });
+
+    it("handles short audio buffers in offline export", async () => {
+        const Tone = await import("tone");
+        // @ts-expect-error mocking Offline return
+        Tone.Offline = vi.fn(async () => ({
+            length: 100, // < 1000
+            duration: 0.01,
+            sampleRate: 44100,
+            numberOfChannels: 2,
+            getChannelData: () => new Float32Array(100),
+        }));
+
+        const manager = createRecorderManager({
+            audio: mockAudio as any,
+            dom: mockDom as any,
+            state: mockState as any,
+            actions: mockActions as any,
+        });
+
+        mockDom.offlineExportWavCheck.checked = true;
+        await manager.exportOffline();
+        expect(mockActions.showToast).toHaveBeenCalledWith(
+            "Offline generation failed! No audio was created.",
+            "error",
+        );
     });
 });
