@@ -327,7 +327,12 @@ Web Arpeggiator/
 │   ├── pwa/                     # Service Worker & PWA lifecycle
 │   │   └── pwa.js               # Service worker registration & updates
 │   └── app.js                   # Application entry point & DOM wiring
-└── public/                      # Static assets & pattern icons
+├── exports/                     # Generated audio test files
+│   ├── realtime-recordings/
+│   └── perfect-loops/
+├── presets/                     # Saved JSON presets
+├── public/                      # Static assets & pattern icons
+└── tests/                       # Unit and E2E test suites
 ```
 
 ## Performance

@@ -23,7 +23,7 @@ Chosen standard: **Strict Defensive Input Validation and Mandatory Edge-Case Tes
 
 1. **Parsers & Deserializers (`url-preset.js`, `settings-manager.js`, `presets-store.js`)**:
    - All numerical inputs must be clamped between predefined minimum and maximum bounds using helper utilities (`clampInt`, `clampFloat`, `clampNumber`).
-   - Unknown synth models, waveforms, scale types, or pattern directions must fall back to stable defaults (`synth`, `sine`, `major`, `up`).
+   - Unknown synth models, waveforms, scale types, or pattern directions must fall back to stable defaults (`synth`, `sine`, `major`, `up`) or preserve valid active settings in delta parsers.
    - Corrupted or invalid note strings must be sanitized or safely ignored without throwing `TypeError`s.
    - All unit test suites must explicitly test:
      - Out-of-bounds numerical inputs (below minimum, above maximum, `NaN`, `Infinity`, `null`, `undefined`).
