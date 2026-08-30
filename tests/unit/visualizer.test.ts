@@ -4,13 +4,13 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("tone", async (importOriginal) => {
+vi.mock("tone", async () => {
     return {
         Loop: class MockLoop {
-            callback: Function;
+            callback: () => void;
             interval: string;
             isStarted = false;
-            constructor(cb: Function, interval: string) {
+            constructor(cb: () => void, interval: string) {
                 this.callback = cb;
                 this.interval = interval;
             }
@@ -39,11 +39,17 @@ vi.mock("tone", async (importOriginal) => {
 import { createVisualizer } from "@ui/visualizer.js";
 
 describe("Visualizer Module", () => {
-    let mockDom: Record<string, any>;
-    let mockAudio: Record<string, any>;
-    let mockState: Record<string, any>;
-    let mockActions: Record<string, any>;
-    let mockCanvasCtx: Record<string, any>;
+    type VisualizerContext = Parameters<typeof createVisualizer>[0];
+    type VisualizerDom = VisualizerContext["dom"];
+    type VisualizerAudio = VisualizerContext["audio"];
+    type VisualizerState = VisualizerContext["state"];
+    type VisualizerActions = VisualizerContext["actions"];
+
+    let mockDom: VisualizerDom;
+    let mockAudio: VisualizerAudio;
+    let mockState: VisualizerState;
+    let mockActions: VisualizerActions;
+    let mockCanvasCtx: Record<string, ReturnType<typeof vi.fn>>;
 
     beforeEach(() => {
         mockCanvasCtx = {
@@ -69,7 +75,7 @@ describe("Visualizer Module", () => {
 
         const createMockCanvas = () => {
             const canvas = document.createElement("canvas");
-            canvas.getContext = vi.fn(() => mockCanvasCtx as any);
+            canvas.getContext = vi.fn(() => mockCanvasCtx as unknown as CanvasRenderingContext2D);
             return canvas;
         };
 
@@ -119,13 +125,13 @@ describe("Visualizer Module", () => {
             analyser: {
                 getValue: vi.fn(() => mockFloatArray),
                 type: "waveform",
-            },
+            } as unknown as VisualizerAudio["analyser"],
             meter: {
                 getValue: vi.fn(() => -12),
-            },
+            } as unknown as VisualizerAudio["meter"],
             peakAnalyser: {
                 getValue: vi.fn(() => mockFloatArray),
-            },
+            } as unknown as VisualizerAudio["peakAnalyser"],
         };
 
         mockState = {
@@ -137,7 +143,7 @@ describe("Visualizer Module", () => {
         };
 
         mockActions = {
-            formatTime: vi.fn((sec) => `${sec}s`),
+            formatTime: vi.fn((sec: number) => `${sec}s`),
         };
     });
 
@@ -147,10 +153,10 @@ describe("Visualizer Module", () => {
 
     it("initializes visualizer in disabled state by default", () => {
         const visualizer = createVisualizer({
-            dom: mockDom as any,
-            audio: mockAudio as any,
-            state: mockState as any,
-            actions: mockActions as any,
+            dom: mockDom,
+            audio: mockAudio,
+            state: mockState,
+            actions: mockActions,
         });
 
         expect(visualizer.isVisualizerOn).toBe(false);
@@ -160,10 +166,10 @@ describe("Visualizer Module", () => {
 
     it("toggles visualizer activation state and runs update loops", () => {
         const visualizer = createVisualizer({
-            dom: mockDom as any,
-            audio: mockAudio as any,
-            state: mockState as any,
-            actions: mockActions as any,
+            dom: mockDom,
+            audio: mockAudio,
+            state: mockState,
+            actions: mockActions,
         });
 
         visualizer.toggle();
@@ -179,10 +185,10 @@ describe("Visualizer Module", () => {
 
     it("handles visualizer mode changes to FFT and Loop Map", () => {
         const visualizer = createVisualizer({
-            dom: mockDom as any,
-            audio: mockAudio as any,
-            state: mockState as any,
-            actions: mockActions as any,
+            dom: mockDom,
+            audio: mockAudio,
+            state: mockState,
+            actions: mockActions,
         });
 
         visualizer.toggle();
@@ -201,11 +207,11 @@ describe("Visualizer Module", () => {
     });
 
     it("handles zoom slider changes and time window updates", () => {
-        const visualizer = createVisualizer({
-            dom: mockDom as any,
-            audio: mockAudio as any,
-            state: mockState as any,
-            actions: mockActions as any,
+        createVisualizer({
+            dom: mockDom,
+            audio: mockAudio,
+            state: mockState,
+            actions: mockActions,
         });
 
         // Zoom slider
@@ -220,10 +226,10 @@ describe("Visualizer Module", () => {
 
     it("handles pause button toggling", () => {
         const visualizer = createVisualizer({
-            dom: mockDom as any,
-            audio: mockAudio as any,
-            state: mockState as any,
-            actions: mockActions as any,
+            dom: mockDom,
+            audio: mockAudio,
+            state: mockState,
+            actions: mockActions,
         });
 
         visualizer.toggle();
@@ -237,10 +243,10 @@ describe("Visualizer Module", () => {
 
     it("toggles and dismisses the VU meter info tooltip via keyboard and click", () => {
         createVisualizer({
-            dom: mockDom as any,
-            audio: mockAudio as any,
-            state: mockState as any,
-            actions: mockActions as any,
+            dom: mockDom,
+            audio: mockAudio,
+            state: mockState,
+            actions: mockActions,
         });
 
         // Open info tooltip
@@ -261,10 +267,10 @@ describe("Visualizer Module", () => {
 
     it("resets clipping indicator state and handles click", () => {
         const visualizer = createVisualizer({
-            dom: mockDom as any,
-            audio: mockAudio as any,
-            state: mockState as any,
-            actions: mockActions as any,
+            dom: mockDom,
+            audio: mockAudio,
+            state: mockState,
+            actions: mockActions,
         });
 
         mockDom.vuClipIndicator.click();
@@ -273,10 +279,10 @@ describe("Visualizer Module", () => {
 
     it("handles manual keyboard note attack and release callbacks", () => {
         const visualizer = createVisualizer({
-            dom: mockDom as any,
-            audio: mockAudio as any,
-            state: mockState as any,
-            actions: mockActions as any,
+            dom: mockDom,
+            audio: mockAudio,
+            state: mockState,
+            actions: mockActions,
         });
 
         expect(() => {
@@ -287,10 +293,10 @@ describe("Visualizer Module", () => {
 
     it("updates static loop map buffer and markers and redraws when active", () => {
         const visualizer = createVisualizer({
-            dom: mockDom as any,
-            audio: mockAudio as any,
-            state: mockState as any,
-            actions: mockActions as any,
+            dom: mockDom,
+            audio: mockAudio,
+            state: mockState,
+            actions: mockActions,
         });
 
         visualizer.toggle();
@@ -310,10 +316,10 @@ describe("Visualizer Module", () => {
 
     it("starts and stops UI loop lifecycles", () => {
         const visualizer = createVisualizer({
-            dom: mockDom as any,
-            audio: mockAudio as any,
-            state: mockState as any,
-            actions: mockActions as any,
+            dom: mockDom,
+            audio: mockAudio,
+            state: mockState,
+            actions: mockActions,
         });
 
         expect(() => {
@@ -326,10 +332,10 @@ describe("Visualizer Module", () => {
         mockAudio.meter.getValue = vi.fn(() => 1.5);
 
         const visualizer = createVisualizer({
-            dom: mockDom as any,
-            audio: mockAudio as any,
-            state: mockState as any,
-            actions: mockActions as any,
+            dom: mockDom,
+            audio: mockAudio,
+            state: mockState,
+            actions: mockActions,
         });
 
         visualizer.runUiUpdate();
@@ -343,10 +349,10 @@ describe("Visualizer Module", () => {
         mockState.recordingStartTime = 0.5;
 
         const visualizer = createVisualizer({
-            dom: mockDom as any,
-            audio: mockAudio as any,
-            state: mockState as any,
-            actions: mockActions as any,
+            dom: mockDom,
+            audio: mockAudio,
+            state: mockState,
+            actions: mockActions,
         });
 
         visualizer.runUiUpdate();
@@ -355,10 +361,10 @@ describe("Visualizer Module", () => {
 
     it("handles window resize events by recalculating canvas dimensions", () => {
         createVisualizer({
-            dom: mockDom as any,
-            audio: mockAudio as any,
-            state: mockState as any,
-            actions: mockActions as any,
+            dom: mockDom,
+            audio: mockAudio,
+            state: mockState,
+            actions: mockActions,
         });
 
         expect(() => {
@@ -368,10 +374,10 @@ describe("Visualizer Module", () => {
 
     it("renders oscilloscope and FFT waveforms onto canvas contexts across time windows", () => {
         const visualizer = createVisualizer({
-            dom: mockDom as any,
-            audio: mockAudio as any,
-            state: mockState as any,
-            actions: mockActions as any,
+            dom: mockDom,
+            audio: mockAudio,
+            state: mockState,
+            actions: mockActions,
         });
 
         visualizer.toggle();
@@ -394,10 +400,10 @@ describe("Visualizer Module", () => {
 
     it("handles clip tooltip interactions (mouseenter, mouseleave, focusin, focusout)", () => {
         createVisualizer({
-            dom: mockDom as any,
-            audio: mockAudio as any,
-            state: mockState as any,
-            actions: mockActions as any,
+            dom: mockDom,
+            audio: mockAudio,
+            state: mockState,
+            actions: mockActions,
         });
 
         const target = mockDom.vuClipContainer || mockDom.vuClipIndicator;
@@ -419,10 +425,10 @@ describe("Visualizer Module", () => {
         mockAudio.meter.getValue = vi.fn(() => -Infinity);
 
         const visualizer = createVisualizer({
-            dom: mockDom as any,
-            audio: mockAudio as any,
-            state: mockState as any,
-            actions: mockActions as any,
+            dom: mockDom,
+            audio: mockAudio,
+            state: mockState,
+            actions: mockActions,
         });
 
         visualizer.runUiUpdate();
@@ -431,10 +437,10 @@ describe("Visualizer Module", () => {
 
     it("toggles and closes info tooltip when clicked repeatedly or blurred", () => {
         createVisualizer({
-            dom: mockDom as any,
-            audio: mockAudio as any,
-            state: mockState as any,
-            actions: mockActions as any,
+            dom: mockDom,
+            audio: mockAudio,
+            state: mockState,
+            actions: mockActions,
         });
 
         // First click opens
@@ -457,10 +463,10 @@ describe("Visualizer Module", () => {
         mockState.isPlaying = true;
 
         const visualizer = createVisualizer({
-            dom: mockDom as any,
-            audio: mockAudio as any,
-            state: mockState as any,
-            actions: mockActions as any,
+            dom: mockDom,
+            audio: mockAudio,
+            state: mockState,
+            actions: mockActions,
         });
 
         visualizer.toggle();
@@ -480,10 +486,10 @@ describe("Visualizer Module", () => {
         vi.useFakeTimers();
         try {
             const visualizer = createVisualizer({
-                dom: mockDom as any,
-                audio: mockAudio as any,
-                state: mockState as any,
-                actions: mockActions as any,
+                dom: mockDom,
+                audio: mockAudio,
+                state: mockState,
+                actions: mockActions,
             });
 
             visualizer.onManualNoteAttack("C4");

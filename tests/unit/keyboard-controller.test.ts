@@ -6,13 +6,19 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { initializeKeyboardControls } from "@ui/keyboard-controller.js";
 
 describe("Virtual Keyboard Controller", () => {
+    type KeyboardControllerContext = Parameters<typeof initializeKeyboardControls>[0];
+    type KeyboardControllerState = KeyboardControllerContext["state"];
+    type KeyboardControllerDom = KeyboardControllerContext["dom"];
+    type KeyboardControllerActions = KeyboardControllerContext["actions"];
+
     let keyboardVisual: HTMLElement;
     let keyboardToggle: HTMLInputElement;
     let keyboardToggleStatus: HTMLElement;
     let keyboardDescription: HTMLElement;
     let notesInput: HTMLInputElement;
-    let mockState: Record<string, any>;
-    let mockActions: Record<string, any>;
+    let mockState: KeyboardControllerState;
+    let mockActions: KeyboardControllerActions;
+    let mockDom: KeyboardControllerDom;
 
     beforeEach(() => {
         keyboardVisual = document.createElement("div");
@@ -40,13 +46,21 @@ describe("Virtual Keyboard Controller", () => {
                 triggerAttack: vi.fn(),
                 triggerRelease: vi.fn(),
                 triggerAttackRelease: vi.fn(),
-            },
+            } as unknown as KeyboardControllerState["activeSynth"],
         };
 
         mockActions = {
             onNoteAttack: vi.fn(),
             onNoteRelease: vi.fn(),
             startAudio: vi.fn(),
+        };
+
+        mockDom = {
+            keyboardVisual,
+            keyboardToggle,
+            keyboardToggleStatus,
+            keyboardDescription,
+            notesInput,
         };
     });
 
@@ -57,15 +71,9 @@ describe("Virtual Keyboard Controller", () => {
 
     it("renders 2 octaves of piano keys in the visual container", () => {
         initializeKeyboardControls({
-            state: mockState as any,
-            dom: {
-                keyboardVisual,
-                keyboardToggle,
-                keyboardToggleStatus,
-                keyboardDescription,
-                notesInput,
-            } as any,
-            actions: mockActions as any,
+            state: mockState,
+            dom: mockDom,
+            actions: mockActions,
         });
 
         const whiteKeys = keyboardVisual.querySelectorAll(".key-white");
@@ -77,15 +85,9 @@ describe("Virtual Keyboard Controller", () => {
 
     it("triggers note attack and release on mousedown, mouseup, and mouseleave", () => {
         initializeKeyboardControls({
-            state: mockState as any,
-            dom: {
-                keyboardVisual,
-                keyboardToggle,
-                keyboardToggleStatus,
-                keyboardDescription,
-                notesInput,
-            } as any,
-            actions: mockActions as any,
+            state: mockState,
+            dom: mockDom,
+            actions: mockActions,
         });
 
         const c4Key = keyboardVisual.querySelector('[data-note="C4"]') as HTMLElement;
@@ -110,15 +112,9 @@ describe("Virtual Keyboard Controller", () => {
 
     it("handles touch events on virtual keys", () => {
         initializeKeyboardControls({
-            state: mockState as any,
-            dom: {
-                keyboardVisual,
-                keyboardToggle,
-                keyboardToggleStatus,
-                keyboardDescription,
-                notesInput,
-            } as any,
-            actions: mockActions as any,
+            state: mockState,
+            dom: mockDom,
+            actions: mockActions,
         });
 
         const e4Key = keyboardVisual.querySelector('[data-note="E4"]') as HTMLElement;
@@ -133,15 +129,9 @@ describe("Virtual Keyboard Controller", () => {
 
     it("triggers notes via computer keyboard events and ignores events from input targets", () => {
         initializeKeyboardControls({
-            state: mockState as any,
-            dom: {
-                keyboardVisual,
-                keyboardToggle,
-                keyboardToggleStatus,
-                keyboardDescription,
-                notesInput,
-            } as any,
-            actions: mockActions as any,
+            state: mockState,
+            dom: mockDom,
+            actions: mockActions,
         });
 
         // Keydown from window
@@ -158,15 +148,9 @@ describe("Virtual Keyboard Controller", () => {
 
     it("toggles keyboard enabled/disabled states and updates DOM accessibility attributes", () => {
         const controls = initializeKeyboardControls({
-            state: mockState as any,
-            dom: {
-                keyboardVisual,
-                keyboardToggle,
-                keyboardToggleStatus,
-                keyboardDescription,
-                notesInput,
-            } as any,
-            actions: mockActions as any,
+            state: mockState,
+            dom: mockDom,
+            actions: mockActions,
         });
 
         // Simulate active playing note while disabling
@@ -188,15 +172,9 @@ describe("Virtual Keyboard Controller", () => {
 
     it("handles keydown/keyup with Space/Enter and blur on virtual key elements", () => {
         initializeKeyboardControls({
-            state: mockState as any,
-            dom: {
-                keyboardVisual,
-                keyboardToggle,
-                keyboardToggleStatus,
-                keyboardDescription,
-                notesInput,
-            } as any,
-            actions: mockActions as any,
+            state: mockState,
+            dom: mockDom,
+            actions: mockActions,
         });
 
         const c4Key = keyboardVisual.querySelector('[data-note="C4"]') as HTMLElement;
@@ -229,16 +207,12 @@ describe("Virtual Keyboard Controller", () => {
         document.body.appendChild(keyboardModeAddBtn);
 
         initializeKeyboardControls({
-            state: mockState as any,
+            state: mockState,
             dom: {
-                keyboardVisual,
-                keyboardToggle,
-                keyboardToggleStatus,
-                keyboardDescription,
+                ...mockDom,
                 keyboardModeAddBtn,
-                notesInput,
-            } as any,
-            actions: mockActions as any,
+            },
+            actions: mockActions,
         });
 
         // Turn on Add to Pattern mode
@@ -257,15 +231,9 @@ describe("Virtual Keyboard Controller", () => {
 
     it("ignores repeating keydown events and unmapped keys", () => {
         initializeKeyboardControls({
-            state: mockState as any,
-            dom: {
-                keyboardVisual,
-                keyboardToggle,
-                keyboardToggleStatus,
-                keyboardDescription,
-                notesInput,
-            } as any,
-            actions: mockActions as any,
+            state: mockState,
+            dom: mockDom,
+            actions: mockActions,
         });
 
         mockActions.onNoteAttack.mockClear();

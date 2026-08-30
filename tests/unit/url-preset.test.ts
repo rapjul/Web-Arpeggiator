@@ -219,8 +219,12 @@ describe("URL Preset Domain Module", () => {
         }
 
         // Null / undefined objects check
-        expect(hasPresetChanges(null as any, defaultSettings)).toBe(true);
-        expect(hasPresetChanges(defaultSettings, null as any)).toBe(true);
+        expect(hasPresetChanges(null as unknown as Record<string, unknown>, defaultSettings)).toBe(
+            true,
+        );
+        expect(hasPresetChanges(defaultSettings, null as unknown as Record<string, unknown>)).toBe(
+            true,
+        );
     });
 
     test("serializes and parses new synths and studio effect parameters", () => {

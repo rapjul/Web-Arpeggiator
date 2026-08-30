@@ -29,6 +29,9 @@
       },
       "style": {
         "useExponentiationOperator": "error"
+      },
+      "suspicious": {
+        "noExplicitAny": "error"
       }
     }
   },

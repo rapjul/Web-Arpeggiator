@@ -51,9 +51,12 @@ describe("UI Feedback Toast Manager", () => {
     });
 
     it("handles showToast when requestAnimationFrame is unavailable", () => {
-        const originalRaf = (window as any).requestAnimationFrame;
+        const customWindow = window as Window & {
+            requestAnimationFrame?: typeof window.requestAnimationFrame;
+        };
+        const originalRaf = customWindow.requestAnimationFrame;
         try {
-            (window as any).requestAnimationFrame = undefined;
+            customWindow.requestAnimationFrame = undefined;
             const manager = createToastManager({ toastContainer, liveRegion });
             manager.showToast("No RAF toast", "info");
 
@@ -61,7 +64,7 @@ describe("UI Feedback Toast Manager", () => {
             expect(toast).not.toBeNull();
             expect(toast?.classList.contains("show")).toBe(true);
         } finally {
-            (window as any).requestAnimationFrame = originalRaf;
+            customWindow.requestAnimationFrame = originalRaf;
         }
     });
 

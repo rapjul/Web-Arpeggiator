@@ -2,9 +2,9 @@
  * @file Unit tests for Web Arpeggiator Audio Engine configurations, synth models, and offline chains.
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("tone", async (importOriginal) => {
+vi.mock("tone", async () => {
     class MockNode {
         connect() {
             return this;

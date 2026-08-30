@@ -19,19 +19,27 @@ import {
 } from "@storage/presets-store.js";
 
 describe("Presets Store Domain Module", () => {
-    let mockStoreData: Map<string, any>;
-    let mockSessionData: Map<string, any>;
+    interface StoredPresetRecord {
+        id: string;
+        name?: string;
+        savedAt?: string;
+        settings?: Record<string, unknown>;
+        source?: string;
+    }
+
+    let mockStoreData: Map<string, StoredPresetRecord>;
+    let mockSessionData: Map<string, StoredPresetRecord>;
 
     beforeEach(() => {
         mockStoreData = new Map();
         mockSessionData = new Map();
 
-        const createMockRequest = (result: any) => {
-            const listeners: Record<string, Function[]> = {};
+        const createMockRequest = <T>(result: T) => {
+            const listeners: Record<string, Array<() => void>> = {};
             const req = {
                 result,
                 error: null,
-                addEventListener: (event: string, fn: Function) => {
+                addEventListener: (event: string, fn: () => void) => {
                     listeners[event] = listeners[event] || [];
                     listeners[event].push(fn);
                     if (event === "success") {
@@ -42,13 +50,13 @@ describe("Presets Store Domain Module", () => {
             return req;
         };
 
-        const createMockTransaction = (storeName: string) => {
-            const listeners: Record<string, Function[]> = {};
+        const createMockTransaction = (_storeName: string) => {
+            const listeners: Record<string, Array<() => void>> = {};
             const tx = {
                 objectStore: (name: string) => {
                     const targetMap = name === "lastSession" ? mockSessionData : mockStoreData;
                     return {
-                        put: (record: any) => {
+                        put: (record: StoredPresetRecord) => {
                             targetMap.set(record.id, record);
                             return createMockRequest(record.id);
                         },
@@ -67,7 +75,7 @@ describe("Presets Store Domain Module", () => {
                             return createMockRequest(undefined);
                         },
                         index: (_idxName: string) => ({
-                            openCursor: (_range: any, _direction: string) => {
+                            openCursor: (_range: unknown, _direction: string) => {
                                 const all = Array.from(targetMap.values()).sort((a, b) =>
                                     String(b.savedAt || "").localeCompare(String(a.savedAt || "")),
                                 );
@@ -77,7 +85,7 @@ describe("Presets Store Domain Module", () => {
                         }),
                     };
                 },
-                addEventListener: (event: string, fn: Function) => {
+                addEventListener: (event: string, fn: () => void) => {
                     listeners[event] = listeners[event] || [];
                     listeners[event].push(fn);
                     if (event === "complete") {
@@ -96,7 +104,7 @@ describe("Presets Store Domain Module", () => {
         };
 
         // Mock global window.indexedDB
-        (window as any).indexedDB = {
+        (window as Window & { indexedDB: unknown }).indexedDB = {
             open: (_dbName: string, _version: number) => {
                 const req = createMockRequest(mockDb);
                 return req;
@@ -121,32 +129,32 @@ describe("Presets Store Domain Module", () => {
 
     describe("IndexedDB Request and Transaction Promise Wrappers", () => {
         it("rejects requestToPromise when IndexedDB request errors", async () => {
-            const mockRequest: any = {
+            const mockRequest = {
                 error: new Error("IDB Error"),
-                addEventListener: (event: string, cb: Function) => {
+                addEventListener: (event: string, cb: () => void) => {
                     if (event === "error") setTimeout(cb, 0);
                 },
-            };
+            } as unknown as IDBRequest;
 
             await expect(requestToPromise(mockRequest)).rejects.toThrow("IDB Error");
         });
 
         it("rejects transactionToPromise when transaction fails or aborts", async () => {
-            const mockTxError: any = {
+            const mockTxError = {
                 error: new Error("Tx Failed"),
-                addEventListener: (event: string, cb: Function) => {
+                addEventListener: (event: string, cb: () => void) => {
                     if (event === "error") setTimeout(cb, 0);
                 },
-            };
+            } as unknown as IDBTransaction;
 
             await expect(transactionToPromise(mockTxError)).rejects.toThrow("Tx Failed");
 
-            const mockTxAbort: any = {
+            const mockTxAbort = {
                 error: new Error("Tx Aborted"),
-                addEventListener: (event: string, cb: Function) => {
+                addEventListener: (event: string, cb: () => void) => {
                     if (event === "abort") setTimeout(cb, 0);
                 },
-            };
+            } as unknown as IDBTransaction;
 
             await expect(transactionToPromise(mockTxAbort)).rejects.toThrow("Tx Aborted");
         });
@@ -182,7 +190,7 @@ describe("Presets Store Domain Module", () => {
         });
 
         it("removes a preset by id", async () => {
-            const record = await save({ bpm: 120 }, { id: "to-remove", name: "Remove Me" });
+            await save({ bpm: 120 }, { id: "to-remove", name: "Remove Me" });
             expect(await get("to-remove")).not.toBeNull();
 
             await remove("to-remove");

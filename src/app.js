@@ -349,8 +349,6 @@ function initializeApp() {
     let currentOctaveShift = 0;
     let currentOctaveRange = 2;
     let activeNote = null;
-    let lastSessionSaveTimer = null;
-    let isLoadingStoredSettings = false;
 
     // Sync legacy window globals (needed by extracted modules)
     window.currentNotes = currentNotes;
@@ -848,14 +846,12 @@ function initializeApp() {
         getPresetStore: () => window.WebArpPresetStore,
         getSettings: () => getAllSettings(),
         onRestore: (settings) => {
-            isLoadingStoredSettings = true;
             loadAllSettings(settings);
             if (getSelectedPatternDirection()) {
                 setSelectedPatternDirection(getSelectedPatternDirection());
             } else {
                 setSelectedPatternDirection("up");
             }
-            isLoadingStoredSettings = false;
         },
         updateTestState,
     });

@@ -11,6 +11,8 @@
     "preview:pwa": "bun run build && bun run preview",
     "format": "bunx biome format --write .",
     "format:check": "bunx biome format .",
+    "lint": "bunx biome lint .",
+    "lint:fix": "bunx biome lint --write .",
     "test:unit": "vitest run tests/unit",
     "test:coverage": "vitest run --coverage tests/unit",
     "test:watch": "vitest tests/unit",

@@ -192,13 +192,15 @@ describe("Settings Manager Domain Module", () => {
             delay: { wet: { value: 0 } },
             reverb: { wet: { value: 0 } },
             postGain: { volume: { value: 0 } },
-        };
+        } as unknown as Parameters<typeof createSettingsManager>[0]["audio"];
 
         const manager = createSettingsManager({
-            state: mockState as any,
-            dom: mockDom as any,
-            actions: mockActions as any,
-            audio: mockAudio as any,
+            state: mockState as unknown as Parameters<typeof createSettingsManager>[0]["state"],
+            dom: mockDom as unknown as Parameters<typeof createSettingsManager>[0]["dom"],
+            actions: mockActions as unknown as Parameters<
+                typeof createSettingsManager
+            >[0]["actions"],
+            audio: mockAudio,
         });
 
         const filename = manager.generateFilename(false);
@@ -237,13 +239,15 @@ describe("Settings Manager Domain Module", () => {
             distortion: { wet: { value: 0 } },
             chorus: { wet: { value: 0 } },
             autoPanner: { wet: { value: 0 } },
-        };
+        } as unknown as Parameters<typeof createSettingsManager>[0]["audio"];
 
         const manager = createSettingsManager({
-            state: mockState as any,
-            dom: mockDom as any,
-            actions: mockActions as any,
-            audio: mockAudio as any,
+            state: mockState as unknown as Parameters<typeof createSettingsManager>[0]["state"],
+            dom: mockDom as unknown as Parameters<typeof createSettingsManager>[0]["dom"],
+            actions: mockActions as unknown as Parameters<
+                typeof createSettingsManager
+            >[0]["actions"],
+            audio: mockAudio,
         });
 
         manager.loadAllSettings({
@@ -297,13 +301,14 @@ describe("Settings Manager Domain Module", () => {
         expect(mockAudio.delay.wet.value).toBe(0.35);
         expect(mockAudio.reverb.wet.value).toBe(0.45);
         expect(mockActions.setSelectedPatternDirection).toHaveBeenCalledWith("upDown");
+        expect(mockActions.updateScaleQuantizeUi).toHaveBeenCalled();
         expect(mockActions.setSynth).toHaveBeenCalledWith("monoSynth");
     });
 
-    it("handles loadAllSettings parse error gracefully with toast alert", () => {
+    it("handles errors during loadAllSettings gracefully", () => {
         const mockDom = createMockDom();
         const mockActions = {
-            getArpeggioNotes: () => [],
+            getArpeggioNotes: () => ["C4"],
             getSelectedPatternDirection: () => "up",
             setSelectedPatternDirection: () => {},
             updateScaleQuantizeUi: () => {},
@@ -319,10 +324,12 @@ describe("Settings Manager Domain Module", () => {
         };
 
         const manager = createSettingsManager({
-            state: {} as any,
-            dom: mockDom as any,
-            actions: mockActions as any,
-            audio: {} as any,
+            state: {} as unknown as Parameters<typeof createSettingsManager>[0]["state"],
+            dom: mockDom as unknown as Parameters<typeof createSettingsManager>[0]["dom"],
+            actions: mockActions as unknown as Parameters<
+                typeof createSettingsManager
+            >[0]["actions"],
+            audio: {} as unknown as Parameters<typeof createSettingsManager>[0]["audio"],
         });
 
         manager.loadAllSettings({ bpm: 120 });
@@ -357,15 +364,17 @@ describe("Settings Manager Domain Module", () => {
         };
 
         const manager = createSettingsManager({
-            state: mockState as any,
-            dom: mockDom as any,
-            actions: mockActions as any,
+            state: mockState as unknown as Parameters<typeof createSettingsManager>[0]["state"],
+            dom: mockDom as unknown as Parameters<typeof createSettingsManager>[0]["dom"],
+            actions: mockActions as unknown as Parameters<
+                typeof createSettingsManager
+            >[0]["actions"],
             audio: {
                 filter: { frequency: { value: 0 }, Q: { value: 0 } },
                 delay: { wet: { value: 0 } },
                 reverb: { wet: { value: 0 } },
                 postGain: { volume: { value: 0 } },
-            } as any,
+            } as unknown as Parameters<typeof createSettingsManager>[0]["audio"],
         });
 
         // notes passed as space-separated string

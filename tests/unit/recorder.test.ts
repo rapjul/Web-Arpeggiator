@@ -11,7 +11,7 @@ vi.mock("@core/audio-utils.js", () => ({
 }));
 
 const mockContext = {
-    decodeAudioData: vi.fn(async (_buf: any) => ({
+    decodeAudioData: vi.fn(async (_buf: ArrayBuffer) => ({
         duration: 1.0,
         sampleRate: 44100,
         numberOfChannels: 2,
@@ -19,9 +19,9 @@ const mockContext = {
     })),
     rawContext: {
         createMediaStreamDestination: () => ({
-            stream: {},
+            stream: {} as MediaStream,
         }),
-        decodeAudioData: async (_buf: any) => ({
+        decodeAudioData: async (_buf: ArrayBuffer) => ({
             duration: 1.0,
             sampleRate: 44100,
             numberOfChannels: 2,
@@ -30,7 +30,7 @@ const mockContext = {
     },
 };
 
-vi.mock("tone", async (importOriginal) => {
+vi.mock("tone", async () => {
     return {
         Recorder: class MockRecorder {
             state = "stopped";
@@ -56,7 +56,7 @@ vi.mock("tone", async (importOriginal) => {
         Time: (_t: string) => ({
             toSeconds: () => 0.125,
         }),
-        Offline: vi.fn(async (cb: Function) => {
+        Offline: vi.fn(async (cb: (ctx: unknown) => Promise<void>) => {
             const mockOfflineContext = {
                 transport: {
                     bpm: { value: 120 },
@@ -81,10 +81,16 @@ vi.mock("tone", async (importOriginal) => {
 import { createRecorderManager } from "@audio/recorder.js";
 
 describe("Recorder Manager Module", () => {
-    let mockDom: Record<string, any>;
-    let mockAudio: Record<string, any>;
-    let mockState: Record<string, any>;
-    let mockActions: Record<string, any>;
+    type RecorderContext = Parameters<typeof createRecorderManager>[0];
+    type RecorderAudio = RecorderContext["audio"];
+    type RecorderDom = RecorderContext["dom"];
+    type RecorderState = RecorderContext["state"];
+    type RecorderActions = RecorderContext["actions"];
+
+    let mockDom: RecorderDom;
+    let mockAudio: RecorderAudio;
+    let mockState: RecorderState;
+    let mockActions: RecorderActions;
 
     beforeEach(() => {
         const createEl = (tag = "div") => document.createElement(tag);
@@ -109,13 +115,13 @@ describe("Recorder Manager Module", () => {
         mockAudio = {
             reverb: {
                 connect: vi.fn(),
-            },
-            synths: {},
+            } as unknown as RecorderAudio["reverb"],
+            synths: {} as unknown as RecorderAudio["synths"],
             createOfflineChain: vi.fn(() => ({
                 offlineSynth: {
                     triggerAttack: vi.fn(),
                     triggerRelease: vi.fn(),
-                },
+                } as unknown as ReturnType<RecorderAudio["createOfflineChain"]>["offlineSynth"],
             })),
         };
 
@@ -137,8 +143,8 @@ describe("Recorder Manager Module", () => {
                 gateRatio: 0.8,
                 loopCount: 2,
             })),
-            generateFilename: vi.fn((prefix) => `arp-${prefix}`),
-            formatTime: vi.fn((sec) => `${sec}s`),
+            generateFilename: vi.fn((prefix: string) => `arp-${prefix}`),
+            formatTime: vi.fn((sec: number) => `${sec}s`),
             startAudio: vi.fn(),
             startPlayback: vi.fn(),
         };
@@ -150,10 +156,10 @@ describe("Recorder Manager Module", () => {
 
     it("initializes recorder and attaches to audio graph", async () => {
         const manager = createRecorderManager({
-            audio: mockAudio as any,
-            dom: mockDom as any,
-            state: mockState as any,
-            actions: mockActions as any,
+            audio: mockAudio,
+            dom: mockDom,
+            state: mockState,
+            actions: mockActions,
         });
 
         await manager.initRecorder();
@@ -163,10 +169,10 @@ describe("Recorder Manager Module", () => {
 
     it("toggles recording state and updates button labels", async () => {
         const manager = createRecorderManager({
-            audio: mockAudio as any,
-            dom: mockDom as any,
-            state: mockState as any,
-            actions: mockActions as any,
+            audio: mockAudio,
+            dom: mockDom,
+            state: mockState,
+            actions: mockActions,
         });
 
         await manager.initRecorder();
@@ -184,10 +190,10 @@ describe("Recorder Manager Module", () => {
 
     it("exports real-time recording to WAV and MP3 formats", async () => {
         const manager = createRecorderManager({
-            audio: mockAudio as any,
-            dom: mockDom as any,
-            state: mockState as any,
-            actions: mockActions as any,
+            audio: mockAudio,
+            dom: mockDom,
+            state: mockState,
+            actions: mockActions,
         });
 
         const testBlob = new Blob([new Uint8Array(2048)], { type: "audio/wav" });
@@ -203,10 +209,10 @@ describe("Recorder Manager Module", () => {
 
     it("handles real-time export validation errors", async () => {
         const manager = createRecorderManager({
-            audio: mockAudio as any,
-            dom: mockDom as any,
-            state: mockState as any,
-            actions: mockActions as any,
+            audio: mockAudio,
+            dom: mockDom,
+            state: mockState,
+            actions: mockActions,
         });
 
         // No blob
@@ -231,10 +237,10 @@ describe("Recorder Manager Module", () => {
 
     it("renders and exports offline perfect loops in both WAV and MP3 formats", async () => {
         const manager = createRecorderManager({
-            audio: mockAudio as any,
-            dom: mockDom as any,
-            state: mockState as any,
-            actions: mockActions as any,
+            audio: mockAudio,
+            dom: mockDom,
+            state: mockState,
+            actions: mockActions,
         });
 
         mockDom.offlineExportWavCheck.checked = true;
@@ -247,10 +253,10 @@ describe("Recorder Manager Module", () => {
 
     it("validates offline export format selection and audio context state", async () => {
         const manager = createRecorderManager({
-            audio: mockAudio as any,
-            dom: mockDom as any,
-            state: mockState as any,
-            actions: mockActions as any,
+            audio: mockAudio,
+            dom: mockDom,
+            state: mockState,
+            actions: mockActions,
         });
 
         // No formats selected
@@ -273,10 +279,10 @@ describe("Recorder Manager Module", () => {
 
     it("renders offline loops with various pattern directions (upDown, downUp, downUpRepeat)", async () => {
         const manager = createRecorderManager({
-            audio: mockAudio as any,
-            dom: mockDom as any,
-            state: mockState as any,
-            actions: mockActions as any,
+            audio: mockAudio,
+            dom: mockDom,
+            state: mockState,
+            actions: mockActions,
         });
 
         mockDom.offlineExportWavCheck.checked = true;
@@ -301,10 +307,10 @@ describe("Recorder Manager Module", () => {
 
     it("handles offline export with only MP3 format selected and handles render errors", async () => {
         const manager = createRecorderManager({
-            audio: mockAudio as any,
-            dom: mockDom as any,
-            state: mockState as any,
-            actions: mockActions as any,
+            audio: mockAudio,
+            dom: mockDom,
+            state: mockState,
+            actions: mockActions,
         });
 
         mockDom.offlineExportWavCheck.checked = false;
@@ -322,10 +328,10 @@ describe("Recorder Manager Module", () => {
 
     it("handles real-time export with only WAV format selected and decode failures", async () => {
         const manager = createRecorderManager({
-            audio: mockAudio as any,
-            dom: mockDom as any,
-            state: mockState as any,
-            actions: mockActions as any,
+            audio: mockAudio,
+            dom: mockDom,
+            state: mockState,
+            actions: mockActions,
         });
 
         const testBlob = new Blob([new Uint8Array(2048)], { type: "audio/wav" });
@@ -354,10 +360,10 @@ describe("Recorder Manager Module", () => {
         mockState.isPlaying = false;
 
         const manager = createRecorderManager({
-            audio: mockAudio as any,
-            dom: mockDom as any,
-            state: mockState as any,
-            actions: mockActions as any,
+            audio: mockAudio,
+            dom: mockDom,
+            state: mockState,
+            actions: mockActions,
         });
 
         await manager.toggleRecording();
@@ -383,10 +389,10 @@ describe("Recorder Manager Module", () => {
         }));
 
         const manager = createRecorderManager({
-            audio: mockAudio as any,
-            dom: mockDom as any,
-            state: mockState as any,
-            actions: mockActions as any,
+            audio: mockAudio,
+            dom: mockDom,
+            state: mockState,
+            actions: mockActions,
         });
 
         mockDom.offlineExportWavCheck.checked = true;

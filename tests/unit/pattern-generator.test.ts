@@ -4,17 +4,45 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+interface MockPatternInstance {
+    values: string[];
+    pattern: string;
+    interval: string;
+    isStarted: boolean;
+    isDisposed: boolean;
+    callback: (time: number, note: string) => void;
+    start: () => void;
+    dispose: () => void;
+}
+
+interface WebArpeggiatorWindow extends Window {
+    currentOctaveRange?: number;
+    currentOctaveShift?: number;
+    isPlaying?: boolean;
+    activeSynth?: {
+        triggerAttack?: ReturnType<typeof vi.fn>;
+        triggerRelease?: ReturnType<typeof vi.fn>;
+        triggerAttackRelease?: ReturnType<typeof vi.fn>;
+    } | null;
+    arpPattern?: MockPatternInstance | null;
+    __WEB_ARP_STEP_HIGHLIGHT__?: ReturnType<typeof vi.fn>;
+}
+
 vi.mock("tone", async (importOriginal) => {
     const actual = await importOriginal<typeof import("tone")>();
-    class MockPattern {
+    class MockPattern implements MockPatternInstance {
         values: string[];
         pattern: string;
         interval = "16n";
         isStarted = false;
         isDisposed = false;
-        callback: Function;
+        callback: (time: number, note: string) => void;
 
-        constructor(callback: any, values: string[], pattern: string) {
+        constructor(
+            callback: (time: number, note: string) => void,
+            values: string[],
+            pattern: string,
+        ) {
             this.callback = callback;
             this.values = values;
             this.pattern = pattern;
@@ -33,7 +61,7 @@ vi.mock("tone", async (importOriginal) => {
         ...actual,
         Pattern: MockPattern,
         Draw: {
-            schedule: (fn: Function) => fn(),
+            schedule: (fn: () => void) => fn(),
         },
     };
 });
@@ -41,6 +69,7 @@ vi.mock("tone", async (importOriginal) => {
 import { createOrUpdatePattern } from "@audio/pattern-generator.js";
 
 describe("Pattern Generator Module", () => {
+    const appWindow = window as unknown as WebArpeggiatorWindow;
     let container: HTMLElement;
     let notesInput: HTMLInputElement;
     let intervalSelect: HTMLSelectElement;
@@ -95,30 +124,30 @@ describe("Pattern Generator Module", () => {
         container.appendChild(scaleTypeSelect);
         document.body.appendChild(container);
 
-        (window as any).currentOctaveRange = 1;
-        (window as any).currentOctaveShift = 0;
-        (window as any).isPlaying = false;
-        (window as any).activeSynth = null;
+        appWindow.currentOctaveRange = 1;
+        appWindow.currentOctaveShift = 0;
+        appWindow.isPlaying = false;
+        appWindow.activeSynth = null;
     });
 
     afterEach(() => {
-        if ((window as any).arpPattern) {
+        if (appWindow.arpPattern) {
             try {
-                (window as any).arpPattern.dispose();
+                appWindow.arpPattern.dispose();
             } catch {}
-            (window as any).arpPattern = null;
+            appWindow.arpPattern = null;
         }
-        delete (window as any).__WEB_ARP_STEP_HIGHLIGHT__;
+        delete appWindow.__WEB_ARP_STEP_HIGHLIGHT__;
         document.body.innerHTML = "";
     });
 
     it("creates a Tone.Pattern instance when notes are provided", () => {
         createOrUpdatePattern();
 
-        const pattern = (window as any).arpPattern;
+        const pattern = appWindow.arpPattern;
         expect(pattern).toBeDefined();
-        expect(pattern.values).toEqual(["C4", "E4", "G4"]);
-        expect(pattern.interval).toBe("16n");
+        expect(pattern?.values).toEqual(["C4", "E4", "G4"]);
+        expect(pattern?.interval).toBe("16n");
     });
 
     it("executes the pattern scheduling callback to trigger note attacks and step highlights", () => {
@@ -128,18 +157,18 @@ describe("Pattern Generator Module", () => {
         };
         const mockHighlight = vi.fn();
 
-        (window as any).activeSynth = mockSynth;
-        (window as any).__WEB_ARP_STEP_HIGHLIGHT__ = mockHighlight;
-        (window as any).isPlaying = true;
+        appWindow.activeSynth = mockSynth;
+        appWindow.__WEB_ARP_STEP_HIGHLIGHT__ = mockHighlight;
+        appWindow.isPlaying = true;
 
         createOrUpdatePattern();
 
-        const pattern = (window as any).arpPattern;
+        const pattern = appWindow.arpPattern;
         expect(pattern).toBeDefined();
-        expect(pattern.isStarted).toBe(true);
+        expect(pattern?.isStarted).toBe(true);
 
         // Execute scheduled step
-        pattern.callback(0.25, "C4");
+        pattern?.callback(0.25, "C4");
         expect(mockSynth.triggerAttack).toHaveBeenCalledWith("C4", 0.25);
         expect(mockSynth.triggerRelease).toHaveBeenCalled();
         expect(mockHighlight).toHaveBeenCalled();
@@ -150,38 +179,38 @@ describe("Pattern Generator Module", () => {
             triggerAttackRelease: vi.fn(),
         };
 
-        (window as any).activeSynth = mockSynth;
+        appWindow.activeSynth = mockSynth;
         createOrUpdatePattern();
 
-        const pattern = (window as any).arpPattern;
-        pattern.callback(0.5, "E4");
+        const pattern = appWindow.arpPattern;
+        pattern?.callback(0.5, "E4");
         expect(mockSynth.triggerAttackRelease).toHaveBeenCalledWith("E4", expect.any(Number), 0.5);
     });
 
     it("applies octave shifts and scale quantization from DOM controls", () => {
-        (window as any).currentOctaveRange = 2;
-        (window as any).currentOctaveShift = 1;
+        appWindow.currentOctaveRange = 2;
+        appWindow.currentOctaveShift = 1;
         scaleQuantizeToggle.checked = true;
 
         createOrUpdatePattern();
 
-        const pattern = (window as any).arpPattern;
+        const pattern = appWindow.arpPattern;
         expect(pattern).toBeDefined();
         // Octaves shifted by +1 and duplicated across 2 octaves
-        expect(pattern.values).toContain("C5");
-        expect(pattern.values).toContain("C6");
+        expect(pattern?.values).toContain("C5");
+        expect(pattern?.values).toContain("C6");
     });
 
     it("disposes previous pattern when updating", () => {
         createOrUpdatePattern();
-        const firstPattern = (window as any).arpPattern;
+        const firstPattern = appWindow.arpPattern;
 
         notesInput.value = "D4 F4 A4";
         createOrUpdatePattern();
 
-        expect(firstPattern.isDisposed).toBe(true);
-        expect((window as any).arpPattern).not.toBe(firstPattern);
-        expect((window as any).arpPattern.values).toEqual(["D4", "F4", "A4"]);
+        expect(firstPattern?.isDisposed).toBe(true);
+        expect(appWindow.arpPattern).not.toBe(firstPattern);
+        expect(appWindow.arpPattern?.values).toEqual(["D4", "F4", "A4"]);
     });
 
     it("handles missing notes element gracefully", () => {
@@ -192,7 +221,7 @@ describe("Pattern Generator Module", () => {
     it("handles empty note input gracefully without creating pattern", () => {
         notesInput.value = "";
         createOrUpdatePattern();
-        expect((window as any).arpPattern).toBeNull();
+        expect(appWindow.arpPattern).toBeNull();
     });
 
     it("creates patterns for various directions (upDownRepeat, downUpRepeat, octaveCycle, randomWalk)", () => {
@@ -200,9 +229,9 @@ describe("Pattern Generator Module", () => {
         for (const dir of directions) {
             patternButtons.innerHTML = `<button class="selected" data-pattern="${dir}"></button>`;
             createOrUpdatePattern();
-            const pattern = (window as any).arpPattern;
+            const pattern = appWindow.arpPattern;
             expect(pattern).toBeDefined();
-            expect(pattern.values.length).toBeGreaterThan(0);
+            expect(pattern?.values.length).toBeGreaterThan(0);
         }
     });
 
@@ -211,24 +240,24 @@ describe("Pattern Generator Module", () => {
         gateSlider.remove();
         patternButtons.remove();
         createOrUpdatePattern();
-        const pattern = (window as any).arpPattern;
+        const pattern = appWindow.arpPattern;
         expect(pattern).toBeDefined();
-        expect(pattern.interval).toBe("16n");
+        expect(pattern?.interval).toBe("16n");
     });
 
     it("handles synth trigger fallback when scheduling with exact time fails", () => {
         const mockSynth = {
-            triggerAttack: vi.fn((_n, time) => {
+            triggerAttack: vi.fn((_n: string, time?: number) => {
                 if (time !== undefined) throw new Error("Time scheduling failed");
             }),
             triggerRelease: vi.fn(),
         };
 
-        (window as any).activeSynth = mockSynth;
+        appWindow.activeSynth = mockSynth;
         createOrUpdatePattern();
 
-        const pattern = (window as any).arpPattern;
-        expect(() => pattern.callback(0.5, "C4")).not.toThrow();
+        const pattern = appWindow.arpPattern;
+        expect(() => pattern?.callback(0.5, "C4")).not.toThrow();
         expect(mockSynth.triggerAttack).toHaveBeenCalledWith("C4");
     });
 });
