@@ -66,12 +66,21 @@ export function createOrUpdatePattern() {
         const interval = intervalSelect ? intervalSelect.value : "16n";
         const gate = gateSlider ? parseFloat(gateSlider.value) : 0.8;
 
-        // Determine pattern direction from selected button
+        // Determine pattern direction from checked radio input or selected element
         const patternButtons = document.getElementById("pattern-buttons");
         let direction = "up";
         if (patternButtons) {
-            const active = patternButtons.querySelector("button.selected");
-            if (active) direction = active.getAttribute("data-pattern") || "up";
+            const checkedRadio = /** @type {HTMLInputElement|null} */ (
+                patternButtons.querySelector("input[name='pattern-direction']:checked")
+            );
+            if (checkedRadio?.value) {
+                direction = checkedRadio.value;
+            } else {
+                const active = patternButtons.querySelector(
+                    ".pattern-btn.selected, button.selected, [data-pattern].selected",
+                );
+                if (active) direction = active.getAttribute("data-pattern") || "up";
+            }
         }
 
         // Quantize options (if present in DOM)
@@ -106,8 +115,6 @@ export function createOrUpdatePattern() {
 
         stepToBaseIndexMap = computedMap;
 
-        if (!finalNotes || finalNotes.length === 0) return;
-
         // Dispose old pattern if present
         if (window.arpPattern) {
             try {
@@ -115,6 +122,8 @@ export function createOrUpdatePattern() {
             } catch {}
             window.arpPattern = null;
         }
+
+        if (!finalNotes || finalNotes.length === 0) return;
 
         // Calculate note duration in seconds once outside the scheduling callback
         let durationSeconds = 0.1;
