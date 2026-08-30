@@ -296,7 +296,8 @@ Web Arpeggiator/
 │   ├── adr/                     # Architectural Decision Records (MADR standard)
 │   │   ├── 0001-vitest-and-v8-coverage-tooling.md
 │   │   ├── 0002-modular-es-source-architecture.md
-│   │   └── 0003-defensive-input-validation-and-edge-case-testing-policy.md
+│   │   ├── 0003-defensive-input-validation-and-edge-case-testing-policy.md
+│   │   └── 0004-strict-type-safety-and-meaningful-behavioral-testing.md
 │   ├── midi-specification.md    # Standard MIDI binary specification reference
 │   └── pattern-directions.md    # Visual guide to arpeggiator patterns
 ├── src/                         # Modular source code

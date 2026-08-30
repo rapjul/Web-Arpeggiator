@@ -315,7 +315,8 @@ Web Arpeggiator/
 │   ├── adr/                # Architectural Decision Records (MADR standard)
 │   │   ├── 0001-vitest-and-v8-coverage-tooling.md
 │   │   ├── 0002-modular-es-source-architecture.md
-│   │   └── 0003-defensive-input-validation-and-edge-case-testing-policy.md
+│   │   ├── 0003-defensive-input-validation-and-edge-case-testing-policy.md
+│   │   └── 0004-strict-type-safety-and-meaningful-behavioral-testing.md
 │   ├── midi-specification.md # Standard MIDI specification & implementation reference
 │   └── pattern-directions.md # Detailed pattern descriptions & visual guide
 ├── src/                    # Modular source code
@@ -479,6 +480,17 @@ When adding or modifying code, contributors and AI agents must test:
    - Arrow-key navigation in radio button groups updating `.checked` state and firing `change` events.
 
 See [`docs/adr/0003-defensive-input-validation-and-edge-case-testing-policy.md`](./docs/adr/0003-defensive-input-validation-and-edge-case-testing-policy.md) for full policy details.
+
+### Strict Type-Safety & Meaningful Behavioral Testing
+
+1. **Zero-Tolerance for Explicit `any`**:
+   - Explicit `any`, `as any`, and `<any>` assertions are prohibited across both source code and test files, enforced automatically via Biome's `suspicious.noExplicitAny` lint rule.
+   - Unit tests must use strongly typed fixture interfaces derived directly from module factories (`Parameters<typeof createModule>[0]`).
+2. **Meaningful Behavioral Testing vs. Artificial Branch Padding**:
+   - Unit tests must verify real observable contracts, state transitions, audio routing, mathematical algorithms, and defensive recovery (e.g. decode failures, storage unavailability).
+   - Artificial tests written solely to flip the boolean branches of optional DOM elements are prohibited.
+
+See [`docs/adr/0004-strict-type-safety-and-meaningful-behavioral-testing.md`](./docs/adr/0004-strict-type-safety-and-meaningful-behavioral-testing.md) for full policy details.
 
 ## Contributing
 
