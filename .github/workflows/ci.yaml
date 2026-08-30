@@ -37,6 +37,8 @@ jobs:
 
       - name: Run test suite with V8 coverage gates
         id: test_coverage
+        env:
+          NO_COLOR: "1"
         run: |
           set -o pipefail
           bun run test:coverage | tee coverage_output.txt
@@ -46,7 +48,7 @@ jobs:
         run: |
           echo "### 📊 Vitest V8 Coverage Report" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          grep -A 25 "% Coverage report from v8" coverage_output.txt >> $GITHUB_STEP_SUMMARY || cat coverage_output.txt >> $GITHUB_STEP_SUMMARY
+          grep -A 35 "% Coverage report from v8" coverage_output.txt >> $GITHUB_STEP_SUMMARY || cat coverage_output.txt >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
 
       - name: Comment PR with Test Coverage Summary
@@ -57,7 +59,8 @@ jobs:
           script: |
             const fs = require('fs');
             if (!fs.existsSync('coverage_output.txt')) return;
-            const output = fs.readFileSync('coverage_output.txt', 'utf8');
+            let output = fs.readFileSync('coverage_output.txt', 'utf8');
+            output = output.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '');
             const summaryMatch = output.match(/% Coverage report from v8[\s\S]*?================================================================================/);
             const content = summaryMatch ? summaryMatch[0] : output;
             
