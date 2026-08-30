@@ -2,7 +2,7 @@
  * @file Unit tests for audio utilities, PCM conversion, WAV creation, and MP3 exports.
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
     audioBufferToMp3Blob,
     audioBufferToWav,
@@ -11,6 +11,7 @@ import {
     float32ToInt16,
     interleave,
     loadLameJs,
+    triggerIdleLoad,
     writeString,
 } from "@core/audio-utils.js";
 
@@ -159,7 +160,15 @@ describe("Audio Utils Domain Module", () => {
             expect(attempt).toBe(2);
         });
 
-        it("throws error after exhausting retry budget", async () => {
+        it("throws error after exhausting retry budget on network exceptions", async () => {
+            global.fetch = vi.fn().mockRejectedValue(new Error("Network disconnect"));
+
+            await expect(
+                fetchWithBackoff("http://example.com/network-fail", {}, 2, 5),
+            ).rejects.toThrow("Network disconnect");
+        });
+
+        it("throws error after exhausting retry budget on HTTP errors", async () => {
             global.fetch = vi.fn().mockResolvedValue({
                 ok: false,
                 status: 500,
@@ -172,6 +181,19 @@ describe("Audio Utils Domain Module", () => {
     });
 
     describe("audioBufferToMp3Blob & loadLameJs", () => {
+        it("resolves immediately when window.lamejs is already loaded", async () => {
+            const mockLame = { Mp3Encoder: class {} };
+            const originalWindowLame = (window as Window & { lamejs?: unknown }).lamejs;
+            (window as Window & { lamejs?: unknown }).lamejs = mockLame;
+
+            try {
+                const result = await loadLameJs();
+                expect(result).toBe(mockLame);
+            } finally {
+                (window as Window & { lamejs?: unknown }).lamejs = originalWindowLame;
+            }
+        });
+
         it("loads LameJS and caches promise", async () => {
             const lamejs = await loadLameJs();
             expect(lamejs).toBeDefined();
@@ -180,7 +202,7 @@ describe("Audio Utils Domain Module", () => {
             expect(cached).toBe(lamejs);
         });
 
-        it("encodes AudioBuffer to MP3 Blob using LameJS", async () => {
+        it("encodes mono AudioBuffer to MP3 Blob using LameJS", async () => {
             const sampleRate = 44100;
             const length = 2304; // 2 MP3 frames (1152 * 2)
             const pcm = new Float32Array(length).fill(0.3);
@@ -196,6 +218,70 @@ describe("Audio Utils Domain Module", () => {
             const mp3Blob = await audioBufferToMp3Blob(mockAudioBuffer);
             expect(mp3Blob).toBeInstanceOf(Blob);
             expect(mp3Blob.type).toBe("audio/mpeg");
+        });
+
+        it("encodes stereo AudioBuffer with distinct left and right channels", async () => {
+            const sampleRate = 44100;
+            const length = 2304;
+            const leftPcm = new Float32Array(length).fill(0.2);
+            const rightPcm = new Float32Array(length).fill(-0.2);
+
+            const mockAudioBuffer = {
+                numberOfChannels: 2,
+                sampleRate,
+                length,
+                duration: length / sampleRate,
+                getChannelData: (ch: number) => (ch === 0 ? leftPcm : rightPcm),
+            } as unknown as AudioBuffer;
+
+            const mp3Blob = await audioBufferToMp3Blob(mockAudioBuffer);
+            expect(mp3Blob).toBeInstanceOf(Blob);
+            expect(mp3Blob.type).toBe("audio/mpeg");
+        });
+
+        it("rejects when encoding encounters an unhandled error", async () => {
+            const badBuffer = {
+                numberOfChannels: 1,
+                sampleRate: 44100,
+                length: 100,
+                duration: 0.1,
+                getChannelData: () => {
+                    throw new Error("Corrupt channel data");
+                },
+            } as unknown as AudioBuffer;
+
+            await expect(audioBufferToMp3Blob(badBuffer)).rejects.toThrow("Corrupt channel data");
+        });
+
+        it("triggers background idle load with requestIdleCallback when available", () => {
+            const originalIdle = (window as Window & { requestIdleCallback?: unknown })
+                .requestIdleCallback;
+            const idleMock = vi.fn((cb: () => void) => cb());
+            (window as Window & { requestIdleCallback?: unknown }).requestIdleCallback = idleMock;
+
+            try {
+                triggerIdleLoad();
+                expect(idleMock).toHaveBeenCalled();
+            } finally {
+                (window as Window & { requestIdleCallback?: unknown }).requestIdleCallback =
+                    originalIdle;
+            }
+        });
+
+        it("triggers background idle load with setTimeout fallback when requestIdleCallback is unavailable", () => {
+            vi.useFakeTimers();
+            const originalIdle = (window as Window & { requestIdleCallback?: unknown })
+                .requestIdleCallback;
+            (window as Window & { requestIdleCallback?: unknown }).requestIdleCallback = undefined;
+
+            try {
+                triggerIdleLoad();
+                vi.advanceTimersByTime(3000);
+            } finally {
+                (window as Window & { requestIdleCallback?: unknown }).requestIdleCallback =
+                    originalIdle;
+                vi.useRealTimers();
+            }
         });
     });
 });
