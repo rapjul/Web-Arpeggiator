@@ -186,8 +186,15 @@ describe("Audio Engine Model Definitions", () => {
     });
 
     describe("createAudioEngine factory and signal chain", () => {
-        let mockDom: Record<string, any>;
-        let mockActions: Record<string, any>;
+        /**
+         * Context configuration parameters expected by createAudioEngine.
+         */
+        type AudioEngineContext = Parameters<typeof createAudioEngine>[0];
+        type AudioEngineDom = AudioEngineContext["dom"];
+        type AudioEngineActions = AudioEngineContext["actions"];
+
+        let mockDom: AudioEngineDom;
+        let mockActions: AudioEngineActions;
 
         beforeEach(() => {
             const createEl = (tag = "div") => document.createElement(tag);
@@ -203,26 +210,62 @@ describe("Audio Engine Model Definitions", () => {
                 duoSynthParams: createEl(),
                 pluckSynthParams: createEl(),
                 membraneSynthParams: createEl(),
-                harmonicitySlider: Object.assign(createEl("input"), { value: "3" }),
-                modIndexSlider: Object.assign(createEl("input"), { value: "10" }),
-                dutySlider: Object.assign(createEl("input"), { value: "0.5" }),
-                monoCutoffSlider: Object.assign(createEl("input"), { value: "2000" }),
-                monoOctavesSlider: Object.assign(createEl("input"), { value: "3" }),
-                monoQSlider: Object.assign(createEl("input"), { value: "2" }),
-                duoHarmSlider: Object.assign(createEl("input"), { value: "1.5" }),
-                duoVibratoSlider: Object.assign(createEl("input"), { value: "0.5" }),
-                pluckDampeningSlider: Object.assign(createEl("input"), { value: "4000" }),
-                pluckResonanceSlider: Object.assign(createEl("input"), { value: "0.7" }),
-                pluckNoiseSlider: Object.assign(createEl("input"), { value: "1.5" }),
-                membranePitchDecaySlider: Object.assign(createEl("input"), { value: "0.05" }),
-                membraneOctavesSlider: Object.assign(createEl("input"), { value: "4" }),
-                envAttackSlider: Object.assign(createEl("input"), { value: "0.01" }),
-                envDecaySlider: Object.assign(createEl("input"), { value: "0.1" }),
-                envSustainSlider: Object.assign(createEl("input"), { value: "0.5" }),
-                envReleaseSlider: Object.assign(createEl("input"), { value: "1.0" }),
-                driveMixSlider: Object.assign(createEl("input"), { value: "0.2" }),
-                chorusMixSlider: Object.assign(createEl("input"), { value: "0.3" }),
-                autoPanMixSlider: Object.assign(createEl("input"), { value: "0.4" }),
+                harmonicitySlider: Object.assign(createEl("input") as HTMLInputElement, {
+                    value: "3",
+                }),
+                modIndexSlider: Object.assign(createEl("input") as HTMLInputElement, {
+                    value: "10",
+                }),
+                dutySlider: Object.assign(createEl("input") as HTMLInputElement, { value: "0.5" }),
+                monoCutoffSlider: Object.assign(createEl("input") as HTMLInputElement, {
+                    value: "2000",
+                }),
+                monoOctavesSlider: Object.assign(createEl("input") as HTMLInputElement, {
+                    value: "3",
+                }),
+                monoQSlider: Object.assign(createEl("input") as HTMLInputElement, { value: "2" }),
+                duoHarmSlider: Object.assign(createEl("input") as HTMLInputElement, {
+                    value: "1.5",
+                }),
+                duoVibratoSlider: Object.assign(createEl("input") as HTMLInputElement, {
+                    value: "0.5",
+                }),
+                pluckDampeningSlider: Object.assign(createEl("input") as HTMLInputElement, {
+                    value: "4000",
+                }),
+                pluckResonanceSlider: Object.assign(createEl("input") as HTMLInputElement, {
+                    value: "0.7",
+                }),
+                pluckNoiseSlider: Object.assign(createEl("input") as HTMLInputElement, {
+                    value: "1.5",
+                }),
+                membranePitchDecaySlider: Object.assign(createEl("input") as HTMLInputElement, {
+                    value: "0.05",
+                }),
+                membraneOctavesSlider: Object.assign(createEl("input") as HTMLInputElement, {
+                    value: "4",
+                }),
+                envAttackSlider: Object.assign(createEl("input") as HTMLInputElement, {
+                    value: "0.01",
+                }),
+                envDecaySlider: Object.assign(createEl("input") as HTMLInputElement, {
+                    value: "0.1",
+                }),
+                envSustainSlider: Object.assign(createEl("input") as HTMLInputElement, {
+                    value: "0.5",
+                }),
+                envReleaseSlider: Object.assign(createEl("input") as HTMLInputElement, {
+                    value: "1.0",
+                }),
+                driveMixSlider: Object.assign(createEl("input") as HTMLInputElement, {
+                    value: "0.2",
+                }),
+                chorusMixSlider: Object.assign(createEl("input") as HTMLInputElement, {
+                    value: "0.3",
+                }),
+                autoPanMixSlider: Object.assign(createEl("input") as HTMLInputElement, {
+                    value: "0.4",
+                }),
             };
 
             mockActions = {
@@ -232,7 +275,7 @@ describe("Audio Engine Model Definitions", () => {
         });
 
         it("instantiates audio engine with signal nodes and synths", () => {
-            const engine = createAudioEngine({ dom: mockDom as any, actions: mockActions as any });
+            const engine = createAudioEngine({ dom: mockDom, actions: mockActions });
 
             expect(engine.analyser).toBeDefined();
             expect(engine.meter).toBeDefined();
@@ -247,7 +290,7 @@ describe("Audio Engine Model Definitions", () => {
         });
 
         it("switches synth models and strictly matches registered instance", () => {
-            const engine = createAudioEngine({ dom: mockDom as any, actions: mockActions as any });
+            const engine = createAudioEngine({ dom: mockDom, actions: mockActions });
 
             for (const synthType of supportedSynthTypes) {
                 engine.setSynth(synthType);
@@ -257,17 +300,17 @@ describe("Audio Engine Model Definitions", () => {
         });
 
         it("safely falls back to basic synth when an unknown synth type is requested", () => {
-            const engine = createAudioEngine({ dom: mockDom as any, actions: mockActions as any });
+            const engine = createAudioEngine({ dom: mockDom, actions: mockActions });
 
-            engine.setSynth("unknownAlienSynth" as any);
+            engine.setSynth("unknownAlienSynth" as Parameters<typeof engine.setSynth>[0]);
             expect(engine.activeSynth).toBe(engine.synths.synth);
 
-            engine.setSynth("polySynth" as any);
+            engine.setSynth("polySynth" as Parameters<typeof engine.setSynth>[0]);
             expect(engine.activeSynth).toBe(engine.synths.synth);
         });
 
         it("updates envelope settings on active synths", () => {
-            const engine = createAudioEngine({ dom: mockDom as any, actions: mockActions as any });
+            const engine = createAudioEngine({ dom: mockDom, actions: mockActions });
             engine.setSynth("synth");
 
             mockDom.envAttackSlider.value = "0.05";
@@ -279,7 +322,7 @@ describe("Audio Engine Model Definitions", () => {
         });
 
         it("returns synth configuration snapshot for offline rendering", () => {
-            const engine = createAudioEngine({ dom: mockDom as any, actions: mockActions as any });
+            const engine = createAudioEngine({ dom: mockDom, actions: mockActions });
             engine.setSynth("fmSynth");
 
             const config = engine.getSynthConfig("fmSynth");
@@ -288,7 +331,7 @@ describe("Audio Engine Model Definitions", () => {
         });
 
         it("creates offline audio graph chains with postGain for all synth types", () => {
-            const engine = createAudioEngine({ dom: mockDom as any, actions: mockActions as any });
+            const engine = createAudioEngine({ dom: mockDom, actions: mockActions });
             const mockOfflineContext = { destination: {} };
 
             for (const synthType of supportedSynthTypes) {
@@ -329,7 +372,7 @@ describe("Audio Engine Model Definitions", () => {
         });
 
         it("updates envelope settings on multi-voice synths like duoSynth", () => {
-            const engine = createAudioEngine({ dom: mockDom as any, actions: mockActions as any });
+            const engine = createAudioEngine({ dom: mockDom, actions: mockActions });
             engine.setSynth("duoSynth");
 
             mockDom.envAttackSlider.value = "0.02";
@@ -346,7 +389,7 @@ describe("Audio Engine Model Definitions", () => {
             const btn = document.createElement("button");
             mockDom.waveformButtons.appendChild(btn);
 
-            const engine = createAudioEngine({ dom: mockDom as any, actions: mockActions as any });
+            const engine = createAudioEngine({ dom: mockDom, actions: mockActions });
 
             // Pluck Synth disables waveform buttons
             engine.setSynth("pluckSynth");
@@ -365,7 +408,7 @@ describe("Audio Engine Model Definitions", () => {
         });
 
         it("switches parameters visibility for fmSynth, amSynth, monoSynth, duoSynth, membraneSynth", () => {
-            const engine = createAudioEngine({ dom: mockDom as any, actions: mockActions as any });
+            const engine = createAudioEngine({ dom: mockDom, actions: mockActions });
 
             engine.setSynth("fmSynth");
             expect(mockDom.advancedSynthParams.classList.contains("hidden")).toBe(false);
@@ -400,8 +443,8 @@ describe("Audio Engine Model Definitions", () => {
                 };
 
                 const engine = createAudioEngine({
-                    dom: mockDom as any,
-                    actions: mockActions as any,
+                    dom: mockDom,
+                    actions: mockActions,
                 });
                 expect(engine).toBeDefined();
 
@@ -418,7 +461,7 @@ describe("Audio Engine Model Definitions", () => {
         });
 
         it("applies pluck and membrane synth parameters in createOfflineChain", () => {
-            const engine = createAudioEngine({ dom: mockDom as any, actions: mockActions as any });
+            const engine = createAudioEngine({ dom: mockDom, actions: mockActions });
             const mockOfflineContext = { destination: {} };
 
             // Duo synth with voice envelopes
@@ -478,7 +521,7 @@ describe("Audio Engine Model Definitions", () => {
         });
 
         it("returns null for unknown synth config and handles empty active synth in updateEnvelope", () => {
-            const engine = createAudioEngine({ dom: mockDom as any, actions: mockActions as any });
+            const engine = createAudioEngine({ dom: mockDom, actions: mockActions });
 
             expect(engine.getSynthConfig("invalidSynthType")).toBeNull();
 
