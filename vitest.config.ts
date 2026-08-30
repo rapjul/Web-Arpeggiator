@@ -10,7 +10,7 @@ export default mergeConfig(
             include: ["tests/unit/**/*.test.ts"],
             coverage: {
                 provider: "v8",
-                reporter: ["text", "json-summary", "cobertura", "html"],
+                reporter: ["text", "json-summary", "lcov", "cobertura", "html"],
                 include: ["src/**/*.{js,ts}"],
                 exclude: ["src/pwa/pwa.js", "src/app.js"],
                 thresholds: {
