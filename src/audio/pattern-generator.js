@@ -66,12 +66,22 @@ export function createOrUpdatePattern() {
         const interval = intervalSelect ? intervalSelect.value : "16n";
         const gate = gateSlider ? parseFloat(gateSlider.value) : 0.8;
 
-        // Determine pattern direction from selected button
+        // Determine pattern direction from checked radio input or selected element
         const patternButtons = document.getElementById("pattern-buttons");
         let direction = "up";
         if (patternButtons) {
-            const active = patternButtons.querySelector("button.selected");
-            if (active) direction = active.getAttribute("data-pattern") || "up";
+            const checkedRadio = /** @type {HTMLInputElement|null} */ (
+                patternButtons.querySelector("input[name='pattern-direction']:checked") ||
+                    patternButtons.querySelector("input[type='radio']:checked")
+            );
+            if (checkedRadio?.value) {
+                direction = checkedRadio.value;
+            } else {
+                const active = patternButtons.querySelector(
+                    ".pattern-btn.selected, button.selected, [data-pattern].selected",
+                );
+                if (active) direction = active.getAttribute("data-pattern") || "up";
+            }
         }
 
         // Quantize options (if present in DOM)

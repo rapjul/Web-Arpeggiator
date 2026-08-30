@@ -224,21 +224,100 @@ describe("Pattern Generator Module", () => {
         expect(appWindow.arpPattern).toBeNull();
     });
 
-    it("creates patterns for various directions (upDownRepeat, downUpRepeat, octaveCycle, randomWalk)", () => {
-        const directions = ["upDownRepeat", "downUpRepeat", "octaveCycle", "randomWalk", "down"];
-        for (const dir of directions) {
-            patternButtons.innerHTML = `<button class="selected" data-pattern="${dir}"></button>`;
+    it("creates patterns for all 12 directions using realistic radio button DOM markup", () => {
+        const directions = [
+            { dir: "up", expectedPattern: "up", expectedValues: ["C4", "E4", "G4"] },
+            { dir: "down", expectedPattern: "down", expectedValues: ["C4", "E4", "G4"] },
+            { dir: "upDown", expectedPattern: "upDown", expectedValues: ["C4", "E4", "G4"] },
+            { dir: "downUp", expectedPattern: "downUp", expectedValues: ["C4", "E4", "G4"] },
+            {
+                dir: "upDownRepeat",
+                expectedPattern: "up",
+                expectedValues: ["C4", "E4", "G4", "G4", "E4", "C4"],
+            },
+            {
+                dir: "downUpRepeat",
+                expectedPattern: "up",
+                expectedValues: ["G4", "E4", "C4", "C4", "E4", "G4"],
+            },
+            { dir: "random", expectedPattern: "random", expectedValues: ["C4", "E4", "G4"] },
+            { dir: "octaveCycle", expectedPattern: "up", minLength: 18 },
+            { dir: "octaveCycleReverse", expectedPattern: "up", minLength: 18 },
+            { dir: "octaveCyclePingPong", expectedPattern: "up", minLength: 21 },
+            {
+                dir: "randomWalk",
+                expectedPattern: "randomWalk",
+                expectedValues: ["C4", "E4", "G4"],
+            },
+            { dir: "randomWalkDrunk", expectedPattern: "up", minLength: 16 },
+        ];
+
+        for (const { dir, expectedPattern, expectedValues, minLength } of directions) {
+            patternButtons.innerHTML = `
+                <label>
+                    <input type="radio" name="pattern-direction" value="${dir}" checked class="sr-only peer" data-pattern="${dir}" />
+                    <span class="pattern-btn" data-pattern="${dir}">${dir}</span>
+                </label>
+            `;
             createOrUpdatePattern();
             const pattern = appWindow.arpPattern;
             expect(pattern).toBeDefined();
-            expect(pattern?.values.length).toBeGreaterThan(0);
-            if (dir === "down") {
-                expect(pattern?.pattern).toBe("down");
-            } else if (dir === "randomWalk") {
-                expect(pattern?.pattern).toBe("randomWalk");
-            } else {
-                expect(pattern?.pattern).toBe("up");
+            expect(pattern?.pattern).toBe(expectedPattern);
+            if (expectedValues) {
+                expect(pattern?.values).toEqual(expectedValues);
             }
+            if (minLength) {
+                expect(pattern?.values.length).toBeGreaterThanOrEqual(minLength);
+            }
+        }
+    });
+
+    it("resolves pattern direction from visual .pattern-btn.selected span elements", () => {
+        patternButtons.innerHTML = `
+            <fieldset>
+                <span class="pattern-btn selected" data-pattern="down">Down</span>
+            </fieldset>
+        `;
+        createOrUpdatePattern();
+        const pattern = appWindow.arpPattern;
+        expect(pattern).toBeDefined();
+        expect(pattern?.pattern).toBe("down");
+    });
+
+    it("resolves pattern direction from legacy button.selected elements", () => {
+        patternButtons.innerHTML = `
+            <div>
+                <button class="selected" data-pattern="upDown">Up-Down</button>
+            </div>
+        `;
+        createOrUpdatePattern();
+        const pattern = appWindow.arpPattern;
+        expect(pattern).toBeDefined();
+        expect(pattern?.pattern).toBe("upDown");
+    });
+
+    it("correctly maps step highlights for non-up pattern indices", () => {
+        const mockHighlight = vi.fn();
+        appWindow.__WEB_ARP_STEP_HIGHLIGHT__ = mockHighlight;
+
+        patternButtons.innerHTML = `
+            <input type="radio" name="pattern-direction" value="down" checked />
+        `;
+        createOrUpdatePattern();
+
+        const pattern = appWindow.arpPattern as (MockPatternInstance & { index?: number }) | null;
+        expect(pattern).toBeDefined();
+
+        // Simulate Tone.Pattern tick with step index 2 (G4 in down mode)
+        if (pattern) {
+            pattern.index = 2;
+            pattern.callback(0.1, "G4");
+            expect(mockHighlight).toHaveBeenCalledWith(2);
+
+            // Simulate Tone.Pattern tick with step index 0 (C4 in down mode)
+            pattern.index = 0;
+            pattern.callback(0.2, "C4");
+            expect(mockHighlight).toHaveBeenCalledWith(0);
         }
     });
 
