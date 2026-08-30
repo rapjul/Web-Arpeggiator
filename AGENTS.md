@@ -334,7 +334,6 @@ Web Arpeggiator/
 │   │   ├── pattern-generator.js # Pattern scheduling & transport sync
 │   │   └── recorder.js     # Real-time recording + offline Tone.Offline export
 │   ├── storage/            # Persistence and configuration management
-│   │   ├── navigation-manager.js # URL routing & query-state management
 │   │   ├── presets-store.js# IndexedDB preset persistence
 │   │   ├── session-manager.js # Workspace auto-save and restoration lifecycle
 │   │   └── settings-manager.js # Settings serialization/restoration

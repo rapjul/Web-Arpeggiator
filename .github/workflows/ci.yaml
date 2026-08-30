@@ -114,25 +114,29 @@ jobs:
             }
 
             if (context.eventName === 'pull_request') {
-              const { data: comments } = await github.rest.issues.listComments({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: context.issue.number,
-              });
-              const botComment = comments.find(c => c.user.type === 'Bot' && c.body.includes('### 📊 Automated Test Coverage Report'));
-              if (botComment) {
-                await github.rest.issues.updateComment({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  comment_id: botComment.id,
-                  body: markdown,
-                });
-              } else {
-                await github.rest.issues.createComment({
+              try {
+                const comments = await github.paginate(github.rest.issues.listComments, {
                   owner: context.repo.owner,
                   repo: context.repo.repo,
                   issue_number: context.issue.number,
-                  body: markdown,
                 });
+                const botComment = comments.find(c => c.user.type === 'Bot' && c.body.includes('### 📊 Automated Test Coverage Report'));
+                if (botComment) {
+                  await github.rest.issues.updateComment({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    comment_id: botComment.id,
+                    body: markdown,
+                  });
+                } else {
+                  await github.rest.issues.createComment({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: context.issue.number,
+                    body: markdown,
+                  });
+                }
+              } catch (err) {
+                console.warn('Could not post or update PR comment (e.g. fork PR permissions):', err.message);
               }
             }

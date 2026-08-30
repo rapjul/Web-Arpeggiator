@@ -28,6 +28,8 @@ describe("Meter Utils Domain Module", () => {
         it("safely handles non-finite or invalid bounds", () => {
             expect(dbToPercent(NaN)).toBe(0);
             expect(dbToPercent(Infinity)).toBe(0);
+            expect(dbToPercent(-10, NaN, 0)).toBe(0);
+            expect(dbToPercent(-10, -40, NaN)).toBe(0);
             expect(dbToPercent(-10, 0, -40)).toBe(0); // minDb >= maxDb
         });
     });

@@ -13,7 +13,7 @@
  * @returns {number} Integer percentage value between 0 and 100.
  */
 export function dbToPercent(db, minDb = -40, maxDb = 0) {
-    if (!Number.isFinite(db)) {
+    if (!Number.isFinite(db) || !Number.isFinite(minDb) || !Number.isFinite(maxDb)) {
         return 0;
     }
     if (minDb >= maxDb) {
@@ -32,11 +32,13 @@ export function dbToPercent(db, minDb = -40, maxDb = 0) {
  * @returns {number} Calculated decibel value clamped between minDb and maxDb.
  */
 export function percentToDb(percent, minDb = -40, maxDb = 0) {
+    const validMin = Number.isFinite(minDb) ? minDb : -40;
+    const validMax = Number.isFinite(maxDb) ? maxDb : 0;
     if (!Number.isFinite(percent)) {
-        return minDb;
+        return validMin;
     }
     const clampedPercent = Math.max(0, Math.min(100, percent));
-    return minDb + (clampedPercent / 100) * (maxDb - minDb);
+    return validMin + (clampedPercent / 100) * (validMax - validMin);
 }
 
 /**

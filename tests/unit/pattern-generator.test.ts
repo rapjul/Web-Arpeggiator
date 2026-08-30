@@ -232,6 +232,13 @@ describe("Pattern Generator Module", () => {
             const pattern = appWindow.arpPattern;
             expect(pattern).toBeDefined();
             expect(pattern?.values.length).toBeGreaterThan(0);
+            if (dir === "down") {
+                expect(pattern?.pattern).toBe("down");
+            } else if (dir === "randomWalk") {
+                expect(pattern?.pattern).toBe("randomWalk");
+            } else {
+                expect(pattern?.pattern).toBe("up");
+            }
         }
     });
 
