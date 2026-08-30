@@ -8,26 +8,30 @@
  * @module app
  */
 import * as Tone from "tone";
-import { createAudioEngine } from "./audio-engine.js";
-import { downloadBlob } from "./audio-utils.js";
-import { initializeKeyboardControls } from "./keyboard-controller.js";
-import { createMidiBlob, exportMidiFile } from "./midi-export.js";
-import { materializePatternSequence, normalizeNotesSequence } from "./pattern-core.js";
+import { createAudioEngine } from "@audio/audio-engine.js";
+import { downloadBlob } from "@core/audio-utils.js";
+import { initializeKeyboardControls } from "@ui/keyboard-controller.js";
+import { createMidiBlob, exportMidiFile } from "@core/midi-export.js";
+import { materializePatternSequence, normalizeNotesSequence } from "@core/pattern-core.js";
 import {
     calculateNoteMarkers,
     createOrUpdatePattern as createOrUpdatePatternFromModule,
     getArpeggioNotes as getArpeggioNotesFromModule,
-} from "./pattern-generator.js";
-import { generateRandomNotes } from "./randomizer.js";
-import { createRecorderManager } from "./recorder.js";
-import { createSettingsManager } from "./settings-manager.js";
-import { createToastManager } from "./ui-feedback.js";
+} from "@audio/pattern-generator.js";
+import { generateRandomNotes } from "@core/randomizer.js";
+import { createRecorderManager } from "@audio/recorder.js";
+import { createSettingsManager } from "@storage/settings-manager.js";
+import { createToastManager } from "@ui/ui-feedback.js";
 import {
     hasPresetChanges,
     parsePresetFromUrlParams,
     serializePresetToUrlParams,
-} from "./url-preset.js";
-import { createVisualizer } from "./visualizer.js";
+} from "@core/url-preset.js";
+import { filterNoteInput, filterNumericInput } from "@core/input-filters.js";
+import { dbToPercent } from "@core/meter-utils.js";
+import { setupKeyboardNavigation } from "@ui/a11y-navigation.js";
+import { debounce, createSessionManager } from "@storage/session-manager.js";
+import { createVisualizer } from "@ui/visualizer.js";
 
 // --- Global Config ---
 // Set to true to show a toast message when audio is ready (for testing)
@@ -52,64 +56,9 @@ function log(...args) {
     }
 }
 
-/**
- * Filters keydown events for the notes input.
- * Allows: A-G, a-g, 0-9, #, b, Space, Backspace, Tab, Arrows, Delete, Ctrl/Cmd+A/C/V/X
- * @param {KeyboardEvent} event - The keyboard event.
- * @returns {boolean} True if the key is allowed, false otherwise.
- */
-function filterNoteInput(event) {
-    const key = event.key;
-    const keyCode = event.keyCode;
-
-    // Allow letters A-G (and a-g)
-    if (keyCode >= 65 && keyCode <= 71) {
-        return true;
-    }
-
-    // Allow numbers 0-9
-    if (keyCode >= 48 && keyCode <= 57 && !event.shiftKey) {
-        return true;
-    }
-
-    // Allow Space, #, b
-    if (key === " " || key === "#" || key === "b") {
-        return true;
-    }
-
-    // Allow control keys
-    if ([8, 9, 37, 38, 39, 40, 46].includes(keyCode)) {
-        return true;
-    }
-
-    // Allow Ctrl/Cmd + A, C, V, X
-    if ((event.ctrlKey || event.metaKey) && [65, 67, 86, 88].includes(keyCode)) {
-        return true;
-    }
-
-    // Block all other keys
-    event.preventDefault();
-    return false;
-}
-
-/**
- * Filters keydown events for numeric inputs to allow only digits and control keys.
- * @param {KeyboardEvent} event - The keyboard event.
- * @returns {boolean} True if the key is allowed, false otherwise.
- */
-function filterNumericInput(event) {
-    if (
-        (event.keyCode >= 48 && event.keyCode <= 57) ||
-        (event.keyCode >= 96 && event.keyCode <= 105) ||
-        [8, 9, 37, 38, 39, 40, 46].includes(event.keyCode) ||
-        ((event.ctrlKey || event.metaKey) && [65, 67, 86, 88].includes(event.keyCode))
-    ) {
-        return true;
-    } else {
-        event.preventDefault();
-        return false;
-    }
-}
+// Attach filter functions to window for global inline event handlers / test assertions
+window.filterNoteInput = filterNoteInput;
+window.filterNumericInput = filterNumericInput;
 
 // --- State (must be global for onclick) ---
 var isAudioContextStarted = false;
@@ -400,8 +349,6 @@ function initializeApp() {
     let currentOctaveShift = 0;
     let currentOctaveRange = 2;
     let activeNote = null;
-    let lastSessionSaveTimer = null;
-    let isLoadingStoredSettings = false;
 
     // Sync legacy window globals (needed by extracted modules)
     window.currentNotes = currentNotes;
@@ -891,64 +838,27 @@ function initializeApp() {
         }
     }
 
-    /**
-     * Immediately saves the current settings as "last session".
-     * @returns {Promise<void>}
-     */
-    async function saveLastSessionNow() {
-        if (!window.WebArpPresetStore || isLoadingStoredSettings) return;
-        try {
-            const record = await window.WebArpPresetStore.saveLastSession(getAllSettings());
-            updateTestState({
-                lastSessionId: record.id,
-                lastSessionSavedAt: record.savedAt,
-            });
-        } catch (error) {
-            console.warn("Failed to save last session:", error);
-        }
-    }
+    // ------------------------------------------------------------------
+    // Session Manager — Auto-save and workspace restoration
+    // ------------------------------------------------------------------
 
-    /**
-     * Schedules a debounced last-session save.
-     * @returns {void}
-     */
-    function scheduleLastSessionSave() {
-        if (isLoadingStoredSettings) return;
-        if (lastSessionSaveTimer) clearTimeout(lastSessionSaveTimer);
-        lastSessionSaveTimer = setTimeout(() => {
-            saveLastSessionNow();
-        }, 2000);
-    }
-
-    /**
-     * Restores the "last session" from IndexedDB on startup.
-     * @returns {Promise<void>}
-     */
-    async function restoreLastSession() {
-        if (!window.WebArpPresetStore) {
-            updateTestState({ lastSessionRestoreFinished: true });
-            return;
-        }
-        try {
-            const record = await window.WebArpPresetStore.loadLastSession();
-            if (record?.settings) {
-                isLoadingStoredSettings = true;
-                loadAllSettings(record.settings);
-                // Fall back to up if the direction is valid
-                if (getSelectedPatternDirection()) {
-                    setSelectedPatternDirection(getSelectedPatternDirection());
-                } else {
-                    setSelectedPatternDirection("up");
-                }
-                isLoadingStoredSettings = false;
+    const sessionManager = createSessionManager({
+        getPresetStore: () => window.WebArpPresetStore,
+        getSettings: () => getAllSettings(),
+        onRestore: (settings) => {
+            loadAllSettings(settings);
+            if (getSelectedPatternDirection()) {
+                setSelectedPatternDirection(getSelectedPatternDirection());
+            } else {
+                setSelectedPatternDirection("up");
             }
-        } catch (error) {
-            isLoadingStoredSettings = false;
-            console.warn("Failed to restore last session:", error);
-        } finally {
-            updateTestState({ lastSessionRestoreFinished: true });
-        }
-    }
+        },
+        updateTestState,
+    });
+
+    const saveLastSessionNow = () => sessionManager.saveNow();
+    const scheduleLastSessionSave = () => sessionManager.scheduleSave();
+    const restoreLastSession = () => sessionManager.restoreSession();
 
     // ==================================================================
     //    Module Initialization
@@ -1330,39 +1240,6 @@ function initializeApp() {
         }
     }
 
-    /**
-     * Sets up arrow key keyboard navigation for a group of buttons.
-     * Allows using Left/Right or Up/Down arrows to move focus within the group.
-     * @param {HTMLElement} container - The container element holding the buttons.
-     * @param {string} buttonSelector - CSS selector to identify the focusable buttons.
-     * @returns {void}
-     */
-    function setupKeyboardNavigation(container, buttonSelector) {
-        if (!container) return;
-        container.addEventListener("keydown", (event) => {
-            const buttons = /** @type {HTMLElement[]} */ (
-                Array.from(container.querySelectorAll(buttonSelector))
-            );
-            const activeEl = /** @type {HTMLElement | null} */ (document.activeElement);
-            const index = buttons.indexOf(activeEl);
-
-            if (index === -1) return;
-
-            let nextIndex = index;
-            if (event.key === "ArrowRight" || event.key === "ArrowDown") {
-                nextIndex = (index + 1) % buttons.length;
-                event.preventDefault();
-            } else if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
-                nextIndex = (index - 1 + buttons.length) % buttons.length;
-                event.preventDefault();
-            }
-
-            if (nextIndex !== index) {
-                buttons[nextIndex].focus();
-            }
-        });
-    }
-
     setupKeyboardNavigation(patternButtons, "input[type='radio'], button.pattern-btn");
     setupKeyboardNavigation(waveformButtons, "button.waveform-btn");
     setupKeyboardNavigation(octaveShiftButtons, "input[type='radio'], button.octave-btn");
@@ -1540,25 +1417,6 @@ function initializeApp() {
     });
 
     /**
-     * Creates a debounced function that delays invoking the callback.
-     * @template {(...args: any[]) => any} T
-     * @param {T} func - The callback function to debounce.
-     * @param {number} wait - The delay in milliseconds.
-     * @returns {T} The debounced function.
-     */
-    function debounce(func, wait) {
-        let timeout;
-        return /** @type {any} */ (
-            function (...args) {
-                clearTimeout(timeout);
-                timeout = setTimeout(() => {
-                    func.apply(this, args);
-                }, wait);
-            }
-        );
-    }
-
-    /**
      * Debounced wrapper to update the synth envelope.
      * @type {() => void}
      */
@@ -1612,15 +1470,6 @@ function initializeApp() {
     });
 
     // --- Transport & Pattern ---
-
-    /**
-     * Converts the post gain slider's dB value to a 0–100% display label.
-     * @param {number} db - Decibel value (-40 to 0).
-     * @returns {number} Percentage (0–100).
-     */
-    function dbToPercent(db) {
-        return Math.round(((db + 40) / 40) * 100);
-    }
 
     /**
      * Debounced wrapper to set post gain volume.

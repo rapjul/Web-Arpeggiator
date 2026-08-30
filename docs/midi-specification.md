@@ -1,6 +1,6 @@
 # Standard MIDI Specification & Implementation Reference
 
-This document provides a technical overview of the Standard MIDI File (SMF 1.0) binary format and details how Web Arpeggiator implements native, zero-dependency MIDI export in [`../js/midi-export.js`](../js/midi-export.js).
+This document provides a technical overview of the Standard MIDI File (SMF 1.0) binary format and details how Web Arpeggiator implements native, zero-dependency MIDI export in [`../src/core/midi-export.js`](../src/core/midi-export.js).
 
 ---
 
@@ -174,9 +174,9 @@ $$\text{MIDI Note Number} = (\text{Octave} + 1) \times 12 + \text{Semitone Index
 
 ---
 
-## 4. Module API (`js/midi-export.js`)
+## 4. Module API (`src/core/midi-export.js`)
 
-The [`../js/midi-export.js`](../js/midi-export.js) module exposes the following core functions:
+The [`../src/core/midi-export.js`](../src/core/midi-export.js) module exposes the following core functions:
 
 - `noteNameToMidiNumber(noteName: string): number`
   Converts scientific pitch strings (e.g., `'C4'`, `'F#3'`) into bounded MIDI numbers (0–127).

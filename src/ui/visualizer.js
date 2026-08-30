@@ -9,6 +9,12 @@
  * @module visualizer
  */
 import * as Tone from "tone";
+import {
+    findTriggerPoint,
+    formatFrequencyLabel,
+    reconstructChronologicalBuffer,
+    writeToCircularBuffer,
+} from "@core/visualizer-math.js";
 
 /**
  * Creates the waveform visualizer and UI update loop.
@@ -221,10 +227,7 @@ export function createVisualizer(context) {
      */
     function pushToRollingBuffer(newData) {
         if (rollingBufferCapacity === 0) return;
-        for (let i = 0; i < newData.length; i++) {
-            rollingBuffer[writeIndex] = newData[i];
-            writeIndex = (writeIndex + 1) % rollingBufferCapacity;
-        }
+        writeIndex = writeToCircularBuffer(rollingBuffer, newData, writeIndex);
     }
 
     /**
@@ -233,12 +236,7 @@ export function createVisualizer(context) {
      * @returns {Float32Array} Ordered array of accumulated waveform samples.
      */
     function getChronologicalBuffer() {
-        const buf = new Float32Array(rollingBufferCapacity);
-        const part1 = rollingBuffer.subarray(writeIndex);
-        const part2 = rollingBuffer.subarray(0, writeIndex);
-        buf.set(part1, 0);
-        buf.set(part2, part1.length);
-        return buf;
+        return reconstructChronologicalBuffer(rollingBuffer, writeIndex);
     }
 
     // Initialize rolling buffer size
@@ -340,14 +338,8 @@ export function createVisualizer(context) {
         }
     }
 
-    /**
-     * Formats frequency numbers into human-readable strings (e.g. 1000 -> 1kHz).
-     *
-     * @param {number} freq - Frequency in Hz.
-     * @returns {string} Formatted label.
-     */
     function formatFrequency(freq) {
-        return freq >= 1000 ? `${(freq / 1000).toFixed(0)}kHz` : `${freq}Hz`;
+        return formatFrequencyLabel(freq);
     }
 
     /**
@@ -396,7 +388,9 @@ export function createVisualizer(context) {
                     } else if (typeof analyser.getValue === "function") {
                         const val = analyser.getValue();
                         if (val instanceof Float32Array) {
-                            waveformBuffer.set(val);
+                            waveformBuffer.set(
+                                val.subarray(0, Math.min(val.length, waveformBuffer.length)),
+                            );
                             if (currentMode === "oscilloscope") {
                                 pushToRollingBuffer(val);
                             }
@@ -414,14 +408,7 @@ export function createVisualizer(context) {
                     const chronBuffer = getChronologicalBuffer();
 
                     // Zero-crossing search (stabilize wave phase by aligning index at ascending zero threshold)
-                    let triggerIndex = 0;
-                    const displayLength = chronBuffer.length;
-                    for (let i = 0; i < displayLength / 2; i++) {
-                        if (chronBuffer[i] < 0 && chronBuffer[i + 1] >= 0) {
-                            triggerIndex = i;
-                            break;
-                        }
-                    }
+                    const triggerIndex = findTriggerPoint(chronBuffer);
 
                     // Get cached or updated linear gradient
                     const lineGrad = getVerticalGradient(
@@ -435,7 +422,7 @@ export function createVisualizer(context) {
                     plotCtx.strokeStyle = lineGrad;
                     plotCtx.lineWidth = 2;
 
-                    const activePoints = displayLength - triggerIndex;
+                    const activePoints = chronBuffer.length - triggerIndex;
                     for (let i = 0; i < activePoints; i++) {
                         const val = chronBuffer[triggerIndex + i];
                         const x = leftPadding + (i / activePoints) * plotWidth;

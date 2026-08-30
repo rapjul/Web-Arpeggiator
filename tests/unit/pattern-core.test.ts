@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import {
     buildPatternNotesAndMap,
     buildPatternSequence,
@@ -11,7 +11,7 @@ import {
     normalizeNotesSequence,
     parseNoteWithOctave,
     quantizeToScale,
-} from "../../js/pattern-core.js";
+} from "@core/pattern-core.js";
 
 describe("Pattern Core - Note Parsing & Auto-Resolution", () => {
     test("parseNoteWithOctave parses standard and bare pitch classes", () => {
@@ -545,5 +545,13 @@ describe("Pattern Core - materializePatternSequence Deterministic Unrolling", ()
             notes: [],
             map: [],
         });
+        expect(getArpeggioNotes([], { octaveRange: 1, octaveShift: 0 })).toEqual([]);
+        expect(getArpeggioNotes(["C4"], { octaveRange: -2, octaveShift: 0 })).toEqual(["C4"]);
+        expect(quantizeToScale(["NotANote", "H9", ""], "C", "major")).toEqual([
+            "NotANote",
+            "H9",
+            "",
+        ]);
+        expect(quantizeToScale(["C4", "E4"], "C", "completelyUnknownScale")).toEqual(["C4", "E4"]);
     });
 });

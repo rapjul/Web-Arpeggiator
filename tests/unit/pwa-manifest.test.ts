@@ -2,12 +2,14 @@
  * @file Unit tests for PWA asset manifest and standalone SVG asset integrity.
  */
 
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 describe("PWA Asset Manifest & SVG Integrity", () => {
-    const root = path.resolve(import.meta.dir, "../../public/images");
+    const currentDir = path.dirname(fileURLToPath(import.meta.url));
+    const root = path.resolve(currentDir, "../../public/images");
 
     it("verifies all 12 pattern direction SVG files exist with unique IDs", () => {
         const patternsDir = path.join(root, "patterns");

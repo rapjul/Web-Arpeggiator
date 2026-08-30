@@ -276,7 +276,7 @@ Example: With C Major selected, the note "C#4" becomes "D4"
 
 When modifying the codebase:
 
-1. Maintain the modular ES module architecture under `js/`
+1. Maintain the modular ES module architecture under `src/`
 2. Test audio on both HTTPS and HTTP contexts
 3. Verify preset save/load functionality
 4. Check responsive design on mobile
@@ -292,26 +292,46 @@ Web Arpeggiator/
 ├── sw.js                        # Service worker
 ├── README.md                    # Project documentation & overview
 ├── AGENTS.md                    # Architecture & development guide
-├── docs/                        # Technical guides & specifications
+├── docs/                        # Technical guides, ADRs & specifications
+│   ├── adr/                     # Architectural Decision Records (MADR standard)
+│   │   ├── 0001-vitest-and-v8-coverage-tooling.md
+│   │   ├── 0002-modular-es-source-architecture.md
+│   │   ├── 0003-defensive-input-validation-and-edge-case-testing-policy.md
+│   │   └── 0004-strict-type-safety-and-meaningful-behavioral-testing.md
 │   ├── midi-specification.md    # Standard MIDI binary specification reference
 │   └── pattern-directions.md    # Visual guide to arpeggiator patterns
-├── js/                          # Modular ES application logic
-│   ├── app.js                   # Application entry point & DOM wiring
-│   ├── audio-engine.js          # Tone.js synths & audio processing chain
-│   ├── audio-utils.js           # Audio encoding and file download utilities
-│   ├── keyboard-controller.js   # Interactive virtual keyboard
-│   ├── midi-export.js           # SMF Format 0 binary generator
-│   ├── pattern-core.js          # Core math & note generation logic
-│   ├── pattern-generator.js     # Tone.Pattern controller & quantization
-│   ├── presets-store.js         # IndexedDB preset persistence
-│   ├── pwa.js                   # Service worker registration & updates
-│   ├── randomizer.js            # Scale-quantized pattern randomizer
-│   ├── recorder.js              # Real-time capture & offline loop renderer
-│   ├── settings-manager.js      # Configuration state persistence
-│   ├── ui-feedback.js           # Toast alerts and visual status indicators
-│   ├── url-preset.js            # URL query parameter preset serialization
-│   └── visualizer.js            # Real-time oscilloscope canvas
-└── public/                      # Static assets & pattern icons
+├── src/                         # Modular source code
+│   ├── core/                    # Pure algorithms & domain logic (zero DOM/Audio dependencies)
+│   │   ├── audio-utils.js       # Audio encoding and file download utilities
+│   │   ├── input-filters.js     # Keyboard note & numeric input filtering
+│   │   ├── meter-utils.js       # Audio meter decibel & percentage calculations
+│   │   ├── midi-export.js       # SMF Format 0 binary generator
+│   │   ├── pattern-core.js      # Core math & note generation logic
+│   │   ├── randomizer.js        # Scale-quantized pattern randomizer
+│   │   ├── url-preset.js        # URL query parameter preset serialization
+│   │   └── visualizer-math.js   # Signal processing & FFT peak detection helpers
+│   ├── audio/                   # Web Audio / Tone.js synthesis and scheduling
+│   │   ├── audio-engine.js      # Tone.js synths & audio processing chain
+│   │   ├── pattern-generator.js # Tone.Pattern controller & quantization
+│   │   └── recorder.js          # Real-time capture & offline loop renderer
+│   ├── storage/                 # Persistence and configuration management
+│   │   ├── presets-store.js     # IndexedDB preset persistence
+│   │   ├── session-manager.js   # Workspace auto-save and restoration lifecycle
+│   │   └── settings-manager.js  # Configuration state persistence
+│   ├── ui/                      # DOM controllers and visual rendering
+│   │   ├── a11y-navigation.js   # WAI-ARIA arrow-key navigation for button groups
+│   │   ├── keyboard-controller.js # Interactive virtual keyboard
+│   │   ├── ui-feedback.js       # Toast alerts and visual status indicators
+│   │   └── visualizer.js        # Real-time oscilloscope canvas
+│   ├── pwa/                     # Service Worker & PWA lifecycle
+│   │   └── pwa.js               # Service worker registration & updates
+│   └── app.js                   # Application entry point & DOM wiring
+├── exports/                     # Generated audio test files
+│   ├── realtime-recordings/
+│   └── perfect-loops/
+├── presets/                     # Saved JSON presets
+├── public/                      # Static assets & pattern icons
+└── tests/                       # Unit and E2E test suites
 ```
 
 ## Performance

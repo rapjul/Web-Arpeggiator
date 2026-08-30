@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import {
     clampFloat,
     clampInt,
@@ -6,7 +6,7 @@ import {
     NOTES_REGEX,
     parsePresetFromUrlParams,
     serializePresetToUrlParams,
-} from "../../js/url-preset.js";
+} from "@core/url-preset.js";
 
 describe("URL Preset Domain Module", () => {
     const defaultSettings = {
@@ -113,6 +113,25 @@ describe("URL Preset Domain Module", () => {
         expect(parsed?.filterCutoff).toBe(8000);
     });
 
+    test("safely handles unknown or invalid query parameters by applying defaults", () => {
+        // Unknown synth, unknown waveform, unknown direction, and corrupted note inputs
+        const query =
+            "?synth=hyperSynth&wave=plasma&dir=zigzagPattern&notes=InvalidNote123&root=Z&scale=alienMode&bpm=invalidBpm&gate=-5&swing=10";
+
+        const parsed = parsePresetFromUrlParams(query, defaultSettings);
+        expect(parsed).not.toBeNull();
+
+        expect(parsed?.synthType).toBe("synth");
+        expect(parsed?.waveform).toBe("sine");
+        expect(parsed?.direction).toBe("up");
+        expect(parsed?.baseNotes).toEqual(["C4", "E4", "G4"]);
+        expect(parsed?.scaleRoot).toBe("C");
+        expect(parsed?.scaleType).toBe("major");
+        expect(parsed?.bpm).toBe(120);
+        expect(parsed?.gateRatio).toBe(0.05);
+        expect(parsed?.swing).toBe(1.0);
+    });
+
     test("returns null when no recognized preset keys are present", () => {
         expect(parsePresetFromUrlParams("?pwa=true", defaultSettings)).toBeNull();
         expect(parsePresetFromUrlParams("?unknown=value&foo=bar", defaultSettings)).toBeNull();
@@ -150,25 +169,62 @@ describe("URL Preset Domain Module", () => {
             }),
         ).toBe(true);
 
-        // Effect change (drive, chorus, pan)
-        expect(
-            hasPresetChanges(defaultSettings, {
-                ...defaultSettings,
-                driveMix: 0.5,
-            }),
-        ).toBe(true);
-        expect(
-            hasPresetChanges(defaultSettings, {
-                ...defaultSettings,
-                chorusMix: 0.3,
-            }),
-        ).toBe(true);
-        expect(
-            hasPresetChanges(defaultSettings, {
-                ...defaultSettings,
-                autoPanMix: 0.7,
-            }),
-        ).toBe(true);
+        // All scalar and numeric property change branches
+        const keysToTest: (keyof typeof defaultSettings)[] = [
+            "direction",
+            "interval",
+            "synthType",
+            "waveform",
+            "scaleRoot",
+            "scaleType",
+            "scaleQuantize",
+            "bpm",
+            "swing",
+            "postGain",
+            "harmonicity",
+            "modulationIndex",
+            "dutyCycle",
+            "gateRatio",
+            "octaveShift",
+            "octaveRange",
+            "envAttack",
+            "envDecay",
+            "envSustain",
+            "envRelease",
+            "filterCutoff",
+            "filterResonance",
+            "driveMix",
+            "chorusMix",
+            "autoPanMix",
+            "delayMix",
+            "reverbMix",
+            "loopCount",
+        ];
+
+        for (const key of keysToTest) {
+            const val = defaultSettings[key];
+            const modifiedVal =
+                typeof val === "number"
+                    ? val + 1
+                    : typeof val === "boolean"
+                      ? !val
+                      : `${String(val)}-diff`;
+
+            expect(
+                hasPresetChanges(defaultSettings, {
+                    ...defaultSettings,
+                    [key]: modifiedVal,
+                }),
+            ).toBe(true);
+        }
+
+        // Null / undefined objects check
+        expect(hasPresetChanges(null as unknown as Record<string, unknown>, defaultSettings)).toBe(
+            true,
+        );
+        expect(hasPresetChanges(defaultSettings, null as unknown as Record<string, unknown>)).toBe(
+            true,
+        );
     });
 
     test("serializes and parses new synths and studio effect parameters", () => {

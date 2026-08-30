@@ -93,28 +93,25 @@ export function loadLameJs() {
     return lameJsPromise;
 }
 
+/**
+ * Triggers LameJS loading when the browser is idle.
+ *
+ * @returns {void}
+ */
+export function triggerIdleLoad() {
+    if (typeof requestIdleCallback === "function") {
+        requestIdleCallback(() => {
+            loadLameJs().catch((err) => console.warn("Background LameJS pre-load failed:", err));
+        });
+    } else {
+        setTimeout(() => {
+            loadLameJs().catch((err) => console.warn("Background LameJS pre-load failed:", err));
+        }, 3000);
+    }
+}
+
 // Queue LameJS loading when the browser is idle
 if (typeof window !== "undefined") {
-    /**
-     * Triggers LameJS loading when the browser is idle.
-     * @returns {void}
-     */
-    const triggerIdleLoad = () => {
-        if (typeof requestIdleCallback === "function") {
-            requestIdleCallback(() => {
-                loadLameJs().catch((err) =>
-                    console.warn("Background LameJS pre-load failed:", err),
-                );
-            });
-        } else {
-            setTimeout(() => {
-                loadLameJs().catch((err) =>
-                    console.warn("Background LameJS pre-load failed:", err),
-                );
-            }, 3000);
-        }
-    };
-
     // When the page is loaded, trigger LameJS loading.
     if (document.readyState === "complete") {
         triggerIdleLoad();
