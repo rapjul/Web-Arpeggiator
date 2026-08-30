@@ -387,5 +387,19 @@ describe("Settings Manager Domain Module", () => {
 
         expect(mockDom.notesInput.value).toBe("C4 E4 G4");
         expect(mockActions.setSelectedPatternDirection).toHaveBeenCalledWith("downUp");
+
+        // empty/whitespace string fallback
+        manager.loadAllSettings({
+            notes: "   ",
+        });
+        expect(mockDom.notesInput.value).toBe("C4 E4 G4");
+        expect(mockState.currentNotes).toEqual(["C4", "E4", "G4"]);
+
+        // empty baseNotes array fallback
+        manager.loadAllSettings({
+            baseNotes: [],
+        });
+        expect(mockDom.notesInput.value).toBe("C4 E4 G4");
+        expect(mockState.currentNotes).toEqual(["C4", "E4", "G4"]);
     });
 });

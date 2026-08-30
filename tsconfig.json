@@ -8,14 +8,13 @@
     "strict": false,
     "noEmit": true,
     "skipLibCheck": true,
-    "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"],
-      "@core/*": ["src/core/*"],
-      "@audio/*": ["src/audio/*"],
-      "@storage/*": ["src/storage/*"],
-      "@ui/*": ["src/ui/*"],
-      "@pwa/*": ["src/pwa/*"]
+      "@/*": ["./src/*"],
+      "@core/*": ["./src/core/*"],
+      "@audio/*": ["./src/audio/*"],
+      "@storage/*": ["./src/storage/*"],
+      "@ui/*": ["./src/ui/*"],
+      "@pwa/*": ["./src/pwa/*"]
     },
     "lib": ["DOM", "DOM.Iterable", "ESNext"]
   },

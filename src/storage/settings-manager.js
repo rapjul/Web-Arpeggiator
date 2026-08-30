@@ -122,13 +122,14 @@ export function createSettingsManager(context) {
                 if (audio.postGain) audio.postGain.volume.value = settings.postGain;
             }
 
-            const notesArr = Array.isArray(settings.baseNotes)
-                ? settings.baseNotes
-                : Array.isArray(settings.notes)
-                  ? settings.notes
-                  : typeof settings.notes === "string"
-                    ? settings.notes.trim().split(/\s+/)
-                    : ["C4", "E4", "G4"];
+            const notesArr =
+                Array.isArray(settings.baseNotes) && settings.baseNotes.length > 0
+                    ? settings.baseNotes
+                    : Array.isArray(settings.notes) && settings.notes.length > 0
+                      ? settings.notes
+                      : typeof settings.notes === "string" && settings.notes.trim().length > 0
+                        ? settings.notes.trim().split(/\s+/)
+                        : ["C4", "E4", "G4"];
 
             if (dom.notesInput) {
                 dom.notesInput.value = notesArr.join(" ");
