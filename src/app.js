@@ -2648,6 +2648,12 @@ function initializeApp() {
 
             // Pass buffer and markers to visualizer
             visualizer.updateStaticLoopMap(audioBuffer, markers);
+            updateTestState({
+                lastLoopMapRenderMarkers: markers,
+                loopMapRenderCount:
+                    ((window.__WEB_ARP_TEST__ && window.__WEB_ARP_TEST__.loopMapRenderCount) || 0) +
+                    1,
+            });
         } catch (e) {
             console.error("Static loop render failed:", e);
         }
@@ -2717,6 +2723,10 @@ function initializeApp() {
     Object.assign(window.__WEB_ARP_TEST__, {
         Tone,
         getCurrentSettings: () => getAllSettings(),
+        getLoopMapState: () => ({
+            renderCount: window.__WEB_ARP_TEST__?.loopMapRenderCount || 0,
+            markers: window.__WEB_ARP_TEST__?.lastLoopMapRenderMarkers || [],
+        }),
 
         savePreset: async (settings = null, metadata = {}) => {
             if (!window.WebArpPresetStore)

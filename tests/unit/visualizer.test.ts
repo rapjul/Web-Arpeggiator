@@ -349,7 +349,26 @@ describe("Visualizer Module", () => {
         ];
 
         expect(() => visualizer.updateStaticLoopMap(mockBuffer, multiOctaveMarkers)).not.toThrow();
-        expect(mockCanvasCtx.fillText).toHaveBeenCalled();
+        expect(mockCanvasCtx.fillText).toHaveBeenCalledWith(
+            "C2",
+            expect.any(Number),
+            expect.any(Number),
+        );
+        expect(mockCanvasCtx.fillText).toHaveBeenCalledWith(
+            "E3",
+            expect.any(Number),
+            expect.any(Number),
+        );
+        expect(mockCanvasCtx.fillText).toHaveBeenCalledWith(
+            "G4",
+            expect.any(Number),
+            expect.any(Number),
+        );
+        expect(mockCanvasCtx.fillText).toHaveBeenCalledWith(
+            "C5",
+            expect.any(Number),
+            expect.any(Number),
+        );
         expect(mockCanvasCtx.beginPath).toHaveBeenCalled();
         expect(mockCanvasCtx.stroke).toHaveBeenCalled();
     });
@@ -378,12 +397,24 @@ describe("Visualizer Module", () => {
         // Store loop map data while still in oscilloscope mode
         visualizer.updateStaticLoopMap(mockBuffer, mockMarkers);
 
-        // Switch to loopMap mode — should render cached buffer without errors
+        // Clear previous drawing mock calls so we only assert redraw triggered by mode change
+        vi.clearAllMocks();
+
+        // Switch to loopMap mode — the change handler itself must trigger drawing of cached markers
         mockDom.visualizerModeSelect.value = "loopMap";
         mockDom.visualizerModeSelect.dispatchEvent(new Event("change"));
 
         expect(visualizer.currentMode).toBe("loopMap");
-        expect(() => visualizer.runUiUpdate()).not.toThrow();
+        expect(mockCanvasCtx.fillText).toHaveBeenCalledWith(
+            "C3",
+            expect.any(Number),
+            expect.any(Number),
+        );
+        expect(mockCanvasCtx.fillText).toHaveBeenCalledWith(
+            "G3",
+            expect.any(Number),
+            expect.any(Number),
+        );
     });
 
     it("starts and stops UI loop lifecycles", () => {

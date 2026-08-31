@@ -189,83 +189,166 @@ test("Canvas Visualizer Suite", async (): Promise<void> => {
     await runBrowser(["select", "#visualizer-mode", "loopMap"]);
     await new Promise((resolve) => setTimeout(resolve, 500));
 
-    // Test Octave Range variations (1 -> 3 -> 5)
+    // Test Octave Range variations (1 -> 3 -> 5) and assert observable marker count scaling
+    const expectedCounts: Record<string, number> = { "1": 3, "3": 9, "5": 15 };
     for (const rangeVal of ["1", "3", "5"]) {
-        const rangeResult: string = await runBrowser([
+        const rangeResultStr: string = await runBrowser([
             "eval",
             `(() => {
                 const radio = document.querySelector('#octave-range-buttons input[value="${rangeVal}"]');
-                if (!radio) return 'radio-missing';
+                if (!radio) throw new Error('Missing octave range radio for value: ${rangeVal}');
                 radio.checked = true;
                 radio.dispatchEvent(new Event('change', { bubbles: true }));
-                return 'ok';
+                return 'dispatched';
             })()`,
         ]);
-        expect(rangeResult).toBe('"ok"');
-        await new Promise((resolve) => setTimeout(resolve, 200));
+        expect(rangeResultStr).toBe('"dispatched"');
+        // Allow debounced render to execute
+        await new Promise((resolve) => setTimeout(resolve, 350));
+
+        const markerCountStr: string = await runBrowser([
+            "eval",
+            `(() => {
+                const state = window.__WEB_ARP_TEST__?.getLoopMapState?.();
+                return state?.markers?.length ?? 0;
+            })()`,
+        ]);
+        expect(Number.parseInt(markerCountStr, 10)).toBe(expectedCounts[rangeVal]);
     }
 
-    // Test Octave Shift variations (-2 -> 0 -> +2)
+    // Reset range to 1 before testing shift
+    await runBrowser([
+        "eval",
+        `(() => {
+            const radio = document.querySelector('#octave-range-buttons input[value="1"]');
+            if (radio) {
+                radio.checked = true;
+                radio.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        })()`,
+    ]);
+    await new Promise((resolve) => setTimeout(resolve, 350));
+
+    // Test Octave Shift variations (-2 -> 0 -> +2) and assert transposed pitch registers
+    const expectedRootPitch: Record<string, string> = { "-2": "C2", "0": "C4", "2": "C6" };
     for (const shiftVal of ["-2", "0", "2"]) {
-        const shiftResult: string = await runBrowser([
+        const shiftResultStr: string = await runBrowser([
             "eval",
             `(() => {
                 const radio = document.querySelector('#octave-shift-buttons input[value="${shiftVal}"]');
-                if (!radio) return 'radio-missing';
+                if (!radio) throw new Error('Missing octave shift radio for value: ${shiftVal}');
                 radio.checked = true;
                 radio.dispatchEvent(new Event('change', { bubbles: true }));
-                return 'ok';
+                return 'dispatched';
             })()`,
         ]);
-        expect(shiftResult).toBe('"ok"');
-        await new Promise((resolve) => setTimeout(resolve, 200));
+        expect(shiftResultStr).toBe('"dispatched"');
+        // Allow debounced render to execute
+        await new Promise((resolve) => setTimeout(resolve, 350));
+
+        const firstMarkerPitch: string = await runBrowser([
+            "eval",
+            `(() => {
+                const state = window.__WEB_ARP_TEST__?.getLoopMapState?.();
+                return state?.markers?.[0]?.note ?? '';
+            })()`,
+        ]);
+        expect(firstMarkerPitch).toBe(`"${expectedRootPitch[shiftVal]}"`);
     }
 
     // 8. Test Loop Map updates on Pattern Direction, Notes, and Scale Quantization
     console.log(
         "Step 8: Testing Loop Map Canvas Updates on Pattern, Notes, and Quantization Changes...",
     );
-    const patternAndQuantizeResult: string = await runBrowser([
+
+    // 8a. Test Pattern Direction radio change
+    const patternChangeStr: string = await runBrowser([
         "eval",
         `(() => {
-            // Test Pattern Direction button
-            const octaveCycleBtn = document.querySelector('button[data-pattern="octaveCycle"]');
-            if (octaveCycleBtn) octaveCycleBtn.click();
-
-            // Test Note Input modification
-            const notesInput = document.getElementById('notes-input');
-            if (notesInput) {
-                notesInput.value = 'C3 E3 G3 B3 D4';
-                notesInput.dispatchEvent(new Event('input', { bubbles: true }));
-                notesInput.dispatchEvent(new Event('change', { bubbles: true }));
-            }
-
-            // Test Scale Quantization toggle
-            const quantizeCheckbox = document.getElementById('scale-quantize');
-            if (quantizeCheckbox) {
-                quantizeCheckbox.checked = true;
-                quantizeCheckbox.dispatchEvent(new Event('change', { bubbles: true }));
-            }
-
-            // Test Scale Root selection
-            const rootSelect = document.getElementById('scale-root');
-            if (rootSelect) {
-                rootSelect.value = 'G';
-                rootSelect.dispatchEvent(new Event('change', { bubbles: true }));
-            }
-
-            // Test Note Interval change
-            const intervalSelect = document.getElementById('note-interval');
-            if (intervalSelect) {
-                intervalSelect.value = '8n';
-                intervalSelect.dispatchEvent(new Event('change', { bubbles: true }));
-            }
-
-            return 'ok';
+            const radio = document.querySelector('#pattern-buttons input[value="octaveCycle"]');
+            if (!radio) throw new Error('Missing pattern radio for octaveCycle');
+            radio.checked = true;
+            radio.dispatchEvent(new Event('change', { bubbles: true }));
+            return 'dispatched';
         })()`,
     ]);
-    expect(patternAndQuantizeResult).toBe('"ok"');
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    expect(patternChangeStr).toBe('"dispatched"');
+    await new Promise((resolve) => setTimeout(resolve, 350));
+
+    const octaveCycleMarkersCount: string = await runBrowser([
+        "eval",
+        `(() => {
+            const state = window.__WEB_ARP_TEST__?.getLoopMapState?.();
+            return state?.markers?.length ?? 0;
+        })()`,
+    ]);
+    expect(Number.parseInt(octaveCycleMarkersCount, 10)).toBeGreaterThan(0);
+
+    // 8b. Test Note Input modification
+    const notesChangeStr: string = await runBrowser([
+        "eval",
+        `(() => {
+            const notesInput = document.getElementById('notes');
+            if (!notesInput) throw new Error('Missing notes input');
+            notesInput.value = 'D3 F#3 A3';
+            notesInput.dispatchEvent(new Event('input', { bubbles: true }));
+            notesInput.dispatchEvent(new Event('change', { bubbles: true }));
+            return 'dispatched';
+        })()`,
+    ]);
+    expect(notesChangeStr).toBe('"dispatched"');
+    await new Promise((resolve) => setTimeout(resolve, 350));
+
+    const updatedNotePitch: string = await runBrowser([
+        "eval",
+        `(() => {
+            const state = window.__WEB_ARP_TEST__?.getLoopMapState?.();
+            return state?.markers?.[0]?.note ?? '';
+        })()`,
+    ]);
+    expect(updatedNotePitch).toContain("D");
+
+    // 8c. Test Scale Quantization toggle (starts true, toggle to false)
+    const quantizeToggleStr: string = await runBrowser([
+        "eval",
+        `(() => {
+            const quantizeCheckbox = document.getElementById('scale-quantize-toggle');
+            if (!quantizeCheckbox) throw new Error('Missing scale quantize checkbox');
+            quantizeCheckbox.checked = false;
+            quantizeCheckbox.dispatchEvent(new Event('change', { bubbles: true }));
+            return 'dispatched';
+        })()`,
+    ]);
+    expect(quantizeToggleStr).toBe('"dispatched"');
+    await new Promise((resolve) => setTimeout(resolve, 350));
+
+    // 8d. Test Scale Root selection
+    const rootChangeStr: string = await runBrowser([
+        "eval",
+        `(() => {
+            const rootSelect = document.getElementById('scale-root');
+            if (!rootSelect) throw new Error('Missing scale root select');
+            rootSelect.value = 'G';
+            rootSelect.dispatchEvent(new Event('change', { bubbles: true }));
+            return 'dispatched';
+        })()`,
+    ]);
+    expect(rootChangeStr).toBe('"dispatched"');
+    await new Promise((resolve) => setTimeout(resolve, 350));
+
+    // 8e. Test Note Interval dropdown
+    const intervalChangeStr: string = await runBrowser([
+        "eval",
+        `(() => {
+            const intervalSelect = document.getElementById('interval');
+            if (!intervalSelect) throw new Error('Missing interval select');
+            intervalSelect.value = '8n';
+            intervalSelect.dispatchEvent(new Event('change', { bubbles: true }));
+            return 'dispatched';
+        })()`,
+    ]);
+    expect(intervalChangeStr).toBe('"dispatched"');
+    await new Promise((resolve) => setTimeout(resolve, 350));
 
     console.log("Visualizer Integration Suite complete!");
 }, 45000);
