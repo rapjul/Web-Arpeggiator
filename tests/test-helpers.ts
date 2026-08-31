@@ -136,8 +136,23 @@ export async function waitForPwaReady(url: string): Promise<void> {
  * @returns {Promise<void>}
  */
 export async function initializeAudio(): Promise<void> {
-    // Click overlay to trigger audio context resume
-    await runBrowser(["click", "#start-overlay"]);
+    const overlayId: string = await runBrowser([
+        "eval",
+        `(() => {
+            const qs = document.getElementById('quick-start-overlay');
+            const simple = document.getElementById('start-overlay');
+            if (qs && window.getComputedStyle(qs).display !== 'none') return 'quick-start-overlay';
+            if (simple && window.getComputedStyle(simple).display !== 'none') return 'start-overlay';
+            return 'none';
+        })()`,
+    ]);
+
+    if (overlayId.includes("quick-start")) {
+        await runBrowser(["click", "#quick-start-scratch"]);
+    } else if (overlayId.includes("start-overlay")) {
+        await runBrowser(["click", "#start-overlay"]);
+    }
+
     await runBrowser(["wait", "--fn", "document.getElementById('play-stop')?.disabled === false"]);
 
     // Set post gain to -12dB (70%) to keep audio output quiet during headless checks
@@ -157,7 +172,7 @@ export async function initializeAudio(): Promise<void> {
 }
 
 /**
- * Deletes the preset and last session IndexedDB database to ensure test isolation.
+ * Deletes the preset and last session IndexedDB database and clears localStorage to ensure test isolation.
  *
  * @returns {Promise<void>}
  */
@@ -166,6 +181,9 @@ export async function resetBrowserState(): Promise<void> {
         "eval",
         `
         new Promise((resolve, reject) => {
+            try {
+                localStorage.clear();
+            } catch (_) {}
             const req = indexedDB.open('web-arpeggiator-presets');
             req.onsuccess = () => {
                 const db = req.result;

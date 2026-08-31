@@ -23,6 +23,7 @@ import { createRecorderManager } from "@audio/recorder.js";
 import { createSettingsManager } from "@storage/settings-manager.js";
 import { createToastManager } from "@ui/ui-feedback.js";
 import {
+    PRESET_URL_KEYS,
     hasPresetChanges,
     parsePresetFromUrlParams,
     serializePresetToUrlParams,
@@ -98,11 +99,68 @@ function initializeApp() {
     window.scrollTo(0, 0);
 
     // --- DOM Elements ---
+    /**
+     * Primary application container element.
+     * @type {HTMLElement | null}
+     */
+    const appMain = document.getElementById("app-main");
+
     const playStopButton = /** @type {HTMLButtonElement | null} */ (
         document.getElementById("play-stop")
     );
 
+    /**
+     * Fullscreen overlay for returning user audio activation.
+     * @type {HTMLElement | null}
+     */
     const startOverlay = document.getElementById("start-overlay");
+
+    /**
+     * Fullscreen overlay for first-visit quick start welcome modal.
+     * @type {HTMLElement | null}
+     */
+    const quickStartOverlay = document.getElementById("quick-start-overlay");
+
+    /**
+     * Modal dialog element containing quick start onboarding choices.
+     * @type {HTMLElement | null}
+     */
+    const quickStartModal = document.getElementById("quick-start-modal");
+
+    /**
+     * Grid container for dynamically rendered quick start preset cards.
+     * @type {HTMLElement | null}
+     */
+    const quickStartPresetsGrid = document.getElementById("quick-start-presets-grid");
+
+    /**
+     * Button to start blank session without loading a preset.
+     * @type {HTMLButtonElement | null}
+     */
+    const quickStartScratchButton = /** @type {HTMLButtonElement | null} */ (
+        document.getElementById("quick-start-scratch")
+    );
+
+    /**
+     * Top-level section container for the Sound Starters strip.
+     * @type {HTMLElement | null}
+     */
+    const soundStartersSection = document.getElementById("sound-starters-section");
+
+    /**
+     * Collapsible accordion wrapper for the Sound Starters strip.
+     * @type {HTMLDetailsElement | null}
+     */
+    const soundStartersDetails = /** @type {HTMLDetailsElement | null} */ (
+        document.getElementById("sound-starters-details")
+    );
+
+    /**
+     * Grid container where Sound Starter preset cards are injected.
+     * @type {HTMLElement | null}
+     */
+    const soundStartersGrid = document.getElementById("sound-starters-grid");
+
     const pwaTestStateField = document.getElementById("pwa-test-state");
 
     const bpmSlider = /** @type {HTMLInputElement} */ (document.getElementById("bpm"));
@@ -609,11 +667,13 @@ function initializeApp() {
         {
             id: "factory-synthwave",
             name: "Classic Synthwave",
+            emoji: "🌆",
+            tagline: "Stranger Things, Kavinsky",
+            accentGradient: "from-orange-500 to-pink-500",
             isFactory: true,
             settings: {
                 bpm: 128,
                 swing: 0,
-                postGain: 0,
                 baseNotes: ["C4", "E4", "G4", "B4"],
                 direction: "up",
                 interval: "16n",
@@ -638,11 +698,13 @@ function initializeApp() {
         {
             id: "factory-ambient",
             name: "Ambient Dreamscape",
+            emoji: "✨",
+            tagline: "Brian Eno, atmospheric pads",
+            accentGradient: "from-teal-400 to-indigo-500",
             isFactory: true,
             settings: {
                 bpm: 85,
                 swing: 0.1,
-                postGain: 0,
                 baseNotes: ["C4", "G4", "C5", "D5"],
                 direction: "upDown",
                 interval: "8n",
@@ -669,11 +731,13 @@ function initializeApp() {
         {
             id: "factory-cyberpunk",
             name: "Cyberpunk Bassline",
+            emoji: "⚡",
+            tagline: "Dark synth, driving bass",
+            accentGradient: "from-yellow-400 to-red-500",
             isFactory: true,
             settings: {
                 bpm: 140,
                 swing: 0,
-                postGain: 0,
                 baseNotes: ["C2", "C3", "D#2", "G2"],
                 direction: "octaveCycle",
                 interval: "16n",
@@ -702,11 +766,13 @@ function initializeApp() {
         {
             id: "factory-harp",
             name: "Plucked Acoustic Harp",
+            emoji: "🪕",
+            tagline: "Organic, delicate strings",
+            accentGradient: "from-amber-400 to-emerald-500",
             isFactory: true,
             settings: {
                 bpm: 110,
                 swing: 0.05,
-                postGain: 0,
                 baseNotes: ["D4", "F#4", "A4", "C#5"],
                 direction: "randomWalk",
                 interval: "16n",
@@ -733,11 +799,13 @@ function initializeApp() {
         {
             id: "factory-chiptune",
             name: "Chiptune Nostalgia",
+            emoji: "🕹️",
+            tagline: "8-bit NES, arcade arps",
+            accentGradient: "from-cyan-400 to-blue-600",
             isFactory: true,
             settings: {
                 bpm: 150,
                 swing: 0,
-                postGain: 0,
                 baseNotes: ["C4", "E4", "G4", "C5"],
                 direction: "upDownRepeat",
                 interval: "32n",
@@ -763,11 +831,13 @@ function initializeApp() {
         {
             id: "factory-neosoul",
             name: "Jazzy Neo-Soul",
+            emoji: "🎹",
+            tagline: "Warm chorus, mellow chords",
+            accentGradient: "from-purple-400 to-pink-600",
             isFactory: true,
             settings: {
                 bpm: 92,
                 swing: 0.35,
-                postGain: 0,
                 baseNotes: ["D4", "F4", "A4", "C5", "E5"],
                 direction: "up",
                 interval: "8n",
@@ -1315,27 +1385,192 @@ function initializeApp() {
      * found, validated successfully, AND its value actually differs from the current setting.
      * @returns {void}
      */
+    /**
+     * Parses the current URL search parameters, validates each value against strict boundaries,
+     * and loads them into the application via loadAllSettings.
+     *
+     * The toast notification is only shown when at least one recognized preset parameter was
+     * found, validated successfully, AND its value actually differs from the current setting.
+     * @returns {void}
+     */
     function loadPresetFromUrl() {
         const current = getAllSettings();
         const settings = parsePresetFromUrlParams(window.location.search, current);
         if (!settings || !hasPresetChanges(settings, current)) return;
 
+        clearActiveSoundStarterCard();
         loadAllSettings(settings);
         showToast("Preset loaded from URL link!", "success");
     }
 
-    // --- Start Overlay ---
-    /**
-     * Handles clicks on the start overlay to initialize the AudioContext
-     * and transition the UI to the active state.
-     *
-     * @returns {Promise<void>}
-     */
-    const handleStartOverlayClick = async () => {
-        if (startOverlay) {
-            startOverlay.style.display = "none";
-        }
+    // --- Sound Starters ---
 
+    /**
+     * Highlights a specific Sound Starter card by preset ID, or clears all active cards if null.
+     *
+     * @param {string | null} [presetId=null] - The factory preset ID to mark active, or null to clear.
+     * @returns {void}
+     */
+    function setActiveSoundStarterCard(presetId = null) {
+        if (!soundStartersGrid) return;
+        const cards = soundStartersGrid.querySelectorAll(".sound-starter-card");
+        cards.forEach((card) => {
+            const isTarget = Boolean(presetId && card.getAttribute("data-preset-id") === presetId);
+            if (isTarget) {
+                card.classList.add("active");
+                card.setAttribute("aria-pressed", "true");
+            } else {
+                card.classList.remove("active");
+                card.setAttribute("aria-pressed", "false");
+            }
+        });
+    }
+
+    /**
+     * Clears the active highlight state from all Sound Starter preset cards.
+     *
+     * @returns {void}
+     */
+    function clearActiveSoundStarterCard() {
+        setActiveSoundStarterCard(null);
+    }
+
+    /**
+     * Dynamically builds the Sound Starters factory presets card strip and wires interactions.
+     *
+     * @returns {void}
+     */
+    function buildSoundStartersStrip() {
+        if (!soundStartersGrid) return;
+        soundStartersGrid.innerHTML = "";
+
+        FACTORY_PRESETS.forEach((preset) => {
+            const card = document.createElement("button");
+            card.type = "button";
+            card.className = "sound-starter-card p-2.5 focus-visible:outline-none";
+            card.setAttribute("data-preset-id", preset.id);
+            card.setAttribute("aria-pressed", "false");
+            card.setAttribute(
+                "aria-label",
+                `Load ${preset.name} preset, ${preset.settings.bpm} BPM`,
+            );
+
+            const accentBar = document.createElement("div");
+            accentBar.className = `sound-starter-accent bg-gradient-to-r ${preset.accentGradient || "from-blue-500 to-indigo-500"} mb-2 rounded-full`;
+
+            const topRow = document.createElement("div");
+            topRow.className = "flex items-center justify-between gap-1 mb-1";
+
+            const emojiSpan = document.createElement("span");
+            emojiSpan.className = "text-xl shrink-0";
+            emojiSpan.textContent = preset.emoji || "🎵";
+
+            const bpmSpan = document.createElement("span");
+            bpmSpan.className =
+                "text-[11px] font-mono font-medium px-1.5 py-0.5 rounded bg-gray-900/60 text-gray-300 shrink-0";
+            bpmSpan.textContent = `${preset.settings.bpm} BPM`;
+
+            topRow.appendChild(emojiSpan);
+            topRow.appendChild(bpmSpan);
+
+            const title = document.createElement("div");
+            title.className = "text-xs font-semibold text-gray-100 truncate mb-0.5";
+            title.textContent = preset.name;
+
+            const tagline = document.createElement("div");
+            tagline.className = "text-[10px] text-gray-400 line-clamp-2 leading-tight";
+            tagline.textContent = preset.tagline || "";
+
+            card.appendChild(accentBar);
+            card.appendChild(topRow);
+            card.appendChild(title);
+            card.appendChild(tagline);
+
+            card.addEventListener("click", async () => {
+                loadAllSettings(preset.settings);
+                if (presetNameInput) {
+                    presetNameInput.value = preset.name;
+                }
+                if (savedPresetSelect) {
+                    savedPresetSelect.value = preset.id;
+                }
+                setActiveSoundStarterCard(preset.id);
+                if (!isPlaying) {
+                    await startPlayback();
+                }
+                showToast(`Loaded preset: ${preset.name}`, "info");
+                scheduleLastSessionSave();
+            });
+
+            soundStartersGrid.appendChild(card);
+        });
+
+        if (soundStartersDetails) {
+            try {
+                const storedOpen = localStorage.getItem("soundStartersOpen");
+                if (storedOpen === "false") {
+                    soundStartersDetails.removeAttribute("open");
+                } else if (storedOpen === "true") {
+                    soundStartersDetails.setAttribute("open", "");
+                }
+            } catch (err) {
+                console.warn("Could not read soundStartersOpen from localStorage:", err);
+            }
+
+            soundStartersDetails.addEventListener("toggle", () => {
+                try {
+                    localStorage.setItem("soundStartersOpen", String(soundStartersDetails.open));
+                } catch (err) {
+                    console.warn("Could not write soundStartersOpen to localStorage:", err);
+                }
+            });
+        }
+    }
+
+    // --- Sound Starters & Quick Start Onboarding ---
+
+    /**
+     * Storage key used to track if the user has previously completed first-time onboarding.
+     * @type {string}
+     */
+    const FIRST_VISIT_KEY = "webArpHasVisited";
+
+    /**
+     * Checks whether the current session is considered a first-time visitor flow.
+     * Returns false if URL search contains recognized preset parameters.
+     *
+     * @returns {boolean} True if this is a first-time visitor without URL preset params.
+     */
+    function isFirstVisit() {
+        try {
+            const params = new URLSearchParams(window.location.search);
+            const hasUrlPreset = Array.from(params.keys()).some((key) => PRESET_URL_KEYS.has(key));
+            if (hasUrlPreset) return false;
+            return localStorage.getItem(FIRST_VISIT_KEY) !== "true";
+        } catch {
+            return false;
+        }
+    }
+
+    /**
+     * Marks the first-time onboarding flow as completed in localStorage.
+     *
+     * @returns {void}
+     */
+    function markVisited() {
+        try {
+            localStorage.setItem(FIRST_VISIT_KEY, "true");
+        } catch (err) {
+            console.warn("Storage access restricted:", err);
+        }
+    }
+
+    /**
+     * Enables the primary Play/Stop button and sets its active visual styling.
+     *
+     * @returns {void}
+     */
+    function enablePlayStopButton() {
         if (playStopButton) {
             playStopButton.disabled = false;
             playStopButton.textContent = "Start Audio";
@@ -1343,7 +1578,156 @@ function initializeApp() {
             playStopButton.classList.remove("opacity-50", "cursor-not-allowed", "bg-gray-600");
             playStopButton.classList.add("bg-blue-600", "hover:bg-blue-700");
         }
+    }
 
+    /**
+     * Dynamically builds the Quick Start preset cards inside the welcome modal.
+     *
+     * @returns {void}
+     */
+    function buildQuickStartPresetCards() {
+        if (!quickStartPresetsGrid) return;
+        quickStartPresetsGrid.innerHTML = "";
+
+        FACTORY_PRESETS.forEach((preset) => {
+            const card = document.createElement("button");
+            card.type = "button";
+            card.className =
+                "sound-starter-card p-3 focus-visible:outline-none flex flex-col justify-between text-left";
+            card.setAttribute("data-preset-id", preset.id);
+            card.setAttribute(
+                "aria-label",
+                `Start with ${preset.name} preset, ${preset.settings.bpm} BPM`,
+            );
+
+            const accentBar = document.createElement("div");
+            accentBar.className = `sound-starter-accent bg-gradient-to-r ${preset.accentGradient || "from-blue-500 to-indigo-500"} mb-2 rounded-full`;
+
+            const topRow = document.createElement("div");
+            topRow.className = "flex items-center justify-between gap-1 mb-1";
+
+            const emojiSpan = document.createElement("span");
+            emojiSpan.className = "text-2xl shrink-0";
+            emojiSpan.textContent = preset.emoji || "🎵";
+
+            const bpmSpan = document.createElement("span");
+            bpmSpan.className =
+                "text-[11px] font-mono font-medium px-1.5 py-0.5 rounded bg-gray-900/60 text-gray-300 shrink-0";
+            bpmSpan.textContent = `${preset.settings.bpm} BPM`;
+
+            topRow.appendChild(emojiSpan);
+            topRow.appendChild(bpmSpan);
+
+            const title = document.createElement("div");
+            title.className = "text-xs font-semibold text-gray-100 truncate";
+            title.textContent = preset.name;
+
+            card.appendChild(accentBar);
+            card.appendChild(topRow);
+            card.appendChild(title);
+
+            card.addEventListener("click", () => handleQuickStartPresetClick(preset));
+
+            quickStartPresetsGrid.appendChild(card);
+        });
+    }
+
+    /**
+     * Opens the Quick Start onboarding modal dialog and makes the background application content inert.
+     *
+     * @returns {void}
+     */
+    function openQuickStartModal() {
+        if (!quickStartOverlay) return;
+        quickStartOverlay.style.display = "flex";
+        if (appMain) {
+            appMain.setAttribute("inert", "");
+        }
+        buildQuickStartPresetCards();
+        const firstPresetBtn =
+            quickStartPresetsGrid?.querySelector("button") || quickStartScratchButton;
+        if (firstPresetBtn) {
+            firstPresetBtn.focus();
+        }
+    }
+
+    /**
+     * Closes the Quick Start onboarding modal dialog and restores background interactivity.
+     *
+     * @returns {void}
+     */
+    function closeQuickStartModal() {
+        if (quickStartOverlay) {
+            quickStartOverlay.style.display = "none";
+        }
+        if (appMain) {
+            appMain.removeAttribute("inert");
+        }
+    }
+
+    /**
+     * Handles selecting a factory preset from the Quick Start onboarding dialog.
+     *
+     * @param {object} preset - The selected factory preset definition.
+     * @returns {Promise<void>}
+     */
+    async function handleQuickStartPresetClick(preset) {
+        closeQuickStartModal();
+        enablePlayStopButton();
+        markVisited();
+        loadAllSettings(preset.settings);
+        if (presetNameInput) {
+            presetNameInput.value = preset.name;
+        }
+        if (savedPresetSelect) {
+            savedPresetSelect.value = preset.id;
+        }
+        setActiveSoundStarterCard(preset.id);
+        try {
+            await startAudio();
+            await startPlayback();
+            showToast(`Started with preset: ${preset.name}`, "success");
+        } catch (err) {
+            console.warn("AudioContext failed to start on quick start click:", err);
+        }
+        scheduleLastSessionSave();
+    }
+
+    /**
+     * Handles clicking "Start from Scratch" or dismissing the Quick Start onboarding dialog.
+     *
+     * @returns {Promise<void>}
+     */
+    async function handleStartFromScratch() {
+        closeQuickStartModal();
+        if (soundStartersDetails) {
+            soundStartersDetails.removeAttribute("open");
+            try {
+                localStorage.setItem("soundStartersOpen", "false");
+            } catch (err) {
+                console.warn("Could not write soundStartersOpen to localStorage:", err);
+            }
+        }
+        enablePlayStopButton();
+        markVisited();
+        try {
+            await startAudio();
+            loadPresetFromUrl();
+        } catch (err) {
+            console.warn("AudioContext failed to start on scratch click:", err);
+        }
+    }
+
+    /**
+     * Handles clicks on the standard start overlay to initialize the AudioContext.
+     *
+     * @returns {Promise<void>}
+     */
+    const handleStartOverlayClick = async () => {
+        if (startOverlay) {
+            startOverlay.style.display = "none";
+        }
+        enablePlayStopButton();
         try {
             await startAudio();
             loadPresetFromUrl();
@@ -1351,10 +1735,6 @@ function initializeApp() {
             console.warn("AudioContext failed to start on overlay click:", err);
         }
     };
-
-    if (startOverlay) {
-        startOverlay.addEventListener("click", handleStartOverlayClick);
-    }
 
     /**
      * Starts audio playback if not already running.
@@ -1365,10 +1745,9 @@ function initializeApp() {
             if (startOverlay) {
                 startOverlay.style.display = "none";
             }
-            if (playStopButton) {
-                playStopButton.disabled = false;
-                playStopButton.classList.remove("opacity-50", "cursor-not-allowed", "bg-gray-600");
-            }
+            closeQuickStartModal();
+            enablePlayStopButton();
+            markVisited();
             await startAudio();
         }
         if (recorderManager && !recorderManager.isRecording) {
@@ -1465,6 +1844,7 @@ function initializeApp() {
 
         const randomizedNotes = generateRandomNotes(root, scaleType);
 
+        clearActiveSoundStarterCard();
         // Update the notes input field and trigger change events to refresh Tone.Pattern.
         notesInput.value = randomizedNotes.join(" ");
         notesInput.dispatchEvent(new Event("change"));
@@ -2052,6 +2432,7 @@ function initializeApp() {
             if (fileReaderTarget && typeof fileReaderTarget.result === "string") {
                 try {
                     const settings = JSON.parse(fileReaderTarget.result);
+                    clearActiveSoundStarterCard();
                     loadAllSettings(settings);
                     updateTestState({ lastImportedPreset: settings });
                     if (window.WebArpPresetStore) {
@@ -2085,6 +2466,7 @@ function initializeApp() {
             if (factoryPreset) {
                 loadAllSettings(factoryPreset.settings);
                 if (presetNameInput) presetNameInput.value = factoryPreset.name;
+                setActiveSoundStarterCard(factoryPreset.id);
                 updateTestState({
                     lastLoadedPreset: factoryPreset.settings,
                     lastLoadedPresetRecord: factoryPreset,
@@ -2114,6 +2496,7 @@ function initializeApp() {
                     showToast("No saved preset found yet.", "info");
                     return;
                 }
+                clearActiveSoundStarterCard();
                 loadAllSettings(record.settings || record);
                 if (presetNameInput) presetNameInput.value = record.name || record.filename || "";
                 await refreshSavedPresetList(record.id);
@@ -2281,6 +2664,7 @@ function initializeApp() {
         const target = /** @type {Element} */ (event.target);
         if (target === pwaTestStateField || target === presetNameInput) return;
         if (target.matches("input, select, textarea")) {
+            clearActiveSoundStarterCard();
             scheduleLastSessionSave();
             if (target !== loopCountInput) {
                 // Exclude loop count input from debounced render
@@ -2299,6 +2683,7 @@ function initializeApp() {
         )
             return;
         if (target.matches("input, select, textarea")) {
+            clearActiveSoundStarterCard();
             scheduleLastSessionSave();
             if (target !== loopCountInput) {
                 // Exclude loop count input from debounced render
@@ -2314,6 +2699,7 @@ function initializeApp() {
                 ".pattern-btn, .waveform-btn, #octave-shift-buttons button, #octave-range-buttons button",
             )
         ) {
+            clearActiveSoundStarterCard();
             scheduleLastSessionSave();
             debouncedRenderStaticLoop();
         }
@@ -2474,8 +2860,9 @@ function initializeApp() {
     updateButtonGroup(octaveRangeButtons, currentOctaveRange, "data-range");
     updateWaveformButtons(audioEngine.currentWaveform);
 
-    scaleQuantizeToggle.checked = false;
+    scaleQuantizeToggle.checked = true;
     updateScaleQuantizeUi();
+    updateScaleQuantizeToggleText();
     keyboardToggle.checked = false;
     updateKeyboardControlUi();
     audioEngine.setSynth(synthTypeSelect.value);
@@ -2489,6 +2876,62 @@ function initializeApp() {
     audioEngine.delay.wet.value = parseFloat(delayMixSlider.value);
     audioEngine.reverb.wet.value = parseFloat(reverbMixSlider.value);
     audioEngine.postGain.volume.value = parseFloat(postGainSlider.value);
+
+    buildSoundStartersStrip();
+
+    if (startOverlay) {
+        startOverlay.addEventListener("click", handleStartOverlayClick);
+    }
+    if (quickStartScratchButton) {
+        quickStartScratchButton.addEventListener("click", handleStartFromScratch);
+    }
+    if (quickStartOverlay) {
+        quickStartOverlay.addEventListener("click", (event) => {
+            if (event.target === quickStartOverlay) {
+                handleStartFromScratch();
+            }
+        });
+    }
+    if (quickStartModal) {
+        quickStartModal.addEventListener("keydown", (event) => {
+            if (event.key !== "Tab") return;
+            const focusable = Array.from(
+                quickStartModal.querySelectorAll("button:not([disabled])"),
+            );
+            if (focusable.length === 0) return;
+            const firstElement = focusable[0];
+            const lastElement = focusable[focusable.length - 1];
+
+            if (event.shiftKey) {
+                if (document.activeElement === firstElement) {
+                    event.preventDefault();
+                    lastElement.focus();
+                }
+            } else {
+                if (document.activeElement === lastElement) {
+                    event.preventDefault();
+                    firstElement.focus();
+                }
+            }
+        });
+    }
+    window.addEventListener("keydown", (event) => {
+        if (
+            event.key === "Escape" &&
+            quickStartOverlay &&
+            quickStartOverlay.style.display !== "none"
+        ) {
+            handleStartFromScratch();
+        }
+    });
+
+    if (isFirstVisit()) {
+        openQuickStartModal();
+    } else {
+        if (startOverlay) {
+            startOverlay.style.display = "flex";
+        }
+    }
 
     log("Arpeggiator initialized and ready.");
     void refreshSavedPresetList();
