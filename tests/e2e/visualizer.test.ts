@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, test } from "bun:test";
+import { afterAll, beforeAll, expect, test } from "bun:test";
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import {
@@ -183,6 +183,30 @@ test("Canvas Visualizer Suite", async (): Promise<void> => {
     await runBrowser(["select", "#oscilloscope-window", "1000"]);
     await new Promise((resolve) => setTimeout(resolve, 800));
     await runBrowser(["screenshot", join(SNAPSHOTS_DIR, "oscilloscope_1000ms.png")]);
+
+    // 7. Test Loop Map updates on Octave Range & Shift parameter changes
+    console.log("Step 7: Testing Loop Map Canvas Updates on Octave Changes...");
+    await runBrowser(["select", "#visualizer-mode", "loopMap"]);
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
+    const octaveUpdateCheck: string = await runBrowser([
+        "eval",
+        `(() => {
+            const rangeRadio3 = document.querySelector('#octave-range-buttons input[value="3"]');
+            if (!rangeRadio3) return 'range-radio-3-not-found';
+            rangeRadio3.checked = true;
+            rangeRadio3.dispatchEvent(new Event('change', { bubbles: true }));
+
+            const shiftRadio1 = document.querySelector('#octave-shift-buttons input[value="1"]');
+            if (!shiftRadio1) return 'shift-radio-1-not-found';
+            shiftRadio1.checked = true;
+            shiftRadio1.dispatchEvent(new Event('change', { bubbles: true }));
+
+            return 'success';
+        })()`,
+    ]);
+    expect(octaveUpdateCheck).toBe('"success"');
+    await new Promise((resolve) => setTimeout(resolve, 400));
 
     console.log("Visualizer Integration Suite complete!");
 }, 45000);
