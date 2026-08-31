@@ -65,6 +65,33 @@
                 </button>
             </div>
 
+            <!-- Card: Sound Starters (Factory Presets Quick-Load) -->
+            <section
+                id="sound-starters-section"
+                class="col-span-full bg-gray-700 p-4 rounded-lg shadow-inner"
+                aria-labelledby="sound-starters-title"
+            >
+                <details id="sound-starters-details" class="card-details" open>
+                    <summary>
+                        <h2
+                            id="sound-starters-title"
+                            class="text-xl font-semibold text-blue-300 inline"
+                        >
+                            🎵 Sound Starters
+                        </h2>
+                    </summary>
+                    <p class="text-xs text-gray-400 mt-2 mb-3">
+                        One-click factory presets — pick a sound and start exploring
+                    </p>
+                    <div
+                        id="sound-starters-grid"
+                        class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3"
+                    >
+                        <!-- Cards populated dynamically from FACTORY_PRESETS in js/app.js -->
+                    </div>
+                </details>
+            </section>
+
             <!-- Card: Transport -->
             <section
                 class="bg-gray-700 p-4 rounded-lg shadow-inner md:col-span-2 col-span-full"

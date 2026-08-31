@@ -103,6 +103,27 @@ function initializeApp() {
     );
 
     const startOverlay = document.getElementById("start-overlay");
+
+    /**
+     * Top-level section container for the Sound Starters strip.
+     * @type {HTMLElement | null}
+     */
+    const soundStartersSection = document.getElementById("sound-starters-section");
+
+    /**
+     * Collapsible accordion wrapper for the Sound Starters strip.
+     * @type {HTMLDetailsElement | null}
+     */
+    const soundStartersDetails = /** @type {HTMLDetailsElement | null} */ (
+        document.getElementById("sound-starters-details")
+    );
+
+    /**
+     * Grid container where Sound Starter preset cards are injected.
+     * @type {HTMLElement | null}
+     */
+    const soundStartersGrid = document.getElementById("sound-starters-grid");
+
     const pwaTestStateField = document.getElementById("pwa-test-state");
 
     const bpmSlider = /** @type {HTMLInputElement} */ (document.getElementById("bpm"));
@@ -609,6 +630,9 @@ function initializeApp() {
         {
             id: "factory-synthwave",
             name: "Classic Synthwave",
+            emoji: "🌆",
+            tagline: "Stranger Things, Kavinsky",
+            accentGradient: "from-orange-500 to-pink-500",
             isFactory: true,
             settings: {
                 bpm: 128,
@@ -638,6 +662,9 @@ function initializeApp() {
         {
             id: "factory-ambient",
             name: "Ambient Dreamscape",
+            emoji: "✨",
+            tagline: "Brian Eno, atmospheric pads",
+            accentGradient: "from-teal-400 to-indigo-500",
             isFactory: true,
             settings: {
                 bpm: 85,
@@ -669,6 +696,9 @@ function initializeApp() {
         {
             id: "factory-cyberpunk",
             name: "Cyberpunk Bassline",
+            emoji: "⚡",
+            tagline: "Dark synth, driving bass",
+            accentGradient: "from-yellow-400 to-red-500",
             isFactory: true,
             settings: {
                 bpm: 140,
@@ -702,6 +732,9 @@ function initializeApp() {
         {
             id: "factory-harp",
             name: "Plucked Acoustic Harp",
+            emoji: "🪕",
+            tagline: "Organic, delicate strings",
+            accentGradient: "from-amber-400 to-emerald-500",
             isFactory: true,
             settings: {
                 bpm: 110,
@@ -733,6 +766,9 @@ function initializeApp() {
         {
             id: "factory-chiptune",
             name: "Chiptune Nostalgia",
+            emoji: "🕹️",
+            tagline: "8-bit NES, arcade arps",
+            accentGradient: "from-cyan-400 to-blue-600",
             isFactory: true,
             settings: {
                 bpm: 150,
@@ -763,6 +799,9 @@ function initializeApp() {
         {
             id: "factory-neosoul",
             name: "Jazzy Neo-Soul",
+            emoji: "🎹",
+            tagline: "Warm chorus, mellow chords",
+            accentGradient: "from-purple-400 to-pink-600",
             isFactory: true,
             settings: {
                 bpm: 92,
@@ -1322,6 +1361,126 @@ function initializeApp() {
 
         loadAllSettings(settings);
         showToast("Preset loaded from URL link!", "success");
+    }
+
+    // --- Sound Starters ---
+
+    /**
+     * Highlights a specific Sound Starter card by preset ID, or clears all active cards if null.
+     *
+     * @param {string | null} [presetId=null] - The factory preset ID to mark active, or null to clear.
+     * @returns {void}
+     */
+    function setActiveSoundStarterCard(presetId = null) {
+        if (!soundStartersGrid) return;
+        const cards = soundStartersGrid.querySelectorAll(".sound-starter-card");
+        cards.forEach((card) => {
+            if (presetId && card.getAttribute("data-preset-id") === presetId) {
+                card.classList.add("active");
+            } else {
+                card.classList.remove("active");
+            }
+        });
+    }
+
+    /**
+     * Clears the active highlight state from all Sound Starter preset cards.
+     *
+     * @returns {void}
+     */
+    function clearActiveSoundStarterCard() {
+        setActiveSoundStarterCard(null);
+    }
+
+    /**
+     * Dynamically builds the Sound Starters factory presets card strip and wires interactions.
+     *
+     * @returns {void}
+     */
+    function buildSoundStartersStrip() {
+        if (!soundStartersGrid) return;
+        soundStartersGrid.innerHTML = "";
+
+        FACTORY_PRESETS.forEach((preset) => {
+            const card = document.createElement("button");
+            card.type = "button";
+            card.className = "sound-starter-card p-2.5 focus-visible:outline-none";
+            card.setAttribute("data-preset-id", preset.id);
+            card.setAttribute(
+                "aria-label",
+                `Load ${preset.name} preset, ${preset.settings.bpm} BPM`,
+            );
+
+            const accentBar = document.createElement("div");
+            accentBar.className = `sound-starter-accent bg-gradient-to-r ${preset.accentGradient || "from-blue-500 to-indigo-500"} mb-2 rounded-full`;
+
+            const topRow = document.createElement("div");
+            topRow.className = "flex items-center justify-between gap-1 mb-1";
+
+            const emojiSpan = document.createElement("span");
+            emojiSpan.className = "text-xl shrink-0";
+            emojiSpan.textContent = preset.emoji || "🎵";
+
+            const bpmSpan = document.createElement("span");
+            bpmSpan.className =
+                "text-[11px] font-mono font-medium px-1.5 py-0.5 rounded bg-gray-900/60 text-gray-300 shrink-0";
+            bpmSpan.textContent = `${preset.settings.bpm} BPM`;
+
+            topRow.appendChild(emojiSpan);
+            topRow.appendChild(bpmSpan);
+
+            const title = document.createElement("div");
+            title.className = "text-xs font-semibold text-gray-100 truncate mb-0.5";
+            title.textContent = preset.name;
+
+            const tagline = document.createElement("div");
+            tagline.className = "text-[10px] text-gray-400 line-clamp-2 leading-tight";
+            tagline.textContent = preset.tagline || "";
+
+            card.appendChild(accentBar);
+            card.appendChild(topRow);
+            card.appendChild(title);
+            card.appendChild(tagline);
+
+            card.addEventListener("click", async () => {
+                loadAllSettings(preset.settings);
+                if (presetNameInput) {
+                    presetNameInput.value = preset.name;
+                }
+                if (savedPresetSelect) {
+                    savedPresetSelect.value = preset.id;
+                }
+                setActiveSoundStarterCard(preset.id);
+                if (!isPlaying) {
+                    await startPlayback();
+                }
+                showToast(`Loaded preset: ${preset.name}`, "info");
+                scheduleLastSessionSave();
+            });
+
+            soundStartersGrid.appendChild(card);
+        });
+
+        if (soundStartersDetails) {
+            try {
+                const storedOpen = localStorage.getItem("soundStartersOpen");
+                if (storedOpen === "false") {
+                    soundStartersDetails.removeAttribute("open");
+                } else if (storedOpen === "true") {
+                    soundStartersDetails.setAttribute("open", "");
+                }
+            } catch (err) {
+                console.warn("Could not read soundStartersOpen from localStorage:", err);
+            }
+
+            soundStartersDetails.addEventListener("toggle", () => {
+                try {
+                    localStorage.setItem("soundStartersOpen", String(soundStartersDetails.open));
+                } catch (err) {
+                    console.warn("Could not write soundStartersOpen to localStorage:", err);
+                }
+            });
+        }
     }
 
     // --- Start Overlay ---
@@ -2085,6 +2244,7 @@ function initializeApp() {
             if (factoryPreset) {
                 loadAllSettings(factoryPreset.settings);
                 if (presetNameInput) presetNameInput.value = factoryPreset.name;
+                setActiveSoundStarterCard(factoryPreset.id);
                 updateTestState({
                     lastLoadedPreset: factoryPreset.settings,
                     lastLoadedPresetRecord: factoryPreset,
@@ -2114,6 +2274,7 @@ function initializeApp() {
                     showToast("No saved preset found yet.", "info");
                     return;
                 }
+                clearActiveSoundStarterCard();
                 loadAllSettings(record.settings || record);
                 if (presetNameInput) presetNameInput.value = record.name || record.filename || "";
                 await refreshSavedPresetList(record.id);
@@ -2281,6 +2442,7 @@ function initializeApp() {
         const target = /** @type {Element} */ (event.target);
         if (target === pwaTestStateField || target === presetNameInput) return;
         if (target.matches("input, select, textarea")) {
+            clearActiveSoundStarterCard();
             scheduleLastSessionSave();
             if (target !== loopCountInput) {
                 // Exclude loop count input from debounced render
@@ -2299,6 +2461,7 @@ function initializeApp() {
         )
             return;
         if (target.matches("input, select, textarea")) {
+            clearActiveSoundStarterCard();
             scheduleLastSessionSave();
             if (target !== loopCountInput) {
                 // Exclude loop count input from debounced render
@@ -2314,6 +2477,7 @@ function initializeApp() {
                 ".pattern-btn, .waveform-btn, #octave-shift-buttons button, #octave-range-buttons button",
             )
         ) {
+            clearActiveSoundStarterCard();
             scheduleLastSessionSave();
             debouncedRenderStaticLoop();
         }
@@ -2490,6 +2654,8 @@ function initializeApp() {
     audioEngine.delay.wet.value = parseFloat(delayMixSlider.value);
     audioEngine.reverb.wet.value = parseFloat(reverbMixSlider.value);
     audioEngine.postGain.volume.value = parseFloat(postGainSlider.value);
+
+    buildSoundStartersStrip();
 
     log("Arpeggiator initialized and ready.");
     void refreshSavedPresetList();
