@@ -17,7 +17,12 @@
     "bb",
     "db",
     "eb",
-    "harmonicity"
+    "harmonicity",
+    "detune",
+    "dBFS",
+    "Bassline",
+    "Chiptune",
+    "Synthwave"
   ],
   "editor.defaultFormatter": "biomejs.biome"
 }

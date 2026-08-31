@@ -2,3 +2,9 @@ Arpeggiator
 const
 arpeggiate
 arpeggiator
+detune
+dB
+dBFS
+Bassline
+Chiptune
+Synthwave
