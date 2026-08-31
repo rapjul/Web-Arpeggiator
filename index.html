@@ -24,14 +24,64 @@
     <body
         class="bg-gray-900 text-gray-100 min-h-screen font-sans flex items-center justify-center p-4"
     >
-        <!-- Fullscreen overlay for audio start -->
+        <!-- Fullscreen overlay for Quick Start onboarding (first-time visitors) -->
+        <div
+            id="quick-start-overlay"
+            class="fixed inset-0 bg-gray-900/90 flex items-center justify-center z-50 p-4"
+            style="display: none;"
+        >
+            <div
+                id="quick-start-modal"
+                class="quick-start-modal bg-gray-800 rounded-2xl shadow-2xl max-w-lg w-full p-6 sm:p-8 text-center"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="quick-start-title"
+                tabindex="-1"
+            >
+                <h2
+                    id="quick-start-title"
+                    class="text-2xl font-bold text-blue-400 mb-2"
+                >
+                    Web Arpeggiator
+                </h2>
+                <p class="text-gray-300 mb-1">
+                    Create mesmerizing musical patterns in your browser.
+                </p>
+                <p class="text-sm text-gray-500 mb-6">
+                    No music experience needed.
+                </p>
+                <h3 class="text-sm font-semibold text-gray-200 mb-3 text-left">
+                    Pick a sound to start with
+                </h3>
+                <div
+                    id="quick-start-presets-grid"
+                    class="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-5"
+                >
+                    <!-- Populated dynamically from FACTORY_PRESETS in js/app.js -->
+                </div>
+                <button
+                    id="quick-start-scratch"
+                    type="button"
+                    class="w-full text-lg font-bold py-3 px-6 bg-blue-600 hover:bg-blue-700 rounded-lg shadow-lg transition-all"
+                >
+                    ▶ Start from Scratch
+                </button>
+            </div>
+        </div>
+
+        <!-- Fullscreen overlay for audio start (returning users and shared URL links) -->
         <div
             id="start-overlay"
-            class="fixed inset-0 bg-gray-900 bg-opacity-90 flex items-center justify-center z-50 cursor-pointer"
+            class="fixed inset-0 bg-gray-900/90 flex items-center justify-center z-50 cursor-pointer p-4"
+            style="display: none;"
         >
             <div class="text-center p-8 bg-gray-800 rounded-xl shadow-2xl max-w-md">
-                <h2 class="text-2xl font-bold text-blue-400 mb-4">Web Arpeggiator</h2>
-                <p class="text-lg text-gray-300 mb-6">Press anywhere to enable audio</p>
+                <h2 class="text-2xl font-bold text-blue-400 mb-4">
+                    Web Arpeggiator
+                </h2>
+                <p class="text-lg text-gray-300 mb-6">
+                    Press anywhere to enable audio
+                </p>
                 <button
                     id="start-button"
                     type="button"

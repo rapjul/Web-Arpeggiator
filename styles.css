@@ -676,3 +676,19 @@ details > summary:focus-visible {
   height: 3px;
   width: 100%;
 }
+
+/* Quick Start Modal Animation */
+.quick-start-modal {
+  animation: quickStartFadeIn 0.3s ease-out;
+}
+
+@keyframes quickStartFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
