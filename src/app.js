@@ -2474,8 +2474,9 @@ function initializeApp() {
     updateButtonGroup(octaveRangeButtons, currentOctaveRange, "data-range");
     updateWaveformButtons(audioEngine.currentWaveform);
 
-    scaleQuantizeToggle.checked = false;
+    scaleQuantizeToggle.checked = true;
     updateScaleQuantizeUi();
+    updateScaleQuantizeToggleText();
     keyboardToggle.checked = false;
     updateKeyboardControlUi();
     audioEngine.setSynth(synthTypeSelect.value);
