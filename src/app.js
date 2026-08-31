@@ -99,6 +99,12 @@ function initializeApp() {
     window.scrollTo(0, 0);
 
     // --- DOM Elements ---
+    /**
+     * Primary application container element.
+     * @type {HTMLElement | null}
+     */
+    const appMain = document.getElementById("app-main");
+
     const playStopButton = /** @type {HTMLButtonElement | null} */ (
         document.getElementById("play-stop")
     );
@@ -1379,11 +1385,20 @@ function initializeApp() {
      * found, validated successfully, AND its value actually differs from the current setting.
      * @returns {void}
      */
+    /**
+     * Parses the current URL search parameters, validates each value against strict boundaries,
+     * and loads them into the application via loadAllSettings.
+     *
+     * The toast notification is only shown when at least one recognized preset parameter was
+     * found, validated successfully, AND its value actually differs from the current setting.
+     * @returns {void}
+     */
     function loadPresetFromUrl() {
         const current = getAllSettings();
         const settings = parsePresetFromUrlParams(window.location.search, current);
         if (!settings || !hasPresetChanges(settings, current)) return;
 
+        clearActiveSoundStarterCard();
         loadAllSettings(settings);
         showToast("Preset loaded from URL link!", "success");
     }
@@ -1400,10 +1415,13 @@ function initializeApp() {
         if (!soundStartersGrid) return;
         const cards = soundStartersGrid.querySelectorAll(".sound-starter-card");
         cards.forEach((card) => {
-            if (presetId && card.getAttribute("data-preset-id") === presetId) {
+            const isTarget = Boolean(presetId && card.getAttribute("data-preset-id") === presetId);
+            if (isTarget) {
                 card.classList.add("active");
+                card.setAttribute("aria-pressed", "true");
             } else {
                 card.classList.remove("active");
+                card.setAttribute("aria-pressed", "false");
             }
         });
     }
@@ -1431,6 +1449,7 @@ function initializeApp() {
             card.type = "button";
             card.className = "sound-starter-card p-2.5 focus-visible:outline-none";
             card.setAttribute("data-preset-id", preset.id);
+            card.setAttribute("aria-pressed", "false");
             card.setAttribute(
                 "aria-label",
                 `Load ${preset.name} preset, ${preset.settings.bpm} BPM`,
@@ -1614,15 +1633,46 @@ function initializeApp() {
     }
 
     /**
+     * Opens the Quick Start onboarding modal dialog and makes the background application content inert.
+     *
+     * @returns {void}
+     */
+    function openQuickStartModal() {
+        if (!quickStartOverlay) return;
+        quickStartOverlay.style.display = "flex";
+        if (appMain) {
+            appMain.setAttribute("inert", "");
+        }
+        buildQuickStartPresetCards();
+        const firstPresetBtn =
+            quickStartPresetsGrid?.querySelector("button") || quickStartScratchButton;
+        if (firstPresetBtn) {
+            firstPresetBtn.focus();
+        }
+    }
+
+    /**
+     * Closes the Quick Start onboarding modal dialog and restores background interactivity.
+     *
+     * @returns {void}
+     */
+    function closeQuickStartModal() {
+        if (quickStartOverlay) {
+            quickStartOverlay.style.display = "none";
+        }
+        if (appMain) {
+            appMain.removeAttribute("inert");
+        }
+    }
+
+    /**
      * Handles selecting a factory preset from the Quick Start onboarding dialog.
      *
      * @param {object} preset - The selected factory preset definition.
      * @returns {Promise<void>}
      */
     async function handleQuickStartPresetClick(preset) {
-        if (quickStartOverlay) {
-            quickStartOverlay.style.display = "none";
-        }
+        closeQuickStartModal();
         enablePlayStopButton();
         markVisited();
         loadAllSettings(preset.settings);
@@ -1649,9 +1699,7 @@ function initializeApp() {
      * @returns {Promise<void>}
      */
     async function handleStartFromScratch() {
-        if (quickStartOverlay) {
-            quickStartOverlay.style.display = "none";
-        }
+        closeQuickStartModal();
         if (soundStartersDetails) {
             soundStartersDetails.removeAttribute("open");
             try {
@@ -1697,9 +1745,7 @@ function initializeApp() {
             if (startOverlay) {
                 startOverlay.style.display = "none";
             }
-            if (quickStartOverlay) {
-                quickStartOverlay.style.display = "none";
-            }
+            closeQuickStartModal();
             enablePlayStopButton();
             markVisited();
             await startAudio();
@@ -1798,6 +1844,7 @@ function initializeApp() {
 
         const randomizedNotes = generateRandomNotes(root, scaleType);
 
+        clearActiveSoundStarterCard();
         // Update the notes input field and trigger change events to refresh Tone.Pattern.
         notesInput.value = randomizedNotes.join(" ");
         notesInput.dispatchEvent(new Event("change"));
@@ -2385,6 +2432,7 @@ function initializeApp() {
             if (fileReaderTarget && typeof fileReaderTarget.result === "string") {
                 try {
                     const settings = JSON.parse(fileReaderTarget.result);
+                    clearActiveSoundStarterCard();
                     loadAllSettings(settings);
                     updateTestState({ lastImportedPreset: settings });
                     if (window.WebArpPresetStore) {
@@ -2844,6 +2892,29 @@ function initializeApp() {
             }
         });
     }
+    if (quickStartModal) {
+        quickStartModal.addEventListener("keydown", (event) => {
+            if (event.key !== "Tab") return;
+            const focusable = Array.from(
+                quickStartModal.querySelectorAll("button:not([disabled])"),
+            );
+            if (focusable.length === 0) return;
+            const firstElement = focusable[0];
+            const lastElement = focusable[focusable.length - 1];
+
+            if (event.shiftKey) {
+                if (document.activeElement === firstElement) {
+                    event.preventDefault();
+                    lastElement.focus();
+                }
+            } else {
+                if (document.activeElement === lastElement) {
+                    event.preventDefault();
+                    firstElement.focus();
+                }
+            }
+        });
+    }
     window.addEventListener("keydown", (event) => {
         if (
             event.key === "Escape" &&
@@ -2855,15 +2926,7 @@ function initializeApp() {
     });
 
     if (isFirstVisit()) {
-        if (quickStartOverlay) {
-            quickStartOverlay.style.display = "flex";
-            buildQuickStartPresetCards();
-            const firstPresetBtn =
-                quickStartPresetsGrid?.querySelector("button") || quickStartScratchButton;
-            if (firstPresetBtn) {
-                firstPresetBtn.focus();
-            }
-        }
+        openQuickStartModal();
     } else {
         if (startOverlay) {
             startOverlay.style.display = "flex";

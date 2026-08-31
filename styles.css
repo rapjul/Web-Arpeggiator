@@ -679,10 +679,10 @@ details > summary:focus-visible {
 
 /* Quick Start Modal Animation */
 .quick-start-modal {
-  animation: quickStartFadeIn 0.3s ease-out;
+  animation: quick-start-fade-in 0.3s ease-out;
 }
 
-@keyframes quickStartFadeIn {
+@keyframes quick-start-fade-in {
   from {
     opacity: 0;
     transform: scale(0.95);
