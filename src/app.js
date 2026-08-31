@@ -2067,6 +2067,7 @@ function initializeApp() {
             syncPatternModuleState();
             updateButtonGroup(octaveShiftButtons, currentOctaveShift, "data-shift");
             createOrUpdatePattern();
+            debouncedRenderStaticLoop();
         }
     });
 
@@ -2081,6 +2082,7 @@ function initializeApp() {
                 syncPatternModuleState();
                 updateButtonGroup(octaveShiftButtons, currentOctaveShift, "data-shift");
                 createOrUpdatePattern();
+                debouncedRenderStaticLoop();
             }
         }
     });
@@ -2092,6 +2094,7 @@ function initializeApp() {
             syncPatternModuleState();
             updateButtonGroup(octaveRangeButtons, currentOctaveRange, "data-range");
             createOrUpdatePattern();
+            debouncedRenderStaticLoop();
         }
     });
 
@@ -2106,6 +2109,7 @@ function initializeApp() {
                 syncPatternModuleState();
                 updateButtonGroup(octaveRangeButtons, currentOctaveRange, "data-range");
                 createOrUpdatePattern();
+                debouncedRenderStaticLoop();
             }
         }
     });
@@ -2696,7 +2700,7 @@ function initializeApp() {
         const target = /** @type {Element} */ (event.target);
         if (
             target?.closest(
-                ".pattern-btn, .waveform-btn, #octave-shift-buttons button, #octave-range-buttons button",
+                ".pattern-btn, .waveform-btn, #octave-shift-buttons, #octave-range-buttons",
             )
         ) {
             clearActiveSoundStarterCard();
