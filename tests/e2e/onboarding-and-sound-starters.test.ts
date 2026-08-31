@@ -144,6 +144,7 @@ test("Onboarding & Sound Starters E2E Suite", async (): Promise<void> => {
         `(() => {
             const notesInput = document.getElementById('notes');
             const bpmSlider = document.getElementById('bpm');
+            const postGainSlider = document.getElementById('post-gain');
             const activeCard = document.querySelector('#sound-starters-grid .sound-starter-card.active');
 
             if (!notesInput || notesInput.value !== 'C4 G4 C5 D5') {
@@ -151,6 +152,9 @@ test("Onboarding & Sound Starters E2E Suite", async (): Promise<void> => {
             }
             if (!bpmSlider || bpmSlider.value !== '85') {
                 return 'ambient-bpm-mismatch: ' + bpmSlider?.value;
+            }
+            if (!postGainSlider || postGainSlider.value !== '-6') {
+                return 'post-gain-unexpectedly-overridden: ' + postGainSlider?.value;
             }
             if (!activeCard || activeCard.getAttribute('data-preset-id') !== 'factory-ambient') {
                 return 'ambient-card-not-active';
@@ -229,6 +233,7 @@ test("Onboarding & Sound Starters E2E Suite", async (): Promise<void> => {
             const playStop = document.getElementById('play-stop');
             const notesInput = document.getElementById('notes');
             const visited = localStorage.getItem('webArpHasVisited');
+            const details = document.getElementById('sound-starters-details');
 
             if (quickStart && window.getComputedStyle(quickStart).display !== 'none') {
                 return 'quick-start-not-hidden';
@@ -241,6 +246,9 @@ test("Onboarding & Sound Starters E2E Suite", async (): Promise<void> => {
             }
             if (visited !== 'true') {
                 return 'visited-not-marked';
+            }
+            if (details && details.hasAttribute('open')) {
+                return 'sound-starters-strip-should-be-collapsed-on-scratch';
             }
 
             return 'success';

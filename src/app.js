@@ -668,7 +668,6 @@ function initializeApp() {
             settings: {
                 bpm: 128,
                 swing: 0,
-                postGain: 0,
                 baseNotes: ["C4", "E4", "G4", "B4"],
                 direction: "up",
                 interval: "16n",
@@ -700,7 +699,6 @@ function initializeApp() {
             settings: {
                 bpm: 85,
                 swing: 0.1,
-                postGain: 0,
                 baseNotes: ["C4", "G4", "C5", "D5"],
                 direction: "upDown",
                 interval: "8n",
@@ -734,7 +732,6 @@ function initializeApp() {
             settings: {
                 bpm: 140,
                 swing: 0,
-                postGain: 0,
                 baseNotes: ["C2", "C3", "D#2", "G2"],
                 direction: "octaveCycle",
                 interval: "16n",
@@ -770,7 +767,6 @@ function initializeApp() {
             settings: {
                 bpm: 110,
                 swing: 0.05,
-                postGain: 0,
                 baseNotes: ["D4", "F#4", "A4", "C#5"],
                 direction: "randomWalk",
                 interval: "16n",
@@ -804,7 +800,6 @@ function initializeApp() {
             settings: {
                 bpm: 150,
                 swing: 0,
-                postGain: 0,
                 baseNotes: ["C4", "E4", "G4", "C5"],
                 direction: "upDownRepeat",
                 interval: "32n",
@@ -837,7 +832,6 @@ function initializeApp() {
             settings: {
                 bpm: 92,
                 swing: 0.35,
-                postGain: 0,
                 baseNotes: ["D4", "F4", "A4", "C5", "E5"],
                 direction: "up",
                 interval: "8n",
@@ -1657,6 +1651,14 @@ function initializeApp() {
     async function handleStartFromScratch() {
         if (quickStartOverlay) {
             quickStartOverlay.style.display = "none";
+        }
+        if (soundStartersDetails) {
+            soundStartersDetails.removeAttribute("open");
+            try {
+                localStorage.setItem("soundStartersOpen", "false");
+            } catch (err) {
+                console.warn("Could not write soundStartersOpen to localStorage:", err);
+            }
         }
         enablePlayStopButton();
         markVisited();
