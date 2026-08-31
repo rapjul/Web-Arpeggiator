@@ -312,6 +312,78 @@ describe("Visualizer Module", () => {
         const mockMarkers = [{ note: "C4", timeRatio: 0.5 }];
 
         expect(() => visualizer.updateStaticLoopMap(mockBuffer, mockMarkers)).not.toThrow();
+        expect(mockCanvasCtx.clearRect).toHaveBeenCalled();
+    });
+
+    it("renders multi-octave expanded markers across varied pitch registers in loopMap mode", () => {
+        const visualizer = createVisualizer({
+            dom: mockDom,
+            audio: mockAudio,
+            state: mockState,
+            actions: mockActions,
+        });
+
+        visualizer.toggle();
+        mockDom.visualizerModeSelect.value = "loopMap";
+        mockDom.visualizerModeSelect.dispatchEvent(new Event("change"));
+
+        const mockBuffer = {
+            duration: 2.0,
+            sampleRate: 44100,
+            numberOfChannels: 1,
+            getChannelData: () => new Float32Array(88200),
+        } as unknown as AudioBuffer;
+
+        // Simulate a 4-octave expanded pattern with transpositions
+        const multiOctaveMarkers = [
+            { note: "C2", timeRatio: 0.0 },
+            { note: "E2", timeRatio: 0.1 },
+            { note: "G2", timeRatio: 0.2 },
+            { note: "C3", timeRatio: 0.3 },
+            { note: "E3", timeRatio: 0.4 },
+            { note: "G3", timeRatio: 0.5 },
+            { note: "C4", timeRatio: 0.6 },
+            { note: "E4", timeRatio: 0.7 },
+            { note: "G4", timeRatio: 0.8 },
+            { note: "C5", timeRatio: 0.9 },
+        ];
+
+        expect(() => visualizer.updateStaticLoopMap(mockBuffer, multiOctaveMarkers)).not.toThrow();
+        expect(mockCanvasCtx.fillText).toHaveBeenCalled();
+        expect(mockCanvasCtx.beginPath).toHaveBeenCalled();
+        expect(mockCanvasCtx.stroke).toHaveBeenCalled();
+    });
+
+    it("retains and re-renders cached loop map buffer when switching modes", () => {
+        const visualizer = createVisualizer({
+            dom: mockDom,
+            audio: mockAudio,
+            state: mockState,
+            actions: mockActions,
+        });
+
+        visualizer.toggle();
+
+        const mockBuffer = {
+            duration: 1.0,
+            sampleRate: 44100,
+            numberOfChannels: 1,
+            getChannelData: () => new Float32Array(44100),
+        } as unknown as AudioBuffer;
+        const mockMarkers = [
+            { note: "C3", timeRatio: 0.0 },
+            { note: "G3", timeRatio: 0.5 },
+        ];
+
+        // Store loop map data while still in oscilloscope mode
+        visualizer.updateStaticLoopMap(mockBuffer, mockMarkers);
+
+        // Switch to loopMap mode — should render cached buffer without errors
+        mockDom.visualizerModeSelect.value = "loopMap";
+        mockDom.visualizerModeSelect.dispatchEvent(new Event("change"));
+
+        expect(visualizer.currentMode).toBe("loopMap");
+        expect(() => visualizer.runUiUpdate()).not.toThrow();
     });
 
     it("starts and stops UI loop lifecycles", () => {

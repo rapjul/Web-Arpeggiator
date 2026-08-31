@@ -189,24 +189,83 @@ test("Canvas Visualizer Suite", async (): Promise<void> => {
     await runBrowser(["select", "#visualizer-mode", "loopMap"]);
     await new Promise((resolve) => setTimeout(resolve, 500));
 
-    const octaveUpdateCheck: string = await runBrowser([
+    // Test Octave Range variations (1 -> 3 -> 5)
+    for (const rangeVal of ["1", "3", "5"]) {
+        const rangeResult: string = await runBrowser([
+            "eval",
+            `(() => {
+                const radio = document.querySelector('#octave-range-buttons input[value="${rangeVal}"]');
+                if (!radio) return 'radio-missing';
+                radio.checked = true;
+                radio.dispatchEvent(new Event('change', { bubbles: true }));
+                return 'ok';
+            })()`,
+        ]);
+        expect(rangeResult).toBe('"ok"');
+        await new Promise((resolve) => setTimeout(resolve, 200));
+    }
+
+    // Test Octave Shift variations (-2 -> 0 -> +2)
+    for (const shiftVal of ["-2", "0", "2"]) {
+        const shiftResult: string = await runBrowser([
+            "eval",
+            `(() => {
+                const radio = document.querySelector('#octave-shift-buttons input[value="${shiftVal}"]');
+                if (!radio) return 'radio-missing';
+                radio.checked = true;
+                radio.dispatchEvent(new Event('change', { bubbles: true }));
+                return 'ok';
+            })()`,
+        ]);
+        expect(shiftResult).toBe('"ok"');
+        await new Promise((resolve) => setTimeout(resolve, 200));
+    }
+
+    // 8. Test Loop Map updates on Pattern Direction, Notes, and Scale Quantization
+    console.log(
+        "Step 8: Testing Loop Map Canvas Updates on Pattern, Notes, and Quantization Changes...",
+    );
+    const patternAndQuantizeResult: string = await runBrowser([
         "eval",
         `(() => {
-            const rangeRadio3 = document.querySelector('#octave-range-buttons input[value="3"]');
-            if (!rangeRadio3) return 'range-radio-3-not-found';
-            rangeRadio3.checked = true;
-            rangeRadio3.dispatchEvent(new Event('change', { bubbles: true }));
+            // Test Pattern Direction button
+            const octaveCycleBtn = document.querySelector('button[data-pattern="octaveCycle"]');
+            if (octaveCycleBtn) octaveCycleBtn.click();
 
-            const shiftRadio1 = document.querySelector('#octave-shift-buttons input[value="1"]');
-            if (!shiftRadio1) return 'shift-radio-1-not-found';
-            shiftRadio1.checked = true;
-            shiftRadio1.dispatchEvent(new Event('change', { bubbles: true }));
+            // Test Note Input modification
+            const notesInput = document.getElementById('notes-input');
+            if (notesInput) {
+                notesInput.value = 'C3 E3 G3 B3 D4';
+                notesInput.dispatchEvent(new Event('input', { bubbles: true }));
+                notesInput.dispatchEvent(new Event('change', { bubbles: true }));
+            }
 
-            return 'success';
+            // Test Scale Quantization toggle
+            const quantizeCheckbox = document.getElementById('scale-quantize');
+            if (quantizeCheckbox) {
+                quantizeCheckbox.checked = true;
+                quantizeCheckbox.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+
+            // Test Scale Root selection
+            const rootSelect = document.getElementById('scale-root');
+            if (rootSelect) {
+                rootSelect.value = 'G';
+                rootSelect.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+
+            // Test Note Interval change
+            const intervalSelect = document.getElementById('note-interval');
+            if (intervalSelect) {
+                intervalSelect.value = '8n';
+                intervalSelect.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+
+            return 'ok';
         })()`,
     ]);
-    expect(octaveUpdateCheck).toBe('"success"');
-    await new Promise((resolve) => setTimeout(resolve, 400));
+    expect(patternAndQuantizeResult).toBe('"ok"');
+    await new Promise((resolve) => setTimeout(resolve, 500));
 
     console.log("Visualizer Integration Suite complete!");
 }, 45000);
