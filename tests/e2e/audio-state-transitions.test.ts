@@ -2,6 +2,7 @@ import { afterAll, beforeAll, expect, test } from "bun:test";
 import {
     cleanupProcesses,
     closeBrowser,
+    initializeAudio,
     resetBrowserState,
     runBrowser,
     startTestServer,
@@ -43,28 +44,14 @@ test("Audio Engine & Recording State Transitions Suite", async (): Promise<void>
     // T1: Cold Start -> Active Playback (via start-overlay & play-stop button)
     // =========================================================================
     console.log("Testing T1: Cold Start -> Active Playback...");
-    await runBrowser(["click", "#start-overlay"]);
-    await runBrowser(["wait", "--fn", "document.getElementById('play-stop')?.disabled === false"]);
-
-    // Set volume to quiet level
-    await runBrowser(["eval", "document.querySelector('#post-gain').value = -12"]);
-    await runBrowser([
-        "eval",
-        "document.querySelector('#post-gain').dispatchEvent(new Event('input'))",
-    ]);
-
-    await runBrowser(["click", "#play-stop"]);
-    await runBrowser([
-        "wait",
-        "--fn",
-        "document.getElementById('play-stop')?.textContent === 'Stop Audio'",
-    ]);
+    await initializeAudio();
     const t1Check: string = await runBrowser([
         "eval",
         `(() => {
         const playBtn = document.getElementById('play-stop');
         const overlay = document.getElementById('start-overlay');
-        const isHidden = overlay.style.display === 'none';
+        const qsOverlay = document.getElementById('quick-start-overlay');
+        const isHidden = (overlay?.style.display === 'none') && (qsOverlay?.style.display === 'none');
         return playBtn.textContent === 'Stop Audio' && isHidden ? 'success' : 'failed';
     })()`,
     ]);

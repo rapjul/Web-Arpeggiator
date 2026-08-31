@@ -41,7 +41,21 @@ test("Audio Recording, Exports, & Preset Management Suite", async (): Promise<vo
 
     // 2. Dismiss overlay to enable UI controls (playback is not playing yet)
     console.log("Step 2: Dismissing overlay to enable controls...");
-    await runBrowser(["click", "#start-overlay"]);
+    const overlayId: string = await runBrowser([
+        "eval",
+        `(() => {
+            const qs = document.getElementById('quick-start-overlay');
+            const simple = document.getElementById('start-overlay');
+            if (qs && window.getComputedStyle(qs).display !== 'none') return 'quick-start-overlay';
+            if (simple && window.getComputedStyle(simple).display !== 'none') return 'start-overlay';
+            return 'none';
+        })()`,
+    ]);
+    if (overlayId.includes("quick-start")) {
+        await runBrowser(["click", "#quick-start-scratch"]);
+    } else if (overlayId.includes("start-overlay")) {
+        await runBrowser(["click", "#start-overlay"]);
+    }
     await runBrowser(["wait", "--fn", "document.getElementById('play-stop')?.disabled === false"]);
 
     // 2b. Test clicking Record when audio playback is not playing

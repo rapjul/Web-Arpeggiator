@@ -2,6 +2,7 @@ import { afterAll, beforeAll, expect, test } from "bun:test";
 import {
     cleanupProcesses,
     closeBrowser,
+    initializeAudio,
     resetBrowserState,
     runBrowser,
     startTestServer,
@@ -40,9 +41,8 @@ test("UI Keyboard Arrow Accessibility Navigation Suite", async (): Promise<void>
     await resetBrowserState();
 
     // 2. Click overlay to trigger audio context resume and unlock controls
-    console.log("Step 2: Clicking overlay...");
-    await runBrowser(["click", "#start-overlay"]);
-    await runBrowser(["wait", "--fn", "document.getElementById('play-stop')?.disabled === false"]);
+    console.log("Step 2: Initializing audio...");
+    await initializeAudio();
 
     // 3. Verify Arrow Navigation in Pattern Buttons Group
     console.log("Step 3: Testing keyboard arrow navigation in Pattern Buttons group...");
