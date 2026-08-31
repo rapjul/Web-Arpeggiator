@@ -2067,6 +2067,7 @@ function initializeApp() {
             syncPatternModuleState();
             updateButtonGroup(octaveShiftButtons, currentOctaveShift, "data-shift");
             createOrUpdatePattern();
+            debouncedRenderStaticLoop();
         }
     });
 
@@ -2081,6 +2082,7 @@ function initializeApp() {
                 syncPatternModuleState();
                 updateButtonGroup(octaveShiftButtons, currentOctaveShift, "data-shift");
                 createOrUpdatePattern();
+                debouncedRenderStaticLoop();
             }
         }
     });
@@ -2092,6 +2094,7 @@ function initializeApp() {
             syncPatternModuleState();
             updateButtonGroup(octaveRangeButtons, currentOctaveRange, "data-range");
             createOrUpdatePattern();
+            debouncedRenderStaticLoop();
         }
     });
 
@@ -2106,6 +2109,7 @@ function initializeApp() {
                 syncPatternModuleState();
                 updateButtonGroup(octaveRangeButtons, currentOctaveRange, "data-range");
                 createOrUpdatePattern();
+                debouncedRenderStaticLoop();
             }
         }
     });
@@ -2644,6 +2648,12 @@ function initializeApp() {
 
             // Pass buffer and markers to visualizer
             visualizer.updateStaticLoopMap(audioBuffer, markers);
+            updateTestState({
+                lastLoopMapRenderMarkers: markers,
+                loopMapRenderCount:
+                    ((window.__WEB_ARP_TEST__ && window.__WEB_ARP_TEST__.loopMapRenderCount) || 0) +
+                    1,
+            });
         } catch (e) {
             console.error("Static loop render failed:", e);
         }
@@ -2696,7 +2706,7 @@ function initializeApp() {
         const target = /** @type {Element} */ (event.target);
         if (
             target?.closest(
-                ".pattern-btn, .waveform-btn, #octave-shift-buttons button, #octave-range-buttons button",
+                ".pattern-btn, .waveform-btn, #octave-shift-buttons, #octave-range-buttons",
             )
         ) {
             clearActiveSoundStarterCard();
@@ -2713,6 +2723,10 @@ function initializeApp() {
     Object.assign(window.__WEB_ARP_TEST__, {
         Tone,
         getCurrentSettings: () => getAllSettings(),
+        getLoopMapState: () => ({
+            renderCount: window.__WEB_ARP_TEST__?.loopMapRenderCount || 0,
+            markers: window.__WEB_ARP_TEST__?.lastLoopMapRenderMarkers || [],
+        }),
 
         savePreset: async (settings = null, metadata = {}) => {
             if (!window.WebArpPresetStore)
