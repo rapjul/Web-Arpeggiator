@@ -224,5 +224,15 @@ describe("Production DOM Parity Suite", () => {
             expect(btn.classList.contains("has-custom-tooltip")).toBe(true);
             expect(btn.getAttribute("data-tooltip")).toBeTruthy();
         }
+
+        const chordButtons = document.querySelectorAll<HTMLButtonElement>(
+            "#chord-buttons .chord-btn",
+        );
+        expect(chordButtons.length).toBe(6);
+        for (const btn of chordButtons) {
+            expect(btn.classList.contains("has-custom-tooltip")).toBe(true);
+            expect(btn.getAttribute("data-tooltip")).toBeTruthy();
+            expect(btn.getAttribute("aria-label")).toBeTruthy();
+        }
     });
 });
