@@ -19,6 +19,7 @@ import {
     getArpeggioNotes as getArpeggioNotesFromModule,
 } from "@audio/pattern-generator.js";
 import { generateRandomNotes } from "@core/randomizer.js";
+import { CHORD_DEFINITIONS, buildChordString } from "@core/chord-builder.js";
 import { createRecorderManager } from "@audio/recorder.js";
 import { createSettingsManager } from "@storage/settings-manager.js";
 import { createToastManager } from "@ui/ui-feedback.js";
@@ -1847,13 +1848,32 @@ function initializeApp() {
         clearActiveSoundStarterCard();
         // Update the notes input field and trigger change events to refresh Tone.Pattern.
         notesInput.value = randomizedNotes.join(" ");
-        notesInput.dispatchEvent(new Event("change"));
+        notesInput.dispatchEvent(new Event("input", { bubbles: true }));
+        notesInput.dispatchEvent(new Event("change", { bubbles: true }));
 
         const formattedScaleName =
             scaleType === "chromatic"
                 ? `${root} Mode (Chromatic)`
                 : `${root} ${scaleType.charAt(0).toUpperCase() + scaleType.slice(1)}`;
         showToast(`Randomized notes using ${formattedScaleName}!`, "success");
+    });
+
+    // --- Chord / Scale Builder Buttons ---
+    const chordButtons = document.querySelectorAll(".chord-btn");
+    chordButtons.forEach((btn) => {
+        btn.addEventListener("click", () => {
+            const chordType = btn.getAttribute("data-chord") || "major";
+            const root = scaleRootSelect?.value || "C";
+            const chordNotesStr = buildChordString(chordType, root);
+            const chordName = CHORD_DEFINITIONS[chordType]?.name || chordType;
+
+            clearActiveSoundStarterCard();
+            notesInput.value = chordNotesStr;
+            notesInput.dispatchEvent(new Event("input", { bubbles: true }));
+            notesInput.dispatchEvent(new Event("change", { bubbles: true }));
+
+            showToast(`Loaded ${root} ${chordName} chord!`, "success");
+        });
     });
 
     // --- Transport & Pattern ---
