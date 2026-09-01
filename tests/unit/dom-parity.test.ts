@@ -177,4 +177,52 @@ describe("Production DOM Parity Suite", () => {
             expect(pattern?.values.length).toBeGreaterThan(0);
         }
     });
+
+    it("verifies index.html contains all 6 chord starter buttons with appropriate data-chord attributes", () => {
+        const chordButtonsContainer = document.getElementById("chord-buttons");
+        expect(chordButtonsContainer).not.toBeNull();
+
+        const expectedChords = ["major", "minor", "dom7", "sus4", "power", "pentatonic"];
+        const buttons = chordButtonsContainer?.querySelectorAll<HTMLButtonElement>(".chord-btn");
+        expect(buttons?.length).toBe(6);
+
+        const chordTypes = Array.from(buttons || []).map((b) => b.getAttribute("data-chord"));
+        expect(chordTypes).toEqual(expectedChords);
+    });
+
+    it("verifies synth types and waveforms have descriptive sound character labels and custom tooltips", () => {
+        const synthSelect = document.getElementById("synth-type") as HTMLSelectElement;
+        expect(synthSelect).not.toBeNull();
+
+        const options = Array.from(synthSelect.options).map((o) => o.text);
+        expect(options.some((t) => t.includes("Basic Synth — Clean, versatile"))).toBe(true);
+        expect(options.some((t) => t.includes("FM Synth — Bells, metallic, digital"))).toBe(true);
+
+        const waveformButtons = document.querySelectorAll<HTMLButtonElement>(
+            "#waveform-buttons .waveform-btn",
+        );
+        expect(waveformButtons.length).toBe(5);
+        for (const btn of waveformButtons) {
+            expect(btn.classList.contains("has-custom-tooltip")).toBe(true);
+            expect(btn.getAttribute("data-tooltip")).toBeTruthy();
+            expect(btn.getAttribute("aria-label")).toBeTruthy();
+        }
+
+        const patternRadios = document.querySelectorAll<HTMLInputElement>(
+            '#pattern-buttons input[type="radio"]',
+        );
+        expect(patternRadios.length).toBe(12);
+        for (const radio of patternRadios) {
+            expect(radio.getAttribute("aria-label")).toBeTruthy();
+        }
+
+        const patternButtons = document.querySelectorAll<HTMLElement>(
+            "#pattern-buttons .pattern-btn",
+        );
+        expect(patternButtons.length).toBe(12);
+        for (const btn of patternButtons) {
+            expect(btn.classList.contains("has-custom-tooltip")).toBe(true);
+            expect(btn.getAttribute("data-tooltip")).toBeTruthy();
+        }
+    });
 });

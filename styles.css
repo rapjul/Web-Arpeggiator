@@ -229,6 +229,7 @@ button:disabled {
   align-items: center;
   justify-content: center;
   text-align: center;
+  text-wrap: balance;
   gap: 0.25rem;
   /* gap-1 */
   padding-top: 0.5rem;
@@ -285,6 +286,131 @@ input[type="radio"]:focus-visible + .octave-btn {
   height: 1.5rem;
   /* h-6 */
   stroke-width: 2;
+  pointer-events: none;
+}
+
+/* Custom CSS Tooltip Base */
+.has-custom-tooltip {
+  position: relative;
+}
+
+/* Tooltip Box (::after) */
+.has-custom-tooltip::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  background: #0f172a;
+  color: #f1f5f9;
+  padding: 0.4rem 0.65rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.25;
+  border-radius: 0.375rem;
+  border: 1px solid #334155;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+  white-space: normal;
+  text-wrap: balance;
+  width: max-content;
+  min-width: 120px;
+  max-width: 220px;
+  text-align: center;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 0.15s ease-out,
+    transform 0.15s ease-out;
+  z-index: 50;
+}
+
+/* Tooltip Arrow Pointer (::before) */
+.has-custom-tooltip::before {
+  content: "";
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: #0f172a;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 0.15s ease-out,
+    transform 0.15s ease-out;
+  z-index: 51;
+}
+
+/* Placement: Top (Default or data-placement="top") */
+.has-custom-tooltip:not([data-placement])::after,
+.has-custom-tooltip[data-placement="top"]::after {
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+}
+
+.has-custom-tooltip:not([data-placement])::before,
+.has-custom-tooltip[data-placement="top"]::before {
+  bottom: calc(100% + 4px);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px) rotate(45deg);
+  border-right: 1px solid #334155;
+  border-bottom: 1px solid #334155;
+}
+
+/* Placement: Bottom (data-placement="bottom") */
+.has-custom-tooltip[data-placement="bottom"]::after {
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%) translateY(-4px);
+}
+
+.has-custom-tooltip[data-placement="bottom"]::before {
+  top: calc(100% + 4px);
+  left: 50%;
+  transform: translateX(-50%) translateY(-4px) rotate(45deg);
+  border-left: 1px solid #334155;
+  border-top: 1px solid #334155;
+}
+
+/* Active Hover & Keyboard Focus States */
+.has-custom-tooltip:hover::after,
+.has-custom-tooltip:hover::before,
+.has-custom-tooltip:focus-visible::after,
+.has-custom-tooltip:focus-visible::before,
+label:hover .has-custom-tooltip::after,
+label:hover .has-custom-tooltip::before,
+input[type="radio"]:focus-visible + .has-custom-tooltip::after,
+input[type="radio"]:focus-visible + .has-custom-tooltip::before {
+  opacity: 1;
+  visibility: visible;
+}
+
+.has-custom-tooltip:not([data-placement]):hover::after,
+.has-custom-tooltip[data-placement="top"]:hover::after,
+label:hover .has-custom-tooltip:not([data-placement])::after,
+label:hover .has-custom-tooltip[data-placement="top"]::after,
+input[type="radio"]:focus-visible + .has-custom-tooltip:not([data-placement])::after,
+input[type="radio"]:focus-visible + .has-custom-tooltip[data-placement="top"]::after {
+  transform: translateX(-50%) translateY(0);
+}
+
+.has-custom-tooltip:not([data-placement]):hover::before,
+.has-custom-tooltip[data-placement="top"]:hover::before,
+label:hover .has-custom-tooltip:not([data-placement])::before,
+label:hover .has-custom-tooltip[data-placement="top"]::before,
+input[type="radio"]:focus-visible + .has-custom-tooltip:not([data-placement])::before,
+input[type="radio"]:focus-visible + .has-custom-tooltip[data-placement="top"]::before {
+  transform: translateX(-50%) translateY(0) rotate(45deg);
+}
+
+.has-custom-tooltip[data-placement="bottom"]:hover::after,
+label:hover .has-custom-tooltip[data-placement="bottom"]::after,
+input[type="radio"]:focus-visible + .has-custom-tooltip[data-placement="bottom"]::after {
+  transform: translateX(-50%) translateY(0);
+}
+
+.has-custom-tooltip[data-placement="bottom"]:hover::before,
+label:hover .has-custom-tooltip[data-placement="bottom"]::before,
+input[type="radio"]:focus-visible + .has-custom-tooltip[data-placement="bottom"]::before {
+  transform: translateX(-50%) translateY(0) rotate(45deg);
 }
 
 /* Pattern buttons grid layout (4 columns on desktop/tablet, wrapping on tight spaces based on section width) */
@@ -690,5 +816,53 @@ details > summary:focus-visible {
   to {
     opacity: 1;
     transform: scale(1);
+  }
+}
+
+/* Chord Builder Buttons */
+.chord-btn {
+  user-select: none;
+  touch-action: manipulation;
+  cursor: pointer;
+}
+
+.chord-btn:active {
+  transform: scale(0.96);
+  background-color: #1d4ed8; /* bg-blue-700 */
+  color: #ffffff;
+}
+
+/* Sticky Main Audio Control Transport Bar */
+.sticky-transport-bar {
+  /* Default Mobile (< 640px): fixed thumb bar at screen bottom with safe area padding */
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 40;
+  background: rgba(15, 23, 42, 0.95);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-top: 1px solid rgba(75, 85, 99, 0.8);
+  padding: 0.75rem 1rem;
+  padding-bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
+  box-shadow: 0 -10px 25px -5px rgba(0, 0, 0, 0.5);
+}
+
+@media (min-width: 640px) {
+  .sticky-transport-bar {
+    /* Desktop (>= 640px): sticky at top of container */
+    position: sticky;
+    top: 0;
+    bottom: auto;
+    left: auto;
+    right: auto;
+    z-index: 30;
+    background: rgba(31, 41, 55, 0.95);
+    border-top: none;
+    border-bottom: 1px solid rgba(75, 85, 99, 0.6);
+    border-radius: 0.75rem;
+    padding: 0.5rem 0.75rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
   }
 }
