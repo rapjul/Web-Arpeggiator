@@ -1003,9 +1003,176 @@
                 </details>
             </section>
 
+            <!-- Card: Octave -->
+            <section
+                class="md:col-span-3 col-span-full bg-gray-700 p-4 rounded-lg shadow-inner"
+                aria-labelledby="octave-title"
+            >
+                <h2 id="octave-title" class="text-xl font-semibold mb-3 text-blue-300">Octave</h2>
+                <div class="space-y-4">
+                    <!-- START Selector: Octave Shift -->
+                    <div class="space-y-2">
+                        <span id="octave-shift-label" class="block text-sm font-medium">
+                            Octave Shift
+                            <span class="text-xs text-gray-400 font-normal">(0 = no shift)</span>
+                        </span>
+                        <p class="text-[11px] text-gray-400 mb-1">
+                            Transposition offset (-3 to +3 octaves)
+                        </p>
+                        <fieldset
+                            id="octave-shift-buttons"
+                            aria-labelledby="octave-shift-label"
+                            class="flex flex-wrap justify-center gap-2"
+                        >
+                            <label class="cursor-pointer">
+                                <input
+                                    type="radio"
+                                    name="octave-shift"
+                                    value="-3"
+                                    class="sr-only peer"
+                                    data-shift="-3"
+                                />
+                                <span class="octave-btn" data-shift="-3">-3</span>
+                            </label>
+                            <label class="cursor-pointer">
+                                <input
+                                    type="radio"
+                                    name="octave-shift"
+                                    value="-2"
+                                    class="sr-only peer"
+                                    data-shift="-2"
+                                />
+                                <span class="octave-btn" data-shift="-2">-2</span>
+                            </label>
+                            <label class="cursor-pointer">
+                                <input
+                                    type="radio"
+                                    name="octave-shift"
+                                    value="-1"
+                                    class="sr-only peer"
+                                    data-shift="-1"
+                                />
+                                <span class="octave-btn" data-shift="-1">-1</span>
+                            </label>
+                            <label class="cursor-pointer">
+                                <input
+                                    type="radio"
+                                    name="octave-shift"
+                                    value="0"
+                                    checked
+                                    class="sr-only peer"
+                                    data-shift="0"
+                                />
+                                <span class="octave-btn" data-shift="0">0</span>
+                            </label>
+                            <label class="cursor-pointer">
+                                <input
+                                    type="radio"
+                                    name="octave-shift"
+                                    value="1"
+                                    class="sr-only peer"
+                                    data-shift="1"
+                                />
+                                <span class="octave-btn" data-shift="1">+1</span>
+                            </label>
+                            <label class="cursor-pointer">
+                                <input
+                                    type="radio"
+                                    name="octave-shift"
+                                    value="2"
+                                    class="sr-only peer"
+                                    data-shift="2"
+                                />
+                                <span class="octave-btn" data-shift="2">+2</span>
+                            </label>
+                            <label class="cursor-pointer">
+                                <input
+                                    type="radio"
+                                    name="octave-shift"
+                                    value="3"
+                                    class="sr-only peer"
+                                    data-shift="3"
+                                />
+                                <span class="octave-btn" data-shift="3">+3</span>
+                            </label>
+                        </fieldset>
+                    </div>
+                    <!-- END Selector: Octave Shift -->
+
+                    <!-- START Selector: Octave Layers -->
+                    <div class="space-y-2">
+                        <span id="octave-range-label" class="block text-sm font-medium">
+                            Octave Layers
+                            <span class="text-xs text-gray-400 font-normal">(1 = base only)</span>
+                        </span>
+                        <p class="text-[11px] text-gray-400 mb-1">
+                            Number of octave duplications (1 to 5 octaves)
+                        </p>
+                        <fieldset
+                            id="octave-range-buttons"
+                            aria-labelledby="octave-range-label"
+                            class="flex flex-wrap justify-center gap-2"
+                        >
+                            <label class="cursor-pointer">
+                                <input
+                                    type="radio"
+                                    name="octave-range"
+                                    value="1"
+                                    checked
+                                    class="sr-only peer"
+                                    data-range="1"
+                                />
+                                <span class="octave-btn" data-range="1">1</span>
+                            </label>
+                            <label class="cursor-pointer">
+                                <input
+                                    type="radio"
+                                    name="octave-range"
+                                    value="2"
+                                    class="sr-only peer"
+                                    data-range="2"
+                                />
+                                <span class="octave-btn" data-range="2">2</span>
+                            </label>
+                            <label class="cursor-pointer">
+                                <input
+                                    type="radio"
+                                    name="octave-range"
+                                    value="3"
+                                    class="sr-only peer"
+                                    data-range="3"
+                                />
+                                <span class="octave-btn" data-range="3">3</span>
+                            </label>
+                            <label class="cursor-pointer">
+                                <input
+                                    type="radio"
+                                    name="octave-range"
+                                    value="4"
+                                    class="sr-only peer"
+                                    data-range="4"
+                                />
+                                <span class="octave-btn" data-range="4">4</span>
+                            </label>
+                            <label class="cursor-pointer">
+                                <input
+                                    type="radio"
+                                    name="octave-range"
+                                    value="5"
+                                    class="sr-only peer"
+                                    data-range="5"
+                                />
+                                <span class="octave-btn" data-range="5">5</span>
+                            </label>
+                        </fieldset>
+                    </div>
+                    <!-- END Selector: Octave Layers -->
+                </div>
+            </section>
+
             <!-- Card: Keyboard Control -->
             <section
-                class="bg-gray-700 p-4 rounded-lg shadow-inner md:col-span-3 col-span-full"
+                class="bg-gray-700 p-4 rounded-lg shadow-inner col-span-full"
                 aria-labelledby="keyboard-title"
             >
                 <details id="keyboard-details" class="card-details">
@@ -1657,173 +1824,6 @@
                         />
                     </div>
                     <!-- END Selector: Release -->
-                </div>
-            </section>
-
-            <!-- Card: Octave -->
-            <section
-                class="md:col-span-2 col-span-full bg-gray-700 p-4 rounded-lg shadow-inner"
-                aria-labelledby="octave-title"
-            >
-                <h2 id="octave-title" class="text-xl font-semibold mb-3 text-blue-300">Octave</h2>
-                <div class="space-y-4">
-                    <!-- START Selector: Octave Shift -->
-                    <div class="space-y-2">
-                        <span id="octave-shift-label" class="block text-sm font-medium">
-                            Octave Shift
-                            <span class="text-xs text-gray-400 font-normal">(0 = no shift)</span>
-                        </span>
-                        <p class="text-[11px] text-gray-400 mb-1">
-                            Transposition offset (-3 to +3 octaves)
-                        </p>
-                        <fieldset
-                            id="octave-shift-buttons"
-                            aria-labelledby="octave-shift-label"
-                            class="flex flex-wrap justify-center gap-2"
-                        >
-                            <label class="cursor-pointer">
-                                <input
-                                    type="radio"
-                                    name="octave-shift"
-                                    value="-3"
-                                    class="sr-only peer"
-                                    data-shift="-3"
-                                />
-                                <span class="octave-btn" data-shift="-3">-3</span>
-                            </label>
-                            <label class="cursor-pointer">
-                                <input
-                                    type="radio"
-                                    name="octave-shift"
-                                    value="-2"
-                                    class="sr-only peer"
-                                    data-shift="-2"
-                                />
-                                <span class="octave-btn" data-shift="-2">-2</span>
-                            </label>
-                            <label class="cursor-pointer">
-                                <input
-                                    type="radio"
-                                    name="octave-shift"
-                                    value="-1"
-                                    class="sr-only peer"
-                                    data-shift="-1"
-                                />
-                                <span class="octave-btn" data-shift="-1">-1</span>
-                            </label>
-                            <label class="cursor-pointer">
-                                <input
-                                    type="radio"
-                                    name="octave-shift"
-                                    value="0"
-                                    checked
-                                    class="sr-only peer"
-                                    data-shift="0"
-                                />
-                                <span class="octave-btn" data-shift="0">0</span>
-                            </label>
-                            <label class="cursor-pointer">
-                                <input
-                                    type="radio"
-                                    name="octave-shift"
-                                    value="1"
-                                    class="sr-only peer"
-                                    data-shift="1"
-                                />
-                                <span class="octave-btn" data-shift="1">+1</span>
-                            </label>
-                            <label class="cursor-pointer">
-                                <input
-                                    type="radio"
-                                    name="octave-shift"
-                                    value="2"
-                                    class="sr-only peer"
-                                    data-shift="2"
-                                />
-                                <span class="octave-btn" data-shift="2">+2</span>
-                            </label>
-                            <label class="cursor-pointer">
-                                <input
-                                    type="radio"
-                                    name="octave-shift"
-                                    value="3"
-                                    class="sr-only peer"
-                                    data-shift="3"
-                                />
-                                <span class="octave-btn" data-shift="3">+3</span>
-                            </label>
-                        </fieldset>
-                    </div>
-                    <!-- END Selector: Octave Shift -->
-
-                    <!-- START Selector: Octave Layers -->
-                    <div class="space-y-2">
-                        <span id="octave-range-label" class="block text-sm font-medium">
-                            Octave Layers
-                            <span class="text-xs text-gray-400 font-normal">(1 = base only)</span>
-                        </span>
-                        <p class="text-[11px] text-gray-400 mb-1">
-                            Number of octave duplications (1 to 5 octaves)
-                        </p>
-                        <fieldset
-                            id="octave-range-buttons"
-                            aria-labelledby="octave-range-label"
-                            class="flex flex-wrap justify-center gap-2"
-                        >
-                            <label class="cursor-pointer">
-                                <input
-                                    type="radio"
-                                    name="octave-range"
-                                    value="1"
-                                    checked
-                                    class="sr-only peer"
-                                    data-range="1"
-                                />
-                                <span class="octave-btn" data-range="1">1</span>
-                            </label>
-                            <label class="cursor-pointer">
-                                <input
-                                    type="radio"
-                                    name="octave-range"
-                                    value="2"
-                                    class="sr-only peer"
-                                    data-range="2"
-                                />
-                                <span class="octave-btn" data-range="2">2</span>
-                            </label>
-                            <label class="cursor-pointer">
-                                <input
-                                    type="radio"
-                                    name="octave-range"
-                                    value="3"
-                                    class="sr-only peer"
-                                    data-range="3"
-                                />
-                                <span class="octave-btn" data-range="3">3</span>
-                            </label>
-                            <label class="cursor-pointer">
-                                <input
-                                    type="radio"
-                                    name="octave-range"
-                                    value="4"
-                                    class="sr-only peer"
-                                    data-range="4"
-                                />
-                                <span class="octave-btn" data-range="4">4</span>
-                            </label>
-                            <label class="cursor-pointer">
-                                <input
-                                    type="radio"
-                                    name="octave-range"
-                                    value="5"
-                                    class="sr-only peer"
-                                    data-range="5"
-                                />
-                                <span class="octave-btn" data-range="5">5</span>
-                            </label>
-                        </fieldset>
-                    </div>
-                    <!-- END Selector: Octave Layers -->
                 </div>
             </section>
 

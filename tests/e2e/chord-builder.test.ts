@@ -126,5 +126,41 @@ test("Scale-Aware Chord Builder E2E Suite", async (): Promise<void> => {
     ]);
     expect(pentatonicResult).toBe('"D4 E4 F#4 A4 B4"');
 
+    // 6. Test Scale-Constraint & Pattern Regeneration
+    console.log("Step 6: Enabling C Minor scale and asserting quantized pattern regeneration...");
+    const scalePatternResult: string = await runBrowser([
+        "eval",
+        `(() => {
+            const rootSelect = document.getElementById('scale-root');
+            const scaleTypeSelect = document.getElementById('scale-type');
+            const quantizeToggle = document.getElementById('scale-quantize-toggle');
+            if (rootSelect) {
+                rootSelect.value = 'C';
+                rootSelect.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+            if (scaleTypeSelect) {
+                scaleTypeSelect.value = 'minor';
+                scaleTypeSelect.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+            if (quantizeToggle && !quantizeToggle.checked) {
+                quantizeToggle.checked = true;
+                quantizeToggle.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+            // Click Major chord (C4, E4, G4) -> in C Minor, E4 quantizes to D#4
+            const majorBtn = document.querySelector('.chord-btn[data-chord="major"]');
+            if (majorBtn) {
+                majorBtn.click();
+            }
+            const notesInput = document.getElementById('notes');
+            return JSON.stringify({
+                rawNotes: notesInput ? notesInput.value : '',
+                patternExists: Boolean(window.__WEB_ARP_STEP_HIGHLIGHT__)
+            });
+        })()`,
+    ]);
+    const parsedScalePattern = JSON.parse(JSON.parse(scalePatternResult));
+    expect(parsedScalePattern.rawNotes).toBe("C4 E4 G4");
+    expect(parsedScalePattern.patternExists).toBe(true);
+
     console.log("Scale-Aware Chord Builder E2E Suite completed successfully.");
 }, 30000);

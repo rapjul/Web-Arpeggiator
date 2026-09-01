@@ -58,8 +58,8 @@ export function normalizeRootPitch(root) {
     }
 
     const cleaned = root.trim().replace(/\s+/g, "");
-    // Extract base letter and accidental only (ignore any accidental octaves passed)
-    const match = cleaned.match(/^([A-Ga-g])([#b♯♭]?)/);
+    // Extract base letter and accidental only (allow optional digit octave, but reject trailing garbage)
+    const match = cleaned.match(/^([A-Ga-g])([#b♯♭]?)(\d*)$/);
     if (!match) {
         return "C";
     }

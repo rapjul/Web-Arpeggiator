@@ -158,11 +158,17 @@ button:disabled {
   pointer-events: none;
 }
 
+/* Mobile padding to prevent fixed transport bar from obscuring content */
+@media (max-width: 639px) {
+  body {
+    padding-bottom: calc(5rem + env(safe-area-inset-bottom, 0px));
+  }
+}
+
 /* NEW TOAST CONTAINER STYLE */
 #toast-container {
   position: fixed;
-  bottom: 1.25rem;
-  /* bottom-5 */
+  bottom: calc(5rem + env(safe-area-inset-bottom, 0px));
   right: 1.25rem;
   /* right-5 */
   display: flex;
@@ -170,6 +176,12 @@ button:disabled {
   gap: 0.75rem;
   /* gap-3 */
   z-index: 50;
+}
+
+@media (min-width: 640px) {
+  #toast-container {
+    bottom: 1.25rem;
+  }
 }
 
 /* NEW INDIVIDUAL TOAST STYLE */

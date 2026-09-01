@@ -25,9 +25,28 @@ describe("Chord Builder Domain Module", () => {
         expect(normalizeRootPitch("F#")).toBe("F#");
         expect(normalizeRootPitch("Gb")).toBe("Gb");
         expect(normalizeRootPitch("Ab")).toBe("Ab");
-        expect(normalizeRootPitch("Bb")).toBe("Bb");
         expect(normalizeRootPitch("")).toBe("C");
+        expect(normalizeRootPitch("   ")).toBe("C");
         expect(normalizeRootPitch("invalid")).toBe("C");
+        expect(normalizeRootPitch("Garbage")).toBe("C");
+        expect(normalizeRootPitch("C#oops")).toBe("C");
+        expect(normalizeRootPitch("H#")).toBe("C");
+        expect(normalizeRootPitch("Z")).toBe("C");
+        expect(normalizeRootPitch("123")).toBe("C");
+        expect(normalizeRootPitch("!@#$%")).toBe("C");
+        expect(normalizeRootPitch("C##")).toBe("C");
+        expect(normalizeRootPitch("Dbb")).toBe("C");
+        expect(normalizeRootPitch("C4")).toBe("C");
+        expect(normalizeRootPitch("F#5")).toBe("F#");
+        expect(normalizeRootPitch("Bb3")).toBe("Bb");
+        // @ts-expect-error Testing defensive runtime handling for non-string inputs
+        expect(normalizeRootPitch(null)).toBe("C");
+        // @ts-expect-error Testing defensive runtime handling for non-string inputs
+        expect(normalizeRootPitch(undefined)).toBe("C");
+        // @ts-expect-error Testing defensive runtime handling for non-string inputs
+        expect(normalizeRootPitch(123)).toBe("C");
+        // @ts-expect-error Testing defensive runtime handling for non-string inputs
+        expect(normalizeRootPitch({})).toBe("C");
     });
 
     test("generates correct C major chord pitches and string", () => {

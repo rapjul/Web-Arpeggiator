@@ -52,16 +52,37 @@ test("Dashboard Layout & Section Order E2E Suite", async (): Promise<void> => {
     const parsed = JSON.parse(JSON.parse(sectionOrder));
     expect(parsed.length).toBeGreaterThan(5);
 
-    // Verify Pattern section appears before Synth, Envelope, Filter, and Effects
+    // Verify Complete Workflow Sequence
+    const soundStartersIdx = parsed.findIndex(
+        (s: string) => s.includes("Sound Starters") || s.includes("sound-starters"),
+    );
     const patternIdx = parsed.findIndex((s: string) => s.includes("Pattern"));
+    const scaleIdx = parsed.findIndex((s: string) => s.includes("Scale Quantization"));
+    const octaveIdx = parsed.findIndex((s: string) => s.includes("Octave"));
+    const keyboardIdx = parsed.findIndex((s: string) => s.includes("Keyboard"));
     const synthIdx = parsed.findIndex((s: string) => s.includes("Synth"));
+    const envIdx = parsed.findIndex((s: string) => s.includes("Envelope"));
     const filterIdx = parsed.findIndex((s: string) => s.includes("Filter"));
+    const effectsIdx = parsed.findIndex((s: string) => s.includes("Effects"));
 
+    expect(soundStartersIdx).toBeGreaterThan(-1);
     expect(patternIdx).toBeGreaterThan(-1);
+    expect(scaleIdx).toBeGreaterThan(-1);
+    expect(octaveIdx).toBeGreaterThan(-1);
+    expect(keyboardIdx).toBeGreaterThan(-1);
     expect(synthIdx).toBeGreaterThan(-1);
+    expect(envIdx).toBeGreaterThan(-1);
     expect(filterIdx).toBeGreaterThan(-1);
-    expect(patternIdx).toBeLessThan(synthIdx);
-    expect(synthIdx).toBeLessThan(filterIdx);
+    expect(effectsIdx).toBeGreaterThan(-1);
+
+    expect(soundStartersIdx).toBeLessThan(patternIdx);
+    expect(patternIdx).toBeLessThan(scaleIdx);
+    expect(scaleIdx).toBeLessThan(octaveIdx);
+    expect(octaveIdx).toBeLessThan(keyboardIdx);
+    expect(keyboardIdx).toBeLessThan(synthIdx);
+    expect(synthIdx).toBeLessThan(envIdx);
+    expect(envIdx).toBeLessThan(filterIdx);
+    expect(filterIdx).toBeLessThan(effectsIdx);
 
     console.log("Dashboard Layout & Section Order E2E Suite completed successfully.");
 }, 30000);
