@@ -310,8 +310,7 @@ input[type="radio"]:focus-visible + .octave-btn {
   white-space: normal;
   text-wrap: balance;
   width: max-content;
-  min-width: 120px;
-  max-width: 220px;
+  max-width: min(180px, 80vw);
   text-align: center;
   pointer-events: none;
   opacity: 0;
