@@ -88,7 +88,7 @@ export function buildChordNotes(chordType, root = "C", customOctave) {
     const normalizedRoot = normalizeRootPitch(root);
     const chordDef = CHORD_DEFINITIONS[chordType] || CHORD_DEFINITIONS.major;
     const baseOctave =
-        typeof customOctave === "number" && !Number.isNaN(customOctave)
+        typeof customOctave === "number" && Number.isInteger(customOctave)
             ? customOctave
             : chordDef.octave;
 

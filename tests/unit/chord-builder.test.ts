@@ -105,10 +105,15 @@ describe("Chord Builder Domain Module", () => {
         expect(gPentatonic).toEqual(["G4", "A4", "B4", "D5", "E5"]);
     });
 
-    test("handles custom octave parameter", () => {
+    test("handles custom octave parameter and ignores non-integers/Infinity", () => {
         const notes = buildChordNotes("major", "C", 5);
         expect(notes).toEqual(["C5", "E5", "G5"]);
         expect(buildChordString("major", "C", 5)).toBe("C5 E5 G5");
+
+        // Invalid/fractional octaves should safely fallback to chord's default octave
+        expect(buildChordNotes("minor", "D", 4.5)).toEqual(["D4", "F4", "A4"]);
+        expect(buildChordNotes("minor", "D", Number.POSITIVE_INFINITY)).toEqual(["D4", "F4", "A4"]);
+        expect(buildChordNotes("minor", "D", Number.NaN)).toEqual(["D4", "F4", "A4"]);
     });
 
     test("gracefully falls back when invalid chord type or root is provided", () => {
