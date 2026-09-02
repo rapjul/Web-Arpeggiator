@@ -47,6 +47,18 @@ export const CHORD_DEFINITIONS = Object.freeze({
 });
 
 /**
+ * Resolves a chord definition while ignoring inherited object properties.
+ *
+ * @param {unknown} chordType - Candidate chord type identifier.
+ * @returns {{ intervals: ReadonlyArray<number>, octave: number, name: string }} A supported chord definition.
+ */
+export function resolveChordDefinition(chordType) {
+    return typeof chordType === "string" && Object.hasOwn(CHORD_DEFINITIONS, chordType)
+        ? CHORD_DEFINITIONS[chordType]
+        : CHORD_DEFINITIONS.major;
+}
+
+/**
  * Normalizes accidental aliases (e.g. Db -> C#, Eb -> D#) to consistent pitch representations.
  *
  * @param {string} root - The root pitch name (e.g. "C", "Db", "F#").
@@ -86,15 +98,24 @@ export function normalizeRootPitch(root) {
  */
 export function buildChordNotes(chordType, root = "C", customOctave) {
     const normalizedRoot = normalizeRootPitch(root);
-    const chordDef = CHORD_DEFINITIONS[chordType] || CHORD_DEFINITIONS.major;
-    const baseOctave =
+    const chordDef = resolveChordDefinition(chordType);
+    const requestedOctave =
         typeof customOctave === "number" && Number.isInteger(customOctave)
             ? customOctave
             : chordDef.octave;
 
+    const requestedRootMidi = Tonal.Midi.toMidi(`${normalizedRoot}${requestedOctave}`);
+    const canUseRequestedOctave =
+        requestedRootMidi !== null &&
+        chordDef.intervals.every((semitoneOffset) => {
+            const targetMidi = requestedRootMidi + semitoneOffset;
+            return targetMidi >= 0 && targetMidi <= 127;
+        });
+    const baseOctave = canUseRequestedOctave ? requestedOctave : chordDef.octave;
+
     const rootMidi = Tonal.Midi.toMidi(`${normalizedRoot}${baseOctave}`);
     if (rootMidi === null) {
-        return ["C4", "E4", "G4"];
+        return buildChordNotes("major", "C");
     }
 
     return chordDef.intervals.map((semitoneOffset) => {

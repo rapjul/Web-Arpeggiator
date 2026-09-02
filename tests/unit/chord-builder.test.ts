@@ -4,6 +4,7 @@ import {
     buildChordNotes,
     buildChordString,
     normalizeRootPitch,
+    resolveChordDefinition,
 } from "@core/chord-builder.js";
 
 describe("Chord Builder Domain Module", () => {
@@ -14,6 +15,13 @@ describe("Chord Builder Domain Module", () => {
         expect(CHORD_DEFINITIONS.sus4).toBeDefined();
         expect(CHORD_DEFINITIONS.power).toBeDefined();
         expect(CHORD_DEFINITIONS.pentatonic).toBeDefined();
+    });
+
+    test("resolves only own supported chord definitions", () => {
+        expect(resolveChordDefinition("minor")).toBe(CHORD_DEFINITIONS.minor);
+        expect(resolveChordDefinition("toString")).toBe(CHORD_DEFINITIONS.major);
+        expect(resolveChordDefinition("unknownChordType")).toBe(CHORD_DEFINITIONS.major);
+        expect(resolveChordDefinition(null)).toBe(CHORD_DEFINITIONS.major);
     });
 
     test("normalizes root pitches and enharmonic accidentals", () => {
@@ -105,20 +113,30 @@ describe("Chord Builder Domain Module", () => {
         expect(gPentatonic).toEqual(["G4", "A4", "B4", "D5", "E5"]);
     });
 
-    test("handles custom octave parameter and ignores non-integers/Infinity", () => {
+    test("uses requested octaves only when every chord note is within MIDI bounds", () => {
         const notes = buildChordNotes("major", "C", 5);
         expect(notes).toEqual(["C5", "E5", "G5"]);
         expect(buildChordString("major", "C", 5)).toBe("C5 E5 G5");
 
-        // Invalid/fractional octaves should safely fallback to chord's default octave
+        expect(buildChordNotes("major", "C", -1)).toEqual(["C-1", "E-1", "G-1"]);
+        expect(buildChordNotes("major", "C", 9)).toEqual(["C9", "E9", "G9"]);
+
+        // Invalid/fractional octaves should safely fallback to the requested chord's default octave
         expect(buildChordNotes("minor", "D", 4.5)).toEqual(["D4", "F4", "A4"]);
         expect(buildChordNotes("minor", "D", Number.POSITIVE_INFINITY)).toEqual(["D4", "F4", "A4"]);
         expect(buildChordNotes("minor", "D", Number.NaN)).toEqual(["D4", "F4", "A4"]);
+        expect(buildChordNotes("minor", "D", -2)).toEqual(["D4", "F4", "A4"]);
+
+        // B9 is itself in range, but its major third and fifth would overflow MIDI 127.
+        expect(buildChordNotes("major", "B", 9)).toEqual(["B4", "D#5", "F#5"]);
     });
 
     test("gracefully falls back when invalid chord type or root is provided", () => {
         const fallbackChord = buildChordNotes("unknownChordType", "C");
         expect(fallbackChord).toEqual(["C4", "E4", "G4"]);
+
+        const inheritedChord = buildChordNotes("toString", "D");
+        expect(inheritedChord).toEqual(["D4", "F#4", "A4"]);
 
         const fallbackRoot = buildChordNotes("major", "invalidNoteXYZ");
         expect(fallbackRoot).toEqual(["C4", "E4", "G4"]);
