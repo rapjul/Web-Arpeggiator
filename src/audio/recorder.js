@@ -11,6 +11,7 @@
 
 import * as Tone from "tone";
 import { audioBufferToMp3Blob, audioBufferToWav, downloadBlob } from "@core/audio-utils.js";
+import { materializePatternSequence } from "@core/pattern-core.js";
 
 /**
  * Creates the recorder manager with real-time and offline export control.
@@ -322,18 +323,20 @@ export function createRecorderManager(context) {
         const settings = actions.getAllSettings();
         const filename = actions.generateFilename(false);
 
-        // Calculate loop duration
-        let stepsPerLoop = settings.notes.length;
-
-        if (settings.direction === "upDownRepeat" || settings.direction === "downUpRepeat") {
-            stepsPerLoop = settings.notes.length * 2;
-        } else if (settings.direction === "upDown" || settings.direction === "downUp") {
-            if (settings.notes.length > 1) {
-                stepsPerLoop = settings.notes.length * 2 - 2;
-            }
-        }
-
-        if (stepsPerLoop === 0) stepsPerLoop = 1;
+        const { notes: patternNotes } = materializePatternSequence(
+            settings.baseNotes || settings.notes,
+            {
+                direction: settings.direction,
+                octaveRange: settings.octaveRange,
+                octaveShift: settings.octaveShift,
+                quantize: {
+                    enabled: settings.scaleQuantize,
+                    root: settings.scaleRoot,
+                    scale: settings.scaleType,
+                },
+            },
+        );
+        const stepsPerLoop = Math.max(1, patternNotes.length);
 
         const intervalInSeconds = Tone.Time(settings.interval).toSeconds();
         const loopDurationInSeconds = stepsPerLoop * intervalInSeconds;
@@ -350,19 +353,6 @@ export function createRecorderManager(context) {
                 // --- Pattern for offline ---
                 const gateLength = settings.gateRatio * Tone.Time(settings.interval).toSeconds();
 
-                let patternNotes = settings.notes;
-                let patternType = settings.direction;
-
-                if (settings.direction === "upDownRepeat") {
-                    const reversed = [...settings.notes].reverse();
-                    patternNotes = [...settings.notes, ...reversed];
-                    patternType = "up";
-                } else if (settings.direction === "downUpRepeat") {
-                    const reversed = [...settings.notes].reverse();
-                    patternNotes = [...reversed, ...settings.notes];
-                    patternType = "up";
-                }
-
                 const offlinePattern = new Tone.Pattern(
                     (time, note) => {
                         // Split triggerAttackRelease to ensure exact scheduling reference time is used
@@ -377,7 +367,7 @@ export function createRecorderManager(context) {
                         }
                     },
                     patternNotes,
-                    patternType,
+                    "up",
                 );
                 offlinePattern.interval = settings.interval;
                 offlinePattern.start(0);

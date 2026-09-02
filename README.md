@@ -38,6 +38,7 @@ Web Arpeggiator is an interactive music tool that generates flowing musical patt
 - **Real-Time Visualizer**: Waveform display during playback
 - **Preset System**: Save and load complete configurations, with optional browser persistence for offline use
 - **Randomize Notes**: Generate musically coherent, scale-quantized note sequences with a single click
+- **Chord Starters**: Insert major, minor, seventh, sus4, power, or pentatonic chord notes from the selected root
 
 ### 📱 PWA Support
 
@@ -303,6 +304,7 @@ Web Arpeggiator/
 ├── src/                         # Modular source code
 │   ├── core/                    # Pure algorithms & domain logic (zero DOM/Audio dependencies)
 │   │   ├── audio-utils.js       # Audio encoding and file download utilities
+│   │   ├── chord-builder.js     # Scale-aware chord note generation
 │   │   ├── input-filters.js     # Keyboard note & numeric input filtering
 │   │   ├── meter-utils.js       # Audio meter decibel & percentage calculations
 │   │   ├── midi-export.js       # SMF Format 0 binary generator

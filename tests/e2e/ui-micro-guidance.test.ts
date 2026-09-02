@@ -109,8 +109,8 @@ test("UI Micro-Guidance Subtitles & Tooltips Suite", async (): Promise<void> => 
             { pattern: "upDownRepeat", text: "repeating apex" },
             { pattern: "downUpRepeat", text: "repeating apex" },
             { pattern: "random", text: "random note selection" },
-            { pattern: "octaveCycle", text: "across 3 octaves" },
-            { pattern: "octaveCycleReverse", text: "descending order across 3 octaves" },
+            { pattern: "octaveCycle", text: "across 3 ascending octaves, repeated twice" },
+            { pattern: "octaveCycleReverse", text: "across 3 descending octaves, repeated twice" },
             { pattern: "octaveCyclePingPong", text: "alternating ascending and descending" },
             { pattern: "randomWalk", text: "adjacent notes" },
             { pattern: "randomWalkDrunk", text: "occasional unexpected leaps" },
@@ -120,13 +120,21 @@ test("UI Micro-Guidance Subtitles & Tooltips Suite", async (): Promise<void> => 
         if (!container) return 'missing-pattern-buttons-container';
 
         for (const item of expectedPatterns) {
+            const radio = container.querySelector(\`input[type="radio"][data-pattern="\${item.pattern}"]\`);
             const btn = container.querySelector(\`.pattern-btn[data-pattern="\${item.pattern}"]\`);
+            if (!radio) {
+                return 'missing-radio-' + item.pattern;
+            }
             if (!btn) {
                 return 'missing-btn-' + item.pattern;
             }
-            const title = btn.getAttribute('title');
-            if (!title || !title.toLowerCase().includes(item.text.toLowerCase())) {
-                return 'missing-or-invalid-title-' + item.pattern + ': ' + title;
+            const tooltip = btn.getAttribute('data-tooltip');
+            const ariaLabel = radio.getAttribute('aria-label');
+            if (!tooltip || !tooltip.toLowerCase().includes(item.text.toLowerCase())) {
+                return 'missing-or-invalid-tooltip-' + item.pattern + ': ' + tooltip;
+            }
+            if (!ariaLabel || !ariaLabel.toLowerCase().includes(item.text.toLowerCase())) {
+                return 'missing-or-invalid-aria-label-' + item.pattern + ': ' + ariaLabel;
             }
         }
         return 'success';

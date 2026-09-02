@@ -4,6 +4,8 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+let lastOfflinePatternValues: string[] = [];
+
 vi.mock("@core/audio-utils.js", () => ({
     audioBufferToMp3Blob: vi.fn(async () => new Blob(["MP3"], { type: "audio/mp3" })),
     audioBufferToWav: vi.fn(() => new Blob(["WAV"], { type: "audio/wav" })),
@@ -48,6 +50,13 @@ vi.mock("tone", async () => {
         },
         Pattern: class MockPattern {
             interval = "16n";
+            constructor(
+                _callback: (time: number, note: string) => void,
+                values: string[],
+                _pattern: string,
+            ) {
+                lastOfflinePatternValues = values;
+            }
             start() {}
             dispose() {}
         },
@@ -93,6 +102,7 @@ describe("Recorder Manager Module", () => {
     let mockActions: RecorderActions;
 
     beforeEach(() => {
+        lastOfflinePatternValues = [];
         const createEl = (tag = "div") => document.createElement(tag);
         mockDom = {
             recordButton: createEl("button"),
@@ -249,6 +259,35 @@ describe("Recorder Manager Module", () => {
         await manager.exportOffline();
         expect(mockAudio.createOfflineChain).toHaveBeenCalled();
         expect(mockActions.showToast).toHaveBeenCalledWith("Export complete!", "success");
+    });
+
+    it("uses the same quantized pitches as live playback and MIDI export", async () => {
+        const manager = createRecorderManager({
+            audio: mockAudio,
+            dom: mockDom,
+            state: mockState,
+            actions: mockActions,
+        });
+
+        mockActions.getAllSettings = vi.fn(() => ({
+            bpm: 120,
+            swing: 0,
+            baseNotes: ["C4", "D#4", "G#4"],
+            notes: ["C4", "D#4", "G#4"],
+            direction: "up",
+            interval: "16n",
+            gateRatio: 0.8,
+            loopCount: 1,
+            octaveRange: 1,
+            octaveShift: 0,
+            scaleQuantize: true,
+            scaleRoot: "C",
+            scaleType: "major",
+        }));
+
+        await manager.exportOffline();
+
+        expect(lastOfflinePatternValues).toEqual(["C4", "D4", "G4"]);
     });
 
     it("validates offline export format selection and audio context state", async () => {

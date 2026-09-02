@@ -174,6 +174,10 @@ Offline-friendly note sequence generation using local music theory calculations:
 - **Scale Quantization**: When scale quantization is enabled, notes are generated strictly from the pitches in the active scale (e.g., F minor or C major).
 - **Chromatic Mode**: When quantization is disabled or set to chromatic, a random scale mode is chosen under the hood to ensure the generated notes are musically coherent.
 
+### 9. Chord Starters
+
+Scale-aware chord buttons insert major, minor, seventh, sus4, power, or pentatonic notes from the selected root. Chord construction lives in the pure `src/core/chord-builder.js` module and falls back safely for invalid chord types or octave values.
+
 ## State Management
 
 Global application state:
@@ -263,6 +267,7 @@ loadPreset(file);
 - BPM slider (40-240)
 - Swing control (0-1)
 - Notes input (space-separated, validated)
+- Chord starter buttons for common scale-aware note groups
 - Pattern direction buttons (9 options)
 - Interval selector (note duration)
 - Gate length slider (note length)
@@ -322,6 +327,7 @@ Web Arpeggiator/
 ├── src/                    # Modular source code
 │   ├── core/               # Pure algorithms & domain logic (zero DOM/Audio dependencies)
 │   │   ├── audio-utils.js  # WAV/MP3 encoding, PCM conversions, download helpers
+│   │   ├── chord-builder.js # Scale-aware chord note construction
 │   │   ├── input-filters.js# Keyboard note & numeric input filtering
 │   │   ├── meter-utils.js  # Audio meter decibel & percentage calculations
 │   │   ├── midi-export.js  # Standard MIDI File (.mid) binary encoder

@@ -19,6 +19,7 @@ import {
     getArpeggioNotes as getArpeggioNotesFromModule,
 } from "@audio/pattern-generator.js";
 import { generateRandomNotes } from "@core/randomizer.js";
+import { buildChordString, resolveChordDefinition } from "@core/chord-builder.js";
 import { createRecorderManager } from "@audio/recorder.js";
 import { createSettingsManager } from "@storage/settings-manager.js";
 import { createToastManager } from "@ui/ui-feedback.js";
@@ -42,19 +43,40 @@ const DEBUG = true;
 
 // Fix for audio session not working on Mobile Safari if in "Silent Mode"
 // [237322 – webaudio api is muted when the iOS ringer is muted](https://bugs.webkit.org/show_bug.cgi?id=237322)
-const nav = /** @type {any} */ (navigator);
+/** @typedef {Navigator & { audioSession?: { type?: string } }} AudioSessionNavigator */
+const nav = /** @type {AudioSessionNavigator} */ (navigator);
 if (nav.audioSession && nav.audioSession.type !== undefined) {
     nav.audioSession.type = "playback";
 }
 
 /**
  * Global logger function that respects the DEBUG flag.
- * @param {...any} args - Arguments to log.
+ * @param {...unknown} args - Arguments to log.
  */
 function log(...args) {
     if (DEBUG) {
         console.log(...args);
     }
+}
+
+/**
+ * Narrows a Tone oscillator to one that exposes a mutable pulse-width value.
+ *
+ * @param {unknown} oscillator - Candidate oscillator from the active synth.
+ * @returns {oscillator is { width: { value: number } }} Whether the oscillator supports duty-cycle control.
+ */
+function hasOscillatorWidth(oscillator) {
+    if (typeof oscillator !== "object" || oscillator === null || !("width" in oscillator)) {
+        return false;
+    }
+
+    const { width } = oscillator;
+    return (
+        typeof width === "object" &&
+        width !== null &&
+        "value" in width &&
+        typeof width.value === "number"
+    );
 }
 
 // Attach filter functions to window for global inline event handlers / test assertions
@@ -140,12 +162,6 @@ function initializeApp() {
     const quickStartScratchButton = /** @type {HTMLButtonElement | null} */ (
         document.getElementById("quick-start-scratch")
     );
-
-    /**
-     * Top-level section container for the Sound Starters strip.
-     * @type {HTMLElement | null}
-     */
-    const soundStartersSection = document.getElementById("sound-starters-section");
 
     /**
      * Collapsible accordion wrapper for the Sound Starters strip.
@@ -1847,13 +1863,32 @@ function initializeApp() {
         clearActiveSoundStarterCard();
         // Update the notes input field and trigger change events to refresh Tone.Pattern.
         notesInput.value = randomizedNotes.join(" ");
-        notesInput.dispatchEvent(new Event("change"));
+        notesInput.dispatchEvent(new Event("input", { bubbles: true }));
+        notesInput.dispatchEvent(new Event("change", { bubbles: true }));
 
         const formattedScaleName =
             scaleType === "chromatic"
                 ? `${root} Mode (Chromatic)`
                 : `${root} ${scaleType.charAt(0).toUpperCase() + scaleType.slice(1)}`;
         showToast(`Randomized notes using ${formattedScaleName}!`, "success");
+    });
+
+    // --- Chord / Scale Builder Buttons ---
+    const chordButtons = document.querySelectorAll(".chord-btn");
+    chordButtons.forEach((btn) => {
+        btn.addEventListener("click", () => {
+            const chordType = btn.getAttribute("data-chord") || "major";
+            const root = scaleRootSelect?.value || "C";
+            const chordNotesStr = buildChordString(chordType, root);
+            const chordName = resolveChordDefinition(chordType).name;
+
+            clearActiveSoundStarterCard();
+            notesInput.value = chordNotesStr;
+            notesInput.dispatchEvent(new Event("input", { bubbles: true }));
+            notesInput.dispatchEvent(new Event("change", { bubbles: true }));
+
+            showToast(`Loaded ${root} ${chordName} chord!`, "success");
+        });
     });
 
     // --- Transport & Pattern ---
@@ -1911,11 +1946,10 @@ function initializeApp() {
         if (
             synth &&
             "oscillator" in synth &&
-            synth.oscillator &&
-            /** @type {any} */ (synth.oscillator).width &&
+            hasOscillatorWidth(synth.oscillator) &&
             audioEngine.currentWaveform === "square"
         ) {
-            /** @type {any} */ (synth.oscillator).width.value = val;
+            synth.oscillator.width.value = val;
         }
     }, 16);
 
@@ -2650,9 +2684,7 @@ function initializeApp() {
             visualizer.updateStaticLoopMap(audioBuffer, markers);
             updateTestState({
                 lastLoopMapRenderMarkers: markers,
-                loopMapRenderCount:
-                    ((window.__WEB_ARP_TEST__ && window.__WEB_ARP_TEST__.loopMapRenderCount) || 0) +
-                    1,
+                loopMapRenderCount: (window.__WEB_ARP_TEST__?.loopMapRenderCount || 0) + 1,
             });
         } catch (e) {
             console.error("Static loop render failed:", e);
