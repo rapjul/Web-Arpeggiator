@@ -134,6 +134,11 @@ test("Scale-Aware Chord Builder E2E Suite", async (): Promise<void> => {
             const rootSelect = document.getElementById('scale-root');
             const scaleTypeSelect = document.getElementById('scale-type');
             const quantizeToggle = document.getElementById('scale-quantize-toggle');
+            const singleOctave = document.querySelector('input[name="octave-range"][value="1"]');
+            if (singleOctave && !singleOctave.checked) {
+                singleOctave.checked = true;
+                singleOctave.dispatchEvent(new Event('change', { bubbles: true }));
+            }
             if (rootSelect) {
                 rootSelect.value = 'C';
                 rootSelect.dispatchEvent(new Event('change', { bubbles: true }));
@@ -154,13 +159,13 @@ test("Scale-Aware Chord Builder E2E Suite", async (): Promise<void> => {
             const notesInput = document.getElementById('notes');
             return JSON.stringify({
                 rawNotes: notesInput ? notesInput.value : '',
-                patternExists: Boolean(window.__WEB_ARP_STEP_HIGHLIGHT__)
+                patternValues: Array.from(window.arpPattern?.values ?? []),
             });
         })()`,
     ]);
     const parsedScalePattern = JSON.parse(JSON.parse(scalePatternResult));
     expect(parsedScalePattern.rawNotes).toBe("C4 E4 G4");
-    expect(parsedScalePattern.patternExists).toBe(true);
+    expect(parsedScalePattern.patternValues).toEqual(["C4", "D#4", "G4"]);
 
     console.log("Scale-Aware Chord Builder E2E Suite completed successfully.");
 }, 30000);

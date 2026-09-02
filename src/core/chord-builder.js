@@ -59,7 +59,7 @@ export function resolveChordDefinition(chordType) {
 }
 
 /**
- * Normalizes accidental aliases (e.g. Db -> C#, Eb -> D#) to consistent pitch representations.
+ * Normalizes root formatting while preserving Tonal's valid pitch-class spelling (e.g. Db remains Db).
  *
  * @param {string} root - The root pitch name (e.g. "C", "Db", "F#").
  * @returns {string} Clean normalized root pitch class without octave.

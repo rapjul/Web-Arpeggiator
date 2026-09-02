@@ -56,6 +56,7 @@ test("Dashboard Layout & Section Order E2E Suite", async (): Promise<void> => {
     const soundStartersIdx = parsed.findIndex(
         (s: string) => s.includes("Sound Starters") || s.includes("sound-starters"),
     );
+    const transportIdx = parsed.findIndex((s: string) => s.includes("Transport"));
     const patternIdx = parsed.findIndex((s: string) => s.includes("Pattern"));
     const scaleIdx = parsed.findIndex((s: string) => s.includes("Scale Quantization"));
     const octaveIdx = parsed.findIndex((s: string) => s.includes("Octave"));
@@ -66,6 +67,7 @@ test("Dashboard Layout & Section Order E2E Suite", async (): Promise<void> => {
     const effectsIdx = parsed.findIndex((s: string) => s.includes("Effects"));
 
     expect(soundStartersIdx).toBeGreaterThan(-1);
+    expect(transportIdx).toBeGreaterThan(-1);
     expect(patternIdx).toBeGreaterThan(-1);
     expect(scaleIdx).toBeGreaterThan(-1);
     expect(octaveIdx).toBeGreaterThan(-1);
@@ -76,6 +78,8 @@ test("Dashboard Layout & Section Order E2E Suite", async (): Promise<void> => {
     expect(effectsIdx).toBeGreaterThan(-1);
 
     expect(soundStartersIdx).toBeLessThan(patternIdx);
+    expect(soundStartersIdx).toBeLessThan(transportIdx);
+    expect(transportIdx).toBeLessThan(patternIdx);
     expect(patternIdx).toBeLessThan(scaleIdx);
     expect(scaleIdx).toBeLessThan(octaveIdx);
     expect(octaveIdx).toBeLessThan(keyboardIdx);

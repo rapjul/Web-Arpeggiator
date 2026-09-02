@@ -2,7 +2,6 @@ import { afterAll, beforeAll, expect, test } from "bun:test";
 import {
     cleanupProcesses,
     closeBrowser,
-    initializeAudio,
     resetBrowserState,
     runBrowser,
     startTestServer,
