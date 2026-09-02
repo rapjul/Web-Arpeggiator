@@ -144,9 +144,9 @@ test("Keyboard Controls & Scale Quantizer Suite", async (): Promise<void> => {
             return 'missing-pattern';
         }
         
-        // G#4 should not be in the values, it should have snapped to G4 or A4
-        if (window.arpPattern.values.includes('G#4')) {
-            return 'quantize-failed-gsharp-present';
+        // G#4 is equally close to G4 and A4, so the quantizer must choose G4.
+        if (window.arpPattern.values[4] !== 'G4') {
+            return 'quantize-tie-break-failed: ' + window.arpPattern.values[4];
         }
         
         // Check that notes snapped to valid C Major pitches

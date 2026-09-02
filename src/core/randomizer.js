@@ -8,6 +8,7 @@
  */
 
 import * as Tonal from "tonal";
+import { normalizeScaleType } from "@core/pattern-core.js";
 
 /**
  * Default scale types selected when picking a musical scale for chromatic mode.
@@ -50,11 +51,11 @@ export function generateRandomNotes(root, scaleType, options = {}) {
     } = options;
 
     const effectiveRoot = root || "C";
-    let activeScaleType = scaleType || "major";
+    let activeScaleType = normalizeScaleType(scaleType) || "major";
 
     if (activeScaleType === "chromatic") {
         const pickedIdx = Math.floor(rng() * scaleFallbacks.length);
-        activeScaleType = scaleFallbacks[pickedIdx] || "major";
+        activeScaleType = normalizeScaleType(scaleFallbacks[pickedIdx]) || "major";
     }
 
     const scaleName = `${effectiveRoot} ${activeScaleType}`;

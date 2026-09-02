@@ -1,4 +1,5 @@
 import { describe, expect, test } from "vitest";
+import * as Tonal from "tonal";
 import {
     buildPatternNotesAndMap,
     buildPatternSequence,
@@ -9,6 +10,7 @@ import {
     materializePatternSequence,
     normalizeNoteName,
     normalizeNotesSequence,
+    normalizeScaleType,
     parseNoteWithOctave,
     quantizeToScale,
 } from "@core/pattern-core.js";
@@ -49,7 +51,7 @@ describe("Pattern Core - Note Parsing & Auto-Resolution", () => {
         const quantized = quantizeToScale(["c", "f#"], "C", "major");
         expect(quantized.length).toBe(2);
         expect(quantized[0]).toBe("C4");
-        expect(["F4", "G4"]).toContain(quantized[1]);
+        expect(quantized[1]).toBe("F4");
     });
 });
 
@@ -74,20 +76,58 @@ describe("Pattern Core - Scale Quantization & Octave Expansion", () => {
         const quantized = quantizeToScale(["C4", "D#4", "G#4"], "C", "major");
         expect(quantized.length).toBe(3);
         expect(quantized[0]).toBe("C4");
-        // D#4 is 1 semitone from D4 and E4; Tonal matches closest
-        expect(["D4", "E4"]).toContain(quantized[1]);
-        // G#4 is 1 semitone from G4 and A4
-        expect(["G4", "A4"]).toContain(quantized[2]);
+        // Ties resolve downward to preserve a predictable, stable result.
+        expect(quantized[1]).toBe("D4");
+        expect(quantized[2]).toBe("G4");
     });
 
     test("quantizes notes to F Minor scale", () => {
         // F Minor: F G Ab Bb C Db Eb
         const quantized = quantizeToScale(["E4", "B4"], "F", "minor");
         expect(quantized.length).toBe(2);
-        // E4 (MIDI 64) snaps to Eb4 (63) or F4 (65)
-        expect(["Eb4", "F4"]).toContain(quantized[0]);
-        // B4 (MIDI 71) snaps to Bb4 (70) or C5 (72)
-        expect(["Bb4", "C5"]).toContain(quantized[1]);
+        // E4 (MIDI 64) snaps down to Eb4 (63) on a tie.
+        expect(quantized[0]).toBe("D#4");
+        // B4 (MIDI 71) snaps down to A#4 (70) on a tie.
+        expect(quantized[1]).toBe("A#4");
+    });
+
+    test("normalizes application scale identifiers and quantizes every supported scale by chroma", () => {
+        expect(normalizeScaleType("majorPentatonic")).toBe("major pentatonic");
+        expect(normalizeScaleType("harmonic-minor")).toBe("harmonic minor");
+        expect(normalizeScaleType(null)).toBeNull();
+
+        const scaleTypes = [
+            "major",
+            "minor",
+            "majorPentatonic",
+            "minorPentatonic",
+            "dorian",
+            "phrygian",
+            "lydian",
+            "mixolydian",
+            "locrian",
+            "harmonicMinor",
+            "melodicMinor",
+            "blues",
+        ];
+
+        CHROMATIC_PITCHES.forEach((root) => {
+            scaleTypes.forEach((scaleType) => {
+                const quantized = quantizeToScale(["C#4", "F4", "A#4"], root, scaleType);
+                const scale = Tonal.Scale.get(`${root} ${normalizeScaleType(scaleType)}`);
+                const chromas = new Set(scale.notes.map((note) => Tonal.Note.chroma(note)));
+
+                expect(quantized).toHaveLength(3);
+                quantized.forEach((note) => {
+                    expect(chromas.has(Tonal.Note.chroma(note))).toBe(true);
+                });
+            });
+        });
+    });
+
+    test("uses registered MIDI pitches at the scale boundaries", () => {
+        expect(quantizeToScale(["C#-1"], "C", "major")).toEqual(["C-1"]);
+        expect(quantizeToScale(["F#9"], "C", "major")).toEqual(["F9"]);
     });
 
     test("getArpeggioNotes expands notes across octave ranges and transpositions", () => {

@@ -46,6 +46,24 @@ export const CHROMATIC_RANGE = Object.freeze(
 );
 
 /**
+ * Converts application scale identifiers to the names recognized by Tonal.
+ *
+ * @param {unknown} scaleType - Application or Tonal scale type identifier.
+ * @returns {string|null} A normalized scale name, or null when the input is unusable.
+ */
+export function normalizeScaleType(scaleType) {
+    if (typeof scaleType !== "string" || scaleType.trim().length === 0) {
+        return null;
+    }
+
+    return scaleType
+        .trim()
+        .replace(/([a-z])([A-Z])/g, "$1 $2")
+        .replace(/[\s_-]+/g, " ")
+        .toLowerCase();
+}
+
+/**
  * Parses a note string, resolving bare pitch classes without octaves to a default octave.
  *
  * @param {string} note - Input note string (e.g. "C", "c4", "f#", "Bb4").
@@ -122,25 +140,33 @@ export function quantizeToScale(baseNotes, root, scaleType) {
             return baseNotes ? baseNotes.slice() : [];
         }
 
-        if (scaleType === "chromatic") {
+        const normalizedScaleType = normalizeScaleType(scaleType);
+        if (normalizedScaleType === "chromatic") {
             return baseNotes.slice();
         }
 
-        const scale = Tonal.Scale.get(`${root} ${scaleType}`);
+        if (!normalizedScaleType) {
+            return baseNotes.slice();
+        }
+
+        const scale = Tonal.Scale.get(`${root} ${normalizedScaleType}`);
         if (!scale?.notes || scale.notes.length === 0) {
             return baseNotes.slice();
         }
 
-        const scalePitchClasses = scale.notes.map((n) => Tonal.Note.pitchClass(n));
-        const scaleNotes = CHROMATIC_RANGE.filter((note) =>
-            scalePitchClasses.includes(Tonal.Note.pitchClass(note)),
+        const scaleChromas = new Set(
+            scale.notes
+                .map((note) => Tonal.Note.chroma(note))
+                .filter((chroma) => typeof chroma === "number"),
         );
-
-        if (!scaleNotes.length) {
+        if (scaleChromas.size === 0) {
             return baseNotes.slice();
         }
 
-        const scaleMidis = scaleNotes.map(Tonal.Note.midi);
+        const scaleMidis = Array.from({ length: 128 }, (_, midi) => midi).filter((midi) => {
+            const note = Tonal.Midi.midiToNoteName(midi, { sharps: true });
+            return note !== null && scaleChromas.has(Tonal.Note.chroma(note));
+        });
 
         return baseNotes.map((note) => {
             try {
@@ -149,11 +175,13 @@ export function quantizeToScale(baseNotes, root, scaleType) {
                     return note;
                 }
 
-                const closest = scaleMidis.reduce((prev, curr) =>
-                    Math.abs(curr - parsed.midi) < Math.abs(prev - parsed.midi) ? curr : prev,
+                const closest = scaleMidis.reduce((previous, current) =>
+                    Math.abs(current - parsed.midi) < Math.abs(previous - parsed.midi)
+                        ? current
+                        : previous,
                 );
 
-                return Tonal.Note.fromMidi(closest);
+                return Tonal.Midi.midiToNoteName(closest, { sharps: true }) || note;
             } catch {
                 return note;
             }
