@@ -169,5 +169,36 @@ test("UI Micro-Guidance Subtitles & Tooltips Suite", async (): Promise<void> => 
     ]);
     expect(octaveGuidanceResult).toBe('"success"');
 
+    // 5. Verify the offline export duration estimate follows loop count and tempo changes
+    console.log("Step 5: Testing offline export duration estimate...");
+    const exportDurationResult: string = await runBrowser([
+        "eval",
+        `(() => {
+        const notes = document.getElementById('notes');
+        const bpm = document.getElementById('bpm');
+        const loopCount = document.getElementById('loop-count');
+        const duration = document.getElementById('offline-export-duration');
+        const octaveRange = document.querySelector('input[name="octave-range"][value="1"]');
+
+        if (!notes || !bpm || !loopCount || !duration || !octaveRange) {
+            return 'missing-export-duration-control';
+        }
+
+        notes.value = 'C4 E4 G4';
+        notes.dispatchEvent(new Event('change', { bubbles: true }));
+        octaveRange.checked = true;
+        octaveRange.dispatchEvent(new Event('change', { bubbles: true }));
+        bpm.value = '60';
+        bpm.dispatchEvent(new Event('input', { bubbles: true }));
+        loopCount.value = '3';
+        loopCount.dispatchEvent(new Event('input', { bubbles: true }));
+
+        return duration.textContent.trim() === '3 loops × ~0.8s/loop = ~2.3 seconds'
+            ? 'success'
+            : duration.textContent.trim();
+    })()`,
+    ]);
+    expect(exportDurationResult).toBe('"success"');
+
     console.log("UI Micro-Guidance Integration Suite complete!");
 });
