@@ -1,7 +1,6 @@
 /**
  * Virtual keyboard DOM and interaction controller.
  */
-import * as Tone from "tone";
 
 /**
  * Initializes the virtual keyboard against the live app state.
@@ -10,6 +9,7 @@ import * as Tone from "tone";
  * @param {object} context.state - Shared application state.
  * @param {object} context.dom - Injected DOM element references.
  * @param {object} [context.actions] - Optional event callbacks.
+ * @param {Function} [context.actions.getCurrentTime] - Returns the live audio clock time.
  * @param {Function} [context.actions.onNoteAttack] - Callback when a key attack is triggered.
  * @param {Function} [context.actions.onNoteRelease] - Callback when a key is released.
  * @returns {{updateKeyboardControlUi: Function}} Keyboard helpers.
@@ -267,6 +267,17 @@ export function initializeKeyboardControls(context) {
     }
 
     /**
+     * Reads audio time through the app-owned runtime boundary. This controller
+     * deliberately has no Tone.js import so its UI can render before audio is
+     * explicitly enabled.
+     *
+     * @returns {number} Current audio time, or zero before activation.
+     */
+    function getCurrentTime() {
+        return typeof actions.getCurrentTime === "function" ? actions.getCurrentTime() : 0;
+    }
+
+    /**
      * Triggers an attack for a note if keyboard input is enabled.
      *
      * @param {string} note - The note name.
@@ -275,11 +286,11 @@ export function initializeKeyboardControls(context) {
     function triggerKey(note) {
         if (state.activeSynth && state.isAudioContextStarted && dom.keyboardToggle.checked) {
             if (state.activeNote) {
-                state.activeSynth.triggerRelease(Tone.now());
+                state.activeSynth.triggerRelease(getCurrentTime());
                 highlightKey(state.activeNote, false);
             }
 
-            state.activeSynth.triggerAttack(note, Tone.now());
+            state.activeSynth.triggerAttack(note, getCurrentTime());
             state.activeNote = note;
             highlightKey(note, true);
 
@@ -304,7 +315,7 @@ export function initializeKeyboardControls(context) {
      */
     function releaseKey(note) {
         if (state.activeSynth && state.isAudioContextStarted && state.activeNote === note) {
-            state.activeSynth.triggerRelease(Tone.now());
+            state.activeSynth.triggerRelease(getCurrentTime());
             highlightKey(note, false);
             state.activeNote = null;
             if (typeof actions.onNoteRelease === "function") {
@@ -360,7 +371,7 @@ export function initializeKeyboardControls(context) {
         } else {
             dom.keyboardToggleStatus.textContent = "Off";
             if (state.activeNote) {
-                state.activeSynth.triggerRelease(Tone.now());
+                state.activeSynth.triggerRelease(getCurrentTime());
                 highlightKey(state.activeNote, false);
                 state.activeNote = null;
                 if (typeof actions.onNoteRelease === "function") {
