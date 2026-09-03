@@ -1,0 +1,55 @@
+/* Style for visualizer container */
+#visualizer-container {
+  width: 100%;
+  height: var(--ui-visualizer-height);
+  background-color: var(--ui-surface);
+  display: flex;
+  overflow: hidden;
+}
+
+@container (max-width: 600px) {
+  #visualizer-container {
+    height: var(--ui-visualizer-height-compact);
+  }
+}
+
+#visualizer-yaxis {
+  width: 50px;
+  height: 100%;
+  flex-shrink: 0;
+  background-color: var(--ui-surface);
+  border-right: 1px solid var(--ui-border);
+}
+
+#visualizer-viewport {
+  flex-grow: 1;
+  height: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  background-color: var(--ui-surface);
+}
+
+#visualizer-plot {
+  display: block;
+  height: 100%;
+  background-color: var(--ui-surface);
+}
+
+#visualizer-controls-footer {
+  border-top: none;
+}
+
+/* Custom scrollbar styling for visualizer viewport */
+#visualizer-viewport::-webkit-scrollbar {
+  height: 8px;
+}
+#visualizer-viewport::-webkit-scrollbar-track {
+  background: var(--ui-page);
+}
+#visualizer-viewport::-webkit-scrollbar-thumb {
+  background: var(--ui-border);
+  border-radius: 9999px;
+}
+#visualizer-viewport::-webkit-scrollbar-thumb:hover {
+  background: var(--ui-control-hover);
+}

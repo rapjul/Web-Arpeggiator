@@ -2342,7 +2342,7 @@ function initializeApp() {
      */
     function openQuickStartModal() {
         if (!quickStartOverlay) return;
-        quickStartOverlay.style.display = "flex";
+        quickStartOverlay.classList.remove("is-hidden");
         if (appMain) {
             appMain.setAttribute("inert", "");
         }
@@ -2361,7 +2361,7 @@ function initializeApp() {
      */
     function closeQuickStartModal() {
         if (quickStartOverlay) {
-            quickStartOverlay.style.display = "none";
+            quickStartOverlay.classList.add("is-hidden");
         }
         if (appMain) {
             appMain.removeAttribute("inert");
@@ -2428,7 +2428,7 @@ function initializeApp() {
      */
     const handleStartOverlayClick = async () => {
         if (startOverlay) {
-            startOverlay.style.display = "none";
+            startOverlay.classList.add("is-hidden");
         }
         enablePlayStopButton();
         try {
@@ -2446,7 +2446,7 @@ function initializeApp() {
     async function startPlayback() {
         if (!isAudioContextStarted) {
             if (startOverlay) {
-                startOverlay.style.display = "none";
+                startOverlay.classList.add("is-hidden");
             }
             closeQuickStartModal();
             enablePlayStopButton();
@@ -3801,7 +3801,7 @@ function initializeApp() {
         if (
             event.key === "Escape" &&
             quickStartOverlay &&
-            quickStartOverlay.style.display !== "none"
+            !quickStartOverlay.classList.contains("is-hidden")
         ) {
             handleStartFromScratch();
         }
@@ -3811,7 +3811,7 @@ function initializeApp() {
         openQuickStartModal();
     } else {
         if (startOverlay) {
-            startOverlay.style.display = "flex";
+            startOverlay.classList.remove("is-hidden");
         }
     }
 

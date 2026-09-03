@@ -119,12 +119,6 @@ export function initializeKeyboardControls(context) {
 
         if (keyData.type === "white") {
             el.classList.add("key-white");
-            el.style.width = `${whiteKeyWidthPx}px`;
-            el.style.height = "4.5rem";
-            el.style.zIndex = "0";
-            if (whiteKeyIndexInCurrentOctave > 0) {
-                el.style.marginLeft = "-1px";
-            }
             el.dataset.whiteKeyIndex = String(whiteKeyIndexInCurrentOctave);
 
             // Create SVG background shape to handle black key cutout outlines
@@ -134,11 +128,6 @@ export function initializeKeyboardControls(context) {
             whiteKeyIndexInCurrentOctave += 1;
         } else {
             el.classList.add("key-black");
-            el.style.width = `${blackKeyWidthPx}px`;
-            el.style.height = "2.5rem";
-            el.style.position = "absolute";
-            el.style.top = "0";
-            el.style.zIndex = "10";
 
             let baseWhiteKeyIndexOffset = 0;
             switch (keyData.note) {
@@ -175,8 +164,7 @@ export function initializeKeyboardControls(context) {
                 blackKeyWidthPx / 2 -
                 cumulativeMarginOffset -
                 1;
-            el.style.left = `${leftPosition}px`;
-            el.style.pointerEvents = "auto";
+            el.style.setProperty("--key-left", `${leftPosition}px`);
         }
 
         el.addEventListener("mousedown", (event) => {

@@ -1,0 +1,106 @@
+/* Sound Starters Preset Cards */
+.sound-starter-card {
+  background: rgb(var(--ui-surface-rgb) / 0.85);
+  border: 1px solid rgb(var(--ui-border-rgb) / 0.6);
+  border-radius: 0.5rem;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  text-align: left;
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+  min-height: 44px;
+}
+
+.sound-starter-card:hover {
+  border-color: rgb(var(--ui-accent-rgb) / 0.7);
+  background: rgb(var(--ui-surface-rgb) / 1);
+  box-shadow: 0 4px 14px -2px rgb(var(--ui-accent-rgb) / 0.25);
+  transform: translateY(-1px);
+}
+
+.sound-starter-card.active {
+  border-color: var(--ui-focus);
+  box-shadow:
+    0 0 0 2px rgb(var(--ui-focus-rgb) / 0.4),
+    0 4px 14px -2px rgb(var(--ui-focus-rgb) / 0.3);
+  background: rgb(var(--ui-surface-rgb) / 1);
+}
+
+.sound-starter-card:focus-visible {
+  outline: 2px solid var(--ui-focus);
+  outline-offset: 2px;
+}
+
+.sound-starter-accent {
+  height: 3px;
+  width: 100%;
+}
+
+/* Quick Start Modal Animation */
+.quick-start-modal {
+  animation: quick-start-fade-in 0.3s ease-out;
+}
+
+@keyframes quick-start-fade-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Chord Builder Buttons */
+.chord-btn {
+  user-select: none;
+  touch-action: manipulation;
+  cursor: pointer;
+}
+
+.chord-btn:active {
+  transform: scale(0.96);
+  background-color: var(--ui-accent-strong); /* bg-blue-700 */
+  color: var(--ui-key-white);
+}
+
+/* Sticky Main Audio Control Transport Bar */
+.sticky-transport-bar {
+  /* Default Mobile (< 640px): fixed thumb bar at screen bottom with safe area padding */
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: var(--ui-z-sticky);
+  background: rgb(var(--ui-overlay-rgb) / 0.95);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-top: 1px solid rgb(var(--ui-border-rgb) / 0.8);
+  padding: 0.75rem 1rem;
+  padding-bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
+  box-shadow: 0 -10px 25px -5px rgb(var(--ui-shadow-rgb) / 0.5);
+}
+
+@media (min-width: 640px) {
+  .sticky-transport-bar {
+    /* Desktop (>= 640px): sticky at top of container */
+    position: sticky;
+    top: 0;
+    bottom: auto;
+    left: auto;
+    right: auto;
+    z-index: 30;
+    background: rgb(var(--ui-surface-rgb) / 0.95);
+    border-top: none;
+    border-bottom: 1px solid rgb(var(--ui-border-rgb) / 0.6);
+    border-radius: 0.75rem;
+    padding: 0.5rem 0.75rem;
+    box-shadow: 0 4px 6px -1px rgb(var(--ui-shadow-rgb) / 0.3);
+    transition: border-radius 0.2s ease;
+  }
+
+  .sticky-transport-bar.is-stuck {
+    border-radius: 0;
+  }
+}

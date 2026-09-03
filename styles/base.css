@@ -1,0 +1,204 @@
+/* Card section container configuration for Container Queries */
+section {
+  container-type: inline-size;
+}
+
+.is-hidden {
+  display: none;
+}
+
+/* Custom styles for better-looking sliders */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 8px;
+  background-color: var(--color-gray-300);
+  /* bg-gray-300 */
+  border-radius: 9999px;
+  /* rounded-full */
+  outline: none;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+input[type="range"]:hover {
+  opacity: 1;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  background-color: var(--ui-accent);
+  /* bg-blue-600 */
+  border-radius: 9999px;
+  /* rounded-full */
+  cursor: pointer;
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  background-color: var(--ui-accent);
+  /* bg-blue-600 */
+  border-radius: 9999px;
+  /* rounded-full */
+  cursor: pointer;
+}
+
+/* Custom style for recording button */
+#record-button.recording {
+  background-color: var(--ui-danger);
+  /* bg-red-600 */
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+#record-button.recording:hover {
+  background-color: var(--ui-danger-strong);
+  /* bg-red-700 */
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* Style for number input */
+input[type="number"] {
+  width: 100%;
+  padding: 0.5rem;
+  background-color: var(--ui-surface);
+  /* bg-gray-800 */
+  border: 1px solid var(--ui-border);
+  /* border-gray-600 */
+  border-radius: 0.375rem;
+  /* rounded-md */
+  color: var(--ui-text);
+  /* text-gray-100 */
+}
+
+/* Style for AI button when loading */
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Hide file input */
+#load-preset-input {
+  display: none;
+}
+
+/* Style for disabled quantizer controls */
+.quantizer-disabled select,
+.quantizer-disabled input {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Mobile padding to prevent fixed transport bar from obscuring content */
+@media (max-width: 639px) {
+  body {
+    padding-bottom: calc(5rem + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* Styles for <details> accordion */
+details.card-details > summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 0.5rem;
+  background-color: var(--ui-border);
+  /* bg-gray-600 */
+  border-radius: 0.5rem;
+  transition: background-color 0.2s;
+}
+
+details.card-details > summary:hover {
+  background-color: var(--ui-control-hover);
+  /* bg-gray-500 */
+}
+
+details.card-details > summary::-webkit-details-marker {
+  display: none;
+}
+
+details.card-details > summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* Triangle marker */
+details.card-details > summary::after {
+  content: "►";
+  font-size: 0.8em;
+  transition: transform 0.2s;
+}
+
+details[open].card-details > summary::after {
+  transform: rotate(90deg);
+}
+
+details.card-details > div {
+  padding-top: 1rem;
+  /* pt-4 */
+}
+
+/* Screen reader only utility class for accessibility */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* Focus outlines for all interactive elements to support keyboard navigation */
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+details > summary:focus-visible {
+  outline: 2px solid var(--ui-focus);
+  outline-offset: 2px;
+}
+
+/* Specific focus outline style inside the piano key boundary to avoid clipping and overlap */
+.key-black:focus-visible {
+  outline: 2px solid var(--ui-focus);
+  outline-offset: -2px;
+  z-index: 15;
+}
+
+.key-white:focus-visible {
+  outline: none;
+  z-index: 5;
+}
+
+.key-white:focus-visible .key-bg-path {
+  stroke: var(--ui-focus);
+  stroke-width: 2px;
+}
+
+/* Class for hidden test state mirror element used in PWA/browser testing */
+.test-state-mirror {
+  position: absolute;
+  left: -9999px;
+  top: -9999px;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}

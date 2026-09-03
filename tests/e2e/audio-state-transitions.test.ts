@@ -51,7 +51,8 @@ test("Audio Engine & Recording State Transitions Suite", async (): Promise<void>
         const playBtn = document.getElementById('play-stop');
         const overlay = document.getElementById('start-overlay');
         const qsOverlay = document.getElementById('quick-start-overlay');
-        const isHidden = (overlay?.style.display === 'none') && (qsOverlay?.style.display === 'none');
+        const isHidden =
+            overlay?.classList.contains('is-hidden') && qsOverlay?.classList.contains('is-hidden');
         return playBtn.textContent === 'Stop Audio' && isHidden ? 'success' : 'failed';
     })()`,
     ]);
