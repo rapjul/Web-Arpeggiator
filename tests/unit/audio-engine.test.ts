@@ -542,5 +542,30 @@ describe("Audio Engine Model Definitions", () => {
             engine.setSynth("membraneSynth");
             expect(engine.activeSynth).toBe(engine.synths.membraneSynth);
         });
+
+        it("disposes every live node when runtime initialization is abandoned", () => {
+            const engine = createAudioEngine({ dom: mockDom, actions: mockActions });
+            const nodes = [
+                ...Object.values(engine.synths),
+                engine.analyser,
+                engine.meter,
+                engine.peakAnalyser,
+                engine.distortion,
+                engine.filter,
+                engine.chorus,
+                engine.autoPanner,
+                engine.delay,
+                engine.reverb,
+                engine.postGain,
+                engine.limiter,
+            ];
+            const disposeSpies = nodes.map((node) => vi.spyOn(node, "dispose"));
+
+            engine.dispose();
+
+            disposeSpies.forEach((dispose) => {
+                expect(dispose).toHaveBeenCalledOnce();
+            });
+        });
     });
 });

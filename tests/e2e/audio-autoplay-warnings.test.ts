@@ -60,6 +60,16 @@ test("defers the Tone runtime until the explicit Start Audio action", async (): 
         "--fn",
         "document.getElementById('play-stop')?.textContent === 'Stop Audio'",
     ]);
+
+    await runBrowser([
+        "eval",
+        "window.__WEB_ARP_TEST__?.Tone?.getContext().rawContext.suspend().then(() => window.startAudio())",
+    ]);
+    await runBrowser([
+        "wait",
+        "--fn",
+        "window.__WEB_ARP_TEST__?.Tone?.getContext()?.state === 'running'",
+    ]);
 });
 
 test("applies a preset restored before activation after starting audio", async (): Promise<void> => {
@@ -103,12 +113,21 @@ test("shares one activation request across overlapping explicit starts", async (
     await runBrowser([
         "wait",
         "--fn",
-        "document.getElementById('quick-start-scratch') !== null && window.__WEB_ARP_TEST__?.lastSessionRestoreFinished === true",
+        "document.getElementById('notes') !== null && window.__WEB_ARP_TEST__?.lastSessionRestoreFinished === true",
+    ]);
+    const overlayId = await runBrowser([
+        "eval",
+        `(() => {
+            const quickStart = document.getElementById('quick-start-overlay');
+            return quickStart && getComputedStyle(quickStart).display !== 'none'
+                ? 'quick-start-scratch'
+                : 'start-overlay';
+        })()`,
     ]);
     await runBrowser([
         "eval",
         `(() => {
-            const trigger = document.getElementById('quick-start-scratch');
+            const trigger = document.getElementById(${overlayId});
             trigger?.addEventListener(
                 'click',
                 () => {
@@ -121,7 +140,7 @@ test("shares one activation request across overlapping explicit starts", async (
         })()`,
     ]);
 
-    await runBrowser(["click", "#quick-start-scratch"]);
+    await runBrowser(["click", `#${JSON.parse(overlayId)}`]);
     await runBrowser([
         "wait",
         "--fn",

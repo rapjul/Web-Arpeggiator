@@ -127,7 +127,7 @@ async function loadAudioModules() {
  * @returns {Promise<void>}
  */
 async function startAudio() {
-    if (isAudioContextStarted) return;
+    if (isAudioContextStarted && Tone?.getContext().state === "running") return;
 
     if (!audioStartPromise) {
         audioStartPromise = (async () => {
@@ -479,6 +479,7 @@ function initializeApp() {
     let activeNote = null;
     let currentWaveform = "sine";
     let audioEngine;
+    let pendingAudioEngine = null;
     let recorderManager;
     let visualizer;
     let audioRuntimePromise = null;
@@ -489,6 +490,16 @@ function initializeApp() {
     window.currentOctaveRange = currentOctaveRange;
     window.isPlaying = isPlaying;
     window.arpPattern = arpPattern;
+
+    /**
+     * Returns the engine being assembled, if any, so settings can be applied
+     * before the fully constructed runtime is published.
+     *
+     * @returns {ReturnType<typeof createAudioEngine>|null|undefined} The available engine.
+     */
+    function getAvailableAudioEngine() {
+        return audioEngine || pendingAudioEngine;
+    }
 
     // --- App State Object (for injected modules) ---
     const appState = {
@@ -521,18 +532,20 @@ function initializeApp() {
             window.currentOctaveRange = value;
         },
         get activeSynth() {
-            return audioEngine?.activeSynth || null;
+            return getAvailableAudioEngine()?.activeSynth || null;
         },
         set activeSynth(_value) {
             // activeSynth is owned by audio-engine; this is a no-op passthrough
         },
         get currentWaveform() {
-            return audioEngine ? audioEngine.currentWaveform : currentWaveform;
+            const availableAudioEngine = getAvailableAudioEngine();
+            return availableAudioEngine ? availableAudioEngine.currentWaveform : currentWaveform;
         },
         set currentWaveform(value) {
             currentWaveform = value;
-            if (audioEngine) {
-                audioEngine.currentWaveform = value;
+            const availableAudioEngine = getAvailableAudioEngine();
+            if (availableAudioEngine) {
+                availableAudioEngine.currentWaveform = value;
             }
             window.currentWaveform = value;
         },
@@ -563,8 +576,11 @@ function initializeApp() {
         window.currentNotes = currentNotes;
         window.currentOctaveShift = currentOctaveShift;
         window.currentOctaveRange = currentOctaveRange;
-        window.activeSynth = audioEngine?.activeSynth || null;
-        window.currentWaveform = audioEngine ? audioEngine.currentWaveform : currentWaveform;
+        const availableAudioEngine = getAvailableAudioEngine();
+        window.activeSynth = availableAudioEngine?.activeSynth || null;
+        window.currentWaveform = availableAudioEngine
+            ? availableAudioEngine.currentWaveform
+            : currentWaveform;
         window.isPlaying = isPlaying;
         window.arpPattern = arpPattern;
     }
@@ -588,7 +604,7 @@ function initializeApp() {
      * @returns {void}
      */
     function createOrUpdatePattern() {
-        if (!audioEngine) {
+        if (!getAvailableAudioEngine()) {
             rebuildNoteStepIndicator();
             updateEstimatedExportDuration();
             return;
@@ -1108,8 +1124,8 @@ function initializeApp() {
             updateScaleQuantizeUi,
             updateScaleQuantizeToggleText,
             updateWaveformButtons,
-            setSynth: (type) => audioEngine?.setSynth(type),
-            getTransport: () => (audioEngine ? Tone.getTransport() : null),
+            setSynth: (type) => getAvailableAudioEngine()?.setSynth(type),
+            getTransport: () => (getAvailableAudioEngine() ? Tone.getTransport() : null),
             updateButtonGroup,
             syncPatternModuleState,
             createOrUpdatePattern,
@@ -1117,25 +1133,25 @@ function initializeApp() {
         },
         audio: {
             get distortion() {
-                return audioEngine?.distortion;
+                return getAvailableAudioEngine()?.distortion;
             },
             get filter() {
-                return audioEngine?.filter;
+                return getAvailableAudioEngine()?.filter;
             },
             get chorus() {
-                return audioEngine?.chorus;
+                return getAvailableAudioEngine()?.chorus;
             },
             get autoPanner() {
-                return audioEngine?.autoPanner;
+                return getAvailableAudioEngine()?.autoPanner;
             },
             get delay() {
-                return audioEngine?.delay;
+                return getAvailableAudioEngine()?.delay;
             },
             get reverb() {
-                return audioEngine?.reverb;
+                return getAvailableAudioEngine()?.reverb;
             },
             get postGain() {
-                return audioEngine?.postGain;
+                return getAvailableAudioEngine()?.postGain;
             },
         },
     });
@@ -1178,139 +1194,169 @@ function initializeApp() {
         if (audioEngine) return;
         if (!audioRuntimePromise) {
             audioRuntimePromise = (async () => {
-                audioEngine = createAudioEngine({
-                    dom: {
-                        advancedSynthParams,
-                        harmonicityControl,
-                        modIndexControl,
-                        carrierLabel,
-                        waveformPluckOverlay,
-                        dutyControl,
-                        basicSynthParams,
-                        waveformButtons,
-                        monoSynthParams,
-                        duoSynthParams,
-                        pluckSynthParams,
-                        membraneSynthParams,
-                        harmonicitySlider,
-                        modIndexSlider,
-                        monoCutoffSlider,
-                        monoOctavesSlider,
-                        monoQSlider,
-                        duoHarmSlider,
-                        duoVibratoSlider,
-                        pluckDampeningSlider,
-                        pluckResonanceSlider,
-                        pluckNoiseSlider,
-                        membranePitchDecaySlider,
-                        membraneOctavesSlider,
-                        envAttackSlider,
-                        envDecaySlider,
-                        envSustainSlider,
-                        envReleaseSlider,
-                        driveMixSlider,
-                        chorusMixSlider,
-                        autoPanMixSlider,
-                    },
-                    actions: {
-                        syncPatternModuleState,
-                        showToast: (msg, type) => showToast(msg, type),
-                    },
-                });
-                audioEngine.currentWaveform = currentWaveform;
-                window.audioEngine = audioEngine;
+                let nextAudioEngine;
+                let nextVisualizer;
+                let nextRecorderManager;
 
-                visualizer = createVisualizer({
-                    dom: {
-                        visualizerYAxisCanvas,
-                        visualizerViewport,
-                        visualizerPlotCanvas,
-                        toggleVisualizerButton,
-                        visualizerModeSelect,
-                        pauseVisualizerButton,
-                        visualizerZoomSlider,
-                        visualizerZoomValue,
-                        oscilloscopeWindowSelect,
-                        oscilloscopeWindowContainer,
-                        vuMeterBar,
-                        vuDbValue,
-                        vuClipContainer,
-                        vuClipIndicator,
-                        vuClipTooltip,
-                        vuInfoButton,
-                        vuInfoTooltip,
-                        envReleaseSlider,
-                    },
-                    audio: {
-                        analyser: audioEngine.analyser,
-                        meter: audioEngine.meter,
-                        peakAnalyser: audioEngine.peakAnalyser,
-                    },
-                    state: {
-                        get isRecording() {
-                            return recorderManager ? recorderManager.isRecording : false;
+                try {
+                    nextAudioEngine = createAudioEngine({
+                        dom: {
+                            advancedSynthParams,
+                            harmonicityControl,
+                            modIndexControl,
+                            carrierLabel,
+                            waveformPluckOverlay,
+                            dutyControl,
+                            basicSynthParams,
+                            waveformButtons,
+                            monoSynthParams,
+                            duoSynthParams,
+                            pluckSynthParams,
+                            membraneSynthParams,
+                            harmonicitySlider,
+                            modIndexSlider,
+                            monoCutoffSlider,
+                            monoOctavesSlider,
+                            monoQSlider,
+                            duoHarmSlider,
+                            duoVibratoSlider,
+                            pluckDampeningSlider,
+                            pluckResonanceSlider,
+                            pluckNoiseSlider,
+                            membranePitchDecaySlider,
+                            membraneOctavesSlider,
+                            envAttackSlider,
+                            envDecaySlider,
+                            envSustainSlider,
+                            envReleaseSlider,
+                            driveMixSlider,
+                            chorusMixSlider,
+                            autoPanMixSlider,
                         },
-                        get recordingStartTime() {
-                            return recorderManager ? recorderManager.recordingStartTime : 0;
+                        actions: {
+                            syncPatternModuleState,
+                            showToast: (msg, type) => showToast(msg, type),
                         },
-                        get isPlaying() {
-                            return isPlaying;
-                        },
-                        get activeNote() {
-                            return activeNote;
-                        },
-                        recordButton,
-                    },
-                    actions: { formatTime },
-                });
+                    });
+                    nextAudioEngine.currentWaveform = currentWaveform;
 
-                recorderManager = createRecorderManager({
-                    audio: {
-                        reverb: audioEngine.reverb,
-                        synths: audioEngine.synths,
-                        createOfflineChain: audioEngine.createOfflineChain,
-                    },
-                    dom: {
-                        recordButton,
-                        recordStatus,
-                        exportControls,
-                        realtimeExportWavCheck,
-                        realtimeExportMp3Check,
-                        exportButton,
-                        offlineExportWavCheck,
-                        offlineExportMp3Check,
-                        offlineExportButton,
-                        offlineExportStatus,
-                        loopCountInput,
-                        envAttackSlider,
-                        envDecaySlider,
-                        envSustainSlider,
-                        envReleaseSlider,
-                    },
-                    state: {
-                        get isAudioContextStarted() {
-                            return isAudioContextStarted;
+                    nextVisualizer = createVisualizer({
+                        dom: {
+                            visualizerYAxisCanvas,
+                            visualizerViewport,
+                            visualizerPlotCanvas,
+                            toggleVisualizerButton,
+                            visualizerModeSelect,
+                            pauseVisualizerButton,
+                            visualizerZoomSlider,
+                            visualizerZoomValue,
+                            oscilloscopeWindowSelect,
+                            oscilloscopeWindowContainer,
+                            vuMeterBar,
+                            vuDbValue,
+                            vuClipContainer,
+                            vuClipIndicator,
+                            vuClipTooltip,
+                            vuInfoButton,
+                            vuInfoTooltip,
+                            envReleaseSlider,
                         },
-                        get isPlaying() {
-                            return isPlaying;
+                        audio: {
+                            analyser: nextAudioEngine.analyser,
+                            meter: nextAudioEngine.meter,
+                            peakAnalyser: nextAudioEngine.peakAnalyser,
                         },
-                    },
-                    actions: {
-                        showToast,
-                        startUiLoop: visualizer.startUiLoop,
-                        stopUiLoop: visualizer.stopUiLoop,
-                        getAllSettings,
-                        generateFilename,
-                        formatTime,
-                        startAudio,
-                        startPlayback,
-                    },
-                });
+                        state: {
+                            get isRecording() {
+                                return recorderManager ? recorderManager.isRecording : false;
+                            },
+                            get recordingStartTime() {
+                                return recorderManager ? recorderManager.recordingStartTime : 0;
+                            },
+                            get isPlaying() {
+                                return isPlaying;
+                            },
+                            get activeNote() {
+                                return activeNote;
+                            },
+                            recordButton,
+                        },
+                        actions: { formatTime },
+                    });
 
-                // Apply any URL, session, or form state accumulated before audio
-                // activation, then construct the live pattern from that state.
-                loadAllSettings(getAllSettings());
-                syncPatternModuleState();
+                    nextRecorderManager = createRecorderManager({
+                        audio: {
+                            reverb: nextAudioEngine.reverb,
+                            synths: nextAudioEngine.synths,
+                            createOfflineChain: nextAudioEngine.createOfflineChain,
+                        },
+                        dom: {
+                            recordButton,
+                            recordStatus,
+                            exportControls,
+                            realtimeExportWavCheck,
+                            realtimeExportMp3Check,
+                            exportButton,
+                            offlineExportWavCheck,
+                            offlineExportMp3Check,
+                            offlineExportButton,
+                            offlineExportStatus,
+                            loopCountInput,
+                            envAttackSlider,
+                            envDecaySlider,
+                            envSustainSlider,
+                            envReleaseSlider,
+                        },
+                        state: {
+                            get isAudioContextStarted() {
+                                return isAudioContextStarted;
+                            },
+                            get isPlaying() {
+                                return isPlaying;
+                            },
+                        },
+                        actions: {
+                            showToast,
+                            startUiLoop: nextVisualizer.startUiLoop,
+                            stopUiLoop: nextVisualizer.stopUiLoop,
+                            getAllSettings,
+                            generateFilename,
+                            formatTime,
+                            startAudio,
+                            startPlayback,
+                        },
+                    });
+
+                    // Apply any URL, session, or form state accumulated before audio
+                    // activation before publishing the finished audio runtime.
+                    pendingAudioEngine = nextAudioEngine;
+                    loadAllSettings(getAllSettings());
+                    syncPatternModuleState();
+
+                    audioEngine = nextAudioEngine;
+                    visualizer = nextVisualizer;
+                    recorderManager = nextRecorderManager;
+                    pendingAudioEngine = null;
+                    window.audioEngine = audioEngine;
+                } catch (error) {
+                    nextVisualizer?.stopUiLoop();
+                    nextAudioEngine?.dispose();
+                    try {
+                        arpPattern?.dispose();
+                    } catch (cleanupError) {
+                        console.warn("Failed to dispose a partial arpeggio pattern:", cleanupError);
+                    }
+                    audioEngine = undefined;
+                    pendingAudioEngine = null;
+                    visualizer = undefined;
+                    recorderManager = undefined;
+                    delete window.audioEngine;
+                    arpPattern = null;
+                    window.arpPattern = null;
+                    window.activeSynth = null;
+                    window.currentWaveform = currentWaveform;
+                    throw error;
+                }
             })().catch((error) => {
                 audioRuntimePromise = null;
                 throw error;
@@ -2441,17 +2487,32 @@ function initializeApp() {
 
     // --- Recording Controls ---
     recordButton.addEventListener("click", async () => {
-        await startAudio();
+        try {
+            await startAudio();
+        } catch (error) {
+            console.warn("AudioContext failed to start on record click:", error);
+            return;
+        }
         await recorderManager?.toggleRecording();
     });
 
     exportButton.addEventListener("click", async () => {
-        await startAudio();
+        try {
+            await startAudio();
+        } catch (error) {
+            console.warn("AudioContext failed to start on recording export click:", error);
+            return;
+        }
         await recorderManager?.exportRealtime();
     });
 
     offlineExportButton.addEventListener("click", async () => {
-        await startAudio();
+        try {
+            await startAudio();
+        } catch (error) {
+            console.warn("AudioContext failed to start on offline export click:", error);
+            return;
+        }
         await recorderManager?.exportOffline();
     });
 
