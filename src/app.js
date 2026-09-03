@@ -12,6 +12,7 @@ import { createAudioEngine } from "@audio/audio-engine.js";
 import { downloadBlob } from "@core/audio-utils.js";
 import { initializeKeyboardControls } from "@ui/keyboard-controller.js";
 import { createMidiBlob, exportMidiFile } from "@core/midi-export.js";
+import { formatEstimatedExportDuration, normalizeLoopCount } from "@core/export-duration.js";
 import { materializePatternSequence, normalizeNotesSequence } from "@core/pattern-core.js";
 import {
     calculateNoteMarkers,
@@ -354,6 +355,7 @@ function initializeApp() {
 
     // Offline Export card
     const loopCountInput = document.getElementById("loop-count");
+    const offlineExportDuration = document.getElementById("offline-export-duration");
     const offlineExportWavCheck = document.getElementById("offline-export-wav");
     const offlineExportMp3Check = document.getElementById("offline-export-mp3");
     const offlineExportButton = document.getElementById("offline-export-button");
@@ -533,6 +535,7 @@ function initializeApp() {
         arpPattern = window.arpPattern;
         // Rebuild the note step indicator pips to match the new note count
         rebuildNoteStepIndicator();
+        updateEstimatedExportDuration();
     }
 
     /**
@@ -1294,6 +1297,38 @@ function initializeApp() {
     }
 
     /**
+     * Refreshes the offline export duration estimate using the same materialized
+     * pattern sequence used by offline audio and MIDI exports.
+     *
+     * @returns {void}
+     */
+    function updateEstimatedExportDuration() {
+        if (!offlineExportDuration) return;
+
+        const settings = getAllSettings();
+        const { notes: patternNotes } = materializePatternSequence(
+            settings.baseNotes || settings.notes,
+            {
+                direction: settings.direction,
+                octaveRange: settings.octaveRange,
+                octaveShift: settings.octaveShift,
+                quantize: {
+                    enabled: settings.scaleQuantize,
+                    root: settings.scaleRoot,
+                    scale: settings.scaleType,
+                },
+            },
+        );
+
+        offlineExportDuration.textContent = formatEstimatedExportDuration({
+            loopCount: settings.loopCount,
+            stepsPerLoop: patternNotes.length,
+            interval: settings.interval,
+            bpm: settings.bpm,
+        });
+    }
+
+    /**
      * Tracks the last selected non-chromatic scale type so it can be restored when re-enabling.
      * @type {string}
      */
@@ -2002,6 +2037,13 @@ function initializeApp() {
     bpmSlider.addEventListener("input", () => {
         bpmValue.textContent = bpmSlider.value;
         debouncedSetBpm(parseInt(bpmSlider.value, 10));
+        updateEstimatedExportDuration();
+    });
+
+    loopCountInput.addEventListener("input", updateEstimatedExportDuration);
+    loopCountInput.addEventListener("change", () => {
+        loopCountInput.value = String(normalizeLoopCount(loopCountInput.value));
+        updateEstimatedExportDuration();
     });
 
     swingSlider.addEventListener("input", () => {
@@ -2025,6 +2067,7 @@ function initializeApp() {
         currentNotes = notesInput.value.trim().split(/\s+/).filter(Boolean);
         if (currentNotes.length === 0) currentNotes = ["C4"];
         syncPatternModuleState();
+        updateEstimatedExportDuration();
     });
 
     scaleQuantizeToggle.addEventListener("change", () => {

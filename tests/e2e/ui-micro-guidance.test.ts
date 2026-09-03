@@ -169,5 +169,80 @@ test("UI Micro-Guidance Subtitles & Tooltips Suite", async (): Promise<void> => 
     ]);
     expect(octaveGuidanceResult).toBe('"success"');
 
+    // 5. Verify the offline export duration estimate follows loop count and tempo changes
+    console.log("Step 5: Testing offline export duration estimate...");
+    const exportDurationResult: string = await runBrowser([
+        "eval",
+        `(() => {
+        const notes = document.getElementById('notes');
+        const bpm = document.getElementById('bpm');
+        const loopCount = document.getElementById('loop-count');
+        const duration = document.getElementById('offline-export-duration');
+        const interval = document.getElementById('interval');
+        const octaveRange = document.querySelector('input[name="octave-range"][value="1"]');
+        const octaveRangeTwo = document.querySelector('input[name="octave-range"][value="2"]');
+        const upDownDirection = document.querySelector('input[name="pattern-direction"][value="upDown"]');
+
+        if (!notes || !bpm || !loopCount || !duration || !interval || !octaveRange || !octaveRangeTwo || !upDownDirection) {
+            return 'missing-export-duration-control';
+        }
+
+        notes.value = 'C4 E4 G4';
+        notes.dispatchEvent(new Event('change', { bubbles: true }));
+        octaveRange.checked = true;
+        octaveRange.dispatchEvent(new Event('change', { bubbles: true }));
+        bpm.value = '60';
+        bpm.dispatchEvent(new Event('input', { bubbles: true }));
+        loopCount.value = '3';
+        loopCount.dispatchEvent(new Event('input', { bubbles: true }));
+
+        const basicEstimate = duration.textContent.trim();
+
+        notes.value = 'C4 E4 G4 B4';
+        notes.dispatchEvent(new Event('input', { bubbles: true }));
+        const inputEstimate = duration.textContent.trim();
+
+        notes.value = 'C4 E4 G4';
+        notes.dispatchEvent(new Event('input', { bubbles: true }));
+
+        octaveRangeTwo.checked = true;
+        octaveRangeTwo.dispatchEvent(new Event('change', { bubbles: true }));
+        upDownDirection.checked = true;
+        upDownDirection.dispatchEvent(new Event('change', { bubbles: true }));
+        bpm.value = '120';
+        bpm.dispatchEvent(new Event('input', { bubbles: true }));
+        loopCount.value = '1';
+        loopCount.dispatchEvent(new Event('input', { bubbles: true }));
+
+        const expandedEstimate = duration.textContent.trim();
+
+        interval.value = '8n';
+        interval.dispatchEvent(new Event('change', { bubbles: true }));
+        const intervalEstimate = duration.textContent.trim();
+
+        interval.value = '16n';
+        interval.dispatchEvent(new Event('change', { bubbles: true }));
+
+        loopCount.value = '-1';
+        loopCount.dispatchEvent(new Event('change', { bubbles: true }));
+        const minimumLoopEstimate = duration.textContent.trim();
+
+        loopCount.value = '101';
+        loopCount.dispatchEvent(new Event('change', { bubbles: true }));
+        const maximumLoopEstimate = duration.textContent.trim();
+
+        return basicEstimate === '3 loops at ~0.75s each + 2s reverb tail. Estimated export duration: ~4.3 seconds'
+            && inputEstimate === '3 loops at ~1.00s each + 2s reverb tail. Estimated export duration: ~5.0 seconds'
+            && expandedEstimate === '1 loop at ~1.25s each + 2s reverb tail. Estimated export duration: ~3.3 seconds'
+            && intervalEstimate === '1 loop at ~2.50s each + 2s reverb tail. Estimated export duration: ~4.5 seconds'
+            && minimumLoopEstimate === '1 loop at ~1.25s each + 2s reverb tail. Estimated export duration: ~3.3 seconds'
+            && maximumLoopEstimate === '100 loops at ~1.25s each + 2s reverb tail. Estimated export duration: ~127.0 seconds'
+            && loopCount.value === '100'
+            ? 'success'
+            : [basicEstimate, inputEstimate, expandedEstimate, intervalEstimate, minimumLoopEstimate, maximumLoopEstimate].join(' / ');
+    })()`,
+    ]);
+    expect(exportDurationResult).toBe('"success"');
+
     console.log("UI Micro-Guidance Integration Suite complete!");
 });

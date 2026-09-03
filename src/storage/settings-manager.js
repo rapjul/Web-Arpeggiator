@@ -1,4 +1,5 @@
 import * as Tone from "tone";
+import { normalizeLoopCount } from "@core/export-duration.js";
 
 /**
  * Settings serialization, restoration, and naming helpers.
@@ -90,7 +91,7 @@ export function createSettingsManager(context) {
             autoPanMix: dom.autoPanMixSlider ? parseFloat(dom.autoPanMixSlider.value) : 0.0,
             delayMix: parseFloat(dom.delayMixSlider.value),
             reverbMix: parseFloat(dom.reverbMixSlider.value),
-            loopCount: parseInt(dom.loopCountInput.value, 10),
+            loopCount: normalizeLoopCount(dom.loopCountInput.value),
         };
     }
 
@@ -302,7 +303,7 @@ export function createSettingsManager(context) {
             dom.reverbMixValue.textContent = settings.reverbMix.toFixed(2);
             if (audio.reverb) audio.reverb.wet.value = settings.reverbMix;
 
-            dom.loopCountInput.value = settings.loopCount;
+            dom.loopCountInput.value = String(normalizeLoopCount(settings.loopCount));
 
             actions.syncPatternModuleState();
             actions.createOrUpdatePattern();
