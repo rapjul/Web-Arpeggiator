@@ -123,6 +123,15 @@ test("Keyboard Controls & Scale Quantizer Suite", async (): Promise<void> => {
         const scaleRoot = document.getElementById('scale-root');
         const scaleType = document.getElementById('scale-type');
         const notesInput = document.getElementById('notes');
+        const singleOctave = document.querySelector('input[name="octave-range"][value="1"]');
+
+        // Keep this assertion focused on the five base notes rather than the
+        // app's interleaved multi-octave sequence.
+        if (!singleOctave) {
+            return 'missing-single-octave-control';
+        }
+        singleOctave.checked = true;
+        singleOctave.dispatchEvent(new Event('change', { bubbles: true }));
 
         // Enable scale quantization, set to C Major
         quantizeToggle.checked = true;
