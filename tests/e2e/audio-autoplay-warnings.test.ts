@@ -162,10 +162,11 @@ test("shares one activation request across overlapping explicit starts", async (
 
     const activationState = await runBrowser([
         "eval",
-        "JSON.stringify({ engine: Boolean(window.audioEngine), context: window.__WEB_ARP_TEST__?.Tone?.getContext()?.state })",
+        "JSON.stringify({ engine: Boolean(window.audioEngine), context: window.__WEB_ARP_TEST__?.Tone?.getContext()?.state, constructionCount: window.__WEB_ARP_TEST__?.getAudioRuntimeConstructionCount() })",
     ]);
     expect(JSON.parse(JSON.parse(activationState))).toEqual({
         engine: true,
         context: "running",
+        constructionCount: 1,
     });
 });

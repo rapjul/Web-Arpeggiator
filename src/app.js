@@ -483,6 +483,7 @@ function initializeApp() {
     let recorderManager;
     let visualizer;
     let audioRuntimePromise = null;
+    let audioRuntimeConstructionCount = 0;
     let observedRawAudioContext = null;
     let audioContextStateListener = null;
 
@@ -1196,6 +1197,7 @@ function initializeApp() {
         if (audioEngine) return;
         if (!audioRuntimePromise) {
             audioRuntimePromise = (async () => {
+                audioRuntimeConstructionCount += 1;
                 let nextAudioEngine;
                 let nextVisualizer;
                 let nextRecorderManager;
@@ -2986,6 +2988,7 @@ function initializeApp() {
             hasEngine: Boolean(audioEngine),
             isAudioContextStarted,
         }),
+        getAudioRuntimeConstructionCount: () => audioRuntimeConstructionCount,
         getLoopMapState: () => ({
             renderCount: window.__WEB_ARP_TEST__?.loopMapRenderCount || 0,
             markers: window.__WEB_ARP_TEST__?.lastLoopMapRenderMarkers || [],
