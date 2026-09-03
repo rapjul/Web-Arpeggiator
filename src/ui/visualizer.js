@@ -85,6 +85,7 @@ export function createVisualizer(context) {
     let isVisualizerOn = false;
     let isPaused = false;
     let isClipped = false;
+    let isDestroyed = false;
     let currentMode = "oscilloscope"; // 'oscilloscope' | 'fft' | 'loopMap'
     let animationFrameId = null;
     let lastTimeStr = "";
@@ -195,12 +196,13 @@ export function createVisualizer(context) {
 
     // Bind event listener to parent details accordion to resize canvas when opened
     const parentDetails = viewport ? viewport.closest("details") : null;
+    function handleParentDetailsToggle() {
+        if (parentDetails?.open) {
+            resizeCanvas();
+        }
+    }
     if (parentDetails) {
-        parentDetails.addEventListener("toggle", () => {
-            if (parentDetails.open) {
-                resizeCanvas();
-            }
-        });
+        parentDetails.addEventListener("toggle", handleParentDetailsToggle);
     }
 
     resizeCanvas();
@@ -807,7 +809,7 @@ export function createVisualizer(context) {
      * @returns {void}
      */
     function startUiLoop() {
-        if (!animationFrameId && shouldRunUiLoop()) {
+        if (!isDestroyed && animationFrameId === null && shouldRunUiLoop()) {
             const loop = () => {
                 runUiUpdate();
                 animationFrameId = requestAnimationFrame(loop);
@@ -822,7 +824,7 @@ export function createVisualizer(context) {
      * @returns {void}
      */
     function stopUiLoop() {
-        if (animationFrameId && !shouldRunUiLoop()) {
+        if (animationFrameId !== null && !shouldRunUiLoop()) {
             cancelAnimationFrame(animationFrameId);
             animationFrameId = null;
             if (vuMeterBar) {
@@ -906,66 +908,74 @@ export function createVisualizer(context) {
         }
     }
 
+    function handleModeChange() {
+        currentMode = visualizerModeSelect.value;
+        isPaused = false; // Reset pause state when switching modes
+        updatePauseButtonState();
+
+        // Set analyser type on the fly
+        if (analyser) {
+            analyser.type = currentMode === "fft" ? "fft" : "waveform";
+        }
+
+        applyDefaultZoom();
+        updateControlsFooterVisibility();
+
+        // Force repaint or check loop status
+        if (isVisualizerOn) {
+            if (currentMode === "loopMap") {
+                // In loopMap mode, we run a static render.
+                runUiUpdate();
+            } else if (shouldRunUiLoop()) {
+                startUiLoop();
+            } else {
+                // stopped and not map mode: clear display
+                if (plotCtx) plotCtx.clearRect(0, 0, plotCanvas.width, plotCanvas.height);
+                if (yAxisCtx) yAxisCtx.clearRect(0, 0, yAxisCanvas.width, yAxisCanvas.height);
+            }
+        }
+    }
+
+    function handlePauseClick() {
+        if (!isVisualizerOn || currentMode === "loopMap") return;
+
+        isPaused = !isPaused;
+        updatePauseButtonState();
+    }
+
+    function handleZoomInput() {
+        zoomFactor = parseFloat(zoomSlider.value);
+        if (zoomValueSpan) {
+            zoomValueSpan.textContent = `${zoomFactor.toFixed(1)}x`;
+        }
+        resizeCanvas();
+    }
+
+    function handleOscilloscopeWindowChange() {
+        updateRollingBufferSize();
+        if (isVisualizerOn) {
+            runUiUpdate();
+        }
+    }
+
     // --- Mode selector event wiring ---
     if (visualizerModeSelect) {
-        visualizerModeSelect.addEventListener("change", () => {
-            currentMode = visualizerModeSelect.value;
-            isPaused = false; // Reset pause state when switching modes
-            updatePauseButtonState();
-
-            // Set analyser type on the fly
-            if (analyser) {
-                analyser.type = currentMode === "fft" ? "fft" : "waveform";
-            }
-
-            applyDefaultZoom();
-            updateControlsFooterVisibility();
-
-            // Force repaint or check loop status
-            if (isVisualizerOn) {
-                if (currentMode === "loopMap") {
-                    // In loopMap mode, we run a static render.
-                    runUiUpdate();
-                } else if (shouldRunUiLoop()) {
-                    startUiLoop();
-                } else {
-                    // stopped and not map mode: clear display
-                    if (plotCtx) plotCtx.clearRect(0, 0, plotCanvas.width, plotCanvas.height);
-                    if (yAxisCtx) yAxisCtx.clearRect(0, 0, yAxisCanvas.width, yAxisCanvas.height);
-                }
-            }
-        });
+        visualizerModeSelect.addEventListener("change", handleModeChange);
     }
 
     // --- Pause button event wiring ---
     if (pauseVisualizerButton) {
-        pauseVisualizerButton.addEventListener("click", () => {
-            if (!isVisualizerOn || currentMode === "loopMap") return;
-
-            isPaused = !isPaused;
-            updatePauseButtonState();
-        });
+        pauseVisualizerButton.addEventListener("click", handlePauseClick);
     }
 
     // --- Zoom slider event wiring ---
     if (zoomSlider) {
-        zoomSlider.addEventListener("input", () => {
-            zoomFactor = parseFloat(zoomSlider.value);
-            if (zoomValueSpan) {
-                zoomValueSpan.textContent = `${zoomFactor.toFixed(1)}x`;
-            }
-            resizeCanvas();
-        });
+        zoomSlider.addEventListener("input", handleZoomInput);
     }
 
     // --- Time Window selector event wiring ---
     if (oscilloscopeWindowSelect) {
-        oscilloscopeWindowSelect.addEventListener("change", () => {
-            updateRollingBufferSize();
-            if (isVisualizerOn) {
-                runUiUpdate();
-            }
-        });
+        oscilloscopeWindowSelect.addEventListener("change", handleOscilloscopeWindowChange);
     }
 
     /**
@@ -1062,6 +1072,33 @@ export function createVisualizer(context) {
         }
     }
 
+    function handleInfoButtonClick(event) {
+        event.stopPropagation();
+        if (vuInfoTooltip.classList.contains("hidden")) {
+            showInfoTooltip();
+        } else {
+            hideInfoTooltip();
+        }
+    }
+
+    function handleDocumentKeydown(event) {
+        if (event.key === "Escape" && !vuInfoTooltip.classList.contains("hidden")) {
+            hideInfoTooltip();
+            vuInfoButton.focus();
+        }
+    }
+
+    function handleDocumentClick(event) {
+        if (
+            !vuInfoTooltip.classList.contains("hidden") &&
+            event.target !== vuInfoButton &&
+            !vuInfoButton.contains(/** @type {Node} */ (event.target)) &&
+            !vuInfoTooltip.contains(/** @type {Node} */ (event.target))
+        ) {
+            hideInfoTooltip();
+        }
+    }
+
     if (vuInfoButton && vuInfoTooltip) {
         // Desktop: Hover & Focus
         vuInfoButton.addEventListener("mouseenter", showInfoTooltip);
@@ -1070,33 +1107,11 @@ export function createVisualizer(context) {
         vuInfoButton.addEventListener("blur", hideInfoTooltip);
 
         // Mobile/Touch: Tap toggle
-        vuInfoButton.addEventListener("click", (e) => {
-            e.stopPropagation();
-            if (vuInfoTooltip.classList.contains("hidden")) {
-                showInfoTooltip();
-            } else {
-                hideInfoTooltip();
-            }
-        });
+        vuInfoButton.addEventListener("click", handleInfoButtonClick);
 
         // Global dismiss on Escape key or outside click
-        document.addEventListener("keydown", (e) => {
-            if (e.key === "Escape" && !vuInfoTooltip.classList.contains("hidden")) {
-                hideInfoTooltip();
-                vuInfoButton.focus();
-            }
-        });
-
-        document.addEventListener("click", (e) => {
-            if (
-                !vuInfoTooltip.classList.contains("hidden") &&
-                e.target !== vuInfoButton &&
-                !vuInfoButton.contains(/** @type {Node} */ (e.target)) &&
-                !vuInfoTooltip.contains(/** @type {Node} */ (e.target))
-            ) {
-                hideInfoTooltip();
-            }
-        });
+        document.addEventListener("keydown", handleDocumentKeydown);
+        document.addEventListener("click", handleDocumentClick);
     }
 
     /**
@@ -1120,7 +1135,49 @@ export function createVisualizer(context) {
     // Trigger default zoom configuration
     applyDefaultZoom();
 
+    /**
+     * Releases browser resources owned by this visualizer instance.
+     *
+     * @returns {void}
+     */
+    function destroy() {
+        if (isDestroyed) return;
+        isDestroyed = true;
+
+        if (animationFrameId !== null) {
+            cancelAnimationFrame(animationFrameId);
+            animationFrameId = null;
+        }
+        if (manualNoteDecayTimeout) {
+            clearTimeout(manualNoteDecayTimeout);
+            manualNoteDecayTimeout = null;
+        }
+        manualNoteActive = false;
+
+        window.removeEventListener("resize", resizeCanvas);
+        parentDetails?.removeEventListener("toggle", handleParentDetailsToggle);
+        visualizerModeSelect?.removeEventListener("change", handleModeChange);
+        pauseVisualizerButton?.removeEventListener("click", handlePauseClick);
+        zoomSlider?.removeEventListener("input", handleZoomInput);
+        oscilloscopeWindowSelect?.removeEventListener("change", handleOscilloscopeWindowChange);
+        vuClipIndicator?.removeEventListener("click", resetClip);
+        clipTarget?.removeEventListener("mouseenter", showClipTooltip);
+        clipTarget?.removeEventListener("mouseleave", hideClipTooltip);
+        clipTarget?.removeEventListener("focusin", showClipTooltip);
+        clipTarget?.removeEventListener("focusout", hideClipTooltip);
+        vuInfoButton?.removeEventListener("mouseenter", showInfoTooltip);
+        vuInfoButton?.removeEventListener("mouseleave", hideInfoTooltip);
+        vuInfoButton?.removeEventListener("focus", showInfoTooltip);
+        vuInfoButton?.removeEventListener("blur", hideInfoTooltip);
+        vuInfoButton?.removeEventListener("click", handleInfoButtonClick);
+        document.removeEventListener("keydown", handleDocumentKeydown);
+        document.removeEventListener("click", handleDocumentClick);
+        hideClipTooltip();
+        hideInfoTooltip();
+    }
+
     return {
+        destroy,
         runUiUpdate,
         startUiLoop,
         stopUiLoop,

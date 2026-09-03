@@ -1,4 +1,3 @@
-import * as Tone from "tone";
 import { normalizeLoopCount } from "@core/export-duration.js";
 
 /**
@@ -10,6 +9,7 @@ import { normalizeLoopCount } from "@core/export-duration.js";
  * @property {object} state - App state references.
  * @property {object} dom - Bound DOM element references.
  * @property {object} actions - Bound app action functions.
+ * @property {Function} [actions.getTransport] - Returns the live transport when audio is ready.
  * @property {object} audio - Bound audio engine references.
  */
 
@@ -105,7 +105,8 @@ export function createSettingsManager(context) {
         try {
             dom.bpmSlider.value = settings.bpm;
             dom.bpmValue.textContent = settings.bpm;
-            const transport = Tone?.getTransport ? Tone.getTransport() : Tone?.Transport;
+            const transport =
+                typeof actions.getTransport === "function" ? actions.getTransport() : null;
             if (transport?.bpm) {
                 transport.bpm.value = settings.bpm;
             }

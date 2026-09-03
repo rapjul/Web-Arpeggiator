@@ -321,7 +321,8 @@ Web Arpeggiator/
 │   │   ├── 0001-vitest-and-v8-coverage-tooling.md
 │   │   ├── 0002-modular-es-source-architecture.md
 │   │   ├── 0003-defensive-input-validation-and-edge-case-testing-policy.md
-│   │   └── 0004-strict-type-safety-and-meaningful-behavioral-testing.md
+│   │   ├── 0004-strict-type-safety-and-meaningful-behavioral-testing.md
+│   │   └── 0005-defer-tone-runtime-until-audio-activation.md
 │   ├── midi-specification.md # Standard MIDI specification & implementation reference
 │   └── pattern-directions.md # Detailed pattern descriptions & visual guide
 ├── src/                    # Modular source code

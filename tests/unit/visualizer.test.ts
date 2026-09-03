@@ -431,6 +431,28 @@ describe("Visualizer Module", () => {
         }).not.toThrow();
     });
 
+    it("releases visualizer listeners when a temporary runtime is discarded", () => {
+        const resizeListenerRemoval = vi.spyOn(window, "removeEventListener");
+        const modeListenerRemoval = vi.spyOn(mockDom.visualizerModeSelect, "removeEventListener");
+        const documentListenerRemoval = vi.spyOn(document, "removeEventListener");
+        const visualizer = createVisualizer({
+            dom: mockDom,
+            audio: mockAudio,
+            state: mockState,
+            actions: mockActions,
+        });
+
+        visualizer.destroy();
+
+        expect(resizeListenerRemoval).toHaveBeenCalledWith("resize", expect.any(Function));
+        expect(modeListenerRemoval).toHaveBeenCalledWith("change", expect.any(Function));
+        expect(documentListenerRemoval).toHaveBeenCalledWith("keydown", expect.any(Function));
+
+        mockDom.visualizerModeSelect.value = "fft";
+        mockDom.visualizerModeSelect.dispatchEvent(new Event("change"));
+        expect(visualizer.currentMode).toBe("oscilloscope");
+    });
+
     it("triggers clipping state when VU meter levels reach or exceed 0 dB", () => {
         mockAudio.meter.getValue = vi.fn(() => 1.5);
 

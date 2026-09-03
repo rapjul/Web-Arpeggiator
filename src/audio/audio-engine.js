@@ -571,6 +571,35 @@ export function createAudioEngine(context) {
         return { offlineSynth, offlineOutput: offlinePostGain, offlinePostGain };
     }
 
+    /**
+     * Releases every live Tone node when runtime construction cannot finish.
+     *
+     * @returns {void}
+     */
+    function dispose() {
+        const nodes = [
+            ...Object.values(synths),
+            analyser,
+            meter,
+            peakAnalyser,
+            distortion,
+            filter,
+            chorus,
+            autoPanner,
+            delay,
+            reverb,
+            postGain,
+            limiter,
+        ];
+        nodes.forEach((node) => {
+            try {
+                node?.dispose();
+            } catch (error) {
+                console.warn("Failed to dispose an audio runtime node:", error);
+            }
+        });
+    }
+
     // Set default synth
     setSynth("synth");
 
@@ -600,5 +629,6 @@ export function createAudioEngine(context) {
         updateEnvelope,
         getSynthConfig,
         createOfflineChain,
+        dispose,
     };
 }
