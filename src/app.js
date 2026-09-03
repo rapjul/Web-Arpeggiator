@@ -483,6 +483,8 @@ function initializeApp() {
     let recorderManager;
     let visualizer;
     let audioRuntimePromise = null;
+    let observedRawAudioContext = null;
+    let audioContextStateListener = null;
 
     // Sync legacy window globals (needed by extracted modules)
     window.currentNotes = currentNotes;
@@ -1338,6 +1340,7 @@ function initializeApp() {
                     recorderManager = nextRecorderManager;
                     pendingAudioEngine = null;
                     window.audioEngine = audioEngine;
+                    observeAudioContextState();
                 } catch (error) {
                     nextVisualizer?.destroy();
                     nextAudioEngine?.dispose();
@@ -1680,7 +1683,12 @@ function initializeApp() {
                 }
                 setActiveSoundStarterCard(preset.id);
                 if (!isPlaying) {
-                    await startPlayback();
+                    try {
+                        await startPlayback();
+                    } catch (error) {
+                        console.warn("AudioContext failed to start from sound starter:", error);
+                        return;
+                    }
                 }
                 showToast(`Loaded preset: ${preset.name}`, "info");
                 scheduleLastSessionSave();
@@ -1977,12 +1985,38 @@ function initializeApp() {
         }
     }
 
+    /**
+     * Keeps playback controls aligned with the browser AudioContext state.
+     *
+     * @returns {void}
+     */
+    function observeAudioContextState() {
+        const rawAudioContext = Tone.getContext().rawContext;
+        if (observedRawAudioContext === rawAudioContext) return;
+
+        if (observedRawAudioContext && audioContextStateListener) {
+            observedRawAudioContext.removeEventListener("statechange", audioContextStateListener);
+        }
+
+        audioContextStateListener = () => {
+            if (Tone.getContext().state !== "running") {
+                stopPlayback();
+            }
+        };
+        observedRawAudioContext = rawAudioContext;
+        rawAudioContext.addEventListener("statechange", audioContextStateListener);
+    }
+
     // --- Transport: Play / Stop ---
     playStopButton.addEventListener("click", async () => {
         if (isPlaying) {
             stopPlayback();
         } else {
-            await startPlayback();
+            try {
+                await startPlayback();
+            } catch (error) {
+                console.warn("AudioContext failed to start from play button:", error);
+            }
         }
     });
 
