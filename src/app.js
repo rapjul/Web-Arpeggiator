@@ -1339,7 +1339,7 @@ function initializeApp() {
                     pendingAudioEngine = null;
                     window.audioEngine = audioEngine;
                 } catch (error) {
-                    nextVisualizer?.stopUiLoop();
+                    nextVisualizer?.destroy();
                     nextAudioEngine?.dispose();
                     try {
                         arpPattern?.dispose();
