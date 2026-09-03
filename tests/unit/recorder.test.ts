@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 let lastOfflinePatternValues: string[] = [];
 let lastOfflineRenderDuration = 0;
+let lastOfflineTransportStopAt: number | null = null;
 
 vi.mock("@core/audio-utils.js", () => ({
     audioBufferToMp3Blob: vi.fn(async () => new Blob(["MP3"], { type: "audio/mp3" })),
@@ -73,7 +74,9 @@ vi.mock("tone", async () => {
                     bpm: { value: 120 },
                     swing: 0,
                     start: vi.fn(),
-                    stop: vi.fn(),
+                    stop: vi.fn((time: number) => {
+                        lastOfflineTransportStopAt = time;
+                    }),
                 },
             };
             await cb(mockOfflineContext);
@@ -106,6 +109,7 @@ describe("Recorder Manager Module", () => {
     beforeEach(() => {
         lastOfflinePatternValues = [];
         lastOfflineRenderDuration = 0;
+        lastOfflineTransportStopAt = null;
         const createEl = (tag = "div") => document.createElement(tag);
         mockDom = {
             recordButton: createEl("button"),
@@ -285,6 +289,7 @@ describe("Recorder Manager Module", () => {
         await manager.exportOffline();
 
         expect(lastOfflineRenderDuration).toBe(2.75);
+        expect(lastOfflineTransportStopAt).toBe(0.75);
     });
 
     it("uses the same quantized pitches as live playback and MIDI export", async () => {

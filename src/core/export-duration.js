@@ -56,7 +56,7 @@ export function normalizeLoopCount(loopCount) {
  * @param {unknown} options.stepsPerLoop - Materialized note triggers in one pattern cycle.
  * @param {unknown} options.interval - Tone-style note subdivision, such as "16n".
  * @param {unknown} options.bpm - Tempo in beats per minute.
- * @returns {{loopCount: number, stepsPerLoop: number, intervalInSeconds: number, loopDuration: number, totalDuration: number}} Normalized timing values.
+ * @returns {{loopCount: number, stepsPerLoop: number, intervalInSeconds: number, loopDuration: number, patternDuration: number, totalDuration: number}} Normalized timing values.
  */
 export function calculateOfflineExportDuration({ loopCount, stepsPerLoop, interval, bpm }) {
     const safeLoopCount = normalizeLoopCount(loopCount);
@@ -67,13 +67,15 @@ export function calculateOfflineExportDuration({ loopCount, stepsPerLoop, interv
             : 1;
     const intervalInSeconds = getIntervalDurationSeconds(interval, bpm);
     const loopDuration = safeStepsPerLoop * intervalInSeconds;
+    const patternDuration = safeLoopCount * loopDuration;
 
     return {
         loopCount: safeLoopCount,
         stepsPerLoop: safeStepsPerLoop,
         intervalInSeconds,
         loopDuration,
-        totalDuration: safeLoopCount * loopDuration + OFFLINE_RENDER_TAIL_SECONDS,
+        patternDuration,
+        totalDuration: patternDuration + OFFLINE_RENDER_TAIL_SECONDS,
     };
 }
 

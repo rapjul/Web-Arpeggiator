@@ -47,6 +47,7 @@ describe("Export Duration", () => {
             stepsPerLoop: 3,
             intervalInSeconds: 0.25,
             loopDuration: 0.75,
+            patternDuration: 1.5,
             totalDuration: 3.5,
         });
     });

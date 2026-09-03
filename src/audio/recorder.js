@@ -375,6 +375,7 @@ export function createRecorderManager(context) {
                 offlinePattern.start(0);
 
                 offlineContext.transport.start(0);
+                offlineContext.transport.stop(exportDuration.patternDuration);
             }, exportDuration.totalDuration);
 
             const nativeBuffer = /** @type {AudioBuffer} */ (
