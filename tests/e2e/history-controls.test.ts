@@ -121,6 +121,7 @@ test("History controls restore settings, defaults, and persisted state", async (
             }
 
             window.scrollTo(0, transportBar.getBoundingClientRect().top + 24);
+            window.dispatchEvent(new Event('scroll'));
             await new Promise((resolve) => setTimeout(resolve, 350));
             return transportBar.classList.contains('is-stuck') && getComputedStyle(transportBar).borderRadius === '0px'
                 ? 'success'
@@ -136,7 +137,9 @@ test("History controls restore settings, defaults, and persisted state", async (
             const historyButton = document.getElementById('history-menu-button');
             const historyMenu = document.getElementById('history-menu');
             const desktopReset = document.getElementById('reset-defaults-desktop-button');
-            if (!historyButton || !historyMenu || !desktopReset) return 'missing-mobile-history-menu';
+            const undoButton = document.getElementById('history-menu-undo');
+            const redoButton = document.getElementById('history-menu-redo');
+            if (!historyButton || !historyMenu || !desktopReset || !undoButton || !redoButton) return 'missing-mobile-history-menu';
 
             historyButton.click();
             const menuPosition = historyMenu.getBoundingClientRect();
@@ -144,12 +147,24 @@ test("History controls restore settings, defaults, and persisted state", async (
             const visualMenuActions = [...historyMenu.querySelectorAll('button')]
                 .toSorted((first, second) => first.getBoundingClientRect().top - second.getBoundingClientRect().top)
                 .map((action) => action.textContent.trim());
+
+            undoButton.click();
+            const undoFocusRestored = document.activeElement === historyButton && historyMenu.classList.contains('hidden');
+
             historyButton.click();
+            redoButton.click();
+            const redoFocusRestored = document.activeElement === historyButton && historyMenu.classList.contains('hidden');
+
             const showsMobileHistoryMenu = historyButton.getClientRects().length > 0;
             const hidesMobileResetButton = getComputedStyle(desktopReset).display === 'none';
-            return menuPosition.bottom <= buttonPosition.top && showsMobileHistoryMenu && hidesMobileResetButton && visualMenuActions.join('|') === 'Reset All Settings|Redo|Undo'
+            return menuPosition.bottom <= buttonPosition.top &&
+                showsMobileHistoryMenu &&
+                hidesMobileResetButton &&
+                visualMenuActions.join('|') === 'Reset All Settings|Redo|Undo' &&
+                undoFocusRestored &&
+                redoFocusRestored
                 ? 'success'
-                : 'failed-mobile-menu-position';
+                : 'failed-mobile-menu-presentation';
         })()`,
     ]);
     expect(mobileMenuPresentationResult).toBe('"success"');

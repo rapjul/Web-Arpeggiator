@@ -2536,10 +2536,12 @@ function initializeApp() {
     historyMenuUndoButton?.addEventListener("click", () => {
         undoSettings();
         setHistoryMenuOpen(false);
+        historyMenuButton?.focus();
     });
     historyMenuRedoButton?.addEventListener("click", () => {
         redoSettings();
         setHistoryMenuOpen(false);
+        historyMenuButton?.focus();
     });
     historyMenuButton?.addEventListener("click", () => {
         const isOpen = historyMenuButton.getAttribute("aria-expanded") === "true";
