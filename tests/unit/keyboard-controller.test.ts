@@ -81,6 +81,9 @@ describe("Virtual Keyboard Controller", () => {
 
         expect(whiteKeys.length).toBeGreaterThanOrEqual(14);
         expect(blackKeys.length).toBeGreaterThanOrEqual(10);
+
+        const cSharp4 = keyboardVisual.querySelector('[data-note="C#4"]') as HTMLElement;
+        expect(cSharp4.style.getPropertyValue("--black-key-index")).toBe("0");
     });
 
     it("triggers note attack and release on mousedown, mouseup, and mouseleave", () => {

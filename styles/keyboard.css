@@ -1,0 +1,192 @@
+/* KEYBOARD VISUAL CONTAINER - Overall Wrapper (renamed from #keyboard-visual) */
+#keyboard-main-wrapper {
+  display: flex;
+  /* Allow wrapping when there is not enough space, stacking higher octave above lower */
+  flex-wrap: wrap-reverse;
+  gap: 0.5rem;
+  /* Space between octaves */
+  justify-content: center;
+  /* Center the keyboard horizontally */
+  align-items: flex-start;
+  /* Align octaves at the top */
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  height: auto;
+  /* Let content define height */
+  overflow: visible;
+  /* Ensure absolutely positioned black keys are visible */
+  margin-top: 1rem;
+  /* Add some margin above the keyboard */
+}
+
+/* INDIVIDUAL OCTAVE CONTAINER */
+.piano-octave {
+  display: flex;
+  /* Use flex to lay out white keys horizontally within an octave */
+  position: relative;
+  /* Crucial for absolute positioning of black keys within their octave */
+  height: calc(var(--ui-piano-white-key-height) + 1.5rem);
+  /* Total height: white keys 4.5rem, black keys 2.5rem on top */
+  border-radius: var(--ui-radius-sm);
+  /* box-shadow: 0 4px 8px rgb(var(--ui-shadow-rgb) /  0.2); */
+  /* Subtle shadow for octave separation */
+  /* background-color: var(--ui-control); */
+  /* Background to show black keys clearly against */
+}
+
+/* KEYBOARD KEY STYLES - General properties for both white and black keys */
+.piano-key {
+  appearance: none;
+  background: none;
+  border: none;
+  padding: 0;
+  padding-bottom: 0.5rem;
+  box-sizing: border-box;
+  display: flex;
+  align-items: flex-end;
+  /* Align labels at the bottom */
+  justify-content: center;
+  border-radius: 0 0 4px 4px;
+  font-size: 0.75rem;
+  font-weight: bold;
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+  transition:
+    background-color var(--ui-transition-fast),
+    transform var(--ui-transition-fast);
+}
+
+.key-label {
+  position: relative;
+  z-index: var(--ui-z-piano-label);
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.1;
+}
+
+.key-pitch-label {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.key-shortcut-label {
+  font-size: 8px;
+  opacity: 0.75;
+}
+
+/* Ensure white key labels have maximum contrast (dark text) at all times, even when disabled */
+.key-white .key-label {
+  color: var(--ui-key-label);
+  -webkit-text-fill-color: var(--ui-key-label);
+  font-weight: 800;
+  opacity: 1;
+}
+
+/* Ensure black key labels have maximum contrast (light text) at all times, even when disabled */
+.key-black .key-label {
+  color: var(--ui-key-white);
+  -webkit-text-fill-color: var(--ui-key-white);
+  font-weight: 800;
+  opacity: 1;
+}
+
+.piano-key:disabled {
+  opacity: 1;
+  cursor: default;
+}
+
+.key-white {
+  background-color: transparent;
+  color: var(--ui-key-black);
+  height: var(--ui-piano-white-key-height);
+  /* White keys are taller */
+  width: var(--ui-piano-white-key-width);
+  flex-shrink: 0;
+  flex-grow: 0;
+  /* Explicit width for white keys */
+  border: none;
+  z-index: var(--ui-z-base);
+  margin-left: var(--ui-piano-key-overlap);
+  /* Overlap borders for a continuous look */
+  position: relative;
+}
+
+.key-bg-svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.key-bg-path {
+  fill: var(--ui-key-white);
+  stroke: var(--ui-key-border);
+  stroke-width: 1px;
+  vector-effect: non-scaling-stroke;
+  transition: fill var(--ui-transition-fast);
+}
+
+/* First white key in an octave should not have left margin */
+.piano-octave .key-white:first-child {
+  margin-left: 0;
+}
+
+.key-white.active {
+  transform: scale(0.98);
+}
+
+.key-white.active .key-bg-path {
+  fill: var(--ui-key-white-active);
+}
+
+.key-black {
+  background-color: var(--ui-key-black);
+  color: var(--ui-key-white);
+  height: var(--ui-piano-black-key-height);
+  /* Black keys are shorter */
+  width: var(--ui-piano-black-key-width);
+  flex-shrink: 0;
+  flex-grow: 0;
+  /* Explicit width for black keys */
+  z-index: var(--ui-z-piano-black);
+  position: absolute;
+  /* Crucial for overlapping */
+  top: 0;
+  left: calc(
+    (var(--black-key-index, 0) + 1) *
+    var(--ui-piano-white-key-width) -
+    (var(--ui-piano-black-key-width) / 2) +
+    var(--black-key-index, 0) *
+    var(--ui-piano-key-overlap) -
+    1px
+  );
+  border: 1px solid var(--ui-control);
+  border-top: none;
+  /* No top border for a cleaner look */
+  border-radius: 0 0 3px 3px;
+  /* Slightly smaller border radius for black keys */
+}
+
+.key-black.active {
+  background-color: var(--ui-control);
+  transform: scale(0.98);
+}
+
+/* Responsive breakpoint for keyboard split */
+@media (max-width: 768px) {
+  /* Adjust breakpoint as needed */
+  .piano-octave {
+    width: min-content;
+    /* Adjust octave width to content on small screens */
+  }
+}

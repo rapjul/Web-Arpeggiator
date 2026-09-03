@@ -27,8 +27,7 @@
         <!-- Fullscreen overlay for Quick Start onboarding (first-time visitors) -->
         <div
             id="quick-start-overlay"
-            class="fixed inset-0 bg-gray-900/90 flex items-center justify-center z-50 p-4"
-            style="display: none;"
+            class="fixed inset-0 bg-gray-900/90 flex items-center justify-center z-[var(--ui-z-modal)] p-4 is-hidden"
         >
             <div
                 id="quick-start-modal"
@@ -71,7 +70,7 @@
 
         <div
             id="reset-defaults-overlay"
-            class="fixed inset-0 z-[80] hidden items-center justify-center bg-slate-950/80 p-4"
+            class="fixed inset-0 z-[var(--ui-z-modal)] hidden items-center justify-center bg-gray-900/90 p-4"
             aria-hidden="true"
         >
             <div
@@ -118,8 +117,7 @@
         <!-- Fullscreen overlay for audio start (returning users and shared URL links) -->
         <div
             id="start-overlay"
-            class="fixed inset-0 bg-gray-900/90 flex items-center justify-center z-50 cursor-pointer p-4"
-            style="display: none;"
+            class="fixed inset-0 bg-gray-900/90 flex items-center justify-center z-[var(--ui-z-modal)] cursor-pointer p-4 is-hidden"
         >
             <div class="text-center p-8 bg-gray-800 rounded-xl shadow-2xl max-w-md">
                 <h2 class="text-2xl font-bold text-blue-400 mb-2">
@@ -829,9 +827,9 @@
                                         aria-hidden="true"
                                     >
                                         <title>Octave Cycle</title>
-                                        <circle cx="8" cy="24" r="3" fill="#38bdf8" />
-                                        <circle cx="16" cy="16" r="3" fill="#38bdf8" />
-                                        <circle cx="24" cy="8" r="3" fill="#38bdf8" />
+                                        <circle cx="8" cy="24" r="3" fill="var(--ui-accent-soft)" />
+                                        <circle cx="16" cy="16" r="3" fill="var(--ui-accent-soft)" />
+                                        <circle cx="24" cy="8" r="3" fill="var(--ui-accent-soft)" />
                                     </svg>
                                     <span class="text-xs font-medium">
                                         Octave
@@ -863,9 +861,9 @@
                                         aria-hidden="true"
                                     >
                                         <title>Octave Cycle Reverse</title>
-                                        <circle cx="8" cy="8" r="3" fill="#38bdf8" />
-                                        <circle cx="16" cy="16" r="3" fill="#38bdf8" />
-                                        <circle cx="24" cy="24" r="3" fill="#38bdf8" />
+                                        <circle cx="8" cy="8" r="3" fill="var(--ui-accent-soft)" />
+                                        <circle cx="16" cy="16" r="3" fill="var(--ui-accent-soft)" />
+                                        <circle cx="24" cy="24" r="3" fill="var(--ui-accent-soft)" />
                                     </svg>
                                     <span class="text-xs font-medium">
                                         Reversed
@@ -897,11 +895,11 @@
                                         aria-hidden="true"
                                     >
                                         <title>Octave Cycle Ping-Pong</title>
-                                        <circle cx="4" cy="24" r="2.5" fill="#38bdf8" />
-                                        <circle cx="10" cy="16" r="2.5" fill="#38bdf8" />
-                                        <circle cx="16" cy="8" r="2.5" fill="#38bdf8" />
-                                        <circle cx="22" cy="16" r="2.5" fill="#38bdf8" />
-                                        <circle cx="28" cy="24" r="2.5" fill="#38bdf8" />
+                                        <circle cx="4" cy="24" r="2.5" fill="var(--ui-accent-soft)" />
+                                        <circle cx="10" cy="16" r="2.5" fill="var(--ui-accent-soft)" />
+                                        <circle cx="16" cy="8" r="2.5" fill="var(--ui-accent-soft)" />
+                                        <circle cx="22" cy="16" r="2.5" fill="var(--ui-accent-soft)" />
+                                        <circle cx="28" cy="24" r="2.5" fill="var(--ui-accent-soft)" />
                                     </svg>
                                     <span class="text-xs font-medium">
                                         Ping-Pong
@@ -1049,7 +1047,7 @@
                                     id="scale-quantize-toggle"
                                     checked
                                     aria-checked="true"
-                                    class="h-5 w-5 rounded border-radius-full bg-gray-800 border-gray-600 text-blue-500 focus:ring-blue-600"
+                                    class="h-5 w-5 rounded-full bg-gray-800 border-gray-600 text-blue-500 focus:ring-blue-600"
                                 />
                                 <span id="scale-quantize-toggle-status" class="text-sm text-green-400">
                                     Enabled
@@ -1319,9 +1317,11 @@
                                     id="keyboard-toggle"
                                     aria-checked="true"
                                     checked
-                                    class="h-5 w-5 rounded border-radius-full bg-gray-800 border-gray-600 text-blue-500 focus:ring-blue-600"
+                                    class="h-5 w-5 rounded-full bg-gray-800 border-gray-600 text-blue-500 focus:ring-blue-600"
                                 />
-                                <span id="keyboard-toggle-status" class="text-sm">Off</span>
+                                <span id="keyboard-toggle-status" class="text-sm">
+                                    Off
+                                </span>
                             </label>
                         </div>
                     </div>

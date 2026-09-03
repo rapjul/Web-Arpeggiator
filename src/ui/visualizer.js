@@ -81,6 +81,19 @@ export function createVisualizer(context) {
     const meter = audio.meter;
     const peakAnalyser = audio.peakAnalyser;
 
+    const visualizerColors = {
+        wave: "#38bdf8",
+        grid: "#4b5563",
+        label: "#9ca3af",
+        marker: "rgb(156 163 175 / 0.4)",
+        limit: "rgb(239 68 68 / 0.45)",
+        danger: "#dc2626",
+    };
+
+    // Cache for linear gradient elements to avoid allocations on every frame
+    let cachedGradient = null;
+    let cachedGradientHeight = 0;
+
     // --- Internal State ---
     let isVisualizerOn = false;
     let isPaused = false;
@@ -90,6 +103,53 @@ export function createVisualizer(context) {
     let animationFrameId = null;
     let lastTimeStr = "";
     let zoomFactor = 1.0;
+
+    /**
+     * Reads current theme custom properties from the document root into the visualizer color cache.
+     *
+     * @returns {void}
+     */
+    function refreshThemeColors() {
+        if (typeof window === "undefined" || typeof document === "undefined") return;
+        const themeStyles = getComputedStyle(document.documentElement);
+        const themeColor = (token, fallback) =>
+            themeStyles.getPropertyValue(token).trim() || fallback;
+        visualizerColors.wave = themeColor("--ui-visualizer-wave", "#38bdf8");
+        visualizerColors.grid = themeColor("--ui-visualizer-grid", "#4b5563");
+        visualizerColors.label = themeColor("--ui-visualizer-label", "#9ca3af");
+        visualizerColors.marker = themeColor("--ui-visualizer-marker", "rgb(156 163 175 / 0.4)");
+        visualizerColors.limit = themeColor("--ui-visualizer-limit", "rgb(239 68 68 / 0.45)");
+        visualizerColors.danger = themeColor("--ui-danger", "#dc2626");
+        cachedGradient = null;
+        cachedGradientHeight = 0;
+
+        if (isVisualizerOn && !isPaused && (!state?.isPlaying || currentMode === "loopMap")) {
+            runUiUpdate();
+        }
+    }
+
+    refreshThemeColors();
+
+    let themeObserver = null;
+    let colorSchemeMediaQuery = null;
+    let onColorSchemeChange = null;
+
+    if (typeof window !== "undefined" && typeof document !== "undefined") {
+        if (typeof MutationObserver !== "undefined") {
+            themeObserver = new MutationObserver(() => {
+                refreshThemeColors();
+            });
+            themeObserver.observe(document.documentElement, {
+                attributes: true,
+                attributeFilter: ["data-theme", "class", "style"],
+            });
+        }
+        if (typeof window.matchMedia === "function") {
+            colorSchemeMediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+            onColorSchemeChange = () => refreshThemeColors();
+            colorSchemeMediaQuery.addEventListener?.("change", onColorSchemeChange);
+        }
+    }
 
     // --- Rolling Buffer for Oscilloscope ---
     let rollingBuffer = new Float32Array(0);
@@ -115,10 +175,6 @@ export function createVisualizer(context) {
     let cachedLoopMapBuffer = null;
     let cachedLoopMapMarkers = [];
 
-    // Cache for linear gradient elements to avoid allocations on every frame
-    let cachedGradient = null;
-    let cachedGradientHeight = 0;
-
     // Persistent buffer for waveform / FFT values to prevent memory allocations
     const waveformBuffer = analyser ? new Float32Array(analyser.size) : null;
 
@@ -135,12 +191,12 @@ export function createVisualizer(context) {
             return cachedGradient;
         }
         const grad = ctx.createLinearGradient(0, top, 0, height);
-        grad.addColorStop(0.0, "#EF4444"); // Red at +1.5 (highest headroom)
-        grad.addColorStop(0.166, "#EF4444"); // Red at +1.0 (clipping limit boundary)
-        grad.addColorStop(0.167, "#38BDF8"); // Blue/Cyan inside nominal bounds
-        grad.addColorStop(0.833, "#38BDF8"); // Blue/Cyan inside nominal bounds
-        grad.addColorStop(0.834, "#EF4444"); // Red at -1.0 (clipping limit boundary)
-        grad.addColorStop(1.0, "#EF4444"); // Red at -1.5 (lowest headroom)
+        grad.addColorStop(0.0, visualizerColors.danger);
+        grad.addColorStop(0.166, visualizerColors.danger);
+        grad.addColorStop(0.167, visualizerColors.wave);
+        grad.addColorStop(0.833, visualizerColors.wave);
+        grad.addColorStop(0.834, visualizerColors.danger);
+        grad.addColorStop(1.0, visualizerColors.danger);
         cachedGradient = grad;
         cachedGradientHeight = height;
         return grad;
@@ -291,9 +347,9 @@ export function createVisualizer(context) {
     function updateControlsFooterVisibility() {
         if (oscilloscopeWindowContainer) {
             if (currentMode === "oscilloscope") {
-                oscilloscopeWindowContainer.style.display = "flex";
+                oscilloscopeWindowContainer.classList.remove("is-hidden");
             } else {
-                oscilloscopeWindowContainer.style.display = "none";
+                oscilloscopeWindowContainer.classList.add("is-hidden");
             }
         }
     }
@@ -444,7 +500,7 @@ export function createVisualizer(context) {
                     // Draw log-mapped FFT spectrum bar graph
                     const barCount = Math.floor(plotWidth / 3.5);
                     const barWidth = 2;
-                    plotCtx.fillStyle = "#38BDF8";
+                    plotCtx.fillStyle = visualizerColors.wave;
 
                     for (let b = 0; b < barCount; b++) {
                         const ratio = b / barCount;
@@ -521,7 +577,7 @@ export function createVisualizer(context) {
 
                         // Vertical dotted marker line
                         plotCtx.save();
-                        plotCtx.strokeStyle = "rgba(156, 163, 175, 0.4)"; // gray-400
+                        plotCtx.strokeStyle = visualizerColors.marker;
                         plotCtx.setLineDash([3, 3]);
                         plotCtx.beginPath();
                         plotCtx.moveTo(x, topPadding);
@@ -530,7 +586,7 @@ export function createVisualizer(context) {
                         plotCtx.restore();
 
                         // Label trigger note name at top
-                        plotCtx.fillStyle = "#60A5FA"; // blue-400
+                        plotCtx.fillStyle = visualizerColors.wave;
                         plotCtx.font = "bold 9px Arial";
                         plotCtx.textAlign = "center";
                         plotCtx.textBaseline = "top";
@@ -539,10 +595,10 @@ export function createVisualizer(context) {
                 }
 
                 // --- Shared Axes and Labels rendering ---
-                plotCtx.strokeStyle = "#4B5563"; // gray-700
+                plotCtx.strokeStyle = visualizerColors.grid;
                 plotCtx.lineWidth = 1;
                 plotCtx.font = "10px Arial";
-                plotCtx.fillStyle = "#9CA3AF"; // gray-400
+                plotCtx.fillStyle = visualizerColors.label;
 
                 // Plot Area border lines (horizontal bounds only; Y-axis border acts as left boundary)
                 plotCtx.beginPath();
@@ -553,10 +609,10 @@ export function createVisualizer(context) {
                 plotCtx.stroke();
 
                 // Setup Y-axis canvas properties
-                yAxisCtx.strokeStyle = "#4B5563";
+                yAxisCtx.strokeStyle = visualizerColors.grid;
                 yAxisCtx.lineWidth = 1;
                 yAxisCtx.font = "10px Arial";
-                yAxisCtx.fillStyle = "#9CA3AF";
+                yAxisCtx.fillStyle = visualizerColors.label;
 
                 // Y-Axis Ticks
                 if (currentMode === "fft") {
@@ -593,7 +649,7 @@ export function createVisualizer(context) {
                         // Overlay red dashed guidelines at nominal 1.0 / -1.0 limits (0dB ceiling) on plot canvas
                         if (tick === 1.0 || tick === -1.0) {
                             plotCtx.save();
-                            plotCtx.strokeStyle = "rgba(239, 68, 68, 0.45)"; // red-500
+                            plotCtx.strokeStyle = visualizerColors.limit;
                             plotCtx.setLineDash([4, 4]);
                             plotCtx.beginPath();
                             plotCtx.moveTo(leftPadding, y);
@@ -1172,6 +1228,13 @@ export function createVisualizer(context) {
         vuInfoButton?.removeEventListener("click", handleInfoButtonClick);
         document.removeEventListener("keydown", handleDocumentKeydown);
         document.removeEventListener("click", handleDocumentClick);
+        if (themeObserver) {
+            themeObserver.disconnect();
+            themeObserver = null;
+        }
+        colorSchemeMediaQuery?.removeEventListener?.("change", onColorSchemeChange);
+        colorSchemeMediaQuery = null;
+        onColorSchemeChange = null;
         hideClipTooltip();
         hideInfoTooltip();
     }
@@ -1196,5 +1259,9 @@ export function createVisualizer(context) {
         toggle,
         resizeCanvas,
         updateStaticLoopMap,
+        refreshThemeColors,
+        get visualizerColors() {
+            return visualizerColors;
+        },
     };
 }
