@@ -422,13 +422,6 @@ function createWhiteKeyBackground(index) {
     svg.setAttribute("viewBox", "0 0 40 72");
     svg.setAttribute("preserveAspectRatio", "none");
     svg.classList.add("key-bg-svg");
-    svg.style.position = "absolute";
-    svg.style.top = "0";
-    svg.style.left = "0";
-    svg.style.width = "100%";
-    svg.style.height = "100%";
-    svg.style.zIndex = "-1";
-    svg.style.pointerEvents = "none";
 
     const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
     path.classList.add("key-bg-path");

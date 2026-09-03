@@ -629,4 +629,19 @@ describe("Visualizer Module", () => {
             vi.useRealTimers();
         }
     });
+
+    it("refreshes theme colors dynamically when document theme attributes mutate", async () => {
+        const visualizer = createVisualizer({
+            dom: mockDom,
+            audio: mockAudio,
+            state: mockState,
+            actions: mockActions,
+        });
+
+        document.documentElement.setAttribute("data-theme", "light");
+        await new Promise((resolve) => setTimeout(resolve, 10));
+
+        visualizer.destroy();
+        document.documentElement.removeAttribute("data-theme");
+    });
 });

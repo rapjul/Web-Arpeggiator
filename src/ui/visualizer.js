@@ -80,16 +80,62 @@ export function createVisualizer(context) {
     const analyser = audio.analyser;
     const meter = audio.meter;
     const peakAnalyser = audio.peakAnalyser;
-    const themeStyles = getComputedStyle(document.documentElement);
-    const themeColor = (token, fallback) => themeStyles.getPropertyValue(token).trim() || fallback;
+
     const visualizerColors = {
-        wave: themeColor("--ui-visualizer-wave", "#38bdf8"),
-        grid: themeColor("--ui-visualizer-grid", "#4b5563"),
-        label: themeColor("--ui-visualizer-label", "#9ca3af"),
-        marker: themeColor("--ui-visualizer-marker", "rgb(156 163 175 / 0.4)"),
-        limit: themeColor("--ui-visualizer-limit", "rgb(239 68 68 / 0.45)"),
-        danger: themeColor("--ui-danger", "#dc2626"),
+        wave: "#38bdf8",
+        grid: "#4b5563",
+        label: "#9ca3af",
+        marker: "rgb(156 163 175 / 0.4)",
+        limit: "rgb(239 68 68 / 0.45)",
+        danger: "#dc2626",
     };
+
+    // Cache for linear gradient elements to avoid allocations on every frame
+    let cachedGradient = null;
+    let cachedGradientHeight = 0;
+
+    /**
+     * Reads current theme custom properties from the document root into the visualizer color cache.
+     *
+     * @returns {void}
+     */
+    function refreshThemeColors() {
+        if (typeof window === "undefined" || typeof document === "undefined") return;
+        const themeStyles = getComputedStyle(document.documentElement);
+        const themeColor = (token, fallback) =>
+            themeStyles.getPropertyValue(token).trim() || fallback;
+        visualizerColors.wave = themeColor("--ui-visualizer-wave", "#38bdf8");
+        visualizerColors.grid = themeColor("--ui-visualizer-grid", "#4b5563");
+        visualizerColors.label = themeColor("--ui-visualizer-label", "#9ca3af");
+        visualizerColors.marker = themeColor("--ui-visualizer-marker", "rgb(156 163 175 / 0.4)");
+        visualizerColors.limit = themeColor("--ui-visualizer-limit", "rgb(239 68 68 / 0.45)");
+        visualizerColors.danger = themeColor("--ui-danger", "#dc2626");
+        cachedGradient = null;
+        cachedGradientHeight = 0;
+    }
+
+    refreshThemeColors();
+
+    let themeObserver = null;
+    let colorSchemeMediaQuery = null;
+    let onColorSchemeChange = null;
+
+    if (typeof window !== "undefined" && typeof document !== "undefined") {
+        if (typeof MutationObserver !== "undefined") {
+            themeObserver = new MutationObserver(() => {
+                refreshThemeColors();
+            });
+            themeObserver.observe(document.documentElement, {
+                attributes: true,
+                attributeFilter: ["data-theme", "class", "style"],
+            });
+        }
+        if (typeof window.matchMedia === "function") {
+            colorSchemeMediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+            onColorSchemeChange = () => refreshThemeColors();
+            colorSchemeMediaQuery.addEventListener?.("change", onColorSchemeChange);
+        }
+    }
 
     // --- Internal State ---
     let isVisualizerOn = false;
@@ -124,10 +170,6 @@ export function createVisualizer(context) {
     // Cache for background-rendered arpeggio loop data
     let cachedLoopMapBuffer = null;
     let cachedLoopMapMarkers = [];
-
-    // Cache for linear gradient elements to avoid allocations on every frame
-    let cachedGradient = null;
-    let cachedGradientHeight = 0;
 
     // Persistent buffer for waveform / FFT values to prevent memory allocations
     const waveformBuffer = analyser ? new Float32Array(analyser.size) : null;
@@ -1182,6 +1224,13 @@ export function createVisualizer(context) {
         vuInfoButton?.removeEventListener("click", handleInfoButtonClick);
         document.removeEventListener("keydown", handleDocumentKeydown);
         document.removeEventListener("click", handleDocumentClick);
+        if (themeObserver) {
+            themeObserver.disconnect();
+            themeObserver = null;
+        }
+        colorSchemeMediaQuery?.removeEventListener?.("change", onColorSchemeChange);
+        colorSchemeMediaQuery = null;
+        onColorSchemeChange = null;
         hideClipTooltip();
         hideInfoTooltip();
     }
