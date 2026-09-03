@@ -216,10 +216,10 @@ test("UI Micro-Guidance Subtitles & Tooltips Suite", async (): Promise<void> => 
         loopCount.dispatchEvent(new Event('change', { bubbles: true }));
         const maximumLoopEstimate = duration.textContent.trim();
 
-        return basicEstimate === '3 loops at ~0.75s each + 2s reverb tail. Estimated export duration: ~4.25 seconds'
-            && expandedEstimate === '1 loop at ~1.25s each + 2s reverb tail. Estimated export duration: ~3.25 seconds'
-            && minimumLoopEstimate === '1 loop at ~1.25s each + 2s reverb tail. Estimated export duration: ~3.25 seconds'
-            && maximumLoopEstimate === '100 loops at ~1.25s each + 2s reverb tail. Estimated export duration: ~127.00 seconds'
+        return basicEstimate === '3 loops at ~0.75s each + 2s reverb tail. Estimated export duration: ~4.3 seconds'
+            && expandedEstimate === '1 loop at ~1.25s each + 2s reverb tail. Estimated export duration: ~3.3 seconds'
+            && minimumLoopEstimate === '1 loop at ~1.25s each + 2s reverb tail. Estimated export duration: ~3.3 seconds'
+            && maximumLoopEstimate === '100 loops at ~1.25s each + 2s reverb tail. Estimated export duration: ~127.0 seconds'
             && loopCount.value === '100'
             ? 'success'
             : [basicEstimate, expandedEstimate, minimumLoopEstimate, maximumLoopEstimate].join(' / ');

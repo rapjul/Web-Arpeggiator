@@ -106,5 +106,5 @@ export function formatEstimatedExportDuration({ loopCount, stepsPerLoop, interva
             ? `~${Math.round(loopDuration * 1000)}ms`
             : `~${loopDuration.toFixed(2)}s`;
 
-    return `${safeLoopCount} ${loopLabel} at ${formattedLoopDuration} each + ${OFFLINE_RENDER_TAIL_SECONDS}s reverb tail. Estimated export duration: ~${totalDuration.toFixed(2)} seconds`;
+    return `${safeLoopCount} ${loopLabel} at ${formattedLoopDuration} each + ${OFFLINE_RENDER_TAIL_SECONDS}s reverb tail. Estimated export duration: ~${totalDuration.toFixed(1)} seconds`;
 }

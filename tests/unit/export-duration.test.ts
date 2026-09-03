@@ -61,7 +61,7 @@ describe("Export Duration", () => {
                 interval: "8n",
                 bpm: 120,
             }),
-        ).toBe("3 loops at ~1.00s each + 2s reverb tail. Estimated export duration: ~5.00 seconds");
+        ).toBe("3 loops at ~1.00s each + 2s reverb tail. Estimated export duration: ~5.0 seconds");
     });
 
     it("uses milliseconds for very short loops", () => {
@@ -72,9 +72,7 @@ describe("Export Duration", () => {
                 interval: "32n",
                 bpm: 240,
             }),
-        ).toBe(
-            "100 loops at ~31ms each + 2s reverb tail. Estimated export duration: ~5.13 seconds",
-        );
+        ).toBe("100 loops at ~31ms each + 2s reverb tail. Estimated export duration: ~5.1 seconds");
     });
 
     it("uses safe defaults for incomplete or invalid control values", () => {
@@ -86,6 +84,6 @@ describe("Export Duration", () => {
                 interval: "bad",
                 bpm: -1,
             }),
-        ).toBe("1 loop at ~0.13s each + 2s reverb tail. Estimated export duration: ~2.13 seconds");
+        ).toBe("1 loop at ~0.13s each + 2s reverb tail. Estimated export duration: ~2.1 seconds");
     });
 });
