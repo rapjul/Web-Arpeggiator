@@ -69,6 +69,52 @@
             </div>
         </div>
 
+        <div
+            id="reset-defaults-overlay"
+            class="fixed inset-0 z-[80] hidden items-center justify-center bg-slate-950/80 p-4"
+            aria-hidden="true"
+        >
+            <div
+                id="reset-defaults-dialog"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="reset-defaults-title"
+                aria-describedby="reset-defaults-description"
+                class="w-full max-w-md rounded-xl border border-gray-600 bg-gray-800 p-6 shadow-2xl"
+            >
+                <h2 id="reset-defaults-title" class="text-xl font-semibold text-blue-300">
+                    Reset All Settings?
+                </h2>
+                <p
+                    id="reset-defaults-description"
+                    class="mt-3 text-sm text-balance text-gray-300"
+                >
+                    <span class="block">
+                        This restores the built-in arpeggiator defaults.
+                    </span>
+                    <span class="block">
+                        You can undo this action afterward.
+                    </span>
+                </p>
+                <div class="mt-6 flex justify-end gap-3">
+                    <button
+                        id="reset-defaults-cancel"
+                        type="button"
+                        class="rounded-md border border-gray-600 bg-gray-700 px-4 py-2 text-sm font-semibold text-gray-100 transition-all hover:bg-gray-600"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        id="reset-defaults-confirm"
+                        type="button"
+                        class="rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white transition-all hover:bg-red-500"
+                    >
+                        Reset Defaults
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <!-- Fullscreen overlay for audio start (returning users and shared URL links) -->
         <div
             id="start-overlay"
@@ -107,16 +153,82 @@
             <div id="sr-announcements" role="status" aria-live="polite" class="sr-only"></div>
 
             <!-- Card: Main Audio Control -->
-            <div class="col-span-full grid grid-cols-2 gap-6 sticky-transport-bar">
+            <div class="col-span-full sticky-transport-bar">
                 <!-- `onclick` attribute to start the synth -->
-                <button
-                    id="play-stop"
-                    type="button"
-                    aria-label="Press anywhere on screen to enable audio context first (play/stop control currently disabled)"
-                    class="col-span-2 text-lg font-bold py-3 px-6 bg-gray-600 rounded-lg shadow-lg transition-all opacity-50 cursor-not-allowed"
-                >
-                    Enable Audio
-                </button>
+                <div class="grid grid-cols-[minmax(0,1fr)_auto] gap-2 sm:grid-cols-[minmax(0,1fr)_auto_auto_auto]">
+                    <button
+                        id="play-stop"
+                        type="button"
+                        aria-label="Press anywhere on screen to enable audio context first (play/stop control currently disabled)"
+                        class="text-lg font-bold py-3 px-6 bg-gray-600 rounded-lg shadow-lg transition-all opacity-50 cursor-not-allowed"
+                    >
+                        Enable Audio
+                    </button>
+                    <button
+                        id="undo-button"
+                        type="button"
+                        disabled
+                        aria-keyshortcuts="Control+Z Meta+Z"
+                        class="hidden rounded-lg bg-gray-700 px-3 py-2 text-sm font-semibold text-gray-100 shadow-lg transition-all hover:bg-gray-600 disabled:cursor-not-allowed sm:block"
+                    >
+                        Undo
+                    </button>
+                    <button
+                        id="redo-button"
+                        type="button"
+                        disabled
+                        aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z Control+Y Meta+Y"
+                        class="hidden rounded-lg bg-gray-700 px-3 py-2 text-sm font-semibold text-gray-100 shadow-lg transition-all hover:bg-gray-600 disabled:cursor-not-allowed sm:block"
+                    >
+                        Redo
+                    </button>
+                    <button
+                        id="reset-defaults-desktop-button"
+                        type="button"
+                        class="hidden rounded-lg bg-gray-700 px-3 py-2 text-sm font-semibold text-red-300 shadow-lg outline outline-1 outline-red-400 transition-all hover:bg-gray-600 disabled:cursor-not-allowed sm:block"
+                    >
+                        Reset
+                    </button>
+                    <div class="relative sm:hidden">
+                        <button
+                            id="history-menu-button"
+                            type="button"
+                            aria-expanded="false"
+                            aria-controls="history-menu"
+                            class="h-full rounded-lg bg-gray-700 px-3 py-2 text-sm font-semibold text-gray-100 shadow-lg transition-all hover:bg-gray-600"
+                        >
+                            History
+                        </button>
+                        <div
+                            id="history-menu"
+                            class="absolute right-0 bottom-full z-30 mb-2 hidden min-w-48 flex flex-col-reverse rounded-lg border border-gray-600 bg-gray-800 p-1 shadow-xl sm:top-full sm:bottom-auto sm:mt-2 sm:mb-0"
+                        >
+                            <button
+                                id="history-menu-undo"
+                                type="button"
+                                disabled
+                                class="w-full rounded px-3 py-2 text-left text-sm font-semibold text-gray-100 hover:bg-gray-700 disabled:cursor-not-allowed sm:hidden"
+                            >
+                                Undo
+                            </button>
+                            <button
+                                id="history-menu-redo"
+                                type="button"
+                                disabled
+                                class="w-full rounded px-3 py-2 text-left text-sm font-semibold text-gray-100 hover:bg-gray-700 disabled:cursor-not-allowed sm:hidden"
+                            >
+                                Redo
+                            </button>
+                            <button
+                                id="reset-defaults-button"
+                                type="button"
+                                class="w-full rounded px-3 py-2 text-left text-sm font-semibold text-red-300 outline outline-1 outline-red-400 hover:bg-gray-700 disabled:cursor-not-allowed"
+                            >
+                                Reset All Settings
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- Card: Sound Starters (Factory Presets Quick-Load) -->

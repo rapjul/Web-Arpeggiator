@@ -225,9 +225,11 @@ describe("Settings Manager Domain Module", () => {
             updateScaleQuantizeToggleText: vi.fn(),
             updateWaveformButtons: vi.fn(),
             setSynth: vi.fn(),
+            updateEnvelope: vi.fn(),
             updateButtonGroup: vi.fn(),
             syncPatternModuleState: vi.fn(),
             createOrUpdatePattern: vi.fn(),
+            updateEstimatedExportDuration: vi.fn(),
             showToast: vi.fn(),
         };
 
@@ -303,6 +305,8 @@ describe("Settings Manager Domain Module", () => {
         expect(mockActions.setSelectedPatternDirection).toHaveBeenCalledWith("upDown");
         expect(mockActions.updateScaleQuantizeUi).toHaveBeenCalled();
         expect(mockActions.setSynth).toHaveBeenCalledWith("monoSynth");
+        expect(mockActions.updateEnvelope).toHaveBeenCalled();
+        expect(mockActions.updateEstimatedExportDuration).toHaveBeenCalled();
     });
 
     it("handles errors during loadAllSettings gracefully", () => {

@@ -221,8 +221,17 @@ describe("Virtual Keyboard Controller", () => {
 
         // Play key
         notesInput.value = "C4";
+        let patternChangeBubbled = false;
+        document.addEventListener(
+            "change",
+            () => {
+                patternChangeBubbled = true;
+            },
+            { once: true },
+        );
         window.dispatchEvent(new KeyboardEvent("keydown", { key: "x" }));
         expect(notesInput.value).toBe("C4 D4");
+        expect(patternChangeBubbled).toBe(true);
 
         // Turn off Add to Pattern mode
         keyboardModeAddBtn.click();

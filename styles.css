@@ -89,6 +89,14 @@ button:disabled {
   cursor: not-allowed;
 }
 
+.resettable-setting-target {
+  cursor: pointer;
+}
+
+.resettable-setting-target:hover {
+  color: #bae6fd;
+}
+
 /* Style for visualizer container */
 #visualizer-container {
   width: 100%;
@@ -875,5 +883,10 @@ details > summary:focus-visible {
     border-radius: 0.75rem;
     padding: 0.5rem 0.75rem;
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+    transition: border-radius 0.2s ease;
+  }
+
+  .sticky-transport-bar.is-stuck {
+    border-radius: 0;
   }
 }

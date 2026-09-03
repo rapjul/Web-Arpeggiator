@@ -322,7 +322,9 @@ Web Arpeggiator/
 │   │   ├── 0002-modular-es-source-architecture.md
 │   │   ├── 0003-defensive-input-validation-and-edge-case-testing-policy.md
 │   │   ├── 0004-strict-type-safety-and-meaningful-behavioral-testing.md
-│   │   └── 0005-defer-tone-runtime-until-audio-activation.md
+│   │   ├── 0005-defer-tone-runtime-until-audio-activation.md
+│   │   └── 0006-persistent-settings-history-and-default-resets.md
+│   ├── history-and-default-settings.md # Default parameters and settings history reference
 │   ├── midi-specification.md # Standard MIDI specification & implementation reference
 │   └── pattern-directions.md # Detailed pattern descriptions & visual guide
 ├── src/                    # Modular source code
@@ -334,6 +336,7 @@ Web Arpeggiator/
 │   │   ├── midi-export.js  # Standard MIDI File (.mid) binary encoder
 │   │   ├── pattern-core.js # Core note transformations, directions, quantization math
 │   │   ├── randomizer.js   # Musical scale-quantized randomizer
+│   │   ├── settings-history.js # Persistent snapshot history for arpeggiator settings
 │   │   ├── url-preset.js   # URL query parameter preset serialization
 │   │   └── visualizer-math.js # Signal processing & FFT peak detection helpers
 │   ├── audio/              # Web Audio / Tone.js synthesis and scheduling
@@ -459,6 +462,7 @@ Potential areas for expansion:
 - Audio effects expansion (chorus, phaser, distortion)
 - Multi-track recording
 - WebAssembly-based MP3 encoding for performance
+- Contextual per-setting Reset controls that appear only after a value differs from its default.
 
 ## Testing & Defensive Coding Standards
 

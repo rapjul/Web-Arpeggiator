@@ -214,15 +214,17 @@ export async function clear() {
  * Saves the debounced current session snapshot.
  *
  * @param {object} settings - Current app settings.
+ * @param {object | null} [history=null] - Optional undo/redo history state.
  * @returns {Promise<object>} Stored last-session record.
  */
-export async function saveLastSession(settings) {
+export async function saveLastSession(settings, history = null) {
     const settingsSnapshot = cloneSettings(settings);
     const database = await openDatabase();
     const record = {
         id: LAST_SESSION_ID,
         savedAt: new Date().toISOString(),
         settings: settingsSnapshot,
+        history: history && typeof history === "object" ? cloneSettings(history) : null,
     };
 
     const transaction = database.transaction(LAST_SESSION_STORE_NAME, "readwrite");

@@ -351,6 +351,7 @@ Potential features for future versions:
 - Additional synth types (Noise, Membrane, Metal)
 - Per-step velocity and probability controls
 - Multi-track recording and mixing
+- Contextual per-setting Reset controls that appear only after a value differs from its default.
 - Chord voicing suggestions
 - Browser local storage for auto-save
 - Dark mode theme
