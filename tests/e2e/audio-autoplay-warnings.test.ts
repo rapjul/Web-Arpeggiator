@@ -60,15 +60,29 @@ test("defers the Tone runtime until the explicit Start Audio action", async (): 
         "--fn",
         "document.getElementById('play-stop')?.textContent === 'Stop Audio'",
     ]);
-
+    await runBrowser(["click", "#play-stop"]);
     await runBrowser([
-        "eval",
-        "window.__WEB_ARP_TEST__?.Tone?.getContext().rawContext.suspend().then(() => window.startAudio())",
+        "wait",
+        "--fn",
+        "document.getElementById('play-stop')?.textContent === 'Restart Audio'",
     ]);
+
+    await runBrowser(["eval", "window.__WEB_ARP_TEST__?.Tone?.getContext().rawContext.suspend()"]);
+    await runBrowser([
+        "wait",
+        "--fn",
+        "window.__WEB_ARP_TEST__?.Tone?.getContext()?.state === 'suspended'",
+    ]);
+    await runBrowser(["click", "#play-stop"]);
     await runBrowser([
         "wait",
         "--fn",
         "window.__WEB_ARP_TEST__?.Tone?.getContext()?.state === 'running'",
+    ]);
+    await runBrowser([
+        "wait",
+        "--fn",
+        "document.getElementById('play-stop')?.textContent === 'Stop Audio'",
     ]);
 });
 

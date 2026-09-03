@@ -1932,8 +1932,8 @@ function initializeApp() {
             closeQuickStartModal();
             enablePlayStopButton();
             markVisited();
-            await startAudio();
         }
+        await startAudio();
         if (recorderManager && !recorderManager.isRecording) {
             await recorderManager.initRecorder();
         }
