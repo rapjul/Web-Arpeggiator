@@ -97,8 +97,6 @@ export function initializeKeyboardControls(context) {
 
     let currentOctaveTarget = octave1Wrapper;
     let whiteKeyIndexInCurrentOctave = 0;
-    const whiteKeyWidthPx = 40;
-    const blackKeyWidthPx = 24;
 
     visualKeysData.forEach((keyData) => {
         if (keyData.note === "C5") {
@@ -156,15 +154,7 @@ export function initializeKeyboardControls(context) {
                     break;
             }
 
-            const cumulativeMarginOffset = baseWhiteKeyIndexOffset;
-            // Subtract 1px to center the black key perfectly over the white key boundary (which is shifted by cumulative margins)
-            const leftPosition =
-                baseWhiteKeyIndexOffset * whiteKeyWidthPx +
-                whiteKeyWidthPx -
-                blackKeyWidthPx / 2 -
-                cumulativeMarginOffset -
-                1;
-            el.style.setProperty("--key-left", `${leftPosition}px`);
+            el.style.setProperty("--black-key-index", String(baseWhiteKeyIndexOffset));
         }
 
         el.addEventListener("mousedown", (event) => {

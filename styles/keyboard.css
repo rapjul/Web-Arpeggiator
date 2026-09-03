@@ -162,9 +162,14 @@
   position: absolute;
   /* Crucial for overlapping */
   top: 0;
-  left: var(--key-left);
-  /* Align black keys at the top of the octave wrapper */
-  /* 'left' property will be set via JS inline styles */
+  left: calc(
+    (var(--black-key-index, 0) + 1) *
+    var(--ui-piano-white-key-width) -
+    (var(--ui-piano-black-key-width) / 2) +
+    var(--black-key-index, 0) *
+    var(--ui-piano-key-overlap) -
+    1px
+  );
   border: 1px solid var(--ui-control);
   border-top: none;
   /* No top border for a cleaner look */
