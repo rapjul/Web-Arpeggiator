@@ -459,6 +459,7 @@ Potential areas for expansion:
 - Audio effects expansion (chorus, phaser, distortion)
 - Multi-track recording
 - WebAssembly-based MP3 encoding for performance
+- Contextual per-setting Reset controls that appear only after a value differs from its default.
 
 ## Testing & Defensive Coding Standards
 

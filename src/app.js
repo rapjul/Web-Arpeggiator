@@ -19,6 +19,7 @@ import {
 } from "@core/pattern-core.js";
 import { generateRandomNotes } from "@core/randomizer.js";
 import { buildChordString, resolveChordDefinition } from "@core/chord-builder.js";
+import { createSettingsHistory } from "@core/settings-history.js";
 import { createSettingsManager } from "@storage/settings-manager.js";
 import { createToastManager } from "@ui/ui-feedback.js";
 import {
@@ -179,9 +180,61 @@ function initializeApp() {
      * @type {HTMLElement | null}
      */
     const appMain = document.getElementById("app-main");
+    const stickyTransportBar = document.querySelector(".sticky-transport-bar");
+
+    /**
+     * Toggles the square sticky-bar treatment after the desktop transport bar
+     * reaches the viewport edge.
+     *
+     * @returns {void}
+     */
+    function updateStickyTransportAppearance() {
+        if (!stickyTransportBar) return;
+        const isDesktop = window.matchMedia("(min-width: 640px)").matches;
+        const hasReachedViewportTop = stickyTransportBar.getBoundingClientRect().top <= 0;
+        stickyTransportBar.classList.toggle("is-stuck", isDesktop && hasReachedViewportTop);
+    }
+
+    let stickyTransportUpdateScheduled = false;
+    window.addEventListener(
+        "scroll",
+        () => {
+            if (stickyTransportUpdateScheduled) return;
+            stickyTransportUpdateScheduled = true;
+            window.requestAnimationFrame(() => {
+                stickyTransportUpdateScheduled = false;
+                updateStickyTransportAppearance();
+            });
+        },
+        { passive: true },
+    );
+    window.addEventListener("resize", updateStickyTransportAppearance);
+    updateStickyTransportAppearance();
 
     const playStopButton = /** @type {HTMLButtonElement | null} */ (
         document.getElementById("play-stop")
+    );
+    const undoButton = /** @type {HTMLButtonElement | null} */ (
+        document.getElementById("undo-button")
+    );
+    const redoButton = /** @type {HTMLButtonElement | null} */ (
+        document.getElementById("redo-button")
+    );
+    const historyMenuButton = /** @type {HTMLButtonElement | null} */ (
+        document.getElementById("history-menu-button")
+    );
+    const historyMenu = document.getElementById("history-menu");
+    const historyMenuUndoButton = /** @type {HTMLButtonElement | null} */ (
+        document.getElementById("history-menu-undo")
+    );
+    const historyMenuRedoButton = /** @type {HTMLButtonElement | null} */ (
+        document.getElementById("history-menu-redo")
+    );
+    const resetDefaultsButton = /** @type {HTMLButtonElement | null} */ (
+        document.getElementById("reset-defaults-button")
+    );
+    const resetDefaultsDesktopButton = /** @type {HTMLButtonElement | null} */ (
+        document.getElementById("reset-defaults-desktop-button")
     );
 
     /**
@@ -214,6 +267,14 @@ function initializeApp() {
      */
     const quickStartScratchButton = /** @type {HTMLButtonElement | null} */ (
         document.getElementById("quick-start-scratch")
+    );
+    const resetDefaultsOverlay = document.getElementById("reset-defaults-overlay");
+    const resetDefaultsDialog = document.getElementById("reset-defaults-dialog");
+    const resetDefaultsCancelButton = /** @type {HTMLButtonElement | null} */ (
+        document.getElementById("reset-defaults-cancel")
+    );
+    const resetDefaultsConfirmButton = /** @type {HTMLButtonElement | null} */ (
+        document.getElementById("reset-defaults-confirm")
     );
 
     /**
@@ -1020,16 +1081,21 @@ function initializeApp() {
     // Session Manager — Auto-save and workspace restoration
     // ------------------------------------------------------------------
 
+    const settingsHistory = createSettingsHistory();
+
     const sessionManager = createSessionManager({
         getPresetStore: () => window.WebArpPresetStore,
         getSettings: () => getAllSettings(),
-        onRestore: (settings) => {
+        getHistoryState: () => settingsHistory.exportState(),
+        onRestore: (settings, persistedHistory) => {
             loadAllSettings(settings);
+            settingsHistory.restore(persistedHistory, getAllSettings());
             if (getSelectedPatternDirection()) {
                 setSelectedPatternDirection(getSelectedPatternDirection());
             } else {
                 setSelectedPatternDirection("up");
             }
+            updateHistoryControls();
         },
         updateTestState,
     });
@@ -1466,11 +1532,451 @@ function initializeApp() {
         });
     }
 
+    /** @type {Record<string, unknown> | null} */
+    let defaultSettings = null;
+    /** @type {HTMLElement | null} */
+    let resetDialogReturnFocus = null;
+
+    /**
+     * Updates all history action availability states.
+     *
+     * @returns {void}
+     */
+    function updateHistoryControls() {
+        const canUndo = settingsHistory.canUndo();
+        const canRedo = settingsHistory.canRedo();
+        const isAtDefault =
+            defaultSettings !== null &&
+            JSON.stringify(getAllSettings()) === JSON.stringify(defaultSettings);
+
+        if (undoButton) undoButton.disabled = !canUndo;
+        if (redoButton) redoButton.disabled = !canRedo;
+        if (historyMenuUndoButton) historyMenuUndoButton.disabled = !canUndo;
+        if (historyMenuRedoButton) historyMenuRedoButton.disabled = !canRedo;
+        if (resetDefaultsButton) resetDefaultsButton.disabled = isAtDefault;
+        if (resetDefaultsDesktopButton) resetDefaultsDesktopButton.disabled = isAtDefault;
+    }
+
+    /**
+     * Sets the History menu visibility and accessibility state.
+     *
+     * @param {boolean} isOpen - Whether the menu should be shown.
+     * @returns {void}
+     */
+    function setHistoryMenuOpen(isOpen) {
+        if (!historyMenu || !historyMenuButton) return;
+        historyMenu.classList.toggle("hidden", !isOpen);
+        historyMenuButton.setAttribute("aria-expanded", isOpen ? "true" : "false");
+        if (isOpen) {
+            const firstAction = [
+                historyMenuUndoButton,
+                historyMenuRedoButton,
+                resetDefaultsButton,
+            ].find((button) => button && !button.disabled);
+            if (firstAction) firstAction.focus();
+        }
+    }
+
+    /**
+     * Applies a history snapshot without recording another entry.
+     *
+     * @param {Record<string, unknown>} settings - Snapshot to apply.
+     * @returns {void}
+     */
+    function applyHistorySnapshot(settings) {
+        loadAllSettings(settings);
+        clearActiveSoundStarterCard();
+        scheduleLastSessionSave();
+        debouncedRenderStaticLoop();
+        updateHistoryControls();
+    }
+
+    /**
+     * Records the current serialized settings after a user-originated edit.
+     *
+     * @param {boolean} [coalesced=false] - Whether this belongs to a continuous input gesture.
+     * @returns {boolean} Whether history changed.
+     */
+    function recordCurrentSettings(coalesced = false) {
+        const changed = coalesced
+            ? settingsHistory.recordCoalesced(getAllSettings())
+            : settingsHistory.record(getAllSettings());
+        if (changed) updateHistoryControls();
+        return changed;
+    }
+
+    /**
+     * Applies a settings replacement and records it as a single history action.
+     *
+     * @param {Record<string, unknown>} settings - Replacement settings.
+     * @returns {void}
+     */
+    function applySettingsWithHistory(settings) {
+        settingsHistory.endTransaction();
+        loadAllSettings(settings);
+        recordCurrentSettings();
+        clearActiveSoundStarterCard();
+        scheduleLastSessionSave();
+        debouncedRenderStaticLoop();
+    }
+
+    /**
+     * Performs an undo action when history is available.
+     *
+     * @returns {void}
+     */
+    function undoSettings() {
+        const settings = settingsHistory.undo();
+        if (settings) applyHistorySnapshot(settings);
+    }
+
+    /**
+     * Performs a redo action when history is available.
+     *
+     * @returns {void}
+     */
+    function redoSettings() {
+        const settings = settingsHistory.redo();
+        if (settings) applyHistorySnapshot(settings);
+    }
+
+    /**
+     * Opens the confirmation dialog before restoring all defaults.
+     *
+     * @returns {void}
+     */
+    function openResetDefaultsDialog() {
+        if (!resetDefaultsOverlay || !defaultSettings) return;
+        setHistoryMenuOpen(false);
+        resetDialogReturnFocus = /** @type {HTMLElement | null} */ (document.activeElement);
+        resetDefaultsOverlay.classList.remove("hidden");
+        resetDefaultsOverlay.classList.add("flex");
+        resetDefaultsOverlay.setAttribute("aria-hidden", "false");
+        if (appMain) appMain.setAttribute("inert", "");
+        resetDefaultsConfirmButton?.focus();
+    }
+
+    /**
+     * Closes the default-reset confirmation dialog.
+     *
+     * @returns {void}
+     */
+    function closeResetDefaultsDialog() {
+        if (!resetDefaultsOverlay) return;
+        resetDefaultsOverlay.classList.add("hidden");
+        resetDefaultsOverlay.classList.remove("flex");
+        resetDefaultsOverlay.setAttribute("aria-hidden", "true");
+        if (appMain) appMain.removeAttribute("inert");
+        resetDialogReturnFocus?.focus();
+        resetDialogReturnFocus = null;
+    }
+
+    /**
+     * Resets the entire serialized workspace to its captured defaults.
+     *
+     * @returns {void}
+     */
+    function resetAllSettings() {
+        if (!defaultSettings) return;
+        closeResetDefaultsDialog();
+        applySettingsWithHistory(defaultSettings);
+        showToast("Restored default settings. Undo is available.", "info");
+    }
+
     /**
      * Tracks the last selected non-chromatic scale type so it can be restored when re-enabling.
      * @type {string}
      */
     let lastActiveScaleType = "major";
+
+    const resetDefinitions = [
+        {
+            name: "Post Gain",
+            keys: ["postGain"],
+            controls: [postGainSlider],
+            targets: ["label[for='post-gain']", "#post-gain-value"],
+        },
+        {
+            name: "BPM",
+            keys: ["bpm"],
+            controls: [bpmSlider],
+            targets: ["label[for='bpm']", "#bpm-value"],
+        },
+        {
+            name: "Swing",
+            keys: ["swing"],
+            controls: [swingSlider],
+            targets: ["label[for='swing']", "#swing-value"],
+        },
+        {
+            name: "Notes",
+            keys: ["baseNotes"],
+            controls: [notesInput],
+            targets: ["label[for='notes']"],
+        },
+        {
+            name: "Pattern Direction",
+            keys: ["direction"],
+            controls: [patternButtons],
+            targets: ["#pattern-label"],
+        },
+        {
+            name: "Note Duration",
+            keys: ["interval"],
+            controls: [intervalSelect],
+            targets: ["label[for='interval']"],
+        },
+        {
+            name: "Scale Mode",
+            keys: ["scaleQuantize", "scaleType"],
+            controls: [scaleQuantizeToggle, scaleTypeSelect],
+            targets: ["#scale-quantization-title"],
+        },
+        {
+            name: "Scale Root",
+            keys: ["scaleRoot"],
+            controls: [scaleRootSelect],
+            targets: ["label[for='scale-root']"],
+        },
+        {
+            name: "Synth Type",
+            keys: ["synthType"],
+            controls: [synthTypeSelect],
+            targets: ["label[for='synth-type']"],
+        },
+        {
+            name: "Waveform",
+            keys: ["waveform"],
+            controls: [waveformButtons],
+            targets: ["#waveform-label"],
+        },
+        {
+            name: "Duty Cycle",
+            keys: ["dutyCycle"],
+            controls: [dutySlider],
+            targets: ["label[for='duty-cycle']", "#duty-value"],
+        },
+        {
+            name: "Harmonicity",
+            keys: ["harmonicity"],
+            controls: [harmonicitySlider],
+            targets: ["label[for='harmonicity']", "#harmonicity-value"],
+        },
+        {
+            name: "Modulation Index",
+            keys: ["modulationIndex"],
+            controls: [modIndexSlider],
+            targets: ["label[for='modulation-index']", "#modulation-index-value"],
+        },
+        {
+            name: "Mono Cutoff",
+            keys: ["monoCutoff"],
+            controls: [monoCutoffSlider],
+            targets: ["label[for='mono-cutoff']", "#mono-cutoff-value"],
+        },
+        {
+            name: "Mono Octaves",
+            keys: ["monoOctaves"],
+            controls: [monoOctavesSlider],
+            targets: ["label[for='mono-octaves']", "#mono-octaves-value"],
+        },
+        {
+            name: "Mono Resonance",
+            keys: ["monoQ"],
+            controls: [monoQSlider],
+            targets: ["label[for='mono-q']", "#mono-q-value"],
+        },
+        {
+            name: "Duo Harmonicity",
+            keys: ["duoHarm"],
+            controls: [duoHarmSlider],
+            targets: ["label[for='duo-harm']", "#duo-harm-value"],
+        },
+        {
+            name: "Duo Vibrato",
+            keys: ["duoVibrato"],
+            controls: [duoVibratoSlider],
+            targets: ["label[for='duo-vibrato']", "#duo-vibrato-value"],
+        },
+        {
+            name: "Pluck Dampening",
+            keys: ["pluckDampening"],
+            controls: [pluckDampeningSlider],
+            targets: ["label[for='pluck-dampening']", "#pluck-dampening-value"],
+        },
+        {
+            name: "Pluck Resonance",
+            keys: ["pluckResonance"],
+            controls: [pluckResonanceSlider],
+            targets: ["label[for='pluck-resonance']", "#pluck-resonance-value"],
+        },
+        {
+            name: "Pluck Noise",
+            keys: ["pluckNoise"],
+            controls: [pluckNoiseSlider],
+            targets: ["label[for='pluck-noise']", "#pluck-noise-value"],
+        },
+        {
+            name: "Membrane Pitch Decay",
+            keys: ["membranePitchDecay"],
+            controls: [membranePitchDecaySlider],
+            targets: ["label[for='membrane-pitch-decay']", "#membrane-pitch-decay-value"],
+        },
+        {
+            name: "Membrane Octaves",
+            keys: ["membraneOctaves"],
+            controls: [membraneOctavesSlider],
+            targets: ["label[for='membrane-octaves']", "#membrane-octaves-value"],
+        },
+        {
+            name: "Gate",
+            keys: ["gateRatio"],
+            controls: [gateSlider],
+            targets: ["label[for='gate']", "#gate-value"],
+        },
+        {
+            name: "Attack",
+            keys: ["envAttack"],
+            controls: [envAttackSlider],
+            targets: ["label[for='env-attack']", "#env-attack-value"],
+        },
+        {
+            name: "Decay",
+            keys: ["envDecay"],
+            controls: [envDecaySlider],
+            targets: ["label[for='env-decay']", "#env-decay-value"],
+        },
+        {
+            name: "Sustain",
+            keys: ["envSustain"],
+            controls: [envSustainSlider],
+            targets: ["label[for='env-sustain']", "#env-sustain-value"],
+        },
+        {
+            name: "Release",
+            keys: ["envRelease"],
+            controls: [envReleaseSlider],
+            targets: ["label[for='env-release']", "#env-release-value"],
+        },
+        {
+            name: "Filter Cutoff",
+            keys: ["filterCutoff"],
+            controls: [filterCutoffSlider],
+            targets: ["label[for='filter-cutoff']", "#filter-cutoff-value"],
+        },
+        {
+            name: "Filter Resonance",
+            keys: ["filterResonance"],
+            controls: [filterResonanceSlider],
+            targets: ["label[for='filter-resonance']", "#filter-resonance-value"],
+        },
+        {
+            name: "Drive",
+            keys: ["driveMix"],
+            controls: [driveMixSlider],
+            targets: ["label[for='drive-mix']", "#drive-mix-value"],
+        },
+        {
+            name: "Chorus",
+            keys: ["chorusMix"],
+            controls: [chorusMixSlider],
+            targets: ["label[for='chorus-mix']", "#chorus-mix-value"],
+        },
+        {
+            name: "Auto-Pan",
+            keys: ["autoPanMix"],
+            controls: [autoPanMixSlider],
+            targets: ["label[for='autopan-mix']", "#autopan-mix-value"],
+        },
+        {
+            name: "Delay",
+            keys: ["delayMix"],
+            controls: [delayMixSlider],
+            targets: ["label[for='delay-mix']", "#delay-mix-value"],
+        },
+        {
+            name: "Reverb",
+            keys: ["reverbMix"],
+            controls: [reverbMixSlider],
+            targets: ["label[for='reverb-mix']", "#reverb-mix-value"],
+        },
+        {
+            name: "Octave Shift",
+            keys: ["octaveShift"],
+            controls: [octaveShiftButtons],
+            targets: ["#octave-shift-label"],
+        },
+        {
+            name: "Octave Layers",
+            keys: ["octaveRange"],
+            controls: [octaveRangeButtons],
+            targets: ["#octave-range-label"],
+        },
+        {
+            name: "Export Loops",
+            keys: ["loopCount"],
+            controls: [loopCountInput],
+            targets: ["label[for='loop-count']"],
+        },
+    ];
+
+    /**
+     * Applies the captured defaults for a logical settings group.
+     *
+     * @param {{name: string, keys: string[]}} definition - Resettable settings definition.
+     * @returns {void}
+     */
+    function resetIndividualSettings(definition) {
+        if (!defaultSettings) return;
+        const next = { ...getAllSettings() };
+        definition.keys.forEach((key) => {
+            next[key] = defaultSettings[key];
+        });
+        applySettingsWithHistory(next);
+        showToast(`Reset ${definition.name} to default.`, "info");
+    }
+
+    /**
+     * Wires double-click and keyboard reset gestures without adding permanent controls.
+     *
+     * @returns {void}
+     */
+    function registerIndividualResetGestures() {
+        resetDefinitions.forEach((definition) => {
+            const hint = `Double-click to reset ${definition.name}. Press Escape while focused to reset.`;
+            definition.targets.forEach((selector) => {
+                const target = document.querySelector(selector);
+                if (!target) return;
+                target.setAttribute("title", hint);
+                target.classList.add("resettable-setting-target");
+                target.addEventListener("dblclick", (event) => {
+                    event.preventDefault();
+                    resetIndividualSettings(definition);
+                });
+            });
+            definition.controls.forEach((control) => {
+                if (!control) return;
+                control.setAttribute("aria-description", hint);
+            });
+        });
+    }
+
+    /**
+     * Finds the reset definition associated with the focused element.
+     *
+     * @param {Element | null} element - Focused element.
+     * @returns {{name: string, keys: string[], controls: Element[]} | null} Matching definition.
+     */
+    function getFocusedResetDefinition(element) {
+        if (!element) return null;
+        return (
+            resetDefinitions.find((definition) =>
+                definition.controls.some(
+                    (control) => control === element || control?.contains(element),
+                ),
+            ) || null
+        );
+    }
 
     /**
      * Updates the UI for the quantizer (enables/disables visual emphasis without locking dropdowns).
@@ -1587,8 +2093,7 @@ function initializeApp() {
         const settings = parsePresetFromUrlParams(window.location.search, current);
         if (!settings || !hasPresetChanges(settings, current)) return;
 
-        clearActiveSoundStarterCard();
-        loadAllSettings(settings);
+        applySettingsWithHistory(settings);
         showToast("Preset loaded from URL link!", "success");
     }
 
@@ -1676,7 +2181,7 @@ function initializeApp() {
             card.appendChild(tagline);
 
             card.addEventListener("click", async () => {
-                loadAllSettings(preset.settings);
+                applySettingsWithHistory(preset.settings);
                 if (presetNameInput) {
                     presetNameInput.value = preset.name;
                 }
@@ -1869,7 +2374,7 @@ function initializeApp() {
         closeQuickStartModal();
         enablePlayStopButton();
         markVisited();
-        loadAllSettings(preset.settings);
+        applySettingsWithHistory(preset.settings);
         if (presetNameInput) {
             presetNameInput.value = preset.name;
         }
@@ -2021,6 +2526,91 @@ function initializeApp() {
             }
         }
     });
+
+    undoButton?.addEventListener("click", undoSettings);
+    redoButton?.addEventListener("click", redoSettings);
+    historyMenuUndoButton?.addEventListener("click", () => {
+        undoSettings();
+        setHistoryMenuOpen(false);
+    });
+    historyMenuRedoButton?.addEventListener("click", () => {
+        redoSettings();
+        setHistoryMenuOpen(false);
+    });
+    historyMenuButton?.addEventListener("click", () => {
+        const isOpen = historyMenuButton.getAttribute("aria-expanded") === "true";
+        setHistoryMenuOpen(!isOpen);
+    });
+    resetDefaultsButton?.addEventListener("click", openResetDefaultsDialog);
+    resetDefaultsDesktopButton?.addEventListener("click", openResetDefaultsDialog);
+    resetDefaultsCancelButton?.addEventListener("click", closeResetDefaultsDialog);
+    resetDefaultsConfirmButton?.addEventListener("click", resetAllSettings);
+    resetDefaultsOverlay?.addEventListener("click", (event) => {
+        if (event.target === resetDefaultsOverlay) closeResetDefaultsDialog();
+    });
+    resetDefaultsDialog?.addEventListener("keydown", (event) => {
+        if (event.key !== "Tab") return;
+        const focusable = Array.from(
+            resetDefaultsDialog.querySelectorAll("button:not([disabled])"),
+        );
+        const firstElement = focusable[0];
+        const lastElement = focusable[focusable.length - 1];
+        if (!firstElement || !lastElement) return;
+        if (event.shiftKey && document.activeElement === firstElement) {
+            event.preventDefault();
+            lastElement.focus();
+        } else if (!event.shiftKey && document.activeElement === lastElement) {
+            event.preventDefault();
+            firstElement.focus();
+        }
+    });
+
+    document.addEventListener("click", (event) => {
+        const target = /** @type {Element} */ (event.target);
+        if (target.closest("#history-menu, #history-menu-button")) return;
+        setHistoryMenuOpen(false);
+    });
+
+    window.addEventListener(
+        "keydown",
+        (event) => {
+            const resetDialogOpen = resetDefaultsOverlay?.getAttribute("aria-hidden") === "false";
+            if (event.key === "Escape" && resetDialogOpen) {
+                event.preventDefault();
+                closeResetDefaultsDialog();
+                return;
+            }
+
+            const historyMenuOpen = historyMenuButton?.getAttribute("aria-expanded") === "true";
+            if (event.key === "Escape" && historyMenuOpen) {
+                event.preventDefault();
+                setHistoryMenuOpen(false);
+                historyMenuButton?.focus();
+                return;
+            }
+
+            const usesModifier = event.ctrlKey || event.metaKey;
+            const key = event.key.toLowerCase();
+            const isUndo = usesModifier && !event.shiftKey && key === "z";
+            const isRedo = usesModifier && ((event.shiftKey && key === "z") || key === "y");
+            if (isUndo || isRedo) {
+                event.preventDefault();
+                event.stopImmediatePropagation();
+                if (isUndo) undoSettings();
+                else redoSettings();
+                return;
+            }
+
+            if (event.key === "Escape") {
+                const definition = getFocusedResetDefinition(document.activeElement);
+                if (definition) {
+                    event.preventDefault();
+                    resetIndividualSettings(definition);
+                }
+            }
+        },
+        true,
+    );
 
     /**
      * Debounced wrapper to update the synth envelope.
@@ -2700,8 +3290,7 @@ function initializeApp() {
             if (fileReaderTarget && typeof fileReaderTarget.result === "string") {
                 try {
                     const settings = JSON.parse(fileReaderTarget.result);
-                    clearActiveSoundStarterCard();
-                    loadAllSettings(settings);
+                    applySettingsWithHistory(settings);
                     updateTestState({ lastImportedPreset: settings });
                     if (window.WebArpPresetStore) {
                         window.WebArpPresetStore.save(settings, {
@@ -2732,7 +3321,7 @@ function initializeApp() {
             // Check if selected preset is a Factory Preset
             const factoryPreset = FACTORY_PRESETS.find((p) => p.id === selectedId);
             if (factoryPreset) {
-                loadAllSettings(factoryPreset.settings);
+                applySettingsWithHistory(factoryPreset.settings);
                 if (presetNameInput) presetNameInput.value = factoryPreset.name;
                 setActiveSoundStarterCard(factoryPreset.id);
                 updateTestState({
@@ -2764,8 +3353,7 @@ function initializeApp() {
                     showToast("No saved preset found yet.", "info");
                     return;
                 }
-                clearActiveSoundStarterCard();
-                loadAllSettings(record.settings || record);
+                applySettingsWithHistory(record.settings || record);
                 if (presetNameInput) presetNameInput.value = record.name || record.filename || "";
                 await refreshSavedPresetList(record.id);
                 updateTestState({
@@ -2936,6 +3524,7 @@ function initializeApp() {
         const target = /** @type {Element} */ (event.target);
         if (target === pwaTestStateField || target === presetNameInput) return;
         if (target.matches("input, select, textarea")) {
+            recordCurrentSettings(true);
             clearActiveSoundStarterCard();
             scheduleLastSessionSave();
             if (target !== loopCountInput) {
@@ -2955,6 +3544,8 @@ function initializeApp() {
         )
             return;
         if (target.matches("input, select, textarea")) {
+            settingsHistory.endTransaction();
+            recordCurrentSettings();
             clearActiveSoundStarterCard();
             scheduleLastSessionSave();
             if (target !== loopCountInput) {
@@ -2971,6 +3562,7 @@ function initializeApp() {
                 ".pattern-btn, .waveform-btn, #octave-shift-buttons, #octave-range-buttons",
             )
         ) {
+            recordCurrentSettings();
             clearActiveSoundStarterCard();
             scheduleLastSessionSave();
             debouncedRenderStaticLoop();
@@ -2989,6 +3581,10 @@ function initializeApp() {
             isAudioContextStarted,
         }),
         getAudioRuntimeConstructionCount: () => audioRuntimeConstructionCount,
+        getHistoryState: () => settingsHistory.exportState(),
+        undo: undoSettings,
+        redo: redoSettings,
+        resetDefaults: resetAllSettings,
         getLoopMapState: () => ({
             renderCount: window.__WEB_ARP_TEST__?.loopMapRenderCount || 0,
             markers: window.__WEB_ARP_TEST__?.lastLoopMapRenderMarkers || [],
@@ -3035,7 +3631,7 @@ function initializeApp() {
                 });
                 return null;
             }
-            loadAllSettings(record.settings || record);
+            applySettingsWithHistory(record.settings || record);
             await refreshSavedPresetList(record.id);
             updateTestState({
                 lastLoadedPreset: record.settings || record,
@@ -3152,6 +3748,10 @@ function initializeApp() {
     syncPatternModuleState();
     createOrUpdatePattern();
 
+    defaultSettings = getAllSettings();
+    settingsHistory.initialize(defaultSettings);
+    registerIndividualResetGestures();
+    updateHistoryControls();
     buildSoundStartersStrip();
 
     if (startOverlay) {

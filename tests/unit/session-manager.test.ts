@@ -34,6 +34,7 @@ describe("Session Manager Domain Module", () => {
     describe("createSessionManager", () => {
         it("saves session immediately via saveNow and reports test state", async () => {
             const savedSettings = { bpm: 140, notes: "C4 E4 G4" };
+            const savedHistory = { past: [], present: savedSettings, future: [] };
             const updatedState: Record<string, unknown> = {};
 
             const mockPresetStore = {
@@ -46,13 +47,17 @@ describe("Session Manager Domain Module", () => {
             const session = createSessionManager({
                 getPresetStore: () => mockPresetStore,
                 getSettings: () => savedSettings,
+                getHistoryState: () => savedHistory,
                 onRestore: vi.fn(),
                 updateTestState: (updates) => Object.assign(updatedState, updates),
             });
 
             await session.saveNow();
 
-            expect(mockPresetStore.saveLastSession).toHaveBeenCalledWith(savedSettings);
+            expect(mockPresetStore.saveLastSession).toHaveBeenCalledWith(
+                savedSettings,
+                savedHistory,
+            );
             expect(updatedState.lastSessionId).toBe("session-123");
             expect(updatedState.lastSessionSavedAt).toBe("2026-08-29T16:00:00Z");
         });
@@ -117,17 +122,23 @@ describe("Session Manager Domain Module", () => {
         });
 
         it("restores last saved session from preset store and manages isRestoring state", async () => {
-            const restoredPayload: Record<string, unknown>[] = [];
+            const restoredPayload: Array<{ settings: Record<string, unknown>; history: unknown }> =
+                [];
             const mockPresetStore = {
                 loadLastSession: vi.fn().mockResolvedValue({
                     settings: { bpm: 135, patternDirection: "down" },
+                    history: {
+                        past: [],
+                        present: { bpm: 135, patternDirection: "down" },
+                        future: [],
+                    },
                 }),
             };
 
             const session = createSessionManager({
                 getPresetStore: () => mockPresetStore,
                 getSettings: () => ({}),
-                onRestore: (settings) => restoredPayload.push(settings),
+                onRestore: (settings, history) => restoredPayload.push({ settings, history }),
             });
 
             expect(session.getIsRestoring()).toBe(false);
@@ -135,7 +146,16 @@ describe("Session Manager Domain Module", () => {
 
             expect(success).toBe(true);
             expect(session.getIsRestoring()).toBe(false);
-            expect(restoredPayload).toEqual([{ bpm: 135, patternDirection: "down" }]);
+            expect(restoredPayload).toEqual([
+                {
+                    settings: { bpm: 135, patternDirection: "down" },
+                    history: {
+                        past: [],
+                        present: { bpm: 135, patternDirection: "down" },
+                        future: [],
+                    },
+                },
+            ]);
         });
 
         it("handles loadLastSession returning empty/null settings", async () => {

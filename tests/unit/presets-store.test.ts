@@ -226,10 +226,16 @@ describe("Presets Store Domain Module", () => {
 
         it("saves and loads the workspace last-session snapshot", async () => {
             const sessionSettings = { bpm: 150, currentNotes: ["F4", "A4", "C5"] };
-            const record = await saveLastSession(sessionSettings);
+            const history = {
+                past: [{ bpm: 120 }],
+                present: sessionSettings,
+                future: [],
+            };
+            const record = await saveLastSession(sessionSettings, history);
 
             expect(record.id).toBe("current");
             expect(record.settings).toEqual(sessionSettings);
+            expect(record.history).toEqual(history);
 
             const loaded = await loadLastSession();
             expect(loaded).toEqual(record);

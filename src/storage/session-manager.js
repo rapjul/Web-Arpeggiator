@@ -30,13 +30,21 @@ export function debounce(func, wait) {
  * @param {object} options - Configuration options for session management.
  * @param {() => any} options.getPresetStore - Accessor for WebArpPresetStore instance.
  * @param {() => Record<string, unknown>} options.getSettings - Accessor for serialized settings snapshot.
- * @param {(settings: Record<string, unknown>) => void} options.onRestore - Callback when a previous session is restored.
+ * @param {() => Record<string, unknown> | null} [options.getHistoryState] - Accessor for undo/redo history state.
+ * @param {(settings: Record<string, unknown>, history: Record<string, unknown> | null) => void} options.onRestore - Callback when a previous session is restored.
  * @param {(updates: Record<string, unknown>) => void} [options.updateTestState] - Callback to report test state mirror updates.
  * @param {number} [options.delayMs=2000] - Auto-save debounce delay in milliseconds.
  * @returns {object} Session manager controller.
  */
 export function createSessionManager(options) {
-    const { getPresetStore, getSettings, onRestore, updateTestState, delayMs = 2000 } = options;
+    const {
+        getPresetStore,
+        getSettings,
+        getHistoryState,
+        onRestore,
+        updateTestState,
+        delayMs = 2000,
+    } = options;
 
     let saveTimer = null;
     let isRestoring = false;
@@ -53,7 +61,8 @@ export function createSessionManager(options) {
         }
         try {
             const settings = getSettings();
-            const record = await store.saveLastSession(settings);
+            const history = typeof getHistoryState === "function" ? getHistoryState() : null;
+            const record = await store.saveLastSession(settings, history);
             if (updateTestState && record) {
                 updateTestState({
                     lastSessionId: record.id,
@@ -112,7 +121,7 @@ export function createSessionManager(options) {
             const record = await store.loadLastSession();
             if (record?.settings) {
                 isRestoring = true;
-                onRestore(record.settings);
+                onRestore(record.settings, record.history || null);
                 isRestoring = false;
                 if (updateTestState) {
                     updateTestState({ lastSessionRestoreFinished: true });
