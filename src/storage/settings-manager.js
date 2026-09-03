@@ -253,6 +253,9 @@ export function createSettingsManager(context) {
                 dom.envReleaseSlider.value = settings.envRelease;
                 dom.envReleaseValue.textContent = settings.envRelease.toFixed(2);
             }
+            if (typeof actions.updateEnvelope === "function") {
+                actions.updateEnvelope();
+            }
 
             state.currentOctaveShift = settings.octaveShift;
             state.currentOctaveRange = settings.octaveRange;
@@ -308,6 +311,9 @@ export function createSettingsManager(context) {
 
             actions.syncPatternModuleState();
             actions.createOrUpdatePattern();
+            if (typeof actions.updateEstimatedExportDuration === "function") {
+                actions.updateEstimatedExportDuration();
+            }
         } catch (error) {
             console.error("Failed to parse preset:", error);
             if (typeof actions.showToast === "function") {

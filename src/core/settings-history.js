@@ -17,6 +17,43 @@ function isSettingsRecord(value) {
 }
 
 /**
+ * Returns whether a persisted snapshot matches the live serialized-settings schema.
+ *
+ * @param {unknown} snapshot - Persisted snapshot to validate.
+ * @param {unknown} schema - Live settings value that defines the expected shape.
+ * @returns {boolean} Whether the snapshot is compatible with the live settings schema.
+ */
+function matchesSettingsSchema(snapshot, schema) {
+    if (Array.isArray(schema)) {
+        return (
+            Array.isArray(snapshot) &&
+            (schema.length === 0 ||
+                snapshot.every((value) => matchesSettingsSchema(value, schema[0])))
+        );
+    }
+
+    if (isSettingsRecord(schema)) {
+        if (!isSettingsRecord(snapshot)) return false;
+        const schemaKeys = Object.keys(schema);
+        const snapshotKeys = Object.keys(snapshot);
+        return (
+            schemaKeys.length === snapshotKeys.length &&
+            schemaKeys.every(
+                (key) =>
+                    Object.hasOwn(snapshot, key) &&
+                    matchesSettingsSchema(snapshot[key], schema[key]),
+            )
+        );
+    }
+
+    if (typeof schema === "number") {
+        return typeof snapshot === "number" && Number.isFinite(snapshot);
+    }
+
+    return typeof snapshot === typeof schema;
+}
+
+/**
  * Deep-clones a serializable settings record.
  *
  * @param {Record<string, unknown>} settings - Settings snapshot to clone.
@@ -148,7 +185,11 @@ export function createSettingsHistory(options = {}) {
      * @returns {boolean} Whether persisted history was accepted.
      */
     function restore(state, fallback) {
-        if (!isSettingsRecord(state) || !isSettingsRecord(state.present)) {
+        if (
+            !isSettingsRecord(state) ||
+            !isSettingsRecord(fallback) ||
+            !matchesSettingsSchema(state.present, fallback)
+        ) {
             initialize(fallback);
             return false;
         }
@@ -158,8 +199,8 @@ export function createSettingsHistory(options = {}) {
         if (
             !rawPast ||
             !rawFuture ||
-            !rawPast.every(isSettingsRecord) ||
-            !rawFuture.every(isSettingsRecord) ||
+            !rawPast.every((snapshot) => matchesSettingsSchema(snapshot, fallback)) ||
+            !rawFuture.every((snapshot) => matchesSettingsSchema(snapshot, fallback)) ||
             !snapshotsEqual(state.present, fallback)
         ) {
             initialize(fallback);

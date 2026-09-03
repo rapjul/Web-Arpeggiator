@@ -1,4 +1,4 @@
-# 0005. Persistent Settings History and Default Resets
+# 0006. Persistent Settings History and Default Resets
 
 * Status: accepted
 * Deciders: rapjul, Codex

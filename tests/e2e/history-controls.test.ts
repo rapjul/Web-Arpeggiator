@@ -38,10 +38,15 @@ test("History controls restore settings, defaults, and persisted state", async (
             const confirm = document.getElementById('reset-defaults-confirm');
             const cancel = document.getElementById('reset-defaults-cancel');
             const resetOverlay = document.getElementById('reset-defaults-overlay');
+            const presetName = document.getElementById('preset-name-input');
 
-            if (!bpm || !bpmValue || !undo || !redo || !historyButton || !historyMenu || !reset || !desktopReset || !confirm || !cancel || !resetOverlay) {
+            if (!bpm || !bpmValue || !undo || !redo || !historyButton || !historyMenu || !reset || !desktopReset || !confirm || !cancel || !resetOverlay || !presetName) {
                 return 'missing-history-controls';
             }
+
+            const nativeUndo = new KeyboardEvent('keydown', { key: 'z', ctrlKey: true, bubbles: true, cancelable: true });
+            presetName.dispatchEvent(nativeUndo);
+            if (nativeUndo.defaultPrevented) return 'blocked-preset-name-native-undo';
 
             bpm.value = '150';
             bpm.dispatchEvent(new Event('input', { bubbles: true }));
@@ -74,7 +79,7 @@ test("History controls restore settings, defaults, and persisted state", async (
             bpm.dispatchEvent(new Event('input', { bubbles: true }));
             bpm.dispatchEvent(new Event('change', { bubbles: true }));
             historyButton.click();
-            const menuActions = [...historyMenu.querySelectorAll('[role="menuitem"]')];
+            const menuActions = [...historyMenu.querySelectorAll('button')];
             if (menuActions.map((action) => action.textContent.trim()).join('|') !== 'Undo|Redo|Reset All Settings') {
                 return 'failed-menu-order';
             }
@@ -136,7 +141,7 @@ test("History controls restore settings, defaults, and persisted state", async (
             historyButton.click();
             const menuPosition = historyMenu.getBoundingClientRect();
             const buttonPosition = historyButton.getBoundingClientRect();
-            const visualMenuActions = [...historyMenu.querySelectorAll('[role="menuitem"]')]
+            const visualMenuActions = [...historyMenu.querySelectorAll('button')]
                 .toSorted((first, second) => first.getBoundingClientRect().top - second.getBoundingClientRect().top)
                 .map((action) => action.textContent.trim());
             historyButton.click();

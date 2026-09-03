@@ -298,7 +298,7 @@ export function initializeKeyboardControls(context) {
                 const current = dom.notesInput.value.trim();
                 const updated = current ? `${current} ${note}` : note;
                 dom.notesInput.value = updated;
-                dom.notesInput.dispatchEvent(new Event("change"));
+                dom.notesInput.dispatchEvent(new Event("change", { bubbles: true }));
             }
 
             if (typeof actions.onNoteAttack === "function") {

@@ -86,4 +86,15 @@ describe("Settings History", () => {
         expect(restored.restore(null, first)).toBe(false);
         expect(restored.getCurrent()).toEqual(first);
     });
+
+    it("rejects persisted stacks containing invalid or obsolete snapshots", () => {
+        const history = createSettingsHistory();
+        const invalidPast = { past: [{}], present: second, future: [] };
+        const invalidFuture = { past: [], present: second, future: [{ bpm: "130" }] };
+
+        expect(history.restore(invalidPast, second)).toBe(false);
+        expect(history.getCurrent()).toEqual(second);
+        expect(history.restore(invalidFuture, second)).toBe(false);
+        expect(history.getCurrent()).toEqual(second);
+    });
 });

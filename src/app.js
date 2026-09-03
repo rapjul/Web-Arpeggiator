@@ -1194,10 +1194,12 @@ function initializeApp() {
             updateScaleQuantizeToggleText,
             updateWaveformButtons,
             setSynth: (type) => getAvailableAudioEngine()?.setSynth(type),
+            updateEnvelope: () => getAvailableAudioEngine()?.updateEnvelope(),
             getTransport: () => (getAvailableAudioEngine() ? Tone.getTransport() : null),
             updateButtonGroup,
             syncPatternModuleState,
             createOrUpdatePattern,
+            updateEstimatedExportDuration,
             showToast,
         },
         audio: {
@@ -1647,8 +1649,10 @@ function initializeApp() {
      */
     function openResetDefaultsDialog() {
         if (!resetDefaultsOverlay || !defaultSettings) return;
+        const activeElement = /** @type {HTMLElement | null} */ (document.activeElement);
         setHistoryMenuOpen(false);
-        resetDialogReturnFocus = /** @type {HTMLElement | null} */ (document.activeElement);
+        resetDialogReturnFocus =
+            activeElement === resetDefaultsButton ? historyMenuButton : activeElement;
         resetDefaultsOverlay.classList.remove("hidden");
         resetDefaultsOverlay.classList.add("flex");
         resetDefaultsOverlay.setAttribute("aria-hidden", "false");
@@ -2593,6 +2597,7 @@ function initializeApp() {
             const key = event.key.toLowerCase();
             const isUndo = usesModifier && !event.shiftKey && key === "z";
             const isRedo = usesModifier && ((event.shiftKey && key === "z") || key === "y");
+            if ((isUndo || isRedo) && event.target === presetNameInput) return;
             if (isUndo || isRedo) {
                 event.preventDefault();
                 event.stopImmediatePropagation();
