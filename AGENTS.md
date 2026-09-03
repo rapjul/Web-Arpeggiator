@@ -312,7 +312,14 @@ loadPreset(file);
 ```
 Web Arpeggiator/
 ├── index.html              # Main application shell (PWA-enabled)
-├── styles.css              # Tailwind CSS styles
+├── styles.css              # Main stylesheet importing modular styles
+├── styles/                 # Modular CSS architecture
+│   ├── base.css            # Base element rules, resets, accessibility utilities
+│   ├── components.css      # Toasts, controls, tooltips, buttons
+│   ├── features.css        # Sound starters, modals, sticky transport
+│   ├── keyboard.css        # Interactive piano keyboard styles
+│   ├── tokens.css          # Semantic CSS variables and theme tokens
+│   └── visualizer.css      # Visualizer canvas and oscilloscope layout
 ├── manifest.json           # PWA manifest
 ├── sw.js                   # Service worker
 ├── AGENTS.md               # This file
@@ -323,7 +330,8 @@ Web Arpeggiator/
 │   │   ├── 0003-defensive-input-validation-and-edge-case-testing-policy.md
 │   │   ├── 0004-strict-type-safety-and-meaningful-behavioral-testing.md
 │   │   ├── 0005-defer-tone-runtime-until-audio-activation.md
-│   │   └── 0006-persistent-settings-history-and-default-resets.md
+│   │   ├── 0006-persistent-settings-history-and-default-resets.md
+│   │   └── 0007-semantic-theme-tokens-and-modular-styles.md
 │   ├── history-and-default-settings.md # Default parameters and settings history reference
 │   ├── midi-specification.md # Standard MIDI specification & implementation reference
 │   └── pattern-directions.md # Detailed pattern descriptions & visual guide
@@ -331,6 +339,7 @@ Web Arpeggiator/
 │   ├── core/               # Pure algorithms & domain logic (zero DOM/Audio dependencies)
 │   │   ├── audio-utils.js  # WAV/MP3 encoding, PCM conversions, download helpers
 │   │   ├── chord-builder.js # Scale-aware chord note construction
+│   │   ├── export-duration.js # Offline export duration calculation & formatting
 │   │   ├── input-filters.js# Keyboard note & numeric input filtering
 │   │   ├── meter-utils.js  # Audio meter decibel & percentage calculations
 │   │   ├── midi-export.js  # Standard MIDI File (.mid) binary encoder
