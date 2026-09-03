@@ -193,7 +193,7 @@ test("UI Micro-Guidance Subtitles & Tooltips Suite", async (): Promise<void> => 
         loopCount.value = '3';
         loopCount.dispatchEvent(new Event('input', { bubbles: true }));
 
-        return duration.textContent.trim() === '3 loops × ~0.8s/loop = ~2.3 seconds'
+        return duration.textContent.trim() === '3 loops at ~0.75s each + 2s reverb tail. Estimated export duration: ~4.25 seconds'
             ? 'success'
             : duration.textContent.trim();
     })()`,

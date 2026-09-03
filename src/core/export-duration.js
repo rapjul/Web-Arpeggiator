@@ -9,6 +9,11 @@ const DEFAULT_BPM = 120;
 const DEFAULT_INTERVAL = "16n";
 
 /**
+ * Extra render time appended to offline exports so reverberation can decay.
+ */
+export const OFFLINE_RENDER_TAIL_SECONDS = 2;
+
+/**
  * Converts the selected note subdivision into seconds at a given tempo.
  *
  * @param {unknown} interval - Tone-style note subdivision, such as "16n".
@@ -48,9 +53,12 @@ export function formatEstimatedExportDuration({ loopCount, stepsPerLoop, interva
             ? Math.trunc(parsedStepsPerLoop)
             : 1;
     const loopDuration = safeStepsPerLoop * getIntervalDurationSeconds(interval, bpm);
-    const totalDuration = safeLoopCount * loopDuration;
+    const totalDuration = safeLoopCount * loopDuration + OFFLINE_RENDER_TAIL_SECONDS;
     const loopLabel = safeLoopCount === 1 ? "loop" : "loops";
-    const secondLabel = totalDuration === 1 ? "second" : "seconds";
+    const formattedLoopDuration =
+        loopDuration < 0.1
+            ? `~${Math.round(loopDuration * 1000)}ms`
+            : `~${loopDuration.toFixed(2)}s`;
 
-    return `${safeLoopCount} ${loopLabel} × ~${loopDuration.toFixed(1)}s/loop = ~${totalDuration.toFixed(1)} ${secondLabel}`;
+    return `${safeLoopCount} ${loopLabel} at ${formattedLoopDuration} each + ${OFFLINE_RENDER_TAIL_SECONDS}s reverb tail. Estimated export duration: ~${totalDuration.toFixed(2)} seconds`;
 }

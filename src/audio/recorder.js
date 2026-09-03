@@ -11,6 +11,7 @@
 
 import * as Tone from "tone";
 import { audioBufferToMp3Blob, audioBufferToWav, downloadBlob } from "@core/audio-utils.js";
+import { OFFLINE_RENDER_TAIL_SECONDS } from "@core/export-duration.js";
 import { materializePatternSequence } from "@core/pattern-core.js";
 
 /**
@@ -373,7 +374,7 @@ export function createRecorderManager(context) {
                 offlinePattern.start(0);
 
                 offlineContext.transport.start(0);
-            }, totalDuration + 2.0); // Extra 2 s for reverb tail
+            }, totalDuration + OFFLINE_RENDER_TAIL_SECONDS);
 
             const nativeBuffer = /** @type {AudioBuffer} */ (
                 typeof toneAudioBuffer.get === "function" ? toneAudioBuffer.get() : toneAudioBuffer
