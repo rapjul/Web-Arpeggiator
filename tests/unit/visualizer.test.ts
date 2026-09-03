@@ -638,10 +638,25 @@ describe("Visualizer Module", () => {
             actions: mockActions,
         });
 
+        document.documentElement.style.setProperty("--ui-visualizer-wave", "#0284c7");
         document.documentElement.setAttribute("data-theme", "light");
-        await new Promise((resolve) => setTimeout(resolve, 10));
+        await new Promise((resolve) => setTimeout(resolve, 20));
+
+        expect(visualizer.visualizerColors.wave).toBe("#0284c7");
+
+        // When visualizer is active in loopMap mode, theme mutation triggers redraw
+        mockDom.visualizerModeSelect.value = "loopMap";
+        visualizer.toggle();
+        expect(visualizer.isVisualizerOn).toBe(true);
+
+        document.documentElement.style.setProperty("--ui-visualizer-wave", "#2563eb");
+        document.documentElement.setAttribute("data-theme", "high-contrast");
+        await new Promise((resolve) => setTimeout(resolve, 20));
+
+        expect(visualizer.visualizerColors.wave).toBe("#2563eb");
 
         visualizer.destroy();
         document.documentElement.removeAttribute("data-theme");
+        document.documentElement.style.removeProperty("--ui-visualizer-wave");
     });
 });

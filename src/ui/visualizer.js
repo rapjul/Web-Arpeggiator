@@ -94,6 +94,16 @@ export function createVisualizer(context) {
     let cachedGradient = null;
     let cachedGradientHeight = 0;
 
+    // --- Internal State ---
+    let isVisualizerOn = false;
+    let isPaused = false;
+    let isClipped = false;
+    let isDestroyed = false;
+    let currentMode = "oscilloscope"; // 'oscilloscope' | 'fft' | 'loopMap'
+    let animationFrameId = null;
+    let lastTimeStr = "";
+    let zoomFactor = 1.0;
+
     /**
      * Reads current theme custom properties from the document root into the visualizer color cache.
      *
@@ -112,6 +122,10 @@ export function createVisualizer(context) {
         visualizerColors.danger = themeColor("--ui-danger", "#dc2626");
         cachedGradient = null;
         cachedGradientHeight = 0;
+
+        if (isVisualizerOn && !isPaused && (!state?.isPlaying || currentMode === "loopMap")) {
+            runUiUpdate();
+        }
     }
 
     refreshThemeColors();
@@ -136,16 +150,6 @@ export function createVisualizer(context) {
             colorSchemeMediaQuery.addEventListener?.("change", onColorSchemeChange);
         }
     }
-
-    // --- Internal State ---
-    let isVisualizerOn = false;
-    let isPaused = false;
-    let isClipped = false;
-    let isDestroyed = false;
-    let currentMode = "oscilloscope"; // 'oscilloscope' | 'fft' | 'loopMap'
-    let animationFrameId = null;
-    let lastTimeStr = "";
-    let zoomFactor = 1.0;
 
     // --- Rolling Buffer for Oscilloscope ---
     let rollingBuffer = new Float32Array(0);
@@ -1255,5 +1259,9 @@ export function createVisualizer(context) {
         toggle,
         resizeCanvas,
         updateStaticLoopMap,
+        refreshThemeColors,
+        get visualizerColors() {
+            return visualizerColors;
+        },
     };
 }
