@@ -70,7 +70,7 @@ These values are preserved in history even when the associated synth type is not
 | Pluck Synth dampening | 4000 Hz. |
 | Pluck Synth resonance | 0.90. |
 | Pluck Synth attack noise | 1.0. |
-| Membrane Synth pitch decay | 0.051 s. |
+| Membrane Synth pitch decay | 0.05 s. |
 | Membrane Synth octaves | 8.0. |
 
 ### Filter and Effects
