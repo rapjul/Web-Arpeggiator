@@ -11,7 +11,7 @@
 
 import * as Tone from "tone";
 import { audioBufferToMp3Blob, audioBufferToWav, downloadBlob } from "@core/audio-utils.js";
-import { OFFLINE_RENDER_TAIL_SECONDS } from "@core/export-duration.js";
+import { calculateOfflineExportDuration } from "@core/export-duration.js";
 import { materializePatternSequence } from "@core/pattern-core.js";
 
 /**
@@ -337,11 +337,12 @@ export function createRecorderManager(context) {
                 },
             },
         );
-        const stepsPerLoop = Math.max(1, patternNotes.length);
-
-        const intervalInSeconds = Tone.Time(settings.interval).toSeconds();
-        const loopDurationInSeconds = stepsPerLoop * intervalInSeconds;
-        const totalDuration = loopDurationInSeconds * settings.loopCount;
+        const exportDuration = calculateOfflineExportDuration({
+            loopCount: settings.loopCount,
+            stepsPerLoop: patternNotes.length,
+            interval: settings.interval,
+            bpm: settings.bpm,
+        });
 
         try {
             const toneAudioBuffer = await Tone.Offline(async (offlineContext) => {
@@ -352,7 +353,7 @@ export function createRecorderManager(context) {
                 const { offlineSynth } = audio.createOfflineChain(offlineContext, settings);
 
                 // --- Pattern for offline ---
-                const gateLength = settings.gateRatio * Tone.Time(settings.interval).toSeconds();
+                const gateLength = settings.gateRatio * exportDuration.intervalInSeconds;
 
                 const offlinePattern = new Tone.Pattern(
                     (time, note) => {
@@ -374,7 +375,7 @@ export function createRecorderManager(context) {
                 offlinePattern.start(0);
 
                 offlineContext.transport.start(0);
-            }, totalDuration + OFFLINE_RENDER_TAIL_SECONDS);
+            }, exportDuration.totalDuration);
 
             const nativeBuffer = /** @type {AudioBuffer} */ (
                 typeof toneAudioBuffer.get === "function" ? toneAudioBuffer.get() : toneAudioBuffer

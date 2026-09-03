@@ -179,8 +179,10 @@ test("UI Micro-Guidance Subtitles & Tooltips Suite", async (): Promise<void> => 
         const loopCount = document.getElementById('loop-count');
         const duration = document.getElementById('offline-export-duration');
         const octaveRange = document.querySelector('input[name="octave-range"][value="1"]');
+        const octaveRangeTwo = document.querySelector('input[name="octave-range"][value="2"]');
+        const upDownDirection = document.querySelector('input[name="pattern-direction"][value="upDown"]');
 
-        if (!notes || !bpm || !loopCount || !duration || !octaveRange) {
+        if (!notes || !bpm || !loopCount || !duration || !octaveRange || !octaveRangeTwo || !upDownDirection) {
             return 'missing-export-duration-control';
         }
 
@@ -193,9 +195,34 @@ test("UI Micro-Guidance Subtitles & Tooltips Suite", async (): Promise<void> => 
         loopCount.value = '3';
         loopCount.dispatchEvent(new Event('input', { bubbles: true }));
 
-        return duration.textContent.trim() === '3 loops at ~0.75s each + 2s reverb tail. Estimated export duration: ~4.25 seconds'
+        const basicEstimate = duration.textContent.trim();
+
+        octaveRangeTwo.checked = true;
+        octaveRangeTwo.dispatchEvent(new Event('change', { bubbles: true }));
+        upDownDirection.checked = true;
+        upDownDirection.dispatchEvent(new Event('change', { bubbles: true }));
+        bpm.value = '120';
+        bpm.dispatchEvent(new Event('input', { bubbles: true }));
+        loopCount.value = '1';
+        loopCount.dispatchEvent(new Event('input', { bubbles: true }));
+
+        const expandedEstimate = duration.textContent.trim();
+
+        loopCount.value = '-1';
+        loopCount.dispatchEvent(new Event('change', { bubbles: true }));
+        const minimumLoopEstimate = duration.textContent.trim();
+
+        loopCount.value = '101';
+        loopCount.dispatchEvent(new Event('change', { bubbles: true }));
+        const maximumLoopEstimate = duration.textContent.trim();
+
+        return basicEstimate === '3 loops at ~0.75s each + 2s reverb tail. Estimated export duration: ~4.25 seconds'
+            && expandedEstimate === '1 loop at ~1.25s each + 2s reverb tail. Estimated export duration: ~3.25 seconds'
+            && minimumLoopEstimate === '1 loop at ~1.25s each + 2s reverb tail. Estimated export duration: ~3.25 seconds'
+            && maximumLoopEstimate === '100 loops at ~1.25s each + 2s reverb tail. Estimated export duration: ~127.00 seconds'
+            && loopCount.value === '100'
             ? 'success'
-            : duration.textContent.trim();
+            : [basicEstimate, expandedEstimate, minimumLoopEstimate, maximumLoopEstimate].join(' / ');
     })()`,
     ]);
     expect(exportDurationResult).toBe('"success"');

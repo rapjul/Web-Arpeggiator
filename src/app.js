@@ -12,7 +12,7 @@ import { createAudioEngine } from "@audio/audio-engine.js";
 import { downloadBlob } from "@core/audio-utils.js";
 import { initializeKeyboardControls } from "@ui/keyboard-controller.js";
 import { createMidiBlob, exportMidiFile } from "@core/midi-export.js";
-import { formatEstimatedExportDuration } from "@core/export-duration.js";
+import { formatEstimatedExportDuration, normalizeLoopCount } from "@core/export-duration.js";
 import { materializePatternSequence, normalizeNotesSequence } from "@core/pattern-core.js";
 import {
     calculateNoteMarkers,
@@ -2041,7 +2041,10 @@ function initializeApp() {
     });
 
     loopCountInput.addEventListener("input", updateEstimatedExportDuration);
-    loopCountInput.addEventListener("change", updateEstimatedExportDuration);
+    loopCountInput.addEventListener("change", () => {
+        loopCountInput.value = String(normalizeLoopCount(loopCountInput.value));
+        updateEstimatedExportDuration();
+    });
 
     swingSlider.addEventListener("input", () => {
         debouncedSetSwing(parseFloat(swingSlider.value));

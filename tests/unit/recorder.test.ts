@@ -5,6 +5,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 let lastOfflinePatternValues: string[] = [];
+let lastOfflineRenderDuration = 0;
 
 vi.mock("@core/audio-utils.js", () => ({
     audioBufferToMp3Blob: vi.fn(async () => new Blob(["MP3"], { type: "audio/mp3" })),
@@ -65,7 +66,8 @@ vi.mock("tone", async () => {
         Time: (_t: string) => ({
             toSeconds: () => 0.125,
         }),
-        Offline: vi.fn(async (cb: (ctx: unknown) => Promise<void>) => {
+        Offline: vi.fn(async (cb: (ctx: unknown) => Promise<void>, duration: number) => {
+            lastOfflineRenderDuration = duration;
             const mockOfflineContext = {
                 transport: {
                     bpm: { value: 120 },
@@ -103,6 +105,7 @@ describe("Recorder Manager Module", () => {
 
     beforeEach(() => {
         lastOfflinePatternValues = [];
+        lastOfflineRenderDuration = 0;
         const createEl = (tag = "div") => document.createElement(tag);
         mockDom = {
             recordButton: createEl("button"),
@@ -259,6 +262,29 @@ describe("Recorder Manager Module", () => {
         await manager.exportOffline();
         expect(mockAudio.createOfflineChain).toHaveBeenCalled();
         expect(mockActions.showToast).toHaveBeenCalledWith("Export complete!", "success");
+    });
+
+    it("renders with the selected BPM instead of the live Tone time conversion", async () => {
+        const manager = createRecorderManager({
+            audio: mockAudio,
+            dom: mockDom,
+            state: mockState,
+            actions: mockActions,
+        });
+
+        mockActions.getAllSettings = vi.fn(() => ({
+            bpm: 60,
+            swing: 0,
+            notes: ["C4", "E4", "G4"],
+            direction: "up",
+            interval: "16n",
+            gateRatio: 0.8,
+            loopCount: -1,
+        }));
+
+        await manager.exportOffline();
+
+        expect(lastOfflineRenderDuration).toBe(2.75);
     });
 
     it("uses the same quantized pitches as live playback and MIDI export", async () => {

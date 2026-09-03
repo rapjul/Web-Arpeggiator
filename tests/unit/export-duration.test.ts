@@ -4,8 +4,12 @@
 
 import { describe, expect, it } from "vitest";
 import {
+    calculateOfflineExportDuration,
     formatEstimatedExportDuration,
     getIntervalDurationSeconds,
+    MAX_LOOP_COUNT,
+    MIN_LOOP_COUNT,
+    normalizeLoopCount,
     OFFLINE_RENDER_TAIL_SECONDS,
 } from "@core/export-duration.js";
 
@@ -14,6 +18,37 @@ describe("Export Duration", () => {
         expect(getIntervalDurationSeconds("16n", 120)).toBe(0.125);
         expect(getIntervalDurationSeconds("8n", 120)).toBe(0.25);
         expect(getIntervalDurationSeconds("4n", 60)).toBe(1);
+    });
+
+    it("normalizes invalid loop counts to the supported whole-number range", () => {
+        expect(normalizeLoopCount(-1)).toBe(MIN_LOOP_COUNT);
+        expect(normalizeLoopCount(0)).toBe(MIN_LOOP_COUNT);
+        expect(normalizeLoopCount("")).toBe(MIN_LOOP_COUNT);
+        expect(normalizeLoopCount("not-a-number")).toBe(MIN_LOOP_COUNT);
+        expect(normalizeLoopCount(Number.NaN)).toBe(MIN_LOOP_COUNT);
+        expect(normalizeLoopCount(Number.NEGATIVE_INFINITY)).toBe(MIN_LOOP_COUNT);
+        expect(normalizeLoopCount(Number.POSITIVE_INFINITY)).toBe(MIN_LOOP_COUNT);
+        expect(normalizeLoopCount(null)).toBe(MIN_LOOP_COUNT);
+        expect(normalizeLoopCount(undefined)).toBe(MIN_LOOP_COUNT);
+        expect(normalizeLoopCount(3.9)).toBe(3);
+        expect(normalizeLoopCount(101)).toBe(MAX_LOOP_COUNT);
+    });
+
+    it("shares the renderer duration calculation with the displayed estimate", () => {
+        expect(
+            calculateOfflineExportDuration({
+                loopCount: 2,
+                stepsPerLoop: 3,
+                interval: "16n",
+                bpm: 60,
+            }),
+        ).toEqual({
+            loopCount: 2,
+            stepsPerLoop: 3,
+            intervalInSeconds: 0.25,
+            loopDuration: 0.75,
+            totalDuration: 3.5,
+        });
     });
 
     it("includes the reverb tail in the export duration estimate", () => {
