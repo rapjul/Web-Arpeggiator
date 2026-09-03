@@ -2067,6 +2067,7 @@ function initializeApp() {
         currentNotes = notesInput.value.trim().split(/\s+/).filter(Boolean);
         if (currentNotes.length === 0) currentNotes = ["C4"];
         syncPatternModuleState();
+        updateEstimatedExportDuration();
     });
 
     scaleQuantizeToggle.addEventListener("change", () => {
