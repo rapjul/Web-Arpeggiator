@@ -27,7 +27,7 @@
         <!-- Fullscreen overlay for Quick Start onboarding (first-time visitors) -->
         <div
             id="quick-start-overlay"
-            class="fixed inset-0 bg-gray-900/90 flex items-center justify-center z-50 p-4 is-hidden"
+            class="fixed inset-0 bg-gray-900/90 flex items-center justify-center z-[var(--ui-z-modal)] p-4 is-hidden"
         >
             <div
                 id="quick-start-modal"
@@ -70,7 +70,7 @@
 
         <div
             id="reset-defaults-overlay"
-            class="fixed inset-0 z-[80] hidden items-center justify-center bg-slate-950/80 p-4"
+            class="fixed inset-0 z-[var(--ui-z-modal)] hidden items-center justify-center bg-gray-900/90 p-4"
             aria-hidden="true"
         >
             <div
@@ -117,7 +117,7 @@
         <!-- Fullscreen overlay for audio start (returning users and shared URL links) -->
         <div
             id="start-overlay"
-            class="fixed inset-0 bg-gray-900/90 flex items-center justify-center z-50 cursor-pointer p-4 is-hidden"
+            class="fixed inset-0 bg-gray-900/90 flex items-center justify-center z-[var(--ui-z-modal)] cursor-pointer p-4 is-hidden"
         >
             <div class="text-center p-8 bg-gray-800 rounded-xl shadow-2xl max-w-md">
                 <h2 class="text-2xl font-bold text-blue-400 mb-2">

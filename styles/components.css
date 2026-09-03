@@ -1,14 +1,14 @@
 /* NEW TOAST CONTAINER STYLE */
 #toast-container {
   position: fixed;
-  bottom: calc(5rem + env(safe-area-inset-bottom, 0px));
+  bottom: calc(var(--ui-mobile-bar-height) + env(safe-area-inset-bottom, 0px));
   right: 1.25rem;
   /* right-5 */
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
   /* gap-3 */
-  z-index: 50;
+  z-index: var(--ui-z-toast);
 }
 
 @media (min-width: 640px) {
@@ -28,16 +28,14 @@
   /* px-5 */
   padding-right: 1.25rem;
   /* px-5 */
-  border-radius: 0.5rem;
+  border-radius: var(--ui-radius-md);
   /* rounded-lg */
-  box-shadow:
-    0 10px 15px -3px rgb(var(--ui-shadow-rgb) / 0.1),
-    0 4px 6px -2px rgb(var(--ui-shadow-rgb) / 0.05);
+  box-shadow: var(--ui-shadow-toast);
   /* shadow-lg */
   opacity: 0;
   transform: translateX(1.25rem);
   /* translate-x-5 */
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all var(--ui-transition-slow) cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .toast-message.show {
@@ -56,12 +54,12 @@
 }
 
 .toast-info {
-  background-color: var(--color-blue-500);
+  background-color: var(--ui-info);
   /* bg-blue-500 */
 }
 
 .toast-error {
-  background-color: var(--color-red-500);
+  background-color: var(--ui-danger);
   /* bg-red-500 */
 }
 
@@ -86,10 +84,10 @@
   min-height: 72px;
   flex: 1 0 18%;
   /* Allow flex growth and wrap */
-  border-radius: 0.375rem;
+  border-radius: var(--ui-radius-sm);
   /* rounded-md */
   border: 2px solid transparent;
-  transition: all 0.2s;
+  transition: all var(--ui-transition-normal);
   background-color: var(--ui-border);
   /* bg-gray-600 */
   color: var(--color-gray-300);
@@ -110,7 +108,7 @@ input[type="radio"]:checked + .octave-btn,
 .waveform-btn.selected,
 .pattern-btn.selected,
 .octave-btn.selected {
-  background-color: var(--color-blue-500);
+  background-color: var(--ui-accent);
   /* bg-blue-600 */
   color: var(--ui-key-white);
   border-color: var(--ui-accent-soft);
@@ -119,8 +117,8 @@ input[type="radio"]:checked + .octave-btn,
 
 input[type="radio"]:focus-visible + .pattern-btn,
 input[type="radio"]:focus-visible + .octave-btn {
-  outline: 2px solid var(--ui-accent-soft);
-  outline-offset: 2px;
+  outline: var(--ui-focus-width) solid var(--ui-accent-soft);
+  outline-offset: var(--ui-focus-width);
 }
 
 .waveform-btn svg,
@@ -149,9 +147,9 @@ input[type="radio"]:focus-visible + .octave-btn {
   font-size: 0.75rem;
   font-weight: 500;
   line-height: 1.25;
-  border-radius: 0.375rem;
+  border-radius: var(--ui-radius-sm);
   border: 1px solid var(--ui-border-subtle);
-  box-shadow: 0 10px 15px -3px rgb(var(--ui-shadow-rgb) / 0.5);
+  box-shadow: var(--ui-shadow-lg);
   white-space: normal;
   text-wrap: balance;
   width: max-content;
@@ -161,9 +159,9 @@ input[type="radio"]:focus-visible + .octave-btn {
   opacity: 0;
   visibility: hidden;
   transition:
-    opacity 0.15s ease-out,
-    transform 0.15s ease-out;
-  z-index: 50;
+    opacity var(--ui-transition-fast) ease-out,
+    transform var(--ui-transition-fast) ease-out;
+  z-index: var(--ui-z-tooltip);
 }
 
 /* Tooltip Arrow Pointer (::before) */
@@ -177,9 +175,9 @@ input[type="radio"]:focus-visible + .octave-btn {
   opacity: 0;
   visibility: hidden;
   transition:
-    opacity 0.15s ease-out,
-    transform 0.15s ease-out;
-  z-index: 51;
+    opacity var(--ui-transition-fast) ease-out,
+    transform var(--ui-transition-fast) ease-out;
+  z-index: calc(var(--ui-z-tooltip) + 1);
 }
 
 /* Placement: Top (Default or data-placement="top") */
@@ -311,12 +309,12 @@ input[type="radio"]:focus-visible + .has-custom-tooltip[data-placement="bottom"]
   flex: 1 1 0;
   min-width: 0;
   height: 0.375rem;
-  border-radius: 9999px;
+  border-radius: var(--ui-radius-pill);
   background-color: var(--ui-border);
   /* bg-gray-600 */
   transition:
-    background-color 0.08s,
-    transform 0.08s;
+    background-color var(--ui-transition-fast),
+    transform var(--ui-transition-fast);
 }
 
 .note-step-pip.active {
@@ -331,5 +329,5 @@ input[type="radio"]:focus-visible + .has-custom-tooltip[data-placement="bottom"]
 }
 
 .resettable-setting-target:hover {
-  color: var(--color-sky-200, #bae6fd);
+  color: var(--color-sky-200);
 }

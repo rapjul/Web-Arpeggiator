@@ -15,11 +15,11 @@ input[type="range"] {
   height: 8px;
   background-color: var(--color-gray-300);
   /* bg-gray-300 */
-  border-radius: 9999px;
+  border-radius: var(--ui-radius-pill);
   /* rounded-full */
   outline: none;
   opacity: 0.7;
-  transition: opacity 0.2s;
+  transition: opacity var(--ui-transition-normal);
 }
 
 input[type="range"]:hover {
@@ -33,7 +33,7 @@ input[type="range"]::-webkit-slider-thumb {
   height: 20px;
   background-color: var(--ui-accent);
   /* bg-blue-600 */
-  border-radius: 9999px;
+  border-radius: var(--ui-radius-pill);
   /* rounded-full */
   cursor: pointer;
 }
@@ -43,7 +43,7 @@ input[type="range"]::-moz-range-thumb {
   height: 20px;
   background-color: var(--ui-accent);
   /* bg-blue-600 */
-  border-radius: 9999px;
+  border-radius: var(--ui-radius-pill);
   /* rounded-full */
   cursor: pointer;
 }
@@ -79,7 +79,7 @@ input[type="number"] {
   /* bg-gray-800 */
   border: 1px solid var(--ui-border);
   /* border-gray-600 */
-  border-radius: 0.375rem;
+  border-radius: var(--ui-radius-sm);
   /* rounded-md */
   color: var(--ui-text);
   /* text-gray-100 */
@@ -107,7 +107,7 @@ button:disabled {
 /* Mobile padding to prevent fixed transport bar from obscuring content */
 @media (max-width: 639px) {
   body {
-    padding-bottom: calc(5rem + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(var(--ui-mobile-bar-height) + env(safe-area-inset-bottom, 0px));
   }
 }
 
@@ -118,8 +118,8 @@ details.card-details > summary {
   padding: 0.5rem;
   background-color: var(--ui-border);
   /* bg-gray-600 */
-  border-radius: 0.5rem;
-  transition: background-color 0.2s;
+  border-radius: var(--ui-radius-md);
+  transition: background-color var(--ui-transition-normal);
 }
 
 details.card-details > summary:hover {
@@ -141,7 +141,7 @@ details.card-details > summary {
 details.card-details > summary::after {
   content: "►";
   font-size: 0.8em;
-  transition: transform 0.2s;
+  transition: transform var(--ui-transition-normal);
 }
 
 details[open].card-details > summary::after {
@@ -171,25 +171,25 @@ button:focus-visible,
 input:focus-visible,
 select:focus-visible,
 details > summary:focus-visible {
-  outline: 2px solid var(--ui-focus);
-  outline-offset: 2px;
+  outline: var(--ui-focus-width) solid var(--ui-focus);
+  outline-offset: var(--ui-focus-width);
 }
 
 /* Specific focus outline style inside the piano key boundary to avoid clipping and overlap */
 .key-black:focus-visible {
-  outline: 2px solid var(--ui-focus);
-  outline-offset: -2px;
-  z-index: 15;
+  outline: var(--ui-focus-width) solid var(--ui-focus);
+  outline-offset: calc(-1 * var(--ui-focus-width));
+  z-index: var(--ui-z-piano-black-focus);
 }
 
 .key-white:focus-visible {
   outline: none;
-  z-index: 5;
+  z-index: var(--ui-z-piano-focus);
 }
 
 .key-white:focus-visible .key-bg-path {
   stroke: var(--ui-focus);
-  stroke-width: 2px;
+  stroke-width: var(--ui-focus-width);
 }
 
 /* Class for hidden test state mirror element used in PWA/browser testing */

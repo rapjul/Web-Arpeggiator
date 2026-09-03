@@ -14,7 +14,7 @@
 }
 
 #visualizer-yaxis {
-  width: 50px;
+  width: var(--ui-visualizer-yaxis-width);
   height: 100%;
   flex-shrink: 0;
   background-color: var(--ui-surface);
@@ -48,7 +48,7 @@
 }
 #visualizer-viewport::-webkit-scrollbar-thumb {
   background: var(--ui-border);
-  border-radius: 9999px;
+  border-radius: var(--ui-radius-pill);
 }
 #visualizer-viewport::-webkit-scrollbar-thumb:hover {
   background: var(--ui-control-hover);
