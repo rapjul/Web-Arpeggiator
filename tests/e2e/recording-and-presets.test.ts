@@ -113,51 +113,44 @@ test("Audio Recording, Exports, & Preset Management Suite", async (): Promise<vo
 
     // 4. Verify Real-time Recording controls
     console.log("Step 4: Testing real-time recording controls...");
-    const startRecordResult: string = await runBrowser([
+    await runBrowser([
         "eval",
-        `(async () => {
-        const recordBtn = document.getElementById('record-button');
+        `(() => {
         const exportControls = document.getElementById('realtime-export-controls');
-
-        // Make sure export controls are hidden initially
-        exportControls.classList.add('hidden');
-
-        // Click to start recording
-        recordBtn.click();
-        if (!recordBtn.classList.contains('recording')) {
-            return 'record-btn-missing-recording-class';
-        }
-
-        // Verify transport auto-started playback
-        const playBtn = document.getElementById('play-stop');
-        if (playBtn && !playBtn.textContent.includes('Stop Audio')) {
-            return 'playback-not-autostarted-on-record: ' + playBtn.textContent;
-        }
-
-        return 'success';
+        if (exportControls) exportControls.classList.add('hidden');
     })()`,
     ]);
-    expect(startRecordResult).toBe('"success"');
+
+    // Click to start recording and wait for recording class and transport playback
+    await runBrowser(["click", "#record-button"]);
+    await runBrowser([
+        "wait",
+        "--fn",
+        "document.getElementById('record-button')?.classList.contains('recording') && (document.getElementById('play-stop')?.textContent?.includes('Stop Audio') ?? false)",
+    ]);
 
     // Wait 1.5 seconds to capture some buffer chunks
     await new Promise((resolve) => setTimeout(resolve, 1500));
 
     // Stop recording
+    await runBrowser(["click", "#record-button"]);
     await runBrowser([
-        "eval",
-        `(async () => {
-        const recordBtn = document.getElementById('record-button');
-        recordBtn.click();
-    })()`,
+        "wait",
+        "--fn",
+        "!document.getElementById('record-button')?.classList.contains('recording')",
     ]);
-    await new Promise((resolve) => setTimeout(resolve, 500));
 
     // Verify export controls are visible
+    await runBrowser([
+        "wait",
+        "--fn",
+        "!document.getElementById('realtime-export-controls')?.classList.contains('hidden')",
+    ]);
     const checkExportControls: string = await runBrowser([
         "eval",
-        `(async () => {
+        `(() => {
         const exportControls = document.getElementById('realtime-export-controls');
-        if (exportControls.classList.contains('hidden')) {
+        if (!exportControls || exportControls.classList.contains('hidden')) {
             return 'export-controls-hidden';
         }
         return 'success';
