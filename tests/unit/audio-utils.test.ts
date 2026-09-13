@@ -6,9 +6,12 @@ import { describe, expect, it, vi } from "vitest";
 import {
     audioBufferToMp3Blob,
     audioBufferToWav,
+    copyAudioBufferFrames,
+    createSeamlessLoopAudioBuffer,
     downloadBlob,
     fetchWithBackoff,
     float32ToInt16,
+    getSeamlessCrossfadeFrameCount,
     interleave,
     loadLameJs,
     triggerIdleLoad,
@@ -95,6 +98,76 @@ describe("Audio Utils Domain Module", () => {
             expect(blob).toBeInstanceOf(Blob);
             expect(blob.type).toBe("audio/wav");
             expect(blob.size).toBe(44 + length * 2 * 2);
+        });
+
+        it("copies exact multi-channel frame ranges without mutating the source", () => {
+            const left = Float32Array.from({ length: 12 }, (_, index) => index / 10);
+            const right = Float32Array.from({ length: 12 }, (_, index) => -index / 10);
+            const source = {
+                numberOfChannels: 2,
+                sampleRate: 1000,
+                length: 12,
+                duration: 0.012,
+                getChannelData: (channel: number) => (channel === 0 ? left : right),
+            } as unknown as AudioBuffer;
+
+            const copied = copyAudioBufferFrames(source, 4, 5);
+
+            expect(copied.length).toBe(5);
+            expect(Array.from(copied.getChannelData(0))).toEqual(Array.from(left.slice(4, 9)));
+            expect(Array.from(copied.getChannelData(1))).toEqual(Array.from(right.slice(4, 9)));
+            copied.getChannelData(0)[0] = 0;
+            expect(left[4]).toBeCloseTo(0.4);
+        });
+
+        it("preserves requested frame counts and zero-fills missing source frames", () => {
+            const sourceData = Float32Array.from([0.1, 0.2, 0.3, 0.4]);
+            const source = {
+                numberOfChannels: 1,
+                sampleRate: 1000,
+                length: 4,
+                duration: 0.004,
+                getChannelData: () => sourceData,
+            } as unknown as AudioBuffer;
+
+            const copied = copyAudioBufferFrames(source, 2, 4);
+
+            expect(copied.length).toBe(4);
+            expect(Array.from(copied.getChannelData(0))).toEqual([
+                sourceData[2],
+                sourceData[3],
+                0,
+                0,
+            ]);
+        });
+
+        it("caps seamless crossfades at five milliseconds and one sixteenth of the loop", () => {
+            expect(getSeamlessCrossfadeFrameCount(1000, 160)).toBe(5);
+            expect(getSeamlessCrossfadeFrameCount(1000, 30)).toBe(1);
+            expect(getSeamlessCrossfadeFrameCount(1000, 15)).toBe(0);
+        });
+
+        it("creates an exact seamless loop with an equal-power ending crossfade", async () => {
+            const samples = Float32Array.from({ length: 32 }, (_, index) => index);
+            const source = {
+                numberOfChannels: 1,
+                sampleRate: 1000,
+                length: samples.length,
+                duration: samples.length / 1000,
+                getChannelData: () => samples,
+            } as unknown as AudioBuffer;
+
+            const seamless = createSeamlessLoopAudioBuffer(source, 0, 32);
+            const channel = seamless.getChannelData(0);
+            const wavBlob = audioBufferToWav(seamless);
+            const wavData = new Uint8Array(await wavBlob.arrayBuffer());
+
+            expect(seamless.length).toBe(32);
+            expect(channel[0]).toBe(0);
+            expect(channel[31]).toBe(1);
+            expect(samples[31]).toBe(31);
+            expect(new TextDecoder().decode(wavData.slice(0, 4))).toBe("RIFF");
+            expect(new TextDecoder().decode(wavData.slice(8, 12))).toBe("WAVE");
         });
     });
 

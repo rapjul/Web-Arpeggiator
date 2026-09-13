@@ -14,6 +14,11 @@
  */
 
 import * as Tone from "tone";
+import {
+    OFFLINE_DELAY_FEEDBACK,
+    OFFLINE_DELAY_INTERVAL,
+    OFFLINE_REVERB_DECAY_SECONDS,
+} from "@core/export-duration.js";
 
 /**
  * Creates the audio engine and all Tone.js nodes.
@@ -450,13 +455,13 @@ export function createAudioEngine(context) {
 
         // 2. Recreate Effects (reverb, delay, autoPanner, chorus, filter, distortion)
         const offlineReverb = new Tone.Reverb({
-            decay: 1.5,
+            decay: OFFLINE_REVERB_DECAY_SECONDS,
             wet: settings.reverbMix,
         });
 
         const offlineDelay = new Tone.FeedbackDelay({
-            delayTime: "8n",
-            feedback: 0.5,
+            delayTime: OFFLINE_DELAY_INTERVAL,
+            feedback: OFFLINE_DELAY_FEEDBACK,
             wet: settings.delayMix,
         }).connect(offlineReverb);
 

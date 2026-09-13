@@ -10,8 +10,16 @@
  */
 
 import * as Tone from "tone";
-import { audioBufferToMp3Blob, audioBufferToWav, downloadBlob } from "@core/audio-utils.js";
-import { calculateOfflineExportDuration } from "@core/export-duration.js";
+import {
+    audioBufferToMp3Blob,
+    audioBufferToWav,
+    createSeamlessLoopAudioBuffer,
+    downloadBlob,
+} from "@core/audio-utils.js";
+import {
+    calculateOfflineExportDuration,
+    OFFLINE_EXPORT_MODE_SEAMLESS,
+} from "@core/export-duration.js";
 import { materializePatternSequence } from "@core/pattern-core.js";
 
 /**
@@ -301,8 +309,8 @@ export function createRecorderManager(context) {
     // ------------------------------------------------------------------
 
     /**
-     * Renders a perfect-loop audio buffer offline and exports it as
-     * WAV and/or MP3.
+     * Renders an offline audio buffer according to the selected export mode
+     * and exports it as WAV and/or MP3.
      *
      * @returns {Promise<void>}
      */
@@ -319,10 +327,9 @@ export function createRecorderManager(context) {
 
         dom.offlineExportButton.disabled = true;
         dom.offlineExportButton.textContent = "Generating...";
-        dom.offlineExportStatus.textContent = "Generating audio... please wait.";
 
         const settings = actions.getAllSettings();
-        const filename = actions.generateFilename(false);
+        const filename = actions.generateFilename(false, settings);
 
         const { notes: patternNotes } = materializePatternSequence(
             settings.baseNotes || settings.notes,
@@ -342,7 +349,20 @@ export function createRecorderManager(context) {
             stepsPerLoop: patternNotes.length,
             interval: settings.interval,
             bpm: settings.bpm,
+            exportMode: settings.offlineExportMode,
+            tailSeconds: settings.offlineExportTailSeconds,
+            envRelease: settings.envRelease,
+            delayMix: settings.delayMix,
+            reverbMix: settings.reverbMix,
         });
+        const isSeamlessExport = exportDuration.exportMode === OFFLINE_EXPORT_MODE_SEAMLESS;
+        const patternStopTime = isSeamlessExport
+            ? exportDuration.preRollDuration + exportDuration.musicalDuration
+            : exportDuration.musicalDuration;
+
+        dom.offlineExportStatus.textContent = isSeamlessExport
+            ? "Generating seamless WAV-ready audio... please wait."
+            : "Generating audio with effects tail... please wait.";
 
         try {
             const toneAudioBuffer = await Tone.Offline(async (offlineContext) => {
@@ -375,8 +395,8 @@ export function createRecorderManager(context) {
                 offlinePattern.start(0);
 
                 offlineContext.transport.start(0);
-                offlineContext.transport.stop(exportDuration.patternDuration);
-            }, exportDuration.totalDuration);
+                offlineContext.transport.stop(patternStopTime);
+            }, exportDuration.renderDuration);
 
             const nativeBuffer = /** @type {AudioBuffer} */ (
                 typeof toneAudioBuffer.get === "function" ? toneAudioBuffer.get() : toneAudioBuffer
@@ -391,11 +411,19 @@ export function createRecorderManager(context) {
                 return;
             }
 
+            const exportBuffer = isSeamlessExport
+                ? createSeamlessLoopAudioBuffer(
+                      nativeBuffer,
+                      Math.round(exportDuration.preRollDuration * nativeBuffer.sampleRate),
+                      Math.round(exportDuration.musicalDuration * nativeBuffer.sampleRate),
+                  )
+                : nativeBuffer;
+
             // Export WAV
             if (dom.offlineExportWavCheck.checked) {
                 dom.offlineExportStatus.textContent = "Exporting WAV...";
                 actions.showToast("Exporting WAV...", "info");
-                const wavBlob = audioBufferToWav(nativeBuffer);
+                const wavBlob = audioBufferToWav(exportBuffer);
                 downloadBlob(wavBlob, `${filename}.wav`);
 
                 if (dom.offlineExportMp3Check.checked) {
@@ -407,7 +435,7 @@ export function createRecorderManager(context) {
             if (dom.offlineExportMp3Check.checked) {
                 dom.offlineExportStatus.textContent = "Encoding MP3...";
                 actions.showToast("Encoding MP3...", "info");
-                const mp3Blob = await audioBufferToMp3Blob(nativeBuffer);
+                const mp3Blob = await audioBufferToMp3Blob(exportBuffer);
                 downloadBlob(mp3Blob, `${filename}.mp3`);
             }
 

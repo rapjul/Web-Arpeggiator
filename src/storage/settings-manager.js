@@ -331,9 +331,10 @@ export function createSettingsManager(context) {
      * Generates a descriptive filename based on current settings.
      *
      * @param {boolean} isRealtime - Whether to add a timestamp for real-time recording.
+     * @param {object} [settingsSnapshot] - Settings captured when an export begins.
      * @returns {string} The formatted filename without extension.
      */
-    function generateFilename(isRealtime) {
+    function generateFilename(isRealtime, settingsSnapshot) {
         const date = new Date();
         const timestamp = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, "0")}-${date.getDate().toString().padStart(2, "0")}_${date.getHours().toString().padStart(2, "0")}-${date.getMinutes().toString().padStart(2, "0")}-${date.getSeconds().toString().padStart(2, "0")}`;
 
@@ -341,7 +342,7 @@ export function createSettingsManager(context) {
             return `arp-realtime-${timestamp}`;
         }
 
-        const settings = getAllSettings();
+        const settings = settingsSnapshot || getAllSettings();
         const notesString = settings.baseNotes
             .join("")
             .replace(/#/g, "s")

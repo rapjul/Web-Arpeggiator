@@ -3,6 +3,15 @@
  */
 
 /**
+ * @typedef {object} AudioBufferLike
+ * @property {number} numberOfChannels - Number of PCM channels.
+ * @property {number} sampleRate - Frames per second.
+ * @property {number} length - Frames per channel.
+ * @property {number} duration - Buffer duration in seconds.
+ * @property {(channel: number) => Float32Array} getChannelData - Returns channel PCM data.
+ */
+
+/**
  * Fetches a URL with exponential backoff.
  *
  * @param {string} url - The URL to fetch.
@@ -64,6 +73,97 @@ export function float32ToInt16(buffer) {
         data[i] = sample < 0 ? sample * 0x8000 : sample * 0x7fff;
     }
     return data;
+}
+
+/**
+ * Creates an AudioBuffer-compatible PCM copy with a precise frame count.
+ * Frames outside the source buffer remain silent so callers retain their
+ * requested export length even if a browser returns a slightly short buffer.
+ *
+ * @param {AudioBufferLike} audioBuffer - Source PCM buffer.
+ * @param {number} startFrame - First source frame to copy.
+ * @param {number} frameCount - Number of frames in the copy.
+ * @returns {AudioBufferLike} Copied PCM data.
+ */
+export function copyAudioBufferFrames(audioBuffer, startFrame, frameCount) {
+    const safeSourceLength = Math.max(0, Math.trunc(Number(audioBuffer.length) || 0));
+    const safeStartFrame = Math.min(
+        Math.max(0, Math.trunc(Number(startFrame) || 0)),
+        safeSourceLength,
+    );
+    const safeFrameCount = Math.max(0, Math.trunc(Number(frameCount) || 0));
+    const safeSampleRate = Math.max(1, Number(audioBuffer.sampleRate) || 1);
+    const safeChannelCount = Math.max(1, Math.trunc(Number(audioBuffer.numberOfChannels) || 1));
+    const copiedChannels = Array.from({ length: safeChannelCount }, (_, channel) => {
+        const copiedChannel = new Float32Array(safeFrameCount);
+        const sourceChannel = audioBuffer.getChannelData(channel);
+        const availableFrames = Math.max(0, safeSourceLength - safeStartFrame);
+        const framesToCopy = Math.min(safeFrameCount, availableFrames, sourceChannel.length);
+        copiedChannel.set(sourceChannel.subarray(safeStartFrame, safeStartFrame + framesToCopy));
+        return copiedChannel;
+    });
+
+    return {
+        numberOfChannels: safeChannelCount,
+        sampleRate: safeSampleRate,
+        length: safeFrameCount,
+        duration: safeFrameCount / safeSampleRate,
+        getChannelData(channel) {
+            if (!Number.isInteger(channel) || channel < 0 || channel >= copiedChannels.length) {
+                throw new RangeError(`Channel ${channel} is outside this audio buffer.`);
+            }
+            return copiedChannels[channel];
+        },
+    };
+}
+
+/**
+ * Finds the maximum boundary-crossfade length for a seamless loop.
+ *
+ * @param {number} sampleRate - Frames per second.
+ * @param {number} frameCount - Loop frames per channel.
+ * @returns {number} Frames to crossfade at the end of the loop.
+ */
+export function getSeamlessCrossfadeFrameCount(sampleRate, frameCount) {
+    const safeSampleRate = Math.max(0, Number(sampleRate) || 0);
+    const safeFrameCount = Math.max(0, Math.trunc(Number(frameCount) || 0));
+    const fiveMilliseconds = Math.floor(safeSampleRate * 0.005);
+
+    return Math.min(fiveMilliseconds, Math.floor(safeFrameCount / 16));
+}
+
+/**
+ * Copies a cycle-aligned PCM section and smooths the ending boundary into its
+ * beginning with an equal-power crossfade. The returned loop keeps the exact
+ * requested number of frames.
+ *
+ * @param {AudioBufferLike} audioBuffer - Source PCM buffer.
+ * @param {number} startFrame - First source frame in the seamless section.
+ * @param {number} frameCount - Exact number of loop frames to retain.
+ * @returns {AudioBufferLike} A precise, seamless-loop-ready PCM buffer.
+ */
+export function createSeamlessLoopAudioBuffer(audioBuffer, startFrame, frameCount) {
+    const loopBuffer = copyAudioBufferFrames(audioBuffer, startFrame, frameCount);
+    const crossfadeFrames = getSeamlessCrossfadeFrameCount(
+        loopBuffer.sampleRate,
+        loopBuffer.length,
+    );
+
+    if (crossfadeFrames === 0) return loopBuffer;
+
+    const crossfadeStart = loopBuffer.length - crossfadeFrames;
+    for (let channel = 0; channel < loopBuffer.numberOfChannels; channel += 1) {
+        const channelData = loopBuffer.getChannelData(channel);
+        for (let frame = 0; frame < crossfadeFrames; frame += 1) {
+            const progress = (frame + 1) / crossfadeFrames;
+            const tailGain = Math.cos((Math.PI / 2) * progress);
+            const headGain = Math.sin((Math.PI / 2) * progress);
+            channelData[crossfadeStart + frame] =
+                channelData[crossfadeStart + frame] * tailGain + channelData[frame] * headGain;
+        }
+    }
+
+    return loopBuffer;
 }
 
 let lameJsPromise = null;
