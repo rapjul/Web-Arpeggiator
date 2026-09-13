@@ -531,6 +531,9 @@ function initializeApp() {
     const loadSavedPresetButton = document.getElementById("load-saved-preset-button");
     const clearSavedPresetButton = document.getElementById("clear-saved-preset-button");
     const deleteSavedPresetButton = document.getElementById("delete-saved-preset-button");
+    const browserStorageRecovery = /** @type {HTMLDetailsElement | null} */ (
+        document.getElementById("browser-storage-recovery")
+    );
     const loadPresetInput = /** @type {HTMLInputElement | null} */ (
         document.getElementById("load-preset-input")
     );
@@ -1043,6 +1046,7 @@ function initializeApp() {
         if (!savedPresetSelect) return;
         try {
             const records = window.WebArpPresetStore ? await window.WebArpPresetStore.list() : [];
+            hideBrowserStorageRecovery();
             savedPresetSelect.innerHTML = "";
 
             // 1. Factory Presets group
@@ -1081,7 +1085,28 @@ function initializeApp() {
             }
         } catch (error) {
             console.warn("Failed to refresh saved preset list:", error);
+            showBrowserStorageRecovery();
         }
+    }
+
+    /**
+     * Displays non-destructive recovery steps after a browser storage error.
+     * @returns {void}
+     */
+    function showBrowserStorageRecovery() {
+        if (!browserStorageRecovery) return;
+        browserStorageRecovery.classList.remove("hidden");
+        browserStorageRecovery.open = true;
+    }
+
+    /**
+     * Hides recovery guidance after browser storage works again.
+     * @returns {void}
+     */
+    function hideBrowserStorageRecovery() {
+        if (!browserStorageRecovery) return;
+        browserStorageRecovery.classList.add("hidden");
+        browserStorageRecovery.open = false;
     }
 
     // ------------------------------------------------------------------
@@ -3284,6 +3309,7 @@ function initializeApp() {
         }
 
         if (!window.WebArpPresetStore) {
+            showBrowserStorageRecovery();
             updateTestState({
                 lastSaveError: "Browser preset storage is unavailable.",
                 lastSaveFinished: true,
@@ -3297,6 +3323,7 @@ function initializeApp() {
                 name: presetName,
                 source,
             });
+            hideBrowserStorageRecovery();
             await refreshSavedPresetList(record.id);
             updateTestState({
                 lastSavedPreset: settings,
@@ -3306,6 +3333,7 @@ function initializeApp() {
             return "success";
         } catch (storeError) {
             console.warn("Failed to save preset to browser storage:", storeError);
+            showBrowserStorageRecovery();
             updateTestState({
                 lastSaveError: String(storeError),
                 lastSaveFinished: true,
@@ -3369,7 +3397,10 @@ function initializeApp() {
                             source: "import",
                         })
                             .then((record) => refreshSavedPresetList(record.id))
-                            .catch((er) => console.warn("Failed to save imported preset:", er));
+                            .catch((er) => {
+                                console.warn("Failed to save imported preset:", er);
+                                showBrowserStorageRecovery();
+                            });
                     }
                     showToast("Preset loaded!", "success");
                 } catch (err) {
@@ -3404,6 +3435,7 @@ function initializeApp() {
             }
 
             if (!window.WebArpPresetStore) {
+                showBrowserStorageRecovery();
                 updateTestState({
                     lastLoadError: "Browser preset storage is unavailable.",
                     lastLoadFinished: true,
@@ -3434,6 +3466,7 @@ function initializeApp() {
                 showToast("Loaded saved preset from browser storage.", "success");
             } catch (error) {
                 console.error("Failed to load saved preset:", error);
+                showBrowserStorageRecovery();
                 updateTestState({
                     lastLoadError: String(error),
                     lastLoadFinished: true,
@@ -3448,6 +3481,7 @@ function initializeApp() {
             log("Clear saved presets button clicked.");
             updateTestState({ lastClearFinished: false });
             if (!window.WebArpPresetStore) {
+                showBrowserStorageRecovery();
                 updateTestState({
                     lastClearError: "Browser preset storage is unavailable.",
                     lastClearFinished: true,
@@ -3474,6 +3508,7 @@ function initializeApp() {
                 showToast("Saved browser presets cleared.", "success");
             } catch (error) {
                 console.error("Failed to clear saved presets:", error);
+                showBrowserStorageRecovery();
                 updateTestState({
                     lastClearError: String(error),
                     lastClearFinished: true,
@@ -3505,6 +3540,7 @@ function initializeApp() {
             }
 
             if (!window.WebArpPresetStore) {
+                showBrowserStorageRecovery();
                 updateTestState({
                     lastDeleteError: "Browser preset storage is unavailable.",
                     lastDeleteFinished: true,
@@ -3523,6 +3559,7 @@ function initializeApp() {
                 showToast("Deleted saved preset.", "success");
             } catch (error) {
                 console.error("Failed to delete saved preset:", error);
+                showBrowserStorageRecovery();
                 updateTestState({
                     lastDeleteError: String(error),
                     lastDeleteFinished: true,
