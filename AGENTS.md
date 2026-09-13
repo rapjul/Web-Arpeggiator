@@ -331,7 +331,9 @@ Web Arpeggiator/
 │   │   ├── 0004-strict-type-safety-and-meaningful-behavioral-testing.md
 │   │   ├── 0005-defer-tone-runtime-until-audio-activation.md
 │   │   ├── 0006-persistent-settings-history-and-default-resets.md
-│   │   └── 0007-semantic-theme-tokens-and-modular-styles.md
+│   │   ├── 0007-semantic-theme-tokens-and-modular-styles.md
+│   │   ├── 0008-seamless-wav-export-invariants.md
+│   │   └── 0009-versioned-offline-audio-export-metadata.md
 │   ├── history-and-default-settings.md # Default parameters and settings history reference
 │   ├── midi-specification.md # Standard MIDI specification & implementation reference
 │   └── pattern-directions.md # Detailed pattern descriptions & visual guide

@@ -2,6 +2,8 @@
 
 Every offline WAV and MP3 export carries a versioned Web Arpeggiator record. It captures the complete settings snapshot used at export time, the materialized sequence actually scheduled by the renderer, and the calculated render window. This makes a future import flow possible without trying to reverse-engineer synthesis parameters from PCM data.
 
+The long-lived binary-layout and import-compatibility decisions are recorded in [ADR 0009: Versioned Offline Audio Export Metadata](./adr/0009-versioned-offline-audio-export-metadata.md). The exact-WAV loop contract is recorded in [ADR 0008: Seamless WAV Export Invariants](./adr/0008-seamless-wav-export-invariants.md).
+
 Real-time recordings are intentionally excluded: settings can change while they are captured, so one snapshot cannot accurately reproduce them.
 
 ## Record schema
