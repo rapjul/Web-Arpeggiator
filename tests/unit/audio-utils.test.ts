@@ -4,6 +4,7 @@
 
 import { describe, expect, it, vi } from "vitest";
 import {
+    addMp3ExportMetadata,
     addGaplessMp3Metadata,
     audioBufferToMp3Blob,
     audioBufferToWav,
@@ -12,9 +13,10 @@ import {
     downloadBlob,
     fetchWithBackoff,
     float32ToInt16,
-    getSeamlessCrossfadeFrameCount,
     interleave,
     loadLameJs,
+    readMp3ExportMetadata,
+    readWavExportMetadata,
     triggerIdleLoad,
     writeString,
 } from "@core/audio-utils.js";
@@ -36,6 +38,54 @@ function createMpeg1Layer3Frames(frameCount: number): Uint8Array {
 
 function readAscii(bytes: Uint8Array, offset: number, length: number): string {
     return new TextDecoder().decode(bytes.slice(offset, offset + length));
+}
+
+function createExportMetadataFixture(): Record<string, unknown> {
+    return {
+        schema: "web-arpeggiator.offline-export",
+        version: 1,
+        application: "Web Arpeggiator",
+        export: {
+            type: "offline-audio",
+            mode: "seamless",
+            loopCount: 4,
+            musicalDurationSeconds: 2,
+            preRollCycles: 3,
+            preRollDurationSeconds: 1.5,
+            tailDurationSeconds: 0,
+            renderDurationSeconds: 3.5,
+            sampleRate: 44100,
+            channelCount: 2,
+            frameCount: 88200,
+        },
+        pattern: {
+            scheduledNotes: ["C4", "E4", "G4"],
+            stepsPerLoop: 3,
+        },
+        settings: {
+            bpm: 120,
+            waveform: "sine",
+            direction: "random",
+            offlineExportMode: "seamless",
+        },
+    };
+}
+
+function getRiffChunkData(bytes: Uint8Array, chunkId: string): Uint8Array | null {
+    if (readAscii(bytes, 0, 4) !== "RIFF" || readAscii(bytes, 8, 4) !== "WAVE") return null;
+
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    let offset = 12;
+    while (offset + 8 <= bytes.length) {
+        const chunkLength = view.getUint32(offset + 4, true);
+        const dataStart = offset + 8;
+        const dataEnd = dataStart + chunkLength;
+        if (dataEnd > bytes.length) return null;
+        if (readAscii(bytes, offset, 4) === chunkId) return bytes.slice(dataStart, dataEnd);
+        offset = dataEnd + (chunkLength % 2);
+    }
+
+    return null;
 }
 
 describe("Audio Utils Domain Module", () => {
@@ -161,13 +211,7 @@ describe("Audio Utils Domain Module", () => {
             ]);
         });
 
-        it("caps seamless crossfades at five milliseconds and one sixteenth of the loop", () => {
-            expect(getSeamlessCrossfadeFrameCount(1000, 160)).toBe(5);
-            expect(getSeamlessCrossfadeFrameCount(1000, 30)).toBe(1);
-            expect(getSeamlessCrossfadeFrameCount(1000, 15)).toBe(0);
-        });
-
-        it("creates an exact seamless loop with an equal-power ending crossfade", async () => {
+        it("creates an exact seamless loop without altering its PCM boundary", async () => {
             const samples = Float32Array.from({ length: 32 }, (_, index) => index);
             const source = {
                 numberOfChannels: 1,
@@ -183,11 +227,33 @@ describe("Audio Utils Domain Module", () => {
             const wavData = new Uint8Array(await wavBlob.arrayBuffer());
 
             expect(seamless.length).toBe(32);
-            expect(channel[0]).toBe(0);
-            expect(channel[31]).toBe(1);
+            expect(Array.from(channel)).toEqual(Array.from(samples));
             expect(samples[31]).toBe(31);
             expect(new TextDecoder().decode(wavData.slice(0, 4))).toBe("RIFF");
             expect(new TextDecoder().decode(wavData.slice(8, 12))).toBe("WAVE");
+        });
+
+        it("embeds an importable WAV settings record without changing PCM bytes", async () => {
+            const samples = Float32Array.from([0.25, -0.25, 0.5, -0.5]);
+            const audioBuffer = {
+                numberOfChannels: 1,
+                sampleRate: 44100,
+                length: samples.length,
+                duration: samples.length / 44100,
+                getChannelData: () => samples,
+            } as unknown as AudioBuffer;
+            const metadata = createExportMetadataFixture();
+            const plainWav = new Uint8Array(await audioBufferToWav(audioBuffer).arrayBuffer());
+            const metadataWav = new Uint8Array(
+                await audioBufferToWav(audioBuffer, metadata).arrayBuffer(),
+            );
+
+            expect(readWavExportMetadata(metadataWav)).toEqual(metadata);
+            expect(getRiffChunkData(metadataWav, "data")).toEqual(
+                getRiffChunkData(plainWav, "data"),
+            );
+            expect(readAscii(metadataWav, 36, 4)).toBe("LIST");
+            expect(readWavExportMetadata(plainWav)).toBeNull();
         });
     });
 
@@ -274,6 +340,20 @@ describe("Audio Utils Domain Module", () => {
     });
 
     describe("audioBufferToMp3Blob & loadLameJs", () => {
+        it("embeds a standard ID3 settings record before MP3 frames", () => {
+            const rawMp3 = createMpeg1Layer3Frames(2);
+            const metadata = createExportMetadataFixture();
+            const taggedMp3 = addMp3ExportMetadata(rawMp3, metadata);
+            const tagLength =
+                (taggedMp3[6] << 21) | (taggedMp3[7] << 14) | (taggedMp3[8] << 7) | taggedMp3[9];
+
+            expect(readAscii(taggedMp3, 0, 3)).toBe("ID3");
+            expect(taggedMp3[3]).toBe(4);
+            expect(tagLength).toBeGreaterThan(0);
+            expect(readMp3ExportMetadata(taggedMp3)).toEqual(metadata);
+            expect(taggedMp3.slice(10 + tagLength)).toEqual(rawMp3);
+        });
+
         it("adds an Info/LAME gapless frame with exact delay and padding metadata", () => {
             const rawMp3 = createMpeg1Layer3Frames(4);
             const inputSampleCount = 4 * 1152 - 576 - 1000;

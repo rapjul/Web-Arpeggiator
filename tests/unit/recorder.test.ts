@@ -348,9 +348,31 @@ describe("Recorder Manager Module", () => {
         expect(lastSeamlessStartFrame).toBe(231525);
         expect(lastSeamlessFrameCount).toBe(66150);
         expect(createSeamlessLoopAudioBuffer).toHaveBeenCalledTimes(1);
-        expect(audioBufferToWav).toHaveBeenCalledWith(expect.objectContaining({ length: 66150 }));
+        expect(audioBufferToWav).toHaveBeenCalledWith(
+            expect.objectContaining({ length: 66150 }),
+            expect.objectContaining({
+                schema: "web-arpeggiator.offline-export",
+                version: 1,
+                settings,
+                pattern: expect.objectContaining({
+                    scheduledNotes: ["C4", "E4", "G4"],
+                    stepsPerLoop: 3,
+                }),
+                export: expect.objectContaining({
+                    mode: "seamless",
+                    loopCount: 4,
+                    sampleRate: 44100,
+                    channelCount: 2,
+                    frameCount: 66150,
+                }),
+            }),
+        );
         expect(audioBufferToMp3Blob).toHaveBeenCalledWith(
             expect.objectContaining({ length: 66150 }),
+            expect.objectContaining({
+                schema: "web-arpeggiator.offline-export",
+                settings,
+            }),
         );
     });
 

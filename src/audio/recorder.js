@@ -20,6 +20,7 @@ import {
     calculateOfflineExportDuration,
     OFFLINE_EXPORT_MODE_SEAMLESS,
 } from "@core/export-duration.js";
+import { createOfflineExportMetadata } from "@core/export-metadata.js";
 import { materializePatternSequence } from "@core/pattern-core.js";
 
 /**
@@ -418,12 +419,20 @@ export function createRecorderManager(context) {
                       Math.round(exportDuration.musicalDuration * nativeBuffer.sampleRate),
                   )
                 : nativeBuffer;
+            const exportMetadata = createOfflineExportMetadata({
+                settings,
+                patternNotes,
+                exportDuration,
+                sampleRate: exportBuffer.sampleRate,
+                channelCount: exportBuffer.numberOfChannels,
+                frameCount: exportBuffer.length,
+            });
 
             // Export WAV
             if (dom.offlineExportWavCheck.checked) {
                 dom.offlineExportStatus.textContent = "Exporting WAV...";
                 actions.showToast("Exporting WAV...", "info");
-                const wavBlob = audioBufferToWav(exportBuffer);
+                const wavBlob = audioBufferToWav(exportBuffer, exportMetadata);
                 downloadBlob(wavBlob, `${filename}.wav`);
 
                 if (dom.offlineExportMp3Check.checked) {
@@ -435,7 +444,7 @@ export function createRecorderManager(context) {
             if (dom.offlineExportMp3Check.checked) {
                 dom.offlineExportStatus.textContent = "Encoding MP3...";
                 actions.showToast("Encoding MP3...", "info");
-                const mp3Blob = await audioBufferToMp3Blob(exportBuffer);
+                const mp3Blob = await audioBufferToMp3Blob(exportBuffer, exportMetadata);
                 downloadBlob(mp3Blob, `${filename}.mp3`);
             }
 

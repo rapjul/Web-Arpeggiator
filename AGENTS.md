@@ -104,9 +104,10 @@ Powered by `Tone.getTransport()`:
 
 #### Offline Audio Export
 
-- **Seamless loop (WAV)**: Renders repeated source material before the selected cycles to establish envelope, delay, and reverb state; crops the WAV to the exact musical sample count with a boundary crossfade.
+- **Seamless loop (WAV)**: Renders repeated source material before the selected cycles to establish envelope, delay, and reverb state; crops the WAV to the exact musical sample count without altering the PCM boundary.
 - **Include effects tail**: Preserves a cold start and appends 0–10 seconds of effects decay after the selected cycles; legacy presets default to this mode with a 2-second tail.
-- Both modes use `Tone.Offline`, support 1-100 pattern cycles, and avoid real-time timing variation. MP3 remains available but is not guaranteed sample-exact because encoder padding can affect loop boundaries.
+- Both modes use `Tone.Offline`, support 1-100 pattern cycles, and avoid real-time timing variation. MP3 includes gapless delay/padding metadata for compatible players, but WAV remains the sample-exact format.
+- Offline WAV and MP3 exports embed a versioned settings snapshot, materialized pattern sequence, and render timing. The binary layouts and future import contract are documented in [`docs/audio-export-metadata.md`](./docs/audio-export-metadata.md).
 
 #### Export Formats
 
