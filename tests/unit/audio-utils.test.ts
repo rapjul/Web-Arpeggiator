@@ -233,6 +233,21 @@ describe("Audio Utils Domain Module", () => {
             expect(new TextDecoder().decode(wavData.slice(8, 12))).toBe("WAVE");
         });
 
+        it("rejects a short seamless source instead of padding the loop with silence", () => {
+            const sourceData = Float32Array.from([0.1, 0.2, 0.3, 0.4]);
+            const source = {
+                numberOfChannels: 1,
+                sampleRate: 1000,
+                length: sourceData.length,
+                duration: sourceData.length / 1000,
+                getChannelData: () => sourceData,
+            } as unknown as AudioBuffer;
+
+            expect(() => createSeamlessLoopAudioBuffer(source, 2, 4)).toThrow(
+                "complete seamless loop window",
+            );
+        });
+
         it("embeds an importable WAV settings record without changing PCM bytes", async () => {
             const samples = Float32Array.from([0.25, -0.25, 0.5, -0.5]);
             const audioBuffer = {

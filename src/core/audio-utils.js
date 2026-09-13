@@ -128,6 +128,16 @@ export function copyAudioBufferFrames(audioBuffer, startFrame, frameCount) {
  * @returns {AudioBufferLike} A precise, seamless-loop-ready PCM buffer.
  */
 export function createSeamlessLoopAudioBuffer(audioBuffer, startFrame, frameCount) {
+    const safeStartFrame = Math.max(0, Math.trunc(Number(startFrame) || 0));
+    const safeFrameCount = Math.max(0, Math.trunc(Number(frameCount) || 0));
+    const sourceLength = Math.max(0, Math.trunc(Number(audioBuffer.length) || 0));
+
+    if (safeStartFrame + safeFrameCount > sourceLength) {
+        throw new RangeError(
+            "The source buffer does not contain the complete seamless loop window.",
+        );
+    }
+
     return copyAudioBufferFrames(audioBuffer, startFrame, frameCount);
 }
 

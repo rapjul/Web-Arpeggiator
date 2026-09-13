@@ -1572,6 +1572,8 @@ function initializeApp() {
             envRelease: settings.envRelease,
             delayMix: settings.delayMix,
             reverbMix: settings.reverbMix,
+            chorusMix: settings.chorusMix,
+            autoPanMix: settings.autoPanMix,
         });
     }
 

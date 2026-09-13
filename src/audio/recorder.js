@@ -17,11 +17,25 @@ import {
     downloadBlob,
 } from "@core/audio-utils.js";
 import {
+    calculateSeamlessRenderFrameWindow,
     calculateOfflineExportDuration,
+    getSeamlessModulationCompatibility,
     OFFLINE_EXPORT_MODE_SEAMLESS,
 } from "@core/export-duration.js";
 import { createOfflineExportMetadata } from "@core/export-metadata.js";
 import { materializePatternSequence } from "@core/pattern-core.js";
+
+const DEFAULT_OFFLINE_SAMPLE_RATE = 44100;
+
+function getOfflineSampleRate() {
+    const sampleRate = Number(Tone.getContext().sampleRate);
+    return Number.isFinite(sampleRate) && sampleRate > 0 ? sampleRate : DEFAULT_OFFLINE_SAMPLE_RATE;
+}
+
+function formatEffectList(effectNames) {
+    if (effectNames.length <= 1) return effectNames[0] || "effect";
+    return `${effectNames.slice(0, -1).join(", ")} and ${effectNames[effectNames.length - 1]}`;
+}
 
 /**
  * Creates the recorder manager with real-time and offline export control.
@@ -355,8 +369,38 @@ export function createRecorderManager(context) {
             envRelease: settings.envRelease,
             delayMix: settings.delayMix,
             reverbMix: settings.reverbMix,
+            chorusMix: settings.chorusMix,
+            autoPanMix: settings.autoPanMix,
         });
         const isSeamlessExport = exportDuration.exportMode === OFFLINE_EXPORT_MODE_SEAMLESS;
+        const seamlessModulation = getSeamlessModulationCompatibility({
+            bpm: settings.bpm,
+            musicalDuration: exportDuration.musicalDuration,
+            chorusMix: settings.chorusMix,
+            autoPanMix: settings.autoPanMix,
+        });
+
+        if (isSeamlessExport && !seamlessModulation.isCompatible) {
+            const effectLabel = formatEffectList(seamlessModulation.incompatibleEffects);
+            const message = `Cannot generate a seamless loop with ${effectLabel}: change Pattern cycles, disable it, or use Include effects tail.`;
+            dom.offlineExportStatus.textContent = message;
+            actions.showToast(message, "error");
+            dom.offlineExportButton.disabled = false;
+            dom.offlineExportButton.textContent = "Generate & Export";
+            return;
+        }
+
+        const offlineSampleRate = getOfflineSampleRate();
+        const seamlessRenderWindow = isSeamlessExport
+            ? calculateSeamlessRenderFrameWindow({
+                  preRollDuration: exportDuration.preRollDuration,
+                  musicalDuration: exportDuration.musicalDuration,
+                  sampleRate: offlineSampleRate,
+              })
+            : null;
+        const offlineRenderDuration = seamlessRenderWindow
+            ? seamlessRenderWindow.offlineRenderDuration
+            : exportDuration.renderDuration;
         const patternStopTime = isSeamlessExport
             ? exportDuration.preRollDuration + exportDuration.musicalDuration
             : exportDuration.musicalDuration;
@@ -366,38 +410,43 @@ export function createRecorderManager(context) {
             : "Generating audio with effects tail... please wait.";
 
         try {
-            const toneAudioBuffer = await Tone.Offline(async (offlineContext) => {
-                offlineContext.transport.bpm.value = settings.bpm;
-                offlineContext.transport.swing = settings.swing;
+            const toneAudioBuffer = await Tone.Offline(
+                async (offlineContext) => {
+                    offlineContext.transport.bpm.value = settings.bpm;
+                    offlineContext.transport.swing = settings.swing;
 
-                // Recreate the synth + effects graph using the shared audio engine helper
-                const { offlineSynth } = audio.createOfflineChain(offlineContext, settings);
+                    // Recreate the synth + effects graph using the shared audio engine helper
+                    const { offlineSynth } = audio.createOfflineChain(offlineContext, settings);
 
-                // --- Pattern for offline ---
-                const gateLength = settings.gateRatio * exportDuration.intervalInSeconds;
+                    // --- Pattern for offline ---
+                    const gateLength = settings.gateRatio * exportDuration.intervalInSeconds;
 
-                const offlinePattern = new Tone.Pattern(
-                    (time, note) => {
-                        // Split triggerAttackRelease to ensure exact scheduling reference time is used
-                        if (
-                            typeof offlineSynth.triggerAttack === "function" &&
-                            typeof offlineSynth.triggerRelease === "function"
-                        ) {
-                            offlineSynth.triggerAttack(note, time);
-                            offlineSynth.triggerRelease(time + gateLength);
-                        } else {
-                            offlineSynth.triggerAttackRelease(note, gateLength, time);
-                        }
-                    },
-                    patternNotes,
-                    "up",
-                );
-                offlinePattern.interval = settings.interval;
-                offlinePattern.start(0);
+                    const offlinePattern = new Tone.Pattern(
+                        (time, note) => {
+                            // Split triggerAttackRelease to ensure exact scheduling reference time is used
+                            if (
+                                typeof offlineSynth.triggerAttack === "function" &&
+                                typeof offlineSynth.triggerRelease === "function"
+                            ) {
+                                offlineSynth.triggerAttack(note, time);
+                                offlineSynth.triggerRelease(time + gateLength);
+                            } else {
+                                offlineSynth.triggerAttackRelease(note, gateLength, time);
+                            }
+                        },
+                        patternNotes,
+                        "up",
+                    );
+                    offlinePattern.interval = settings.interval;
+                    offlinePattern.start(0);
 
-                offlineContext.transport.start(0);
-                offlineContext.transport.stop(patternStopTime);
-            }, exportDuration.renderDuration);
+                    offlineContext.transport.start(0);
+                    offlineContext.transport.stop(patternStopTime);
+                },
+                offlineRenderDuration,
+                2,
+                offlineSampleRate,
+            );
 
             const nativeBuffer = /** @type {AudioBuffer} */ (
                 typeof toneAudioBuffer.get === "function" ? toneAudioBuffer.get() : toneAudioBuffer
@@ -412,11 +461,18 @@ export function createRecorderManager(context) {
                 return;
             }
 
+            if (
+                seamlessRenderWindow &&
+                nativeBuffer.length < seamlessRenderWindow.sourceFrameCount
+            ) {
+                throw new Error("Offline renderer returned an incomplete seamless source buffer.");
+            }
+
             const exportBuffer = isSeamlessExport
                 ? createSeamlessLoopAudioBuffer(
                       nativeBuffer,
-                      Math.round(exportDuration.preRollDuration * nativeBuffer.sampleRate),
-                      Math.round(exportDuration.musicalDuration * nativeBuffer.sampleRate),
+                      seamlessRenderWindow.startFrame,
+                      seamlessRenderWindow.frameCount,
                   )
                 : nativeBuffer;
             const exportMetadata = createOfflineExportMetadata({

@@ -4,10 +4,12 @@
 
 import { describe, expect, it } from "vitest";
 import {
+    calculateSeamlessRenderFrameWindow,
     calculateOfflineExportDuration,
     DEFAULT_OFFLINE_EXPORT_MODE,
     DEFAULT_OFFLINE_EXPORT_TAIL_SECONDS,
     formatEstimatedExportDuration,
+    getSeamlessModulationCompatibility,
     getIntervalDurationSeconds,
     MAX_LOOP_COUNT,
     MAX_OFFLINE_EXPORT_TAIL_SECONDS,
@@ -118,6 +120,76 @@ describe("Export Duration", () => {
         });
     });
 
+    it("warms chorus and auto-pan before a seamless crop", () => {
+        expect(
+            calculateOfflineExportDuration({
+                loopCount: 4,
+                stepsPerLoop: 3,
+                interval: "16n",
+                bpm: 120,
+                exportMode: OFFLINE_EXPORT_MODE_SEAMLESS,
+                chorusMix: 0.5,
+            }),
+        ).toMatchObject({
+            preRollCycles: 1,
+            preRollDuration: 0.375,
+        });
+        expect(
+            calculateOfflineExportDuration({
+                loopCount: 4,
+                stepsPerLoop: 3,
+                interval: "16n",
+                bpm: 120,
+                exportMode: OFFLINE_EXPORT_MODE_SEAMLESS,
+                autoPanMix: 0.5,
+            }),
+        ).toMatchObject({
+            preRollCycles: 2,
+            preRollDuration: 0.75,
+        });
+    });
+
+    it("identifies time-varying effects that cannot repeat at the selected duration", () => {
+        expect(
+            getSeamlessModulationCompatibility({
+                bpm: 120,
+                musicalDuration: 1.5,
+                chorusMix: 0.5,
+                autoPanMix: 0.5,
+            }),
+        ).toEqual({
+            isCompatible: false,
+            incompatibleEffects: ["Chorus"],
+        });
+        expect(
+            getSeamlessModulationCompatibility({
+                bpm: 120,
+                musicalDuration: 2,
+                chorusMix: 0.5,
+                autoPanMix: 0.5,
+            }),
+        ).toEqual({
+            isCompatible: true,
+            incompatibleEffects: [],
+        });
+    });
+
+    it("uses a guarded integer-frame timeline for seamless source renders", () => {
+        expect(
+            calculateSeamlessRenderFrameWindow({
+                preRollDuration: 0.0006,
+                musicalDuration: 0.0006,
+                sampleRate: 1000,
+            }),
+        ).toEqual({
+            startFrame: 1,
+            frameCount: 1,
+            sourceFrameCount: 2,
+            offlineRenderFrameCount: 3,
+            offlineRenderDuration: 0.003,
+        });
+    });
+
     it("keeps dry seamless exports at their exact musical duration", () => {
         expect(getIntervalDurationSeconds("unsupported", Number.NaN)).toBe(0.125);
         expect(
@@ -161,5 +233,17 @@ describe("Export Duration", () => {
                 exportMode: OFFLINE_EXPORT_MODE_SEAMLESS,
             }),
         ).toBe("1 Pattern cycle at ~0.13s each. Seamless WAV duration: ~0.1 seconds.");
+        expect(
+            formatEstimatedExportDuration({
+                loopCount: 1,
+                stepsPerLoop: 3,
+                interval: "16n",
+                bpm: 120,
+                exportMode: OFFLINE_EXPORT_MODE_SEAMLESS,
+                chorusMix: 0.5,
+            }),
+        ).toBe(
+            "1 Pattern cycle at ~0.38s each. Seamless WAV duration: ~0.4 seconds. Includes an internal 0.4s effects warm-up. Chorus is not phase-aligned across the selected Pattern cycles. Disable it, adjust Pattern cycles, or use Include effects tail.",
+        );
     });
 });

@@ -121,6 +121,7 @@ For detailed pattern descriptions, see [Pattern Directions Guide](./docs/pattern
 ### Offline Audio Export
 
 - Select **Seamless loop (WAV)** for audio cropped to the exact requested musical duration. The renderer warms the synth and enabled effects before the exported cycle boundary, then preserves the cropped PCM samples unchanged.
+- Seamless loop checks active Chorus and Auto-pan against the selected Pattern cycles. If their LFO phase cannot return to its starting point, change the cycle count, disable the effect, or use **Include effects tail**.
 - Select **Include effects tail** to retain a conventional cold start and append 0–10 seconds of delay and reverb decay after the selected pattern cycles. It defaults to 2 seconds for compatibility with existing presets.
 - MP3 can be exported from either mode for listening and sharing. It includes gapless delay/padding metadata for compatible players, but only WAV has the sample-exact seamless-loop guarantee.
 - Both modes render offline without real-time variations and support 1-100 pattern cycles.

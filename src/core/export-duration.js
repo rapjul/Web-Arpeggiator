@@ -27,7 +27,14 @@ export const OFFLINE_RENDER_TAIL_SECONDS = DEFAULT_OFFLINE_EXPORT_TAIL_SECONDS;
 export const OFFLINE_REVERB_DECAY_SECONDS = 1.5;
 export const OFFLINE_DELAY_INTERVAL = "8n";
 export const OFFLINE_DELAY_FEEDBACK = 0.5;
+export const OFFLINE_AUTO_PAN_INTERVAL = "4n";
+export const OFFLINE_AUTO_PAN_DEPTH = 1;
+export const OFFLINE_CHORUS_FREQUENCY_HERTZ = 1.5;
+export const OFFLINE_CHORUS_DELAY_MILLISECONDS = 3.5;
+export const OFFLINE_CHORUS_DELAY_SECONDS = OFFLINE_CHORUS_DELAY_MILLISECONDS / 1000;
+export const OFFLINE_CHORUS_DEPTH = 0.7;
 export const OFFLINE_EFFECT_SETTLE_AMPLITUDE = 0.001;
+export const SEAMLESS_RENDER_GUARD_FRAMES = 1;
 
 /**
  * Converts the selected note subdivision into seconds at a given tempo.
@@ -98,6 +105,90 @@ export function normalizeOfflineExportTailSeconds(tailSeconds) {
     );
 }
 
+function hasActiveEffectMix(mix) {
+    const parsedMix = Number(mix);
+    return Number.isFinite(parsedMix) && parsedMix > 0;
+}
+
+function isPhaseAligned(durationSeconds, periodSeconds) {
+    const phaseCount = durationSeconds / periodSeconds;
+    return Number.isFinite(phaseCount) && Math.abs(phaseCount - Math.round(phaseCount)) < 0.0000001;
+}
+
+/**
+ * Checks whether active time-varying effects return to their starting phase
+ * when a seamless export repeats.
+ *
+ * @param {object} options - Seamless export timing and effect settings.
+ * @param {unknown} options.bpm - Tempo in beats per minute.
+ * @param {unknown} options.musicalDuration - Exported musical duration in seconds.
+ * @param {unknown} options.chorusMix - Chorus wet mix.
+ * @param {unknown} options.autoPanMix - Auto-pan wet mix.
+ * @returns {{isCompatible: boolean, incompatibleEffects: string[]}} Effects that prevent a seamless repeat.
+ */
+export function getSeamlessModulationCompatibility({
+    bpm,
+    musicalDuration,
+    chorusMix,
+    autoPanMix,
+}) {
+    const durationSeconds = Number(musicalDuration);
+    const incompatibleEffects = [];
+
+    if (
+        hasActiveEffectMix(chorusMix) &&
+        !isPhaseAligned(durationSeconds, 1 / OFFLINE_CHORUS_FREQUENCY_HERTZ)
+    ) {
+        incompatibleEffects.push("Chorus");
+    }
+
+    if (
+        hasActiveEffectMix(autoPanMix) &&
+        !isPhaseAligned(durationSeconds, getIntervalDurationSeconds(OFFLINE_AUTO_PAN_INTERVAL, bpm))
+    ) {
+        incompatibleEffects.push("Auto-pan");
+    }
+
+    return {
+        isCompatible: incompatibleEffects.length === 0,
+        incompatibleEffects,
+    };
+}
+
+/**
+ * Converts the seamless crop boundary into one integer-frame timeline and
+ * reserves a guard frame so source rounding cannot create silent padding.
+ *
+ * @param {object} options - Seamless render timing.
+ * @param {unknown} options.preRollDuration - Cycle-aligned warm-up duration in seconds.
+ * @param {unknown} options.musicalDuration - Requested musical duration in seconds.
+ * @param {unknown} options.sampleRate - Offline context sample rate.
+ * @returns {{startFrame: number, frameCount: number, sourceFrameCount: number, offlineRenderFrameCount: number, offlineRenderDuration: number}} Exact crop and source-render window.
+ */
+export function calculateSeamlessRenderFrameWindow({
+    preRollDuration,
+    musicalDuration,
+    sampleRate,
+}) {
+    const parsedSampleRate = Number(sampleRate);
+    const safeSampleRate =
+        Number.isFinite(parsedSampleRate) && parsedSampleRate > 0 ? parsedSampleRate : 44100;
+    const safePreRollDuration = Math.max(0, Number(preRollDuration) || 0);
+    const safeMusicalDuration = Math.max(0, Number(musicalDuration) || 0);
+    const startFrame = Math.round(safePreRollDuration * safeSampleRate);
+    const frameCount = Math.round(safeMusicalDuration * safeSampleRate);
+    const sourceFrameCount = startFrame + frameCount;
+    const offlineRenderFrameCount = sourceFrameCount + SEAMLESS_RENDER_GUARD_FRAMES;
+
+    return {
+        startFrame,
+        frameCount,
+        sourceFrameCount,
+        offlineRenderFrameCount,
+        offlineRenderDuration: offlineRenderFrameCount / safeSampleRate,
+    };
+}
+
 /**
  * Calculates how long repeated source material must run to settle the current
  * synth envelope and enabled feedback effects to approximately -60 dB.
@@ -107,13 +198,24 @@ export function normalizeOfflineExportTailSeconds(tailSeconds) {
  * @param {unknown} options.envRelease - Synth release time in seconds.
  * @param {unknown} options.delayMix - Delay wet mix.
  * @param {unknown} options.reverbMix - Reverb wet mix.
+ * @param {unknown} options.chorusMix - Chorus wet mix.
+ * @param {unknown} options.autoPanMix - Auto-pan wet mix.
  * @returns {number} Required warm-up time in seconds before cycle alignment.
  */
-export function calculateEffectWarmupSeconds({ bpm, envRelease, delayMix, reverbMix }) {
+export function calculateEffectWarmupSeconds({
+    bpm,
+    envRelease,
+    delayMix,
+    reverbMix,
+    chorusMix,
+    autoPanMix,
+}) {
     const parsedRelease = Number(envRelease);
     const releaseSeconds = Number.isFinite(parsedRelease) && parsedRelease > 0 ? parsedRelease : 0;
-    const hasDelay = Number(delayMix) > 0;
-    const hasReverb = Number(reverbMix) > 0;
+    const hasDelay = hasActiveEffectMix(delayMix);
+    const hasReverb = hasActiveEffectMix(reverbMix);
+    const hasChorus = hasActiveEffectMix(chorusMix);
+    const hasAutoPan = hasActiveEffectMix(autoPanMix);
 
     let warmupSeconds = releaseSeconds;
 
@@ -126,6 +228,14 @@ export function calculateEffectWarmupSeconds({ bpm, envRelease, delayMix, reverb
 
     if (hasReverb) {
         warmupSeconds += OFFLINE_REVERB_DECAY_SECONDS;
+    }
+
+    if (hasChorus) {
+        warmupSeconds += OFFLINE_CHORUS_DELAY_SECONDS;
+    }
+
+    if (hasAutoPan) {
+        warmupSeconds += getIntervalDurationSeconds(OFFLINE_AUTO_PAN_INTERVAL, bpm);
     }
 
     return warmupSeconds;
@@ -144,6 +254,8 @@ export function calculateEffectWarmupSeconds({ bpm, envRelease, delayMix, reverb
  * @param {unknown} [options.envRelease] - Synth release time in seconds.
  * @param {unknown} [options.delayMix] - Delay wet mix.
  * @param {unknown} [options.reverbMix] - Reverb wet mix.
+ * @param {unknown} [options.chorusMix] - Chorus wet mix.
+ * @param {unknown} [options.autoPanMix] - Auto-pan wet mix.
  * @returns {{loopCount: number, stepsPerLoop: number, intervalInSeconds: number, loopDuration: number, patternDuration: number, musicalDuration: number, preRollCycles: number, preRollDuration: number, tailDuration: number, exportDuration: number, renderDuration: number, totalDuration: number, exportMode: "seamless"|"tail"}} Normalized timing values.
  */
 export function calculateOfflineExportDuration({
@@ -156,6 +268,8 @@ export function calculateOfflineExportDuration({
     envRelease,
     delayMix,
     reverbMix,
+    chorusMix,
+    autoPanMix,
 }) {
     const safeLoopCount = normalizeLoopCount(loopCount);
     const parsedStepsPerLoop = Number(stepsPerLoop);
@@ -173,7 +287,14 @@ export function calculateOfflineExportDuration({
             : 0;
     const effectWarmupSeconds =
         safeExportMode === OFFLINE_EXPORT_MODE_SEAMLESS
-            ? calculateEffectWarmupSeconds({ bpm, envRelease, delayMix, reverbMix })
+            ? calculateEffectWarmupSeconds({
+                  bpm,
+                  envRelease,
+                  delayMix,
+                  reverbMix,
+                  chorusMix,
+                  autoPanMix,
+              })
             : 0;
     const preRollCycles =
         effectWarmupSeconds > 0 ? Math.ceil(effectWarmupSeconds / loopDuration) : 0;
@@ -211,6 +332,8 @@ export function calculateOfflineExportDuration({
  * @param {unknown} [options.envRelease] - Synth release time in seconds.
  * @param {unknown} [options.delayMix] - Delay wet mix.
  * @param {unknown} [options.reverbMix] - Reverb wet mix.
+ * @param {unknown} [options.chorusMix] - Chorus wet mix.
+ * @param {unknown} [options.autoPanMix] - Auto-pan wet mix.
  * @returns {string} Formatted duration estimate.
  */
 export function formatEstimatedExportDuration(options) {
@@ -221,6 +344,7 @@ export function formatEstimatedExportDuration(options) {
         preRollDuration,
         tailDuration,
         exportMode,
+        musicalDuration,
     } = calculateOfflineExportDuration(options);
     const loopLabel = safeLoopCount === MIN_LOOP_COUNT ? "Pattern cycle" : "Pattern cycles";
     const formattedLoopDuration =
@@ -233,7 +357,21 @@ export function formatEstimatedExportDuration(options) {
             preRollDuration > 0
                 ? ` Includes an internal ${preRollDuration.toFixed(1)}s effects warm-up.`
                 : "";
-        return `${safeLoopCount} ${loopLabel} at ${formattedLoopDuration} each. Seamless WAV duration: ~${exportDuration.toFixed(1)} seconds.${warmupText}`;
+        const { incompatibleEffects } = getSeamlessModulationCompatibility({
+            bpm: options.bpm,
+            musicalDuration,
+            chorusMix: options.chorusMix,
+            autoPanMix: options.autoPanMix,
+        });
+        const modulationText =
+            incompatibleEffects.length > 0
+                ? ` ${incompatibleEffects.join(" and ")} ${
+                      incompatibleEffects.length === 1 ? "is" : "are"
+                  } not phase-aligned across the selected Pattern cycles. Disable ${
+                      incompatibleEffects.length === 1 ? "it" : "them"
+                  }, adjust Pattern cycles, or use Include effects tail.`
+                : "";
+        return `${safeLoopCount} ${loopLabel} at ${formattedLoopDuration} each. Seamless WAV duration: ~${exportDuration.toFixed(1)} seconds.${warmupText}${modulationText}`;
     }
 
     return `${safeLoopCount} ${loopLabel} at ${formattedLoopDuration} each + ${tailDuration.toFixed(1)}s effects tail. Export duration: ~${exportDuration.toFixed(1)} seconds`;

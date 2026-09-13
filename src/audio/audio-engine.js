@@ -15,6 +15,11 @@
 
 import * as Tone from "tone";
 import {
+    OFFLINE_AUTO_PAN_DEPTH,
+    OFFLINE_AUTO_PAN_INTERVAL,
+    OFFLINE_CHORUS_DELAY_MILLISECONDS,
+    OFFLINE_CHORUS_DEPTH,
+    OFFLINE_CHORUS_FREQUENCY_HERTZ,
     OFFLINE_DELAY_FEEDBACK,
     OFFLINE_DELAY_INTERVAL,
     OFFLINE_REVERB_DECAY_SECONDS,
@@ -117,17 +122,17 @@ export function createAudioEngine(context) {
     }).connect(reverb);
 
     const autoPanner = new Tone.AutoPanner({
-        frequency: "4n",
-        depth: 1,
+        frequency: OFFLINE_AUTO_PAN_INTERVAL,
+        depth: OFFLINE_AUTO_PAN_DEPTH,
         wet: 0,
     })
         .connect(delay)
         .start();
 
     const chorus = new Tone.Chorus({
-        frequency: 1.5,
-        delayTime: 3.5,
-        depth: 0.7,
+        frequency: OFFLINE_CHORUS_FREQUENCY_HERTZ,
+        delayTime: OFFLINE_CHORUS_DELAY_MILLISECONDS,
+        depth: OFFLINE_CHORUS_DEPTH,
         wet: 0,
     })
         .connect(autoPanner)
@@ -466,17 +471,17 @@ export function createAudioEngine(context) {
         }).connect(offlineReverb);
 
         const offlineAutoPanner = new Tone.AutoPanner({
-            frequency: "4n",
-            depth: 1,
+            frequency: OFFLINE_AUTO_PAN_INTERVAL,
+            depth: OFFLINE_AUTO_PAN_DEPTH,
             wet: settings.autoPanMix || 0,
         })
             .connect(offlineDelay)
             .start();
 
         const offlineChorus = new Tone.Chorus({
-            frequency: 1.5,
-            delayTime: 3.5,
-            depth: 0.7,
+            frequency: OFFLINE_CHORUS_FREQUENCY_HERTZ,
+            delayTime: OFFLINE_CHORUS_DELAY_MILLISECONDS,
+            depth: OFFLINE_CHORUS_DEPTH,
             wet: settings.chorusMix || 0,
         })
             .connect(offlineAutoPanner)

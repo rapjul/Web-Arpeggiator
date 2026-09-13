@@ -21,7 +21,9 @@ A short crossfade was considered as a way to disguise a discontinuity. It change
 
 For **Seamless loop**, the renderer repeats the source by whole pattern cycles before the selected export region. The warm-up duration accounts for the synth release, enabled eighth-note feedback delay settling to approximately -60 dB, and enabled reverb decay. The export boundary remains cycle-aligned.
 
-After rendering, the exporter copies exactly `round(musicalDurationSeconds * sampleRate)` frames from that boundary for every channel. It does not apply a crossfade, fade, resampling step, padding frame, or other post-crop PCM modification. The result therefore has exactly the requested integer number of pattern cycles when the requested musical duration does.
+Before rendering, the exporter derives the crop start, output frame count, and required source length from one integer-frame timeline. It requests one non-exported guard frame and rejects a renderer result that is shorter than the complete crop window. After rendering, it copies exactly `round(musicalDurationSeconds * sampleRate)` frames from that boundary for every channel. It does not apply a crossfade, fade, resampling step, padding frame, or other post-crop PCM modification. The result therefore has exactly the requested integer number of pattern cycles when the requested musical duration does.
+
+Chorus and Auto-pan are time-varying effects. Seamless mode warms chorus’s short delay and auto-pan’s modulation stage, then checks whether every active LFO completes a whole number of phases across the selected musical duration. If it does not, the exporter rejects seamless mode with guidance to adjust Pattern cycles, disable the effect, or select Include effects tail. It never silently bypasses or retimes an enabled modulation effect.
 
 For **Include effects tail**, the renderer retains its cold start and appends the selected 0–10 second tail. It has no warm-up crop or boundary treatment.
 
