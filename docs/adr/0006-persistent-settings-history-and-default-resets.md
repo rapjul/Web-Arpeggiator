@@ -6,13 +6,9 @@
 
 ## Context and Problem Statement
 
-Web Arpeggiator exposes many interconnected settings.
-A user can edit them directly, load a preset or URL preset, import a file, generate notes, select a chord, or add notes from the virtual keyboard.
-Before this decision, there was no way to reverse one of those changes or return to the built-in starting configuration without manually reconstructing it.
+Web Arpeggiator exposes many interconnected settings. A user can edit them directly, load a preset or URL preset, import a file, generate notes, select a chord, or add notes from the virtual keyboard. Before this decision, there was no way to reverse one of those changes or return to the built-in starting configuration without manually reconstructing it.
 
-The application already persists the last session in IndexedDB.
-History needs to survive a refresh without making malformed, obsolete, or missing stored records prevent the application from starting.
-Restored settings must also use the existing settings loader so audio routing, pattern rendering, loop maps, and export-duration estimates remain synchronized.
+The application already persists the last session in IndexedDB. History needs to survive a refresh without making malformed, obsolete, or missing stored records prevent the application from starting. Restored settings must also use the existing settings loader so audio routing, pattern rendering, loop maps, and export-duration estimates remain synchronized.
 
 ## Decision Drivers
 
@@ -24,8 +20,7 @@ Restored settings must also use the existing settings loader so audio routing, p
 
 ## Decision Outcome
 
-Chosen approach: **persistent, full serialized-settings snapshot history**,
-defined as follows:
+Chosen approach: **persistent, full serialized-settings snapshot history**, defined as follows:
 
 1. **History model**:
    - A pure core history manager owns immutable, serializable `{ past, present, future }` snapshots.
@@ -60,26 +55,22 @@ defined as follows:
 ### Negative Consequences
 
 * Full snapshots duplicate settings values, although the 100-entry cap bounds the storage cost.
-* New serialized settings must be included in settings serialization to gain
-  history support.
+* New serialized settings must be included in settings serialization to gain history support.
 * Restoring a snapshot can reapply multiple controls even when only one value changed.
 
 ## Considered Alternatives
 
 ### Command or Per-Control Delta History
 
-Recording only individual commands or deltas would reduce duplicate data, but each action source would need its own inverse implementation.
-This increases the risk that preset loads, imports, and compound actions restore only part of the application state.
+Recording only individual commands or deltas would reduce duplicate data, but each action source would need its own inverse implementation. This increases the risk that preset loads, imports, and compound actions restore only part of the application state.
 
 ### Separate History Storage and IndexedDB Migration
 
-A dedicated history store could isolate data, but introduces a migration and additional failure modes.
-Embedding an optional history field in the existing last-session record retains compatibility with legacy records and permits safe fallback.
+A dedicated history store could isolate data, but introduces a migration and additional failure modes. Embedding an optional history field in the existing last-session record retains compatibility with legacy records and permits safe fallback.
 
 ### Reset All That Clears History
 
-Clearing history would make Reset All irreversible and could destroy a user’s work.
-Treating it as an ordinary snapshot transition gives users a safe path back.
+Clearing history would make Reset All irreversible and could destroy a user’s work. Treating it as an ordinary snapshot transition gives users a safe path back.
 
 ## Links
 

@@ -1,17 +1,12 @@
 # History and Default Settings
 
-Undo and redo operate on complete, serialized settings snapshots.
-A snapshot is recorded whenever a supported setting changes, including changes made through a preset, URL preset, imported file, chord starter, randomizer, or virtual keyboard pattern addition.
-The history keeps up to 100 prior snapshots and is saved with the last session.
+Undo and redo operate on complete, serialized settings snapshots. A snapshot is recorded whenever a supported setting changes, including changes made through a preset, URL preset, imported file, chord starter, randomizer, or virtual keyboard pattern addition. The history keeps up to 100 prior snapshots and is saved with the last session.
 
-Use `Ctrl`/`Cmd` + `Z` to undo.
-Use `Ctrl`/`Cmd` + `Shift` + `Z` or `Ctrl`/`Cmd` + `Y` to redo.
-These shortcuts take precedence over the virtual piano keyboard shortcuts.
+Use `Ctrl`/`Cmd` + `Z` to undo. Use `Ctrl`/`Cmd` + `Shift` + `Z` or `Ctrl`/`Cmd` + `Y` to redo. These shortcuts take precedence over the virtual piano keyboard shortcuts.
 
 ## Undoable and Redoable Settings
 
-The settings below are included in every history snapshot.
-Reset All Defaults restores these values together and can itself be undone.
+The settings below are included in every history snapshot. Reset All Defaults restores these values together and can itself be undone.
 
 ### Transport and Pattern
 
@@ -30,8 +25,7 @@ Reset All Defaults restores these values together and can itself be undone.
 | Offline export mode | Include effects tail. |
 | Offline effects tail | 2.0 seconds. |
 
-The generated octave-expanded notes are included in snapshots as derived data; they are not a separate control.
-With the default notes and two octave layers, the generated pattern contains C4, C5, E4, E5, G4, and G5.
+The generated octave-expanded notes are included in snapshots as derived data; they are not a separate control. With the default notes and two octave layers, the generated pattern contains C4, C5, E4, E5, G4, and G5.
 
 ### Scale
 
@@ -41,8 +35,7 @@ With the default notes and two octave layers, the generated pattern contains C4,
 | Scale root | C. |
 | Scale type | Major. |
 
-Scale quantization and scale type are reset together because they form one logical scale-mode setting.
-Scale root is reset independently.
+Scale quantization and scale type are reset together because they form one logical scale-mode setting. Scale root is reset independently.
 
 ### Synth and Envelope
 
@@ -89,9 +82,7 @@ These values are preserved in history even when the associated synth type is not
 
 ## Individual Resets
 
-Double-click a setting label or its value readout to reset that logical setting to the built-in default.
-Alternatively, focus the setting or its button group and press `Escape`.
-Individual resets create an undoable snapshot.
+Double-click a setting label or its value readout to reset that logical setting to the built-in default. Alternatively, focus the setting or its button group and press `Escape`. Individual resets create an undoable snapshot.
 
 The slider, text field, and select control themselves do not reset on double-click, so normal editing interactions remain unchanged.
 
