@@ -342,7 +342,7 @@ describe("Recorder Manager Module", () => {
         await manager.exportOffline();
 
         expect(mockActions.getAllSettings).toHaveBeenCalledTimes(1);
-        expect(mockActions.generateFilename).toHaveBeenCalledWith(false, settings);
+        expect(mockActions.generateFilename).toHaveBeenCalledWith(false, settings, "audio");
         expect(lastOfflineRenderDuration).toBe(6.75);
         expect(lastOfflineTransportStopAt).toBe(6.75);
         expect(lastSeamlessStartFrame).toBe(231525);

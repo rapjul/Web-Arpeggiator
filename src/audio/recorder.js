@@ -330,7 +330,7 @@ export function createRecorderManager(context) {
         dom.offlineExportButton.textContent = "Generating...";
 
         const settings = actions.getAllSettings();
-        const filename = actions.generateFilename(false, settings);
+        const filename = actions.generateFilename(false, settings, "audio");
 
         const { notes: patternNotes } = materializePatternSequence(
             settings.baseNotes || settings.notes,

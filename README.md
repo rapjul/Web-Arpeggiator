@@ -125,6 +125,7 @@ For detailed pattern descriptions, see [Pattern Directions Guide](./docs/pattern
 - MP3 can be exported from either mode for listening and sharing. It includes gapless delay/padding metadata for compatible players, but only WAV has the sample-exact seamless-loop guarantee.
 - Both modes render offline without real-time variations and support 1-100 pattern cycles.
 - Offline WAV and MP3 files embed a versioned full settings snapshot, the exact materialized note sequence, and render timing. See [audio export metadata](./docs/audio-export-metadata.md) for the recovery format.
+- Offline audio filenames identify tempo, source notes, direction, interval, cycle count, export mode or tail length, synth, scale, and timestamp. For example: `arp-120bpm-C4-E4-G4-up-16n-4x-seamless-loop-synth-sine-C-major-2026-09-13_12-00-00.wav`.
 
 ### Export Formats
 

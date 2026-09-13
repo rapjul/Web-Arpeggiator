@@ -171,6 +171,18 @@ describe("Settings Manager Domain Module", () => {
         const filename = manager.generateFilename(false);
         expect(filename).toContain("arp-135bpm-basicSynth-synth-sawtooth-8n-DFA-D-minor");
 
+        const audioFilename = manager.generateFilename(false, settings, "audio");
+        expect(audioFilename).toContain(
+            "arp-135bpm-D4-F4-A4-upDown-8n-4x-tail-2s-synth-sawtooth-D-minor",
+        );
+
+        const seamlessFilename = manager.generateFilename(
+            false,
+            { ...settings, offlineExportMode: "seamless" },
+            "audio",
+        );
+        expect(seamlessFilename).toContain("4x-seamless-loop-synth-sawtooth");
+
         const realtimeFilename = manager.generateFilename(true);
         expect(realtimeFilename).toContain("arp-realtime-");
     });
