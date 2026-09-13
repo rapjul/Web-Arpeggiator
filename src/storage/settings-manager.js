@@ -1,4 +1,8 @@
-import { normalizeLoopCount } from "@core/export-duration.js";
+import {
+    normalizeLoopCount,
+    normalizeOfflineExportMode,
+    normalizeOfflineExportTailSeconds,
+} from "@core/export-duration.js";
 
 /**
  * Settings serialization, restoration, and naming helpers.
@@ -92,6 +96,12 @@ export function createSettingsManager(context) {
             delayMix: parseFloat(dom.delayMixSlider.value),
             reverbMix: parseFloat(dom.reverbMixSlider.value),
             loopCount: normalizeLoopCount(dom.loopCountInput.value),
+            offlineExportMode: normalizeOfflineExportMode(
+                Array.from(dom.offlineExportModeInputs || []).find((input) => input.checked)?.value,
+            ),
+            offlineExportTailSeconds: normalizeOfflineExportTailSeconds(
+                dom.offlineExportTailSecondsInput?.value,
+            ),
         };
     }
 
@@ -308,6 +318,18 @@ export function createSettingsManager(context) {
             if (audio.reverb) audio.reverb.wet.value = settings.reverbMix;
 
             dom.loopCountInput.value = String(normalizeLoopCount(settings.loopCount));
+            const offlineExportMode = normalizeOfflineExportMode(settings.offlineExportMode);
+            Array.from(dom.offlineExportModeInputs || []).forEach((input) => {
+                input.checked = input.value === offlineExportMode;
+            });
+            if (dom.offlineExportTailSecondsInput) {
+                dom.offlineExportTailSecondsInput.value = String(
+                    normalizeOfflineExportTailSeconds(settings.offlineExportTailSeconds),
+                );
+            }
+            if (typeof actions.updateOfflineExportModeUi === "function") {
+                actions.updateOfflineExportModeUi();
+            }
 
             actions.syncPatternModuleState();
             actions.createOrUpdatePattern();

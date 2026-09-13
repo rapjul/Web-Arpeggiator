@@ -26,7 +26,9 @@ Reset All Defaults restores these values together and can itself be undone.
 | Gate length | 0.80. |
 | Octave shift | 0. |
 | Octave layers | 2. |
-| Offline export loops | 4. |
+| Offline export pattern cycles | 4. |
+| Offline export mode | Include effects tail. |
+| Offline effects tail | 2.0 seconds. |
 
 The generated octave-expanded notes are included in snapshots as derived data; they are not a separate control.
 With the default notes and two octave layers, the generated pattern contains C4, C5, E4, E5, G4, and G5.

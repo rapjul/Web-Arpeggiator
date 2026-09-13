@@ -33,7 +33,12 @@ describe("Session Manager Domain Module", () => {
 
     describe("createSessionManager", () => {
         it("saves session immediately via saveNow and reports test state", async () => {
-            const savedSettings = { bpm: 140, notes: "C4 E4 G4" };
+            const savedSettings = {
+                bpm: 140,
+                notes: "C4 E4 G4",
+                offlineExportMode: "seamless",
+                offlineExportTailSeconds: 2,
+            };
             const savedHistory = { past: [], present: savedSettings, future: [] };
             const updatedState: Record<string, unknown> = {};
 
@@ -126,10 +131,20 @@ describe("Session Manager Domain Module", () => {
                 [];
             const mockPresetStore = {
                 loadLastSession: vi.fn().mockResolvedValue({
-                    settings: { bpm: 135, patternDirection: "down" },
+                    settings: {
+                        bpm: 135,
+                        patternDirection: "down",
+                        offlineExportMode: "tail",
+                        offlineExportTailSeconds: 3.5,
+                    },
                     history: {
                         past: [],
-                        present: { bpm: 135, patternDirection: "down" },
+                        present: {
+                            bpm: 135,
+                            patternDirection: "down",
+                            offlineExportMode: "tail",
+                            offlineExportTailSeconds: 3.5,
+                        },
                         future: [],
                     },
                 }),
@@ -148,10 +163,20 @@ describe("Session Manager Domain Module", () => {
             expect(session.getIsRestoring()).toBe(false);
             expect(restoredPayload).toEqual([
                 {
-                    settings: { bpm: 135, patternDirection: "down" },
+                    settings: {
+                        bpm: 135,
+                        patternDirection: "down",
+                        offlineExportMode: "tail",
+                        offlineExportTailSeconds: 3.5,
+                    },
                     history: {
                         past: [],
-                        present: { bpm: 135, patternDirection: "down" },
+                        present: {
+                            bpm: 135,
+                            patternDirection: "down",
+                            offlineExportMode: "tail",
+                            offlineExportTailSeconds: 3.5,
+                        },
                         future: [],
                     },
                 },

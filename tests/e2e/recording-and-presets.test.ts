@@ -58,6 +58,36 @@ test("Audio Recording, Exports, & Preset Management Suite", async (): Promise<vo
     }
     await runBrowser(["wait", "--fn", "document.getElementById('play-stop')?.disabled === false"]);
 
+    // 2a. Verify audio export mode controls and persisted settings.
+    console.log("Step 2a: Testing offline audio export modes...");
+    const exportModeCheck: string = await runBrowser([
+        "eval",
+        `(() => {
+            const seamless = document.getElementById('offline-export-mode-seamless');
+            const tail = document.getElementById('offline-export-mode-tail');
+            const tailControl = document.getElementById('offline-export-tail-control');
+            const tailSeconds = document.getElementById('offline-export-tail-seconds');
+            const modeHelp = document.getElementById('offline-export-mode-help');
+            if (!seamless || !tail || !tailControl || !tailSeconds || !modeHelp || !tail.checked || tailSeconds.value !== '2') {
+                return 'missing-defaults';
+            }
+
+            seamless.click();
+            if (!tailControl.classList.contains('hidden') || !tailSeconds.disabled) return 'seamless-state-failed';
+
+            tail.click();
+            tailSeconds.value = '3.5';
+            tailSeconds.dispatchEvent(new Event('input', { bubbles: true }));
+            tailSeconds.dispatchEvent(new Event('change', { bubbles: true }));
+            const settings = window.__WEB_ARP_TEST__.getCurrentSettings();
+            if (tailControl.classList.contains('hidden') || tailSeconds.disabled) return 'tail-state-failed';
+            if (settings.offlineExportMode !== 'tail' || settings.offlineExportTailSeconds !== 3.5) return 'settings-failed';
+            if (!modeHelp.textContent.includes('sample-exact for WAV')) return 'missing-wav-guidance';
+            return 'success';
+        })()`,
+    ]);
+    expect(exportModeCheck).toBe('"success"');
+
     // 2b. Test clicking Record when audio playback is not playing
     console.log("Step 2b: Testing record button click when audio is idle...");
     await runBrowser(["click", "#record-button"]);
@@ -105,6 +135,10 @@ test("Audio Recording, Exports, & Preset Management Suite", async (): Promise<vo
         const records = await window.__WEB_ARP_TEST__.listPresets();
         if (!records.some(r => r.name === 'My test preset')) {
             return 'not-saved';
+        }
+        const saved = records.find(r => r.name === 'My test preset');
+        if (saved?.settings?.offlineExportMode !== 'tail' || saved.settings.offlineExportTailSeconds !== 3.5) {
+            return 'export-settings-not-saved';
         }
         return 'success';
     })()`,
@@ -172,6 +206,9 @@ test("Audio Recording, Exports, & Preset Management Suite", async (): Promise<vo
         wavCheck.checked = true;
         mp3Check.checked = false;
         loopCountInput.value = '1';
+        const tailSeconds = document.getElementById('offline-export-tail-seconds');
+        tailSeconds.value = '0';
+        tailSeconds.dispatchEvent(new Event('change', { bubbles: true }));
 
         // Click offline render
         offlineBtn.click();

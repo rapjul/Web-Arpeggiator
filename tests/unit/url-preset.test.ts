@@ -39,6 +39,8 @@ describe("URL Preset Domain Module", () => {
         chorusMix: 0,
         autoPanMix: 0,
         loopCount: 2,
+        offlineExportMode: "tail",
+        offlineExportTailSeconds: 2,
     };
 
     test("clampInt correctly clamps values between bounds and handles invalid inputs", () => {
@@ -85,11 +87,13 @@ describe("URL Preset Domain Module", () => {
         expect(params.get("gain")).toBe("0");
         expect(params.get("duty")).toBe("0.50");
         expect(params.get("loop")).toBe("2");
+        expect(params.get("export")).toBe("tail");
+        expect(params.get("tail")).toBe("2.0");
     });
 
     test("parses and clamps URL search parameters correctly", () => {
         const query =
-            "?bpm=300&gain=-60&notes=F#4%20A4%20C#5&dir=downUpRepeat&int=8n&quant=true&root=F#&scale=minor&synth=fmSynth&harm=4.5&mod=25.0&shift=2&range=3&attack=0.25&decay=0.5&sustain=0.75&release=1.5&cutoff=8000&res=12.0&delay=0.4&reverb=0.6&loop=150";
+            "?bpm=300&gain=-60&notes=F#4%20A4%20C#5&dir=downUpRepeat&int=8n&quant=true&root=F#&scale=minor&synth=fmSynth&harm=4.5&mod=25.0&shift=2&range=3&attack=0.25&decay=0.5&sustain=0.75&release=1.5&cutoff=8000&res=12.0&delay=0.4&reverb=0.6&loop=150&export=seamless&tail=12";
 
         const parsed = parsePresetFromUrlParams(query, defaultSettings);
         expect(parsed).not.toBeNull();
@@ -98,6 +102,8 @@ describe("URL Preset Domain Module", () => {
         expect(parsed?.bpm).toBe(240); // Clamped from 300
         expect(parsed?.postGain).toBe(-40); // Clamped from -60
         expect(parsed?.loopCount).toBe(100); // Clamped from 150
+        expect(parsed?.offlineExportMode).toBe("seamless");
+        expect(parsed?.offlineExportTailSeconds).toBe(10);
 
         // Verify valid settings applied
         expect(parsed?.baseNotes).toEqual(["F#4", "A4", "C#5"]);
@@ -199,16 +205,20 @@ describe("URL Preset Domain Module", () => {
             "delayMix",
             "reverbMix",
             "loopCount",
+            "offlineExportMode",
+            "offlineExportTailSeconds",
         ];
 
         for (const key of keysToTest) {
             const val = defaultSettings[key];
             const modifiedVal =
-                typeof val === "number"
-                    ? val + 1
-                    : typeof val === "boolean"
-                      ? !val
-                      : `${String(val)}-diff`;
+                key === "offlineExportMode"
+                    ? "seamless"
+                    : typeof val === "number"
+                      ? val + 1
+                      : typeof val === "boolean"
+                        ? !val
+                        : `${String(val)}-diff`;
 
             expect(
                 hasPresetChanges(defaultSettings, {
@@ -247,5 +257,15 @@ describe("URL Preset Domain Module", () => {
         expect(parsed?.driveMix).toBe(0.65);
         expect(parsed?.chorusMix).toBe(0.45);
         expect(parsed?.autoPanMix).toBe(0.8);
+    });
+
+    test("normalizes invalid export mode and tail URL values safely", () => {
+        const parsed = parsePresetFromUrlParams(
+            "?export=invalid&tail=not-a-number",
+            defaultSettings,
+        );
+
+        expect(parsed?.offlineExportMode).toBe("tail");
+        expect(parsed?.offlineExportTailSeconds).toBe(2);
     });
 });

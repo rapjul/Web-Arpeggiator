@@ -102,11 +102,11 @@ Powered by `Tone.getTransport()`:
     - **`MediaRecorder`** (preferred on HTTPS): Native browser API
     - **`Tone.Recorder`** (fallback): Works in all contexts including HTTP/Canvas
 
-#### Offline Export (Perfect Loop)
+#### Offline Audio Export
 
-- Renders exact loop count offline using `Tone.Offline`
-- No real-time variations or timing issues
-- Configurable loop count (1-100)
+- **Seamless loop (WAV)**: Renders repeated source material before the selected cycles to establish envelope, delay, and reverb state; crops the WAV to the exact musical sample count with a boundary crossfade.
+- **Include effects tail**: Preserves a cold start and appends 0–10 seconds of effects decay after the selected cycles; legacy presets default to this mode with a 2-second tail.
+- Both modes use `Tone.Offline`, support 1-100 pattern cycles, and avoid real-time timing variation. MP3 remains available but is not guaranteed sample-exact because encoder padding can affect loop boundaries.
 
 #### Export Formats
 
@@ -232,8 +232,7 @@ exportRealtimeRecording();
 // Generates timestamped files
 
 exportOfflineRender(loopCount);
-// Renders perfect loops using Tone.Offline
-// Exports WAV/MP3 without real-time constraints
+// Renders seamless WAV loops or effects-tail WAV/MP3 exports using Tone.Offline
 ```
 
 ### Preset I/O
@@ -297,7 +296,7 @@ loadPreset(file);
 
 - Real-time record button
 - Offline export controls
-- Loop count input
+- Pattern cycle count, seamless/tail mode, and effects-tail duration controls
 - Format checkboxes (WAV / MP3)
 - Dedicated MIDI export button (.mid)
 
