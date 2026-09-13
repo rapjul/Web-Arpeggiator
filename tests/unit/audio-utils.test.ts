@@ -4,6 +4,7 @@
 
 import { describe, expect, it, vi } from "vitest";
 import {
+    addGaplessMp3Metadata,
     audioBufferToMp3Blob,
     audioBufferToWav,
     copyAudioBufferFrames,
@@ -17,6 +18,25 @@ import {
     triggerIdleLoad,
     writeString,
 } from "@core/audio-utils.js";
+
+function createMpeg1Layer3Frames(frameCount: number): Uint8Array {
+    const frameLength = 417;
+    const bytes = new Uint8Array(frameCount * frameLength);
+
+    for (let frame = 0; frame < frameCount; frame += 1) {
+        const offset = frame * frameLength;
+        bytes[offset] = 0xff;
+        bytes[offset + 1] = 0xfb;
+        bytes[offset + 2] = 0x90;
+        bytes[offset + 3] = 0x00;
+    }
+
+    return bytes;
+}
+
+function readAscii(bytes: Uint8Array, offset: number, length: number): string {
+    return new TextDecoder().decode(bytes.slice(offset, offset + length));
+}
 
 describe("Audio Utils Domain Module", () => {
     describe("PCM and WAV Operations", () => {
@@ -254,6 +274,38 @@ describe("Audio Utils Domain Module", () => {
     });
 
     describe("audioBufferToMp3Blob & loadLameJs", () => {
+        it("adds an Info/LAME gapless frame with exact delay and padding metadata", () => {
+            const rawMp3 = createMpeg1Layer3Frames(4);
+            const inputSampleCount = 4 * 1152 - 576 - 1000;
+            const taggedMp3 = addGaplessMp3Metadata(rawMp3, inputSampleCount, 44100);
+            const tagOffset = 4 + 32;
+            const lameOffset = tagOffset + 4 + 4 + 4 + 4 + 100 + 4;
+            const delayOffset = lameOffset + 21;
+            const metadata = new DataView(
+                taggedMp3.buffer,
+                taggedMp3.byteOffset,
+                taggedMp3.byteLength,
+            );
+
+            expect(taggedMp3).toHaveLength(rawMp3.length + 417);
+            expect(readAscii(taggedMp3, tagOffset, 4)).toBe("Info");
+            expect(metadata.getUint32(tagOffset + 4)).toBe(0x000f);
+            expect(metadata.getUint32(tagOffset + 8)).toBe(4);
+            expect(metadata.getUint32(tagOffset + 12)).toBe(taggedMp3.length);
+            expect(readAscii(taggedMp3, lameOffset, 9)).toBe("LAME3.100");
+            expect((taggedMp3[delayOffset] << 4) | (taggedMp3[delayOffset + 1] >> 4)).toBe(576);
+            expect(((taggedMp3[delayOffset + 1] & 0x0f) << 8) | taggedMp3[delayOffset + 2]).toBe(
+                1000,
+            );
+            expect(taggedMp3.slice(417)).toEqual(rawMp3);
+        });
+
+        it("leaves malformed MP3 data unchanged when it cannot add gapless metadata", () => {
+            const malformed = new Uint8Array([0, 1, 2, 3]);
+
+            expect(addGaplessMp3Metadata(malformed, 100, 44100)).toBe(malformed);
+        });
+
         it("resolves immediately when window.lamejs is already loaded", async () => {
             const mockLame = { Mp3Encoder: class {} };
             const originalWindowLame = (window as Window & { lamejs?: unknown }).lamejs;
@@ -289,8 +341,10 @@ describe("Audio Utils Domain Module", () => {
             } as unknown as AudioBuffer;
 
             const mp3Blob = await audioBufferToMp3Blob(mockAudioBuffer);
+            const mp3Bytes = new Uint8Array(await mp3Blob.arrayBuffer());
             expect(mp3Blob).toBeInstanceOf(Blob);
             expect(mp3Blob.type).toBe("audio/mpeg");
+            expect(readAscii(mp3Bytes, 4 + 17, 4)).toBe("Info");
         });
 
         it("encodes stereo AudioBuffer with distinct left and right channels", async () => {
