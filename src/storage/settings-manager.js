@@ -1,4 +1,8 @@
-import { normalizeLoopCount } from "@core/export-duration.js";
+import {
+    normalizeLoopCount,
+    normalizeOfflineExportMode,
+    normalizeOfflineExportTailSeconds,
+} from "@core/export-duration.js";
 
 /**
  * Settings serialization, restoration, and naming helpers.
@@ -92,6 +96,12 @@ export function createSettingsManager(context) {
             delayMix: parseFloat(dom.delayMixSlider.value),
             reverbMix: parseFloat(dom.reverbMixSlider.value),
             loopCount: normalizeLoopCount(dom.loopCountInput.value),
+            offlineExportMode: normalizeOfflineExportMode(
+                Array.from(dom.offlineExportModeInputs || []).find((input) => input.checked)?.value,
+            ),
+            offlineExportTailSeconds: normalizeOfflineExportTailSeconds(
+                dom.offlineExportTailSecondsInput?.value,
+            ),
         };
     }
 
@@ -308,6 +318,18 @@ export function createSettingsManager(context) {
             if (audio.reverb) audio.reverb.wet.value = settings.reverbMix;
 
             dom.loopCountInput.value = String(normalizeLoopCount(settings.loopCount));
+            const offlineExportMode = normalizeOfflineExportMode(settings.offlineExportMode);
+            Array.from(dom.offlineExportModeInputs || []).forEach((input) => {
+                input.checked = input.value === offlineExportMode;
+            });
+            if (dom.offlineExportTailSecondsInput) {
+                dom.offlineExportTailSecondsInput.value = String(
+                    normalizeOfflineExportTailSeconds(settings.offlineExportTailSeconds),
+                );
+            }
+            if (typeof actions.updateOfflineExportModeUi === "function") {
+                actions.updateOfflineExportModeUi();
+            }
 
             actions.syncPatternModuleState();
             actions.createOrUpdatePattern();
@@ -331,9 +353,11 @@ export function createSettingsManager(context) {
      * Generates a descriptive filename based on current settings.
      *
      * @param {boolean} isRealtime - Whether to add a timestamp for real-time recording.
+     * @param {object} [settingsSnapshot] - Settings captured when an export begins.
+     * @param {"audio"|"general"} [exportType="general"] - Filename use case.
      * @returns {string} The formatted filename without extension.
      */
-    function generateFilename(isRealtime) {
+    function generateFilename(isRealtime, settingsSnapshot, exportType = "general") {
         const date = new Date();
         const timestamp = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, "0")}-${date.getDate().toString().padStart(2, "0")}_${date.getHours().toString().padStart(2, "0")}-${date.getMinutes().toString().padStart(2, "0")}-${date.getSeconds().toString().padStart(2, "0")}`;
 
@@ -341,7 +365,34 @@ export function createSettingsManager(context) {
             return `arp-realtime-${timestamp}`;
         }
 
-        const settings = getAllSettings();
+        const settings = settingsSnapshot || getAllSettings();
+        if (exportType === "audio") {
+            const baseNotes = Array.isArray(settings.baseNotes)
+                ? settings.baseNotes
+                : Array.isArray(settings.notes)
+                  ? settings.notes
+                  : [];
+            const notes = baseNotes
+                .map((note) => String(note).replace(/#/g, "s").replace(/b/g, "f"))
+                .join("-");
+            const scale = settings.scaleQuantize
+                ? `${settings.scaleRoot}-${settings.scaleType}`
+                : "chromatic";
+            const exportMode = normalizeOfflineExportMode(settings.offlineExportMode);
+            const tailSeconds = normalizeOfflineExportTailSeconds(
+                settings.offlineExportTailSeconds,
+            );
+            const exportLength =
+                exportMode === "seamless"
+                    ? "seamless-loop"
+                    : `tail-${String(tailSeconds).replace(".", "p")}s`;
+            const synth =
+                settings.synthType === "synth" ? `synth-${settings.waveform}` : settings.synthType;
+            const filename = `arp-${settings.bpm}bpm-${notes || "notes"}-${settings.direction}-${settings.interval}-${normalizeLoopCount(settings.loopCount)}x-${exportLength}-${synth}-${scale}`;
+
+            return `${filename.replace(/[^A-Za-z0-9-_#]/g, "")}-${timestamp}`;
+        }
+
         const notesString = settings.baseNotes
             .join("")
             .replace(/#/g, "s")

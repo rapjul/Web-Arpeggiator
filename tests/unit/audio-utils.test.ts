@@ -4,16 +4,89 @@
 
 import { describe, expect, it, vi } from "vitest";
 import {
+    addMp3ExportMetadata,
+    addGaplessMp3Metadata,
     audioBufferToMp3Blob,
     audioBufferToWav,
+    copyAudioBufferFrames,
+    createSeamlessLoopAudioBuffer,
     downloadBlob,
     fetchWithBackoff,
     float32ToInt16,
     interleave,
     loadLameJs,
+    readMp3ExportMetadata,
+    readWavExportMetadata,
     triggerIdleLoad,
     writeString,
 } from "@core/audio-utils.js";
+
+function createMpeg1Layer3Frames(frameCount: number): Uint8Array {
+    const frameLength = 417;
+    const bytes = new Uint8Array(frameCount * frameLength);
+
+    for (let frame = 0; frame < frameCount; frame += 1) {
+        const offset = frame * frameLength;
+        bytes[offset] = 0xff;
+        bytes[offset + 1] = 0xfb;
+        bytes[offset + 2] = 0x90;
+        bytes[offset + 3] = 0x00;
+    }
+
+    return bytes;
+}
+
+function readAscii(bytes: Uint8Array, offset: number, length: number): string {
+    return new TextDecoder().decode(bytes.slice(offset, offset + length));
+}
+
+function createExportMetadataFixture(): Record<string, unknown> {
+    return {
+        schema: "web-arpeggiator.offline-export",
+        version: 1,
+        application: "Web Arpeggiator",
+        export: {
+            type: "offline-audio",
+            mode: "seamless",
+            loopCount: 4,
+            musicalDurationSeconds: 2,
+            preRollCycles: 3,
+            preRollDurationSeconds: 1.5,
+            tailDurationSeconds: 0,
+            renderDurationSeconds: 3.5,
+            sampleRate: 44100,
+            channelCount: 2,
+            frameCount: 88200,
+        },
+        pattern: {
+            scheduledNotes: ["C4", "E4", "G4"],
+            stepsPerLoop: 3,
+        },
+        settings: {
+            bpm: 120,
+            waveform: "sine",
+            direction: "random",
+            offlineExportMode: "seamless",
+        },
+    };
+}
+
+function getRiffChunkData(bytes: Uint8Array, chunkId: string): Uint8Array | null {
+    if (readAscii(bytes, 0, 4) !== "RIFF" || readAscii(bytes, 8, 4) !== "WAVE") return null;
+
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    let offset = 12;
+    while (offset + 8 <= bytes.length) {
+        const chunkLength = view.getUint32(offset + 4, true);
+        const dataStart = offset + 8;
+        const dataEnd = dataStart + chunkLength;
+        if (dataEnd > bytes.length) return null;
+        if (readAscii(bytes, offset, 4) === chunkId) return bytes.slice(dataStart, dataEnd);
+        offset = dataEnd + (chunkLength % 2);
+    }
+
+    return null;
+}
 
 describe("Audio Utils Domain Module", () => {
     describe("PCM and WAV Operations", () => {
@@ -95,6 +168,107 @@ describe("Audio Utils Domain Module", () => {
             expect(blob).toBeInstanceOf(Blob);
             expect(blob.type).toBe("audio/wav");
             expect(blob.size).toBe(44 + length * 2 * 2);
+        });
+
+        it("copies exact multi-channel frame ranges without mutating the source", () => {
+            const left = Float32Array.from({ length: 12 }, (_, index) => index / 10);
+            const right = Float32Array.from({ length: 12 }, (_, index) => -index / 10);
+            const source = {
+                numberOfChannels: 2,
+                sampleRate: 1000,
+                length: 12,
+                duration: 0.012,
+                getChannelData: (channel: number) => (channel === 0 ? left : right),
+            } as unknown as AudioBuffer;
+
+            const copied = copyAudioBufferFrames(source, 4, 5);
+
+            expect(copied.length).toBe(5);
+            expect(Array.from(copied.getChannelData(0))).toEqual(Array.from(left.slice(4, 9)));
+            expect(Array.from(copied.getChannelData(1))).toEqual(Array.from(right.slice(4, 9)));
+            copied.getChannelData(0)[0] = 0;
+            expect(left[4]).toBeCloseTo(0.4);
+        });
+
+        it("preserves requested frame counts and zero-fills missing source frames", () => {
+            const sourceData = Float32Array.from([0.1, 0.2, 0.3, 0.4]);
+            const source = {
+                numberOfChannels: 1,
+                sampleRate: 1000,
+                length: 4,
+                duration: 0.004,
+                getChannelData: () => sourceData,
+            } as unknown as AudioBuffer;
+
+            const copied = copyAudioBufferFrames(source, 2, 4);
+
+            expect(copied.length).toBe(4);
+            expect(Array.from(copied.getChannelData(0))).toEqual([
+                sourceData[2],
+                sourceData[3],
+                0,
+                0,
+            ]);
+        });
+
+        it("creates an exact seamless loop without altering its PCM boundary", async () => {
+            const samples = Float32Array.from({ length: 32 }, (_, index) => index);
+            const source = {
+                numberOfChannels: 1,
+                sampleRate: 1000,
+                length: samples.length,
+                duration: samples.length / 1000,
+                getChannelData: () => samples,
+            } as unknown as AudioBuffer;
+
+            const seamless = createSeamlessLoopAudioBuffer(source, 0, 32);
+            const channel = seamless.getChannelData(0);
+            const wavBlob = audioBufferToWav(seamless);
+            const wavData = new Uint8Array(await wavBlob.arrayBuffer());
+
+            expect(seamless.length).toBe(32);
+            expect(Array.from(channel)).toEqual(Array.from(samples));
+            expect(samples[31]).toBe(31);
+            expect(new TextDecoder().decode(wavData.slice(0, 4))).toBe("RIFF");
+            expect(new TextDecoder().decode(wavData.slice(8, 12))).toBe("WAVE");
+        });
+
+        it("rejects a short seamless source instead of padding the loop with silence", () => {
+            const sourceData = Float32Array.from([0.1, 0.2, 0.3, 0.4]);
+            const source = {
+                numberOfChannels: 1,
+                sampleRate: 1000,
+                length: sourceData.length,
+                duration: sourceData.length / 1000,
+                getChannelData: () => sourceData,
+            } as unknown as AudioBuffer;
+
+            expect(() => createSeamlessLoopAudioBuffer(source, 2, 4)).toThrow(
+                "complete seamless loop window",
+            );
+        });
+
+        it("embeds an importable WAV settings record without changing PCM bytes", async () => {
+            const samples = Float32Array.from([0.25, -0.25, 0.5, -0.5]);
+            const audioBuffer = {
+                numberOfChannels: 1,
+                sampleRate: 44100,
+                length: samples.length,
+                duration: samples.length / 44100,
+                getChannelData: () => samples,
+            } as unknown as AudioBuffer;
+            const metadata = createExportMetadataFixture();
+            const plainWav = new Uint8Array(await audioBufferToWav(audioBuffer).arrayBuffer());
+            const metadataWav = new Uint8Array(
+                await audioBufferToWav(audioBuffer, metadata).arrayBuffer(),
+            );
+
+            expect(readWavExportMetadata(metadataWav)).toEqual(metadata);
+            expect(getRiffChunkData(metadataWav, "data")).toEqual(
+                getRiffChunkData(plainWav, "data"),
+            );
+            expect(readAscii(metadataWav, 36, 4)).toBe("LIST");
+            expect(readWavExportMetadata(plainWav)).toBeNull();
         });
     });
 
@@ -181,6 +355,52 @@ describe("Audio Utils Domain Module", () => {
     });
 
     describe("audioBufferToMp3Blob & loadLameJs", () => {
+        it("embeds a standard ID3 settings record before MP3 frames", () => {
+            const rawMp3 = createMpeg1Layer3Frames(2);
+            const metadata = createExportMetadataFixture();
+            const taggedMp3 = addMp3ExportMetadata(rawMp3, metadata);
+            const tagLength =
+                (taggedMp3[6] << 21) | (taggedMp3[7] << 14) | (taggedMp3[8] << 7) | taggedMp3[9];
+
+            expect(readAscii(taggedMp3, 0, 3)).toBe("ID3");
+            expect(taggedMp3[3]).toBe(4);
+            expect(tagLength).toBeGreaterThan(0);
+            expect(readMp3ExportMetadata(taggedMp3)).toEqual(metadata);
+            expect(taggedMp3.slice(10 + tagLength)).toEqual(rawMp3);
+        });
+
+        it("adds an Info/LAME gapless frame with exact delay and padding metadata", () => {
+            const rawMp3 = createMpeg1Layer3Frames(4);
+            const inputSampleCount = 4 * 1152 - 576 - 1000;
+            const taggedMp3 = addGaplessMp3Metadata(rawMp3, inputSampleCount, 44100);
+            const tagOffset = 4 + 32;
+            const lameOffset = tagOffset + 4 + 4 + 4 + 4 + 100 + 4;
+            const delayOffset = lameOffset + 21;
+            const metadata = new DataView(
+                taggedMp3.buffer,
+                taggedMp3.byteOffset,
+                taggedMp3.byteLength,
+            );
+
+            expect(taggedMp3).toHaveLength(rawMp3.length + 417);
+            expect(readAscii(taggedMp3, tagOffset, 4)).toBe("Info");
+            expect(metadata.getUint32(tagOffset + 4)).toBe(0x000f);
+            expect(metadata.getUint32(tagOffset + 8)).toBe(4);
+            expect(metadata.getUint32(tagOffset + 12)).toBe(taggedMp3.length);
+            expect(readAscii(taggedMp3, lameOffset, 9)).toBe("LAME3.100");
+            expect((taggedMp3[delayOffset] << 4) | (taggedMp3[delayOffset + 1] >> 4)).toBe(576);
+            expect(((taggedMp3[delayOffset + 1] & 0x0f) << 8) | taggedMp3[delayOffset + 2]).toBe(
+                1000,
+            );
+            expect(taggedMp3.slice(417)).toEqual(rawMp3);
+        });
+
+        it("leaves malformed MP3 data unchanged when it cannot add gapless metadata", () => {
+            const malformed = new Uint8Array([0, 1, 2, 3]);
+
+            expect(addGaplessMp3Metadata(malformed, 100, 44100)).toBe(malformed);
+        });
+
         it("resolves immediately when window.lamejs is already loaded", async () => {
             const mockLame = { Mp3Encoder: class {} };
             const originalWindowLame = (window as Window & { lamejs?: unknown }).lamejs;
@@ -216,8 +436,10 @@ describe("Audio Utils Domain Module", () => {
             } as unknown as AudioBuffer;
 
             const mp3Blob = await audioBufferToMp3Blob(mockAudioBuffer);
+            const mp3Bytes = new Uint8Array(await mp3Blob.arrayBuffer());
             expect(mp3Blob).toBeInstanceOf(Blob);
             expect(mp3Blob.type).toBe("audio/mpeg");
+            expect(readAscii(mp3Bytes, 4 + 17, 4)).toBe("Info");
         });
 
         it("encodes stereo AudioBuffer with distinct left and right channels", async () => {

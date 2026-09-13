@@ -2286,13 +2286,58 @@
                 aria-labelledby="offline-export-title"
             >
                 <h2 id="offline-export-title" class="text-xl font-semibold mb-3 text-blue-300">
-                    Offline Export (Perfect Loop)
+                    Offline Audio Export
                 </h2>
                 <div class="space-y-4">
+                    <fieldset aria-describedby="offline-export-mode-help">
+                        <legend
+                            id="offline-export-mode-label"
+                            class="text-sm font-medium mb-2"
+                        >
+                            Audio export mode
+                        </legend>
+                        <div class="flex flex-col gap-2 sm:flex-row sm:gap-5">
+                            <label class="flex items-start gap-2 cursor-pointer">
+                                <input
+                                    type="radio"
+                                    id="offline-export-mode-seamless"
+                                    name="offline-export-mode"
+                                    value="seamless"
+                                    class="mt-1 h-4 w-4 bg-gray-800 border-gray-600 text-purple-500 focus:ring-purple-600"
+                                />
+                                <span>
+                                    <span class="block text-sm font-medium">Seamless loop (WAV)</span>
+                                    <span class="block text-[11px] text-gray-400">
+                                        Exact musical length with an internal effects warm-up.
+                                    </span>
+                                </span>
+                            </label>
+                            <label class="flex items-start gap-2 cursor-pointer">
+                                <input
+                                    type="radio"
+                                    id="offline-export-mode-tail"
+                                    name="offline-export-mode"
+                                    value="tail"
+                                    checked
+                                    class="mt-1 h-4 w-4 bg-gray-800 border-gray-600 text-purple-500 focus:ring-purple-600"
+                                />
+                                <span>
+                                    <span class="block text-sm font-medium">Include effects tail</span>
+                                    <span class="block text-[11px] text-gray-400">
+                                        Keep the natural delay and reverb decay after the pattern.
+                                    </span>
+                                </span>
+                            </label>
+                        </div>
+                        <p id="offline-export-mode-help" class="text-[11px] text-gray-400 mt-2">
+                            Seamless looping is sample-exact for WAV. MP3 encoder padding can prevent
+                            exact looping.
+                        </p>
+                    </fieldset>
                     <div>
                         <div class="flex items-center gap-4">
                             <label for="loop-count" class="text-sm font-medium whitespace-nowrap">
-                                Number of Loops:
+                                Pattern cycles:
                             </label>
                             <input
                                 type="number"
@@ -2305,7 +2350,7 @@
                             />
                         </div>
                         <p class="text-[11px] text-gray-400 mt-1">
-                            Number of complete pattern cycles rendered into export audio
+                            Number of complete pattern cycles rendered into the export audio.
                         </p>
                         <p
                             id="offline-export-duration"
@@ -2313,6 +2358,30 @@
                             aria-live="polite"
                         >
                             Calculating export duration…
+                        </p>
+                    </div>
+                    <div id="offline-export-tail-control">
+                        <div class="flex items-center gap-4">
+                            <label
+                                for="offline-export-tail-seconds"
+                                class="text-sm font-medium whitespace-nowrap"
+                            >
+                                Effects tail:
+                            </label>
+                            <input
+                                type="number"
+                                id="offline-export-tail-seconds"
+                                value="2"
+                                min="0"
+                                max="10"
+                                step="0.1"
+                                inputmode="decimal"
+                                class="w-24 p-2 bg-gray-800 border border-gray-600 rounded-md text-gray-100"
+                            />
+                            <span class="text-sm text-gray-400">seconds</span>
+                        </div>
+                        <p class="text-[11px] text-gray-400 mt-1">
+                            Appended after the final pattern cycle when Include effects tail is selected.
                         </p>
                     </div>
                     <div class="flex justify-center gap-6">
@@ -2339,7 +2408,7 @@
                         <button
                             id="offline-export-button"
                             type="button"
-                            aria-label="Generate & Export perfect loop audio"
+                            aria-label="Generate and export offline audio"
                             class="flex-1 text-lg font-bold py-2 px-4 bg-purple-600 hover:bg-purple-700 rounded-lg shadow-lg transition-all"
                         >
                             Generate & Export Audio
@@ -2357,8 +2426,7 @@
                         id="offline-export-status"
                         class="text-sm text-center text-gray-300 text-balance"
                     >
-                        Generate and export audio loops or Standard MIDI files from current
-                        settings.
+                        Generate offline audio or Standard MIDI files from the current settings.
                     </p>
                 </div>
             </section>

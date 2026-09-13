@@ -10,7 +10,11 @@
 import { downloadBlob } from "@core/audio-utils.js";
 import { initializeKeyboardControls } from "@ui/keyboard-controller.js";
 import { createMidiBlob, exportMidiFile } from "@core/midi-export.js";
-import { formatEstimatedExportDuration, normalizeLoopCount } from "@core/export-duration.js";
+import {
+    formatEstimatedExportDuration,
+    normalizeLoopCount,
+    normalizeOfflineExportTailSeconds,
+} from "@core/export-duration.js";
 import {
     calculateNoteMarkers,
     getArpeggioNotes as getArpeggioNotesFromModule,
@@ -468,6 +472,9 @@ function initializeApp() {
 
     // Offline Export card
     const loopCountInput = document.getElementById("loop-count");
+    const offlineExportModeInputs = document.querySelectorAll("input[name='offline-export-mode']");
+    const offlineExportTailControl = document.getElementById("offline-export-tail-control");
+    const offlineExportTailSecondsInput = document.getElementById("offline-export-tail-seconds");
     const offlineExportDuration = document.getElementById("offline-export-duration");
     const offlineExportWavCheck = document.getElementById("offline-export-wav");
     const offlineExportMp3Check = document.getElementById("offline-export-mp3");
@@ -1183,6 +1190,8 @@ function initializeApp() {
             reverbMixSlider,
             reverbMixValue,
             loopCountInput,
+            offlineExportModeInputs,
+            offlineExportTailSecondsInput,
             octaveShiftButtons,
             octaveRangeButtons,
         },
@@ -1200,6 +1209,7 @@ function initializeApp() {
             syncPatternModuleState,
             createOrUpdatePattern,
             updateEstimatedExportDuration,
+            updateOfflineExportModeUi,
             showToast,
         },
         audio: {
@@ -1503,6 +1513,32 @@ function initializeApp() {
     }
 
     /**
+     * Returns the currently selected offline audio export mode.
+     *
+     * @returns {"seamless"|"tail"} Selected export mode.
+     */
+    function getSelectedOfflineExportMode() {
+        return Array.from(offlineExportModeInputs).some(
+            (input) => input.checked && input.value === "seamless",
+        )
+            ? "seamless"
+            : "tail";
+    }
+
+    /**
+     * Shows the tail duration only when the tail mode needs it.
+     *
+     * @returns {void}
+     */
+    function updateOfflineExportModeUi() {
+        const isTailMode = getSelectedOfflineExportMode() === "tail";
+        offlineExportTailControl?.classList.toggle("hidden", !isTailMode);
+        if (offlineExportTailSecondsInput) {
+            offlineExportTailSecondsInput.disabled = !isTailMode;
+        }
+    }
+
+    /**
      * Refreshes the offline export duration estimate using the same materialized
      * pattern sequence used by offline audio and MIDI exports.
      *
@@ -1531,6 +1567,13 @@ function initializeApp() {
             stepsPerLoop: patternNotes.length,
             interval: settings.interval,
             bpm: settings.bpm,
+            exportMode: settings.offlineExportMode,
+            tailSeconds: settings.offlineExportTailSeconds,
+            envRelease: settings.envRelease,
+            delayMix: settings.delayMix,
+            reverbMix: settings.reverbMix,
+            chorusMix: settings.chorusMix,
+            autoPanMix: settings.autoPanMix,
         });
     }
 
@@ -1917,10 +1960,14 @@ function initializeApp() {
             targets: ["#octave-range-label"],
         },
         {
-            name: "Export Loops",
-            keys: ["loopCount"],
-            controls: [loopCountInput],
-            targets: ["label[for='loop-count']"],
+            name: "Audio Export",
+            keys: ["loopCount", "offlineExportMode", "offlineExportTailSeconds"],
+            controls: [loopCountInput, ...offlineExportModeInputs, offlineExportTailSecondsInput],
+            targets: [
+                "label[for='loop-count']",
+                "#offline-export-mode-label",
+                "label[for='offline-export-tail-seconds']",
+            ],
         },
     ];
 
@@ -2812,6 +2859,22 @@ function initializeApp() {
         updateEstimatedExportDuration();
     });
 
+    offlineExportModeInputs.forEach((input) => {
+        input.addEventListener("change", () => {
+            if (!input.checked) return;
+            updateOfflineExportModeUi();
+            updateEstimatedExportDuration();
+        });
+    });
+
+    offlineExportTailSecondsInput?.addEventListener("input", updateEstimatedExportDuration);
+    offlineExportTailSecondsInput?.addEventListener("change", () => {
+        offlineExportTailSecondsInput.value = String(
+            normalizeOfflineExportTailSeconds(offlineExportTailSecondsInput.value),
+        );
+        updateEstimatedExportDuration();
+    });
+
     swingSlider.addEventListener("input", () => {
         debouncedSetSwing(parseFloat(swingSlider.value));
         swingValue.textContent = parseFloat(swingSlider.value).toFixed(2);
@@ -3534,8 +3597,12 @@ function initializeApp() {
             recordCurrentSettings(true);
             clearActiveSoundStarterCard();
             scheduleLastSessionSave();
-            if (target !== loopCountInput) {
-                // Exclude loop count input from debounced render
+            if (
+                target !== loopCountInput &&
+                target !== offlineExportTailSecondsInput &&
+                !target.matches("input[name='offline-export-mode']")
+            ) {
+                // Exclude export controls from debounced static-loop rendering.
                 debouncedRenderStaticLoop();
             }
         }
@@ -3555,8 +3622,12 @@ function initializeApp() {
             recordCurrentSettings();
             clearActiveSoundStarterCard();
             scheduleLastSessionSave();
-            if (target !== loopCountInput) {
-                // Exclude loop count input from debounced render
+            if (
+                target !== loopCountInput &&
+                target !== offlineExportTailSecondsInput &&
+                !target.matches("input[name='offline-export-mode']")
+            ) {
+                // Exclude export controls from debounced static-loop rendering.
                 debouncedRenderStaticLoop();
             }
         }

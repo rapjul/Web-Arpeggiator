@@ -190,6 +190,30 @@ describe("Production DOM Parity Suite", () => {
         expect(chordTypes).toEqual(expectedChords);
     });
 
+    it("provides accessible seamless and effects-tail offline export controls", () => {
+        const exportModeInputs = document.querySelectorAll<HTMLInputElement>(
+            "input[name='offline-export-mode']",
+        );
+        const tailInput = document.getElementById(
+            "offline-export-tail-seconds",
+        ) as HTMLInputElement | null;
+        const duration = document.getElementById("offline-export-duration");
+
+        expect(document.getElementById("offline-export-title")?.textContent).not.toContain(
+            "Perfect Loop",
+        );
+        expect(Array.from(exportModeInputs).map((input) => input.value)).toEqual([
+            "seamless",
+            "tail",
+        ]);
+        expect(exportModeInputs[1].checked).toBe(true);
+        expect(tailInput?.min).toBe("0");
+        expect(tailInput?.max).toBe("10");
+        expect(tailInput?.step).toBe("0.1");
+        expect(tailInput?.value).toBe("2");
+        expect(duration?.getAttribute("aria-live")).toBe("polite");
+    });
+
     it("verifies synth types and waveforms have descriptive sound character labels and custom tooltips", () => {
         const synthSelect = document.getElementById("synth-type") as HTMLSelectElement;
         expect(synthSelect).not.toBeNull();

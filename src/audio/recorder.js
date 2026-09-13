@@ -10,9 +10,32 @@
  */
 
 import * as Tone from "tone";
-import { audioBufferToMp3Blob, audioBufferToWav, downloadBlob } from "@core/audio-utils.js";
-import { calculateOfflineExportDuration } from "@core/export-duration.js";
+import {
+    audioBufferToMp3Blob,
+    audioBufferToWav,
+    createSeamlessLoopAudioBuffer,
+    downloadBlob,
+} from "@core/audio-utils.js";
+import {
+    calculateSeamlessRenderFrameWindow,
+    calculateOfflineExportDuration,
+    getSeamlessModulationCompatibility,
+    OFFLINE_EXPORT_MODE_SEAMLESS,
+} from "@core/export-duration.js";
+import { createOfflineExportMetadata } from "@core/export-metadata.js";
 import { materializePatternSequence } from "@core/pattern-core.js";
+
+const DEFAULT_OFFLINE_SAMPLE_RATE = 44100;
+
+function getOfflineSampleRate() {
+    const sampleRate = Number(Tone.getContext().sampleRate);
+    return Number.isFinite(sampleRate) && sampleRate > 0 ? sampleRate : DEFAULT_OFFLINE_SAMPLE_RATE;
+}
+
+function formatEffectList(effectNames) {
+    if (effectNames.length <= 1) return effectNames[0] || "effect";
+    return `${effectNames.slice(0, -1).join(", ")} and ${effectNames[effectNames.length - 1]}`;
+}
 
 /**
  * Creates the recorder manager with real-time and offline export control.
@@ -301,8 +324,8 @@ export function createRecorderManager(context) {
     // ------------------------------------------------------------------
 
     /**
-     * Renders a perfect-loop audio buffer offline and exports it as
-     * WAV and/or MP3.
+     * Renders an offline audio buffer according to the selected export mode
+     * and exports it as WAV and/or MP3.
      *
      * @returns {Promise<void>}
      */
@@ -319,10 +342,9 @@ export function createRecorderManager(context) {
 
         dom.offlineExportButton.disabled = true;
         dom.offlineExportButton.textContent = "Generating...";
-        dom.offlineExportStatus.textContent = "Generating audio... please wait.";
 
         const settings = actions.getAllSettings();
-        const filename = actions.generateFilename(false);
+        const filename = actions.generateFilename(false, settings, "audio");
 
         const { notes: patternNotes } = materializePatternSequence(
             settings.baseNotes || settings.notes,
@@ -342,41 +364,89 @@ export function createRecorderManager(context) {
             stepsPerLoop: patternNotes.length,
             interval: settings.interval,
             bpm: settings.bpm,
+            exportMode: settings.offlineExportMode,
+            tailSeconds: settings.offlineExportTailSeconds,
+            envRelease: settings.envRelease,
+            delayMix: settings.delayMix,
+            reverbMix: settings.reverbMix,
+            chorusMix: settings.chorusMix,
+            autoPanMix: settings.autoPanMix,
+        });
+        const isSeamlessExport = exportDuration.exportMode === OFFLINE_EXPORT_MODE_SEAMLESS;
+        const seamlessModulation = getSeamlessModulationCompatibility({
+            bpm: settings.bpm,
+            musicalDuration: exportDuration.musicalDuration,
+            chorusMix: settings.chorusMix,
+            autoPanMix: settings.autoPanMix,
         });
 
+        if (isSeamlessExport && !seamlessModulation.isCompatible) {
+            const effectLabel = formatEffectList(seamlessModulation.incompatibleEffects);
+            const message = `Cannot generate a seamless loop with ${effectLabel}: change Pattern cycles, disable it, or use Include effects tail.`;
+            dom.offlineExportStatus.textContent = message;
+            actions.showToast(message, "error");
+            dom.offlineExportButton.disabled = false;
+            dom.offlineExportButton.textContent = "Generate & Export";
+            return;
+        }
+
+        const offlineSampleRate = getOfflineSampleRate();
+        const seamlessRenderWindow = isSeamlessExport
+            ? calculateSeamlessRenderFrameWindow({
+                  preRollDuration: exportDuration.preRollDuration,
+                  musicalDuration: exportDuration.musicalDuration,
+                  sampleRate: offlineSampleRate,
+              })
+            : null;
+        const offlineRenderDuration = seamlessRenderWindow
+            ? seamlessRenderWindow.offlineRenderDuration
+            : exportDuration.renderDuration;
+        const patternStopTime = isSeamlessExport
+            ? exportDuration.preRollDuration + exportDuration.musicalDuration
+            : exportDuration.musicalDuration;
+
+        dom.offlineExportStatus.textContent = isSeamlessExport
+            ? "Generating seamless WAV-ready audio... please wait."
+            : "Generating audio with effects tail... please wait.";
+
         try {
-            const toneAudioBuffer = await Tone.Offline(async (offlineContext) => {
-                offlineContext.transport.bpm.value = settings.bpm;
-                offlineContext.transport.swing = settings.swing;
+            const toneAudioBuffer = await Tone.Offline(
+                async (offlineContext) => {
+                    offlineContext.transport.bpm.value = settings.bpm;
+                    offlineContext.transport.swing = settings.swing;
 
-                // Recreate the synth + effects graph using the shared audio engine helper
-                const { offlineSynth } = audio.createOfflineChain(offlineContext, settings);
+                    // Recreate the synth + effects graph using the shared audio engine helper
+                    const { offlineSynth } = audio.createOfflineChain(offlineContext, settings);
 
-                // --- Pattern for offline ---
-                const gateLength = settings.gateRatio * exportDuration.intervalInSeconds;
+                    // --- Pattern for offline ---
+                    const gateLength = settings.gateRatio * exportDuration.intervalInSeconds;
 
-                const offlinePattern = new Tone.Pattern(
-                    (time, note) => {
-                        // Split triggerAttackRelease to ensure exact scheduling reference time is used
-                        if (
-                            typeof offlineSynth.triggerAttack === "function" &&
-                            typeof offlineSynth.triggerRelease === "function"
-                        ) {
-                            offlineSynth.triggerAttack(note, time);
-                            offlineSynth.triggerRelease(time + gateLength);
-                        } else {
-                            offlineSynth.triggerAttackRelease(note, gateLength, time);
-                        }
-                    },
-                    patternNotes,
-                    "up",
-                );
-                offlinePattern.interval = settings.interval;
-                offlinePattern.start(0);
+                    const offlinePattern = new Tone.Pattern(
+                        (time, note) => {
+                            // Split triggerAttackRelease to ensure exact scheduling reference time is used
+                            if (
+                                typeof offlineSynth.triggerAttack === "function" &&
+                                typeof offlineSynth.triggerRelease === "function"
+                            ) {
+                                offlineSynth.triggerAttack(note, time);
+                                offlineSynth.triggerRelease(time + gateLength);
+                            } else {
+                                offlineSynth.triggerAttackRelease(note, gateLength, time);
+                            }
+                        },
+                        patternNotes,
+                        "up",
+                    );
+                    offlinePattern.interval = settings.interval;
+                    offlinePattern.start(0);
 
-                offlineContext.transport.start(0);
-                offlineContext.transport.stop(exportDuration.patternDuration);
-            }, exportDuration.totalDuration);
+                    offlineContext.transport.start(0);
+                    offlineContext.transport.stop(patternStopTime);
+                },
+                offlineRenderDuration,
+                2,
+                offlineSampleRate,
+            );
 
             const nativeBuffer = /** @type {AudioBuffer} */ (
                 typeof toneAudioBuffer.get === "function" ? toneAudioBuffer.get() : toneAudioBuffer
@@ -391,11 +461,34 @@ export function createRecorderManager(context) {
                 return;
             }
 
+            if (
+                seamlessRenderWindow &&
+                nativeBuffer.length < seamlessRenderWindow.sourceFrameCount
+            ) {
+                throw new Error("Offline renderer returned an incomplete seamless source buffer.");
+            }
+
+            const exportBuffer = isSeamlessExport
+                ? createSeamlessLoopAudioBuffer(
+                      nativeBuffer,
+                      seamlessRenderWindow.startFrame,
+                      seamlessRenderWindow.frameCount,
+                  )
+                : nativeBuffer;
+            const exportMetadata = createOfflineExportMetadata({
+                settings,
+                patternNotes,
+                exportDuration,
+                sampleRate: exportBuffer.sampleRate,
+                channelCount: exportBuffer.numberOfChannels,
+                frameCount: exportBuffer.length,
+            });
+
             // Export WAV
             if (dom.offlineExportWavCheck.checked) {
                 dom.offlineExportStatus.textContent = "Exporting WAV...";
                 actions.showToast("Exporting WAV...", "info");
-                const wavBlob = audioBufferToWav(nativeBuffer);
+                const wavBlob = audioBufferToWav(exportBuffer, exportMetadata);
                 downloadBlob(wavBlob, `${filename}.wav`);
 
                 if (dom.offlineExportMp3Check.checked) {
@@ -407,7 +500,7 @@ export function createRecorderManager(context) {
             if (dom.offlineExportMp3Check.checked) {
                 dom.offlineExportStatus.textContent = "Encoding MP3...";
                 actions.showToast("Encoding MP3...", "info");
-                const mp3Blob = await audioBufferToMp3Blob(nativeBuffer);
+                const mp3Blob = await audioBufferToMp3Blob(exportBuffer, exportMetadata);
                 downloadBlob(mp3Blob, `${filename}.mp3`);
             }
 

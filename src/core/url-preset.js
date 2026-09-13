@@ -8,6 +8,10 @@
  */
 
 import { normalizeNotesSequence } from "./pattern-core.js";
+import {
+    normalizeOfflineExportMode,
+    normalizeOfflineExportTailSeconds,
+} from "./export-duration.js";
 
 /**
  * Recognized query parameter keys mapped to preset settings.
@@ -44,6 +48,8 @@ export const PRESET_URL_KEYS = Object.freeze(
         "delay",
         "reverb",
         "loop",
+        "export",
+        "tail",
     ]),
 );
 
@@ -199,6 +205,8 @@ export function clampFloat(val, min, max, fallback) {
  * @property {number} [delayMix] - Delay effect wet mix.
  * @property {number} [reverbMix] - Reverb effect wet mix.
  * @property {number} [loopCount] - Number of loops for export.
+ * @property {"seamless"|"tail"} [offlineExportMode] - Offline audio export mode.
+ * @property {number} [offlineExportTailSeconds] - Appended effects tail duration.
  * @property {number} [monoCutoff] - MonoSynth filter cutoff.
  * @property {number} [monoOctaves] - MonoSynth filter octave span.
  * @property {number} [monoQ] - MonoSynth filter resonance.
@@ -267,6 +275,15 @@ export function serializePresetToUrlParams(settings) {
     if (settings.reverbMix !== undefined)
         params.set("reverb", Number(settings.reverbMix).toFixed(2));
     if (settings.loopCount !== undefined) params.set("loop", String(settings.loopCount));
+    if (settings.offlineExportMode !== undefined) {
+        params.set("export", normalizeOfflineExportMode(settings.offlineExportMode));
+    }
+    if (settings.offlineExportTailSeconds !== undefined) {
+        params.set(
+            "tail",
+            normalizeOfflineExportTailSeconds(settings.offlineExportTailSeconds).toFixed(1),
+        );
+    }
 
     return params;
 }
@@ -392,6 +409,12 @@ export function parsePresetFromUrlParams(searchParams, currentSettings) {
         settings.reverbMix = clampFloat(params.get("reverb"), 0.0, 1.0, settings.reverbMix);
     if (params.has("loop"))
         settings.loopCount = clampInt(params.get("loop"), 1, 100, settings.loopCount);
+    if (params.has("export")) {
+        settings.offlineExportMode = normalizeOfflineExportMode(params.get("export"));
+    }
+    if (params.has("tail")) {
+        settings.offlineExportTailSeconds = normalizeOfflineExportTailSeconds(params.get("tail"));
+    }
 
     return settings;
 }
@@ -440,6 +463,18 @@ export function hasPresetChanges(a, b) {
     if (Math.abs((a.delayMix ?? 0) - (b.delayMix ?? 0)) > eps) return true;
     if (Math.abs((a.reverbMix ?? 0) - (b.reverbMix ?? 0)) > eps) return true;
     if (a.loopCount !== b.loopCount) return true;
+    if (
+        normalizeOfflineExportMode(a.offlineExportMode) !==
+        normalizeOfflineExportMode(b.offlineExportMode)
+    )
+        return true;
+    if (
+        Math.abs(
+            normalizeOfflineExportTailSeconds(a.offlineExportTailSeconds) -
+                normalizeOfflineExportTailSeconds(b.offlineExportTailSeconds),
+        ) > eps
+    )
+        return true;
 
     return false;
 }

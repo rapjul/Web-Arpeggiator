@@ -48,7 +48,7 @@ Web Arpeggiator is an interactive music tool that generates flowing musical patt
 ### 📊 Recording & Export
 
 - **Real-Time Recording**: Capture your live performance with parameter changes
-- **Perfect Loop Export**: Render exact loops offline (1-100 loops)
+- **Offline Audio Modes**: Export seamless WAV loops or include an effects tail after 1-100 pattern cycles
 - **Multi-Format Audio Export**: Simultaneous WAV (lossless 16-bit) and MP3 (compressed 128kbps) export via format checkboxes
 - **Dedicated MIDI Export**: Export pure binary Standard MIDI Files (`.mid`, SMF Format 0) with a single click
 - **Timestamped Files**: Automatic timestamp naming for all exports
@@ -118,12 +118,15 @@ For detailed pattern descriptions, see [Pattern Directions Guide](./docs/pattern
 - Use on HTTPS for best browser compatibility
 - Falls back to `Tone.Recorder` on HTTP or non-HTTPS contexts
 
-### Perfect Loop Export (Offline)
+### Offline Audio Export
 
-- Renders loops offline without real-time variations
-- Produces perfectly quantized audio
-- Supports 1-100 loop repetitions
-- Best for creating clean, production-ready audio
+- Select **Seamless loop (WAV)** for audio cropped to the exact requested musical duration. The renderer warms the synth and enabled effects before the exported cycle boundary, then preserves the cropped PCM samples unchanged.
+- Seamless loop checks active Chorus and Auto-pan against the selected Pattern cycles. If their LFO phase cannot return to its starting point, change the cycle count, disable the effect, or use **Include effects tail**.
+- Select **Include effects tail** to retain a conventional cold start and append 0–10 seconds of delay and reverb decay after the selected pattern cycles. It defaults to 2 seconds for compatibility with existing presets.
+- MP3 can be exported from either mode for listening and sharing. It includes gapless delay/padding metadata for compatible players, but only WAV has the sample-exact seamless-loop guarantee.
+- Both modes render offline without real-time variations and support 1-100 pattern cycles.
+- Offline WAV and MP3 files embed a versioned full settings snapshot, the exact materialized note sequence, and render timing. See [audio export metadata](./docs/audio-export-metadata.md) for the recovery format.
+- Offline audio filenames identify tempo, source notes, direction, interval, cycle count, export mode or tail length, synth, scale, and timestamp. For example: `arp-120bpm-C4-E4-G4-up-16n-4x-seamless-loop-synth-sine-C-major-2026-09-13_12-00-00.wav`.
 
 ### Export Formats
 
@@ -237,7 +240,7 @@ Example: With C Major selected, the note "C#4" becomes "D4"
 ### Recording Tips
 
 - Use real-time recording for performance captures
-- Use offline export for clean, loopable audio
+- Use Seamless loop (WAV) for clean, sample-exact loops, or Include effects tail for a natural ending
 - Record multiple takes and compare MP3 and WAV exports
 
 ## Limitations

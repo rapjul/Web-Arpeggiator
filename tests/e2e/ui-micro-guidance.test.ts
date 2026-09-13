@@ -231,12 +231,12 @@ test("UI Micro-Guidance Subtitles & Tooltips Suite", async (): Promise<void> => 
         loopCount.dispatchEvent(new Event('change', { bubbles: true }));
         const maximumLoopEstimate = duration.textContent.trim();
 
-        return basicEstimate === '3 loops at ~0.75s each + 2s reverb tail. Estimated export duration: ~4.3 seconds'
-            && inputEstimate === '3 loops at ~1.00s each + 2s reverb tail. Estimated export duration: ~5.0 seconds'
-            && expandedEstimate === '1 loop at ~1.25s each + 2s reverb tail. Estimated export duration: ~3.3 seconds'
-            && intervalEstimate === '1 loop at ~2.50s each + 2s reverb tail. Estimated export duration: ~4.5 seconds'
-            && minimumLoopEstimate === '1 loop at ~1.25s each + 2s reverb tail. Estimated export duration: ~3.3 seconds'
-            && maximumLoopEstimate === '100 loops at ~1.25s each + 2s reverb tail. Estimated export duration: ~127.0 seconds'
+        return basicEstimate === '3 Pattern cycles at ~0.75s each + 2.0s effects tail. Export duration: ~4.3 seconds'
+            && inputEstimate === '3 Pattern cycles at ~1.00s each + 2.0s effects tail. Export duration: ~5.0 seconds'
+            && expandedEstimate === '1 Pattern cycle at ~1.25s each + 2.0s effects tail. Export duration: ~3.3 seconds'
+            && intervalEstimate === '1 Pattern cycle at ~2.50s each + 2.0s effects tail. Export duration: ~4.5 seconds'
+            && minimumLoopEstimate === '1 Pattern cycle at ~1.25s each + 2.0s effects tail. Export duration: ~3.3 seconds'
+            && maximumLoopEstimate === '100 Pattern cycles at ~1.25s each + 2.0s effects tail. Export duration: ~127.0 seconds'
             && loopCount.value === '100'
             ? 'success'
             : [basicEstimate, inputEstimate, expandedEstimate, intervalEstimate, minimumLoopEstimate, maximumLoopEstimate].join(' / ');

@@ -7,14 +7,28 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 let lastOfflinePatternValues: string[] = [];
 let lastOfflineRenderDuration = 0;
 let lastOfflineTransportStopAt: number | null = null;
+let lastSeamlessStartFrame = 0;
+let lastSeamlessFrameCount = 0;
 
 vi.mock("@core/audio-utils.js", () => ({
     audioBufferToMp3Blob: vi.fn(async () => new Blob(["MP3"], { type: "audio/mp3" })),
     audioBufferToWav: vi.fn(() => new Blob(["WAV"], { type: "audio/wav" })),
+    createSeamlessLoopAudioBuffer: vi.fn(
+        (audioBuffer: AudioBuffer, startFrame: number, frameCount: number) => {
+            lastSeamlessStartFrame = startFrame;
+            lastSeamlessFrameCount = frameCount;
+            return {
+                ...audioBuffer,
+                length: frameCount,
+                duration: frameCount / audioBuffer.sampleRate,
+            };
+        },
+    ),
     downloadBlob: vi.fn(),
 }));
 
 const mockContext = {
+    sampleRate: 44100,
     decodeAudioData: vi.fn(async (_buf: ArrayBuffer) => ({
         duration: 1.0,
         sampleRate: 44100,
@@ -80,12 +94,14 @@ vi.mock("tone", async () => {
                 },
             };
             await cb(mockOfflineContext);
+            const frameCount = Math.ceil(duration * mockContext.sampleRate);
             return {
                 get: () => ({
-                    duration: 1.0,
-                    sampleRate: 44100,
+                    duration,
+                    sampleRate: mockContext.sampleRate,
                     numberOfChannels: 2,
-                    getChannelData: () => new Float32Array(44100),
+                    length: frameCount,
+                    getChannelData: () => new Float32Array(frameCount),
                 }),
             };
         }),
@@ -93,6 +109,11 @@ vi.mock("tone", async () => {
 });
 
 import { createRecorderManager } from "@audio/recorder.js";
+import {
+    audioBufferToMp3Blob,
+    audioBufferToWav,
+    createSeamlessLoopAudioBuffer,
+} from "@core/audio-utils.js";
 
 describe("Recorder Manager Module", () => {
     type RecorderContext = Parameters<typeof createRecorderManager>[0];
@@ -110,6 +131,9 @@ describe("Recorder Manager Module", () => {
         lastOfflinePatternValues = [];
         lastOfflineRenderDuration = 0;
         lastOfflineTransportStopAt = null;
+        lastSeamlessStartFrame = 0;
+        lastSeamlessFrameCount = 0;
+        vi.clearAllMocks();
         const createEl = (tag = "div") => document.createElement(tag);
         mockDom = {
             recordButton: createEl("button"),
@@ -290,6 +314,140 @@ describe("Recorder Manager Module", () => {
 
         expect(lastOfflineRenderDuration).toBe(2.75);
         expect(lastOfflineTransportStopAt).toBe(0.75);
+    });
+
+    it("warms, crops, and exports seamless loops from one settings snapshot", async () => {
+        const manager = createRecorderManager({
+            audio: mockAudio,
+            dom: mockDom,
+            state: mockState,
+            actions: mockActions,
+        });
+        const settings = {
+            bpm: 120,
+            swing: 0,
+            notes: ["C4", "E4", "G4"],
+            direction: "up",
+            interval: "16n",
+            gateRatio: 0.8,
+            loopCount: 4,
+            offlineExportMode: "seamless",
+            offlineExportTailSeconds: 8,
+            envRelease: 1,
+            delayMix: 0.5,
+            reverbMix: 0.5,
+        };
+        mockActions.getAllSettings = vi.fn(() => settings);
+        mockDom.offlineExportWavCheck.checked = true;
+        mockDom.offlineExportMp3Check.checked = true;
+
+        await manager.exportOffline();
+
+        expect(mockActions.getAllSettings).toHaveBeenCalledTimes(1);
+        expect(mockActions.generateFilename).toHaveBeenCalledWith(false, settings, "audio");
+        expect(lastOfflineRenderDuration).toBeCloseTo(6.75 + 1 / 44100);
+        expect(lastOfflineTransportStopAt).toBe(6.75);
+        expect(lastSeamlessStartFrame).toBe(231525);
+        expect(lastSeamlessFrameCount).toBe(66150);
+        expect(createSeamlessLoopAudioBuffer).toHaveBeenCalledTimes(1);
+        expect(audioBufferToWav).toHaveBeenCalledWith(
+            expect.objectContaining({ length: 66150 }),
+            expect.objectContaining({
+                schema: "web-arpeggiator.offline-export",
+                version: 1,
+                settings,
+                pattern: expect.objectContaining({
+                    scheduledNotes: ["C4", "E4", "G4"],
+                    stepsPerLoop: 3,
+                }),
+                export: expect.objectContaining({
+                    mode: "seamless",
+                    loopCount: 4,
+                    sampleRate: 44100,
+                    channelCount: 2,
+                    frameCount: 66150,
+                }),
+            }),
+        );
+        expect(audioBufferToMp3Blob).toHaveBeenCalledWith(
+            expect.objectContaining({ length: 66150 }),
+            expect.objectContaining({
+                schema: "web-arpeggiator.offline-export",
+                settings,
+            }),
+        );
+    });
+
+    it("rejects a short seamless render before PCM copying can pad it", async () => {
+        const Tone = await import("tone");
+        vi.mocked(Tone.Offline).mockResolvedValueOnce({
+            get: () => ({
+                duration: 0.375,
+                sampleRate: 44100,
+                numberOfChannels: 2,
+                length: 16537,
+                getChannelData: () => new Float32Array(16537),
+            }),
+        } as never);
+        const manager = createRecorderManager({
+            audio: mockAudio,
+            dom: mockDom,
+            state: mockState,
+            actions: mockActions,
+        });
+        mockActions.getAllSettings = vi.fn(() => ({
+            bpm: 120,
+            swing: 0,
+            notes: ["C4", "E4", "G4"],
+            direction: "up",
+            interval: "16n",
+            gateRatio: 0.8,
+            loopCount: 1,
+            offlineExportMode: "seamless",
+            envRelease: 0,
+            delayMix: 0,
+            reverbMix: 0,
+            chorusMix: 0,
+            autoPanMix: 0,
+        }));
+
+        await manager.exportOffline();
+
+        expect(createSeamlessLoopAudioBuffer).not.toHaveBeenCalled();
+        expect(audioBufferToWav).not.toHaveBeenCalled();
+        expect(mockActions.showToast).toHaveBeenCalledWith("Offline render failed.", "error");
+    });
+
+    it("rejects unaligned chorus and auto-pan before offline rendering", async () => {
+        const Tone = await import("tone");
+        const manager = createRecorderManager({
+            audio: mockAudio,
+            dom: mockDom,
+            state: mockState,
+            actions: mockActions,
+        });
+        mockActions.getAllSettings = vi.fn(() => ({
+            bpm: 120,
+            swing: 0,
+            notes: ["C4", "E4", "G4"],
+            direction: "up",
+            interval: "16n",
+            gateRatio: 0.8,
+            loopCount: 1,
+            offlineExportMode: "seamless",
+            envRelease: 0,
+            delayMix: 0,
+            reverbMix: 0,
+            chorusMix: 0.5,
+            autoPanMix: 0.5,
+        }));
+
+        await manager.exportOffline();
+
+        expect(Tone.Offline).not.toHaveBeenCalled();
+        expect(mockDom.offlineExportStatus.textContent).toContain(
+            "Cannot generate a seamless loop with Chorus and Auto-pan",
+        );
     });
 
     it("uses the same quantized pitches as live playback and MIDI export", async () => {

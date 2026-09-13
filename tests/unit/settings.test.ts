@@ -8,6 +8,16 @@ import { createSettingsManager } from "@storage/settings-manager.js";
 describe("Settings Manager Domain Module", () => {
     const createMockDom = () => {
         const createEl = (tag = "div") => document.createElement(tag);
+        const seamlessExportMode = Object.assign(createEl("input"), {
+            type: "radio",
+            value: "seamless",
+            checked: false,
+        });
+        const tailExportMode = Object.assign(createEl("input"), {
+            type: "radio",
+            value: "tail",
+            checked: true,
+        });
         return {
             bpmSlider: Object.assign(createEl("input"), { value: "135" }),
             swingSlider: Object.assign(createEl("input"), { value: "0.25" }),
@@ -46,6 +56,8 @@ describe("Settings Manager Domain Module", () => {
             delayMixSlider: Object.assign(createEl("input"), { value: "0.3" }),
             reverbMixSlider: Object.assign(createEl("input"), { value: "0.4" }),
             loopCountInput: Object.assign(createEl("input"), { value: "4" }),
+            offlineExportModeInputs: [seamlessExportMode, tailExportMode],
+            offlineExportTailSecondsInput: Object.assign(createEl("input"), { value: "2" }),
             monoCutoffSlider: Object.assign(createEl("input"), { value: "2500" }),
             monoOctavesSlider: Object.assign(createEl("input"), { value: "3.5" }),
             monoQSlider: Object.assign(createEl("input"), { value: "2.5" }),
@@ -151,11 +163,25 @@ describe("Settings Manager Domain Module", () => {
         expect(settings.scaleType).toBe("minor");
         expect(settings.waveform).toBe("sawtooth");
         expect(settings.loopCount).toBe(4);
+        expect(settings.offlineExportMode).toBe("tail");
+        expect(settings.offlineExportTailSeconds).toBe(2);
         expect(settings.monoCutoff).toBe(2500);
         expect(settings.driveMix).toBe(0.15);
 
         const filename = manager.generateFilename(false);
         expect(filename).toContain("arp-135bpm-basicSynth-synth-sawtooth-8n-DFA-D-minor");
+
+        const audioFilename = manager.generateFilename(false, settings, "audio");
+        expect(audioFilename).toContain(
+            "arp-135bpm-D4-F4-A4-upDown-8n-4x-tail-2s-synth-sawtooth-D-minor",
+        );
+
+        const seamlessFilename = manager.generateFilename(
+            false,
+            { ...settings, offlineExportMode: "seamless" },
+            "audio",
+        );
+        expect(seamlessFilename).toContain("4x-seamless-loop-synth-sawtooth");
 
         const realtimeFilename = manager.generateFilename(true);
         expect(realtimeFilename).toContain("arp-realtime-");
@@ -230,6 +256,7 @@ describe("Settings Manager Domain Module", () => {
             syncPatternModuleState: vi.fn(),
             createOrUpdatePattern: vi.fn(),
             updateEstimatedExportDuration: vi.fn(),
+            updateOfflineExportModeUi: vi.fn(),
             showToast: vi.fn(),
         };
 
@@ -307,6 +334,18 @@ describe("Settings Manager Domain Module", () => {
         expect(mockActions.setSynth).toHaveBeenCalledWith("monoSynth");
         expect(mockActions.updateEnvelope).toHaveBeenCalled();
         expect(mockActions.updateEstimatedExportDuration).toHaveBeenCalled();
+        expect(mockDom.offlineExportModeInputs[1].checked).toBe(true);
+        expect(mockDom.offlineExportTailSecondsInput.value).toBe("2");
+
+        manager.loadAllSettings({
+            ...manager.getAllSettings(),
+            offlineExportMode: "seamless",
+            offlineExportTailSeconds: 3.5,
+        });
+        expect(mockDom.offlineExportModeInputs[0].checked).toBe(true);
+        expect(mockDom.offlineExportModeInputs[1].checked).toBe(false);
+        expect(mockDom.offlineExportTailSecondsInput.value).toBe("3.5");
+        expect(mockActions.updateOfflineExportModeUi).toHaveBeenCalled();
     });
 
     it("handles errors during loadAllSettings gracefully", () => {

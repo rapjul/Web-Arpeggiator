@@ -14,6 +14,16 @@
  */
 
 import * as Tone from "tone";
+import {
+    OFFLINE_AUTO_PAN_DEPTH,
+    OFFLINE_AUTO_PAN_INTERVAL,
+    OFFLINE_CHORUS_DELAY_MILLISECONDS,
+    OFFLINE_CHORUS_DEPTH,
+    OFFLINE_CHORUS_FREQUENCY_HERTZ,
+    OFFLINE_DELAY_FEEDBACK,
+    OFFLINE_DELAY_INTERVAL,
+    OFFLINE_REVERB_DECAY_SECONDS,
+} from "@core/export-duration.js";
 
 /**
  * Creates the audio engine and all Tone.js nodes.
@@ -112,17 +122,17 @@ export function createAudioEngine(context) {
     }).connect(reverb);
 
     const autoPanner = new Tone.AutoPanner({
-        frequency: "4n",
-        depth: 1,
+        frequency: OFFLINE_AUTO_PAN_INTERVAL,
+        depth: OFFLINE_AUTO_PAN_DEPTH,
         wet: 0,
     })
         .connect(delay)
         .start();
 
     const chorus = new Tone.Chorus({
-        frequency: 1.5,
-        delayTime: 3.5,
-        depth: 0.7,
+        frequency: OFFLINE_CHORUS_FREQUENCY_HERTZ,
+        delayTime: OFFLINE_CHORUS_DELAY_MILLISECONDS,
+        depth: OFFLINE_CHORUS_DEPTH,
         wet: 0,
     })
         .connect(autoPanner)
@@ -450,28 +460,28 @@ export function createAudioEngine(context) {
 
         // 2. Recreate Effects (reverb, delay, autoPanner, chorus, filter, distortion)
         const offlineReverb = new Tone.Reverb({
-            decay: 1.5,
+            decay: OFFLINE_REVERB_DECAY_SECONDS,
             wet: settings.reverbMix,
         });
 
         const offlineDelay = new Tone.FeedbackDelay({
-            delayTime: "8n",
-            feedback: 0.5,
+            delayTime: OFFLINE_DELAY_INTERVAL,
+            feedback: OFFLINE_DELAY_FEEDBACK,
             wet: settings.delayMix,
         }).connect(offlineReverb);
 
         const offlineAutoPanner = new Tone.AutoPanner({
-            frequency: "4n",
-            depth: 1,
+            frequency: OFFLINE_AUTO_PAN_INTERVAL,
+            depth: OFFLINE_AUTO_PAN_DEPTH,
             wet: settings.autoPanMix || 0,
         })
             .connect(offlineDelay)
             .start();
 
         const offlineChorus = new Tone.Chorus({
-            frequency: 1.5,
-            delayTime: 3.5,
-            depth: 0.7,
+            frequency: OFFLINE_CHORUS_FREQUENCY_HERTZ,
+            delayTime: OFFLINE_CHORUS_DELAY_MILLISECONDS,
+            depth: OFFLINE_CHORUS_DEPTH,
             wet: settings.chorusMix || 0,
         })
             .connect(offlineAutoPanner)
