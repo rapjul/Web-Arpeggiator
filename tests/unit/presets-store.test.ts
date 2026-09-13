@@ -276,5 +276,69 @@ describe("Presets Store Domain Module", () => {
                 window.indexedDB = originalIndexedDB;
             }
         });
+
+        it("retries opening IndexedDB after a previous open attempt fails", async () => {
+            vi.resetModules();
+
+            const versionChangeListeners: Array<() => void> = [];
+            const openError = new Error("UnknownError");
+            const recoveredDatabase = {
+                addEventListener: (event: string, callback: () => void) => {
+                    if (event === "versionchange") {
+                        versionChangeListeners.push(callback);
+                    }
+                },
+                close: vi.fn(),
+                objectStoreNames: { contains: () => true },
+                transaction: vi.fn(),
+            };
+            const reconnectedDatabase = {
+                addEventListener: vi.fn(),
+                objectStoreNames: { contains: () => true },
+                transaction: vi.fn(),
+            };
+            const open = vi
+                .fn()
+                .mockImplementationOnce(() => ({
+                    error: openError,
+                    addEventListener: (event: string, callback: () => void) => {
+                        if (event === "error") {
+                            setTimeout(callback, 0);
+                        }
+                    },
+                }))
+                .mockImplementationOnce(() => ({
+                    error: null,
+                    result: recoveredDatabase,
+                    addEventListener: (event: string, callback: () => void) => {
+                        if (event === "success") {
+                            setTimeout(callback, 0);
+                        }
+                    },
+                }))
+                .mockImplementationOnce(() => ({
+                    error: null,
+                    result: reconnectedDatabase,
+                    addEventListener: (event: string, callback: () => void) => {
+                        if (event === "success") {
+                            setTimeout(callback, 0);
+                        }
+                    },
+                }));
+            (window as Window & { indexedDB: unknown }).indexedDB = { open };
+
+            const { openDatabase: openFreshDatabase } = await import("@storage/presets-store.js");
+
+            await expect(openFreshDatabase()).rejects.toThrow("UnknownError");
+            await expect(openFreshDatabase()).resolves.toBe(recoveredDatabase);
+            expect(open).toHaveBeenCalledTimes(2);
+
+            versionChangeListeners.forEach((listener) => {
+                listener();
+            });
+            expect(recoveredDatabase.close).toHaveBeenCalledTimes(1);
+            await expect(openFreshDatabase()).resolves.toBe(reconnectedDatabase);
+            expect(open).toHaveBeenCalledTimes(3);
+        });
     });
 });
