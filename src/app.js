@@ -36,6 +36,7 @@ import { createSessionManager, debounce } from "@storage/session-manager.js";
 import { createSettingsManager } from "@storage/settings-manager.js";
 import { setupKeyboardNavigation } from "@ui/a11y-navigation.js";
 import { initializeKeyboardControls } from "@ui/keyboard-controller.js";
+import { createHistoryController } from "@ui/history-controller.js";
 import { createNoteStepController } from "@ui/note-step-controller.js";
 import { createOnboardingController } from "@ui/onboarding-controller.js";
 import { createPresetController } from "@ui/preset-controller.js";
@@ -1327,8 +1328,42 @@ function initializeApp() {
 
     /** @type {Record<string, unknown> | null} */
     let defaultSettings = null;
-    /** @type {HTMLElement | null} */
-    let resetDialogReturnFocus = null;
+
+    const historyController = createHistoryController({
+        dom: {
+            appMain,
+            undoButton,
+            redoButton,
+            historyMenuButton,
+            historyMenu,
+            historyMenuUndoButton,
+            historyMenuRedoButton,
+            resetDefaultsButton,
+            resetDefaultsDesktopButton,
+            resetDefaultsOverlay,
+            resetDefaultsDialog,
+            resetDefaultsCancelButton,
+            resetDefaultsConfirmButton,
+            presetNameInput,
+        },
+        documentRef: document,
+        getStatus: () => ({
+            canUndo: settingsHistory.canUndo(),
+            canRedo: settingsHistory.canRedo(),
+            isAtDefault:
+                defaultSettings !== null &&
+                JSON.stringify(getAllSettings()) === JSON.stringify(defaultSettings),
+        }),
+        onUndo: undoSettings,
+        onRedo: redoSettings,
+        onResetDefaults: resetAllSettings,
+        onEscapeReset: () => {
+            const definition = getFocusedResetDefinition(document.activeElement);
+            if (!definition) return false;
+            resetIndividualSettings(definition);
+            return true;
+        },
+    });
 
     /**
      * Updates all history action availability states.
@@ -1336,38 +1371,7 @@ function initializeApp() {
      * @returns {void}
      */
     function updateHistoryControls() {
-        const canUndo = settingsHistory.canUndo();
-        const canRedo = settingsHistory.canRedo();
-        const isAtDefault =
-            defaultSettings !== null &&
-            JSON.stringify(getAllSettings()) === JSON.stringify(defaultSettings);
-
-        if (undoButton) undoButton.disabled = !canUndo;
-        if (redoButton) redoButton.disabled = !canRedo;
-        if (historyMenuUndoButton) historyMenuUndoButton.disabled = !canUndo;
-        if (historyMenuRedoButton) historyMenuRedoButton.disabled = !canRedo;
-        if (resetDefaultsButton) resetDefaultsButton.disabled = isAtDefault;
-        if (resetDefaultsDesktopButton) resetDefaultsDesktopButton.disabled = isAtDefault;
-    }
-
-    /**
-     * Sets the History menu visibility and accessibility state.
-     *
-     * @param {boolean} isOpen - Whether the menu should be shown.
-     * @returns {void}
-     */
-    function setHistoryMenuOpen(isOpen) {
-        if (!historyMenu || !historyMenuButton) return;
-        historyMenu.classList.toggle("hidden", !isOpen);
-        historyMenuButton.setAttribute("aria-expanded", isOpen ? "true" : "false");
-        if (isOpen) {
-            const firstAction = [
-                historyMenuUndoButton,
-                historyMenuRedoButton,
-                resetDefaultsButton,
-            ].find((button) => button && !button.disabled);
-            if (firstAction) firstAction.focus();
-        }
+        historyController.updateControls();
     }
 
     /**
@@ -1434,46 +1438,12 @@ function initializeApp() {
     }
 
     /**
-     * Opens the confirmation dialog before restoring all defaults.
-     *
-     * @returns {void}
-     */
-    function openResetDefaultsDialog() {
-        if (!resetDefaultsOverlay || !defaultSettings) return;
-        const activeElement = /** @type {HTMLElement | null} */ (document.activeElement);
-        setHistoryMenuOpen(false);
-        resetDialogReturnFocus =
-            activeElement === resetDefaultsButton ? historyMenuButton : activeElement;
-        resetDefaultsOverlay.classList.remove("hidden");
-        resetDefaultsOverlay.classList.add("flex");
-        resetDefaultsOverlay.setAttribute("aria-hidden", "false");
-        if (appMain) appMain.setAttribute("inert", "");
-        resetDefaultsConfirmButton?.focus();
-    }
-
-    /**
-     * Closes the default-reset confirmation dialog.
-     *
-     * @returns {void}
-     */
-    function closeResetDefaultsDialog() {
-        if (!resetDefaultsOverlay) return;
-        resetDefaultsOverlay.classList.add("hidden");
-        resetDefaultsOverlay.classList.remove("flex");
-        resetDefaultsOverlay.setAttribute("aria-hidden", "true");
-        if (appMain) appMain.removeAttribute("inert");
-        resetDialogReturnFocus?.focus();
-        resetDialogReturnFocus = null;
-    }
-
-    /**
      * Resets the entire serialized workspace to its captured defaults.
      *
      * @returns {void}
      */
     function resetAllSettings() {
         if (!defaultSettings) return;
-        closeResetDefaultsDialog();
         applySettingsWithHistory(defaultSettings);
         showToast("Restored default settings. Undo is available.", "info");
     }
@@ -1977,96 +1947,6 @@ function initializeApp() {
             }
         }
     });
-
-    undoButton?.addEventListener("click", undoSettings);
-    redoButton?.addEventListener("click", redoSettings);
-    historyMenuUndoButton?.addEventListener("click", () => {
-        undoSettings();
-        setHistoryMenuOpen(false);
-        historyMenuButton?.focus();
-    });
-    historyMenuRedoButton?.addEventListener("click", () => {
-        redoSettings();
-        setHistoryMenuOpen(false);
-        historyMenuButton?.focus();
-    });
-    historyMenuButton?.addEventListener("click", () => {
-        const isOpen = historyMenuButton.getAttribute("aria-expanded") === "true";
-        setHistoryMenuOpen(!isOpen);
-    });
-    resetDefaultsButton?.addEventListener("click", openResetDefaultsDialog);
-    resetDefaultsDesktopButton?.addEventListener("click", openResetDefaultsDialog);
-    resetDefaultsCancelButton?.addEventListener("click", closeResetDefaultsDialog);
-    resetDefaultsConfirmButton?.addEventListener("click", resetAllSettings);
-    resetDefaultsOverlay?.addEventListener("click", (event) => {
-        if (event.target === resetDefaultsOverlay) closeResetDefaultsDialog();
-    });
-    resetDefaultsDialog?.addEventListener("keydown", (event) => {
-        if (event.key !== "Tab") return;
-        const focusable = Array.from(
-            /** @type {NodeListOf<HTMLButtonElement>} */ (
-                resetDefaultsDialog.querySelectorAll("button:not([disabled])")
-            ),
-        );
-        const firstElement = focusable[0];
-        const lastElement = focusable[focusable.length - 1];
-        if (!firstElement || !lastElement) return;
-        if (event.shiftKey && document.activeElement === firstElement) {
-            event.preventDefault();
-            lastElement.focus();
-        } else if (!event.shiftKey && document.activeElement === lastElement) {
-            event.preventDefault();
-            firstElement.focus();
-        }
-    });
-
-    document.addEventListener("click", (event) => {
-        const target = /** @type {Element} */ (event.target);
-        if (target.closest("#history-menu, #history-menu-button")) return;
-        setHistoryMenuOpen(false);
-    });
-
-    window.addEventListener(
-        "keydown",
-        (event) => {
-            const resetDialogOpen = resetDefaultsOverlay?.getAttribute("aria-hidden") === "false";
-            if (event.key === "Escape" && resetDialogOpen) {
-                event.preventDefault();
-                closeResetDefaultsDialog();
-                return;
-            }
-
-            const historyMenuOpen = historyMenuButton?.getAttribute("aria-expanded") === "true";
-            if (event.key === "Escape" && historyMenuOpen) {
-                event.preventDefault();
-                setHistoryMenuOpen(false);
-                historyMenuButton?.focus();
-                return;
-            }
-
-            const usesModifier = event.ctrlKey || event.metaKey;
-            const key = event.key.toLowerCase();
-            const isUndo = usesModifier && !event.shiftKey && key === "z";
-            const isRedo = usesModifier && ((event.shiftKey && key === "z") || key === "y");
-            if ((isUndo || isRedo) && event.target === presetNameInput) return;
-            if (isUndo || isRedo) {
-                event.preventDefault();
-                event.stopImmediatePropagation();
-                if (isUndo) undoSettings();
-                else redoSettings();
-                return;
-            }
-
-            if (event.key === "Escape") {
-                const definition = getFocusedResetDefinition(document.activeElement);
-                if (definition) {
-                    event.preventDefault();
-                    resetIndividualSettings(definition);
-                }
-            }
-        },
-        true,
-    );
 
     /**
      * Debounced wrapper to update the synth envelope.
@@ -3231,7 +3111,7 @@ function initializeApp() {
     defaultSettings = getAllSettings();
     settingsHistory.initialize(defaultSettings);
     registerIndividualResetGestures();
-    updateHistoryControls();
+    historyController.initialize();
     buildSoundStartersStrip();
 
     onboardingController.initialize();
