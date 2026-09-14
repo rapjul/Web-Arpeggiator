@@ -37,6 +37,7 @@ import { createSettingsManager } from "@storage/settings-manager.js";
 import { setupKeyboardNavigation } from "@ui/a11y-navigation.js";
 import { initializeKeyboardControls } from "@ui/keyboard-controller.js";
 import { createNoteStepController } from "@ui/note-step-controller.js";
+import { createOnboardingController } from "@ui/onboarding-controller.js";
 import { createPresetController } from "@ui/preset-controller.js";
 import { createToastManager } from "@ui/ui-feedback.js";
 import { FACTORY_PRESETS } from "./config/factory-presets.js";
@@ -247,37 +248,6 @@ function initializeApp() {
         document.getElementById("reset-defaults-desktop-button")
     );
 
-    /**
-     * Fullscreen overlay for returning user audio activation.
-     * @type {HTMLElement | null}
-     */
-    const startOverlay = document.getElementById("start-overlay");
-
-    /**
-     * Fullscreen overlay for first-visit quick start welcome modal.
-     * @type {HTMLElement | null}
-     */
-    const quickStartOverlay = document.getElementById("quick-start-overlay");
-
-    /**
-     * Modal dialog element containing quick start onboarding choices.
-     * @type {HTMLElement | null}
-     */
-    const quickStartModal = document.getElementById("quick-start-modal");
-
-    /**
-     * Grid container for dynamically rendered quick start preset cards.
-     * @type {HTMLElement | null}
-     */
-    const quickStartPresetsGrid = document.getElementById("quick-start-presets-grid");
-
-    /**
-     * Button to start blank session without loading a preset.
-     * @type {HTMLButtonElement | null}
-     */
-    const quickStartScratchButton = /** @type {HTMLButtonElement | null} */ (
-        document.getElementById("quick-start-scratch")
-    );
     const resetDefaultsOverlay = document.getElementById("reset-defaults-overlay");
     const resetDefaultsDialog = document.getElementById("reset-defaults-dialog");
     const resetDefaultsCancelButton = /** @type {HTMLButtonElement | null} */ (
@@ -965,6 +935,56 @@ function initializeApp() {
     });
 
     const { getAllSettings, loadAllSettings, generateFilename } = settingsManager;
+
+    const onboardingController = createOnboardingController({
+        dom: {
+            appMain,
+            playStopButton,
+            quickStartModal: document.getElementById("quick-start-modal"),
+            quickStartOverlay: document.getElementById("quick-start-overlay"),
+            quickStartPresetsGrid: document.getElementById("quick-start-presets-grid"),
+            quickStartScratchButton: /** @type {HTMLButtonElement | null} */ (
+                document.getElementById("quick-start-scratch")
+            ),
+            soundStartersDetails,
+            startOverlay: document.getElementById("start-overlay"),
+        },
+        documentRef: document,
+        storage: {
+            getItem: (key) => window.localStorage.getItem(key),
+            setItem: (key, value) => window.localStorage.setItem(key, value),
+        },
+        getLocationSearch: () => window.location.search,
+        presetUrlKeys: PRESET_URL_KEYS,
+        factoryPresets: FACTORY_PRESETS,
+        onPresetSelected: async (preset) => {
+            applySettingsWithHistory(mergeSettings(DEFAULT_SETTINGS, preset.settings));
+            if (presetNameInput) {
+                presetNameInput.value = preset.name;
+            }
+            if (savedPresetSelect) {
+                savedPresetSelect.value = preset.id;
+            }
+            setActiveSoundStarterCard(preset.id);
+            try {
+                await startAudio();
+                await startPlayback();
+                showToast(`Started with preset: ${preset.name}`, "success");
+            } catch (error) {
+                console.warn("AudioContext failed to start on quick start click:", error);
+            }
+            scheduleLastSessionSave();
+        },
+        onStartFromScratch: async () => {
+            await startAudio();
+            loadPresetFromUrl();
+        },
+        onStartOverlay: async () => {
+            await startAudio();
+            loadPresetFromUrl();
+        },
+        logger: console,
+    });
 
     // 5. Keyboard Controller
     const keyboardControls = initializeKeyboardControls({
@@ -1876,229 +1896,13 @@ function initializeApp() {
         showToast("Preset loaded from URL link!", "success");
     }
 
-    // --- Sound Starters ---
-
-    // --- Sound Starters & Quick Start Onboarding ---
-
-    /**
-     * Storage key used to track if the user has previously completed first-time onboarding.
-     * @type {string}
-     */
-    const FIRST_VISIT_KEY = "webArpHasVisited";
-
-    /**
-     * Checks whether the current session is considered a first-time visitor flow.
-     * Returns false if URL search contains recognized preset parameters.
-     *
-     * @returns {boolean} True if this is a first-time visitor without URL preset params.
-     */
-    function isFirstVisit() {
-        try {
-            const params = new URLSearchParams(window.location.search);
-            const hasUrlPreset = Array.from(params.keys()).some((key) => PRESET_URL_KEYS.has(key));
-            if (hasUrlPreset) return false;
-            return localStorage.getItem(FIRST_VISIT_KEY) !== "true";
-        } catch {
-            return false;
-        }
-    }
-
-    /**
-     * Marks the first-time onboarding flow as completed in localStorage.
-     *
-     * @returns {void}
-     */
-    function markVisited() {
-        try {
-            localStorage.setItem(FIRST_VISIT_KEY, "true");
-        } catch (err) {
-            console.warn("Storage access restricted:", err);
-        }
-    }
-
-    /**
-     * Enables the primary Play/Stop button and sets its active visual styling.
-     *
-     * @returns {void}
-     */
-    function enablePlayStopButton() {
-        if (playStopButton) {
-            playStopButton.disabled = false;
-            playStopButton.textContent = "Start Audio";
-            playStopButton.setAttribute("aria-label", "Press to play arpeggio");
-            playStopButton.classList.remove("opacity-50", "cursor-not-allowed", "bg-gray-600");
-            playStopButton.classList.add("bg-blue-600", "hover:bg-blue-700");
-        }
-    }
-
-    /**
-     * Dynamically builds the Quick Start preset cards inside the welcome modal.
-     *
-     * @returns {void}
-     */
-    function buildQuickStartPresetCards() {
-        if (!quickStartPresetsGrid) return;
-        quickStartPresetsGrid.innerHTML = "";
-
-        FACTORY_PRESETS.forEach((preset) => {
-            const card = document.createElement("button");
-            card.type = "button";
-            card.className =
-                "sound-starter-card p-3 focus-visible:outline-none flex flex-col justify-between text-left";
-            card.setAttribute("data-preset-id", preset.id);
-            card.setAttribute(
-                "aria-label",
-                `Start with ${preset.name} preset, ${preset.settings.bpm} BPM`,
-            );
-
-            const accentBar = document.createElement("div");
-            accentBar.className = `sound-starter-accent bg-gradient-to-r ${preset.accentGradient || "from-blue-500 to-indigo-500"} mb-2 rounded-full`;
-
-            const topRow = document.createElement("div");
-            topRow.className = "flex items-center justify-between gap-1 mb-1";
-
-            const emojiSpan = document.createElement("span");
-            emojiSpan.className = "text-2xl shrink-0";
-            emojiSpan.textContent = preset.emoji || "🎵";
-
-            const bpmSpan = document.createElement("span");
-            bpmSpan.className =
-                "text-[11px] font-mono font-medium px-1.5 py-0.5 rounded bg-gray-900/60 text-gray-300 shrink-0";
-            bpmSpan.textContent = `${preset.settings.bpm} BPM`;
-
-            topRow.appendChild(emojiSpan);
-            topRow.appendChild(bpmSpan);
-
-            const title = document.createElement("div");
-            title.className = "text-xs font-semibold text-gray-100 truncate";
-            title.textContent = preset.name;
-
-            card.appendChild(accentBar);
-            card.appendChild(topRow);
-            card.appendChild(title);
-
-            card.addEventListener("click", () => handleQuickStartPresetClick(preset));
-
-            quickStartPresetsGrid.appendChild(card);
-        });
-    }
-
-    /**
-     * Opens the Quick Start onboarding modal dialog and makes the background application content inert.
-     *
-     * @returns {void}
-     */
-    function openQuickStartModal() {
-        if (!quickStartOverlay) return;
-        quickStartOverlay.classList.remove("is-hidden");
-        if (appMain) {
-            appMain.setAttribute("inert", "");
-        }
-        buildQuickStartPresetCards();
-        const firstPresetBtn =
-            quickStartPresetsGrid?.querySelector("button") || quickStartScratchButton;
-        if (firstPresetBtn) {
-            firstPresetBtn.focus();
-        }
-    }
-
-    /**
-     * Closes the Quick Start onboarding modal dialog and restores background interactivity.
-     *
-     * @returns {void}
-     */
-    function closeQuickStartModal() {
-        if (quickStartOverlay) {
-            quickStartOverlay.classList.add("is-hidden");
-        }
-        if (appMain) {
-            appMain.removeAttribute("inert");
-        }
-    }
-
-    /**
-     * Handles selecting a factory preset from the Quick Start onboarding dialog.
-     *
-     * @param {FactoryPreset} preset - The selected factory preset definition.
-     * @returns {Promise<void>}
-     */
-    async function handleQuickStartPresetClick(preset) {
-        closeQuickStartModal();
-        enablePlayStopButton();
-        markVisited();
-        applySettingsWithHistory(mergeSettings(DEFAULT_SETTINGS, preset.settings));
-        if (presetNameInput) {
-            presetNameInput.value = preset.name;
-        }
-        if (savedPresetSelect) {
-            savedPresetSelect.value = preset.id;
-        }
-        setActiveSoundStarterCard(preset.id);
-        try {
-            await startAudio();
-            await startPlayback();
-            showToast(`Started with preset: ${preset.name}`, "success");
-        } catch (err) {
-            console.warn("AudioContext failed to start on quick start click:", err);
-        }
-        scheduleLastSessionSave();
-    }
-
-    /**
-     * Handles clicking "Start from Scratch" or dismissing the Quick Start onboarding dialog.
-     *
-     * @returns {Promise<void>}
-     */
-    async function handleStartFromScratch() {
-        closeQuickStartModal();
-        if (soundStartersDetails) {
-            soundStartersDetails.removeAttribute("open");
-            try {
-                localStorage.setItem("soundStartersOpen", "false");
-            } catch (err) {
-                console.warn("Could not write soundStartersOpen to localStorage:", err);
-            }
-        }
-        enablePlayStopButton();
-        markVisited();
-        try {
-            await startAudio();
-            loadPresetFromUrl();
-        } catch (err) {
-            console.warn("AudioContext failed to start on scratch click:", err);
-        }
-    }
-
-    /**
-     * Handles clicks on the standard start overlay to initialize the AudioContext.
-     *
-     * @returns {Promise<void>}
-     */
-    const handleStartOverlayClick = async () => {
-        if (startOverlay) {
-            startOverlay.classList.add("is-hidden");
-        }
-        enablePlayStopButton();
-        try {
-            await startAudio();
-            loadPresetFromUrl();
-        } catch (err) {
-            console.warn("AudioContext failed to start on overlay click:", err);
-        }
-    };
-
     /**
      * Starts audio playback if not already running.
      * @returns {Promise<void>}
      */
     async function startPlayback() {
         if (!isAudioContextStarted) {
-            if (startOverlay) {
-                startOverlay.classList.add("is-hidden");
-            }
-            closeQuickStartModal();
-            enablePlayStopButton();
-            markVisited();
+            onboardingController.prepareForPlayback();
         }
         await startAudio();
         if (recorderManager && !recorderManager.isRecording) {
@@ -3430,61 +3234,7 @@ function initializeApp() {
     updateHistoryControls();
     buildSoundStartersStrip();
 
-    if (startOverlay) {
-        startOverlay.addEventListener("click", handleStartOverlayClick);
-    }
-    if (quickStartScratchButton) {
-        quickStartScratchButton.addEventListener("click", handleStartFromScratch);
-    }
-    if (quickStartOverlay) {
-        quickStartOverlay.addEventListener("click", (event) => {
-            if (event.target === quickStartOverlay) {
-                handleStartFromScratch();
-            }
-        });
-    }
-    if (quickStartModal) {
-        quickStartModal.addEventListener("keydown", (event) => {
-            if (event.key !== "Tab") return;
-            const focusable = Array.from(
-                /** @type {NodeListOf<HTMLButtonElement>} */ (
-                    quickStartModal.querySelectorAll("button:not([disabled])")
-                ),
-            );
-            if (focusable.length === 0) return;
-            const firstElement = focusable[0];
-            const lastElement = focusable[focusable.length - 1];
-
-            if (event.shiftKey) {
-                if (document.activeElement === firstElement) {
-                    event.preventDefault();
-                    lastElement.focus();
-                }
-            } else {
-                if (document.activeElement === lastElement) {
-                    event.preventDefault();
-                    firstElement.focus();
-                }
-            }
-        });
-    }
-    window.addEventListener("keydown", (event) => {
-        if (
-            event.key === "Escape" &&
-            quickStartOverlay &&
-            !quickStartOverlay.classList.contains("is-hidden")
-        ) {
-            handleStartFromScratch();
-        }
-    });
-
-    if (isFirstVisit()) {
-        openQuickStartModal();
-    } else {
-        if (startOverlay) {
-            startOverlay.classList.remove("is-hidden");
-        }
-    }
+    onboardingController.initialize();
 
     log("Arpeggiator initialized and ready.");
     void refreshSavedPresetList();
