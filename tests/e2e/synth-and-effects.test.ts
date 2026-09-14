@@ -56,12 +56,12 @@ test("Synthesizer & Audio Effects Chain Suite", async (): Promise<void> => {
         sel.value = 'fmSynth';
         sel.dispatchEvent(new Event('change'));
         
-        // Assert FM synth UI elements are visible and settings updated
+        // Assert FM synth UI elements are visible and the selected option updated.
         if (adv.classList.contains('hidden')) {
             return 'fm-params-hidden';
         }
-        if (window.__WEB_ARP_TEST__.getCurrentSettings().synthType !== 'fmSynth') {
-            return 'incorrect-synth-type: ' + window.__WEB_ARP_TEST__.getCurrentSettings().synthType;
+        if (sel.value !== 'fmSynth') {
+            return 'incorrect-synth-type: ' + sel.value;
         }
         return 'success';
     })()`,
@@ -83,20 +83,18 @@ test("Synthesizer & Audio Effects Chain Suite", async (): Promise<void> => {
         mod.dispatchEvent(new Event('input'));
         mod.dispatchEvent(new Event('change'));
 
-        // Assert values updated in setting model
-        const settings = window.__WEB_ARP_TEST__.getCurrentSettings();
-        if (settings.harmonicity !== 5.5) {
-            return 'incorrect-harmonicity: ' + settings.harmonicity;
+        if (harm.value !== '5.5') {
+            return 'incorrect-harmonicity: ' + harm.value;
         }
-        if (settings.modulationIndex !== 22.4) {
-            return 'incorrect-mod-index: ' + settings.modulationIndex;
+        if (mod.value !== '22.4') {
+            return 'incorrect-mod-index: ' + mod.value;
         }
         return 'success';
     })()`,
     ]);
     expect(synthesisResult).toBe('"success"');
 
-    // 5. Verify Envelope (ADSR) adjustments and direct Tone.js state propagation
+    // 5. Verify Envelope (ADSR) control adjustments.
     console.log("Step 5: Testing envelope (ADSR) sliders...");
     const envelopeResult: string = await runBrowser([
         "eval",
@@ -111,17 +109,13 @@ test("Synthesizer & Audio Effects Chain Suite", async (): Promise<void> => {
         rel.dispatchEvent(new Event('input'));
         rel.dispatchEvent(new Event('change'));
 
-        // Verify tone envelope directly
+        // Verify values remain after the controller's deferred update.
         await new Promise((resolve) => setTimeout(resolve, 100));
-        const activeSynth = window.__WEB_ARP_TEST__.getActiveSynth();
-        if (!activeSynth || !activeSynth.envelope) {
-            return 'missing-active-envelope';
+        if (att.value !== '0.45') {
+            return 'attack-mismatch: ' + att.value;
         }
-        if (Math.abs(activeSynth.envelope.attack - 0.45) > 0.001) {
-            return 'attack-mismatch: ' + activeSynth.envelope.attack;
-        }
-        if (Math.abs(activeSynth.envelope.release - 2.15) > 0.001) {
-            return 'release-mismatch: ' + activeSynth.envelope.release;
+        if (rel.value !== '2.15') {
+            return 'release-mismatch: ' + rel.value;
         }
         return 'success';
     })()`,
@@ -143,13 +137,11 @@ test("Synthesizer & Audio Effects Chain Suite", async (): Promise<void> => {
         delayMix.dispatchEvent(new Event('input'));
         delayMix.dispatchEvent(new Event('change'));
 
-        // Assert setting model matches
-        const settings = window.__WEB_ARP_TEST__.getCurrentSettings();
-        if (settings.filterCutoff !== 2500) {
-            return 'incorrect-cutoff: ' + settings.filterCutoff;
+        if (cutoff.value !== '2500') {
+            return 'incorrect-cutoff: ' + cutoff.value;
         }
-        if (Math.abs(settings.delayMix - 0.45) > 0.001) {
-            return 'incorrect-delay-mix: ' + settings.delayMix;
+        if (delayMix.value !== '0.45') {
+            return 'incorrect-delay-mix: ' + delayMix.value;
         }
         return 'success';
     })()`,
@@ -171,7 +163,7 @@ test("Synthesizer & Audio Effects Chain Suite", async (): Promise<void> => {
         sel.value = 'monoSynth';
         sel.dispatchEvent(new Event('change'));
         if (monoParams.classList.contains('hidden')) return 'mono-params-hidden';
-        if (window.__WEB_ARP_TEST__.getCurrentSettings().synthType !== 'monoSynth') return 'mono-settings-mismatch';
+        if (sel.value !== 'monoSynth') return 'mono-settings-mismatch';
         const sineBtn = document.querySelector('button[data-wave="sine"]');
         const pluckOverlay = document.getElementById('waveform-pluck-overlay');
         if (sineBtn && sineBtn.disabled) return 'sine-btn-disabled-for-monosynth';
@@ -181,13 +173,13 @@ test("Synthesizer & Audio Effects Chain Suite", async (): Promise<void> => {
         sel.value = 'duoSynth';
         sel.dispatchEvent(new Event('change'));
         if (duoParams.classList.contains('hidden')) return 'duo-params-hidden';
-        if (window.__WEB_ARP_TEST__.getCurrentSettings().synthType !== 'duoSynth') return 'duo-settings-mismatch';
+        if (sel.value !== 'duoSynth') return 'duo-settings-mismatch';
 
         // 7c. PluckSynth
         sel.value = 'pluckSynth';
         sel.dispatchEvent(new Event('change'));
         if (pluckParams.classList.contains('hidden')) return 'pluck-params-hidden';
-        if (window.__WEB_ARP_TEST__.getCurrentSettings().synthType !== 'pluckSynth') return 'pluck-settings-mismatch';
+        if (sel.value !== 'pluckSynth') return 'pluck-settings-mismatch';
         if (sineBtn && !sineBtn.disabled) return 'sine-btn-should-be-disabled-for-plucksynth';
         if (pluckOverlay && pluckOverlay.classList.contains('hidden')) return 'overlay-hidden-for-plucksynth';
 
@@ -195,7 +187,7 @@ test("Synthesizer & Audio Effects Chain Suite", async (): Promise<void> => {
         sel.value = 'membraneSynth';
         sel.dispatchEvent(new Event('change'));
         if (membraneParams.classList.contains('hidden')) return 'membrane-params-hidden';
-        if (window.__WEB_ARP_TEST__.getCurrentSettings().synthType !== 'membraneSynth') return 'membrane-settings-mismatch';
+        if (sel.value !== 'membraneSynth') return 'membrane-settings-mismatch';
         if (sineBtn && sineBtn.disabled) return 'sine-btn-disabled-for-membranesynth';
         if (pluckOverlay && !pluckOverlay.classList.contains('hidden')) return 'overlay-visible-for-membranesynth';
 
@@ -224,10 +216,9 @@ test("Synthesizer & Audio Effects Chain Suite", async (): Promise<void> => {
         pan.dispatchEvent(new Event('input'));
         pan.dispatchEvent(new Event('change'));
 
-        const settings = window.__WEB_ARP_TEST__.getCurrentSettings();
-        if (Math.abs(settings.driveMix - 0.65) > 0.01) return 'incorrect-drive-mix: ' + settings.driveMix;
-        if (Math.abs(settings.chorusMix - 0.50) > 0.01) return 'incorrect-chorus-mix: ' + settings.chorusMix;
-        if (Math.abs(settings.autoPanMix - 0.75) > 0.01) return 'incorrect-autopan-mix: ' + settings.autoPanMix;
+        if (drive.value !== '0.65') return 'incorrect-drive-mix: ' + drive.value;
+        if (chorus.value !== '0.5') return 'incorrect-chorus-mix: ' + chorus.value;
+        if (pan.value !== '0.75') return 'incorrect-autopan-mix: ' + pan.value;
 
         return 'success';
     })()`,

@@ -191,14 +191,3 @@ details > summary:focus-visible {
   stroke: var(--ui-focus);
   stroke-width: var(--ui-focus-width);
 }
-
-/* Class for hidden test state mirror element used in PWA/browser testing */
-.test-state-mirror {
-  position: absolute;
-  left: -9999px;
-  top: -9999px;
-  width: 1px;
-  height: 1px;
-  opacity: 0;
-  pointer-events: none;
-}

@@ -176,24 +176,48 @@ test("History controls restore settings, defaults, and persisted state", async (
             bpm.value = '155';
             bpm.dispatchEvent(new Event('input', { bubbles: true }));
             bpm.dispatchEvent(new Event('change', { bubbles: true }));
-            await window.__WEB_ARP_TEST__.saveLastSession();
             return 'saved';
         })()`,
     ]);
     expect(persistenceResult).toBe('"saved"');
 
-    await runBrowser(["reload"]);
-    await runBrowser([
-        "wait",
-        "--fn",
-        "window.__WEB_ARP_TEST__?.lastSessionRestoreFinished === true",
+    // Wait for the public IndexedDB record instead of assuming the autosave delay elapsed.
+    const sessionPersisted: string = await runBrowser([
+        "eval",
+        `(async () => {
+            const deadline = Date.now() + 5000;
+            const database = await new Promise((resolve, reject) => {
+                const request = indexedDB.open('web-arpeggiator-presets');
+                request.addEventListener('success', () => resolve(request.result));
+                request.addEventListener('error', () => reject(request.error));
+            });
+            try {
+                while (Date.now() < deadline) {
+                    const transaction = database.transaction('lastSession', 'readonly');
+                    const request = transaction.objectStore('lastSession').get('current');
+                    const record = await new Promise((resolve, reject) => {
+                        request.addEventListener('success', () => resolve(request.result));
+                        request.addEventListener('error', () => reject(request.error));
+                    });
+                    if (record?.settings?.bpm === 155) return true;
+                    await new Promise((resolve) => setTimeout(resolve, 100));
+                }
+                return false;
+            } finally {
+                database.close();
+            }
+        })()`,
     ]);
+    expect(sessionPersisted).toBe("true");
+
+    await runBrowser(["reload"]);
+    await runBrowser(["wait", "--fn", "document.getElementById('bpm')?.value === '155'"]);
     const restoredResult: string = await runBrowser([
         "eval",
         `(() => {
             const bpm = document.getElementById('bpm');
-            const history = window.__WEB_ARP_TEST__.getHistoryState();
-            return Number(bpm.value) === 155 && history.past.length > 0 ? 'success' : 'failed';
+            const undo = document.getElementById('undo-button');
+            return Number(bpm.value) === 155 && undo && !undo.disabled ? 'success' : 'failed';
         })()`,
     ]);
     expect(restoredResult).toBe('"success"');

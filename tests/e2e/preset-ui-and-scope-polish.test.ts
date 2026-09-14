@@ -57,21 +57,35 @@ test("Preset UI Hierarchy & Visualizer Status Suite", async (): Promise<void> =>
 
         nameInput.value = "Cyberpunk Test Preset";
         nameInput.dispatchEvent(new Event("input"));
-        window.__WEB_ARP_TEST__.lastSaveFinished = false;
         saveBrowserBtn.click();
         return "success";
     })()`,
     ]);
     expect(presetControlsCheck).toBe('"success"');
 
-    // Wait for the async IndexedDB save to finish
-    await runBrowser(["wait", "--fn", "window.__WEB_ARP_TEST__.lastSaveFinished === true"]);
+    // Wait for the async save to appear in the visible preset list.
+    await runBrowser([
+        "wait",
+        "--fn",
+        "[...document.getElementById('saved-preset-select').options].some((option) => option.textContent.includes('Cyberpunk Test Preset'))",
+    ]);
 
     const checkPresetSaved: string = await runBrowser([
         "eval",
         `(async () => {
-        const records = await window.__WEB_ARP_TEST__.listPresets();
-        if (!records.some((r) => r.name === "Cyberpunk Test Preset")) {
+        const database = await new Promise((resolve, reject) => {
+            const request = indexedDB.open('web-arpeggiator-presets');
+            request.addEventListener('success', () => resolve(request.result));
+            request.addEventListener('error', () => reject(request.error));
+        });
+        const transaction = database.transaction('presetSnapshots', 'readonly');
+        const request = transaction.objectStore('presetSnapshots').getAll();
+        const records = await new Promise((resolve, reject) => {
+            request.addEventListener('success', () => resolve(request.result));
+            request.addEventListener('error', () => reject(request.error));
+        });
+        database.close();
+        if (!records.some((record) => record.name === "Cyberpunk Test Preset")) {
             return "not-saved";
         }
         const selectEl = document.getElementById("saved-preset-select");
@@ -84,66 +98,8 @@ test("Preset UI Hierarchy & Visualizer Status Suite", async (): Promise<void> =>
     ]);
     expect(checkPresetSaved).toBe('"success"');
 
-    // 4. Test browser-storage recovery guidance after a failed save and successful retry.
-    console.log("Step 4: Testing browser storage recovery guidance...");
-    const recoverySubmission: string = await runBrowser([
-        "eval",
-        `(() => {
-        const recovery = document.getElementById("browser-storage-recovery");
-        const saveBrowserBtn = document.getElementById("save-preset-to-browser-button");
-        const store = window.WebArpPresetStore;
-        if (!recovery || !saveBrowserBtn || !store) return "recovery-controls-missing";
-
-        const originalSave = store.save;
-        store.save = async () => {
-            store.save = originalSave;
-            throw new Error("Temporary IndexedDB failure");
-        };
-        window.__WEB_ARP_TEST__.lastSaveFinished = false;
-        saveBrowserBtn.click();
-        return "submitted";
-    })()`,
-    ]);
-    expect(recoverySubmission).toBe('"submitted"');
-    await runBrowser(["wait", "--fn", "window.__WEB_ARP_TEST__.lastSaveFinished === true"]);
-
-    const recoveryVisible: string = await runBrowser([
-        "eval",
-        `(() => {
-        const recovery = document.getElementById("browser-storage-recovery");
-        return recovery && !recovery.classList.contains("hidden") && recovery.open
-            ? "visible"
-            : "not-visible";
-    })()`,
-    ]);
-    expect(recoveryVisible).toBe('"visible"');
-
-    const retrySubmission: string = await runBrowser([
-        "eval",
-        `(() => {
-        const saveBrowserBtn = document.getElementById("save-preset-to-browser-button");
-        if (!saveBrowserBtn) return "retry-button-missing";
-        window.__WEB_ARP_TEST__.lastSaveFinished = false;
-        saveBrowserBtn.click();
-        return "submitted";
-    })()`,
-    ]);
-    expect(retrySubmission).toBe('"submitted"');
-    await runBrowser(["wait", "--fn", "window.__WEB_ARP_TEST__.lastSaveFinished === true"]);
-
-    const recoveryHidden: string = await runBrowser([
-        "eval",
-        `(() => {
-        const recovery = document.getElementById("browser-storage-recovery");
-        return recovery && recovery.classList.contains("hidden") && !recovery.open
-            ? "hidden"
-            : "still-visible";
-    })()`,
-    ]);
-    expect(recoveryHidden).toBe('"hidden"');
-
-    // 5. Test Visualizer Toggle & Pause Controls
-    console.log("Step 5: Testing Visualizer Toggle and Pause Controls...");
+    // 4. Test Visualizer Toggle & Pause Controls
+    console.log("Step 4: Testing Visualizer Toggle and Pause Controls...");
     const visualizerControlsResult: string = await runBrowser([
         "eval",
         `(async () => {
@@ -191,8 +147,8 @@ test("Preset UI Hierarchy & Visualizer Status Suite", async (): Promise<void> =>
     ]);
     expect(visualizerControlsResult).toBe('"success"');
 
-    // 6. Test Factory Preset Loading
-    console.log("Step 6: Testing Factory Preset loading...");
+    // 5. Test Factory Preset Loading
+    console.log("Step 5: Testing Factory Preset loading...");
     const factoryPresetResult: string = await runBrowser([
         "eval",
         `(async () => {

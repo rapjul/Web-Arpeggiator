@@ -348,17 +348,19 @@ export async function loadLastSession() {
     return normalizeStoredPresetRecord(record);
 }
 
-// Public storage API used by the single-file app and browser tests.
-if (typeof window !== "undefined") {
-    window.WebArpPresetStore = {
-        save,
-        get,
-        loadLatest,
-        list,
-        remove,
-        clear,
-        saveLastSession,
-        loadLastSession,
-        dbName: DB_NAME,
-    };
-}
+/**
+ * Application-facing preset storage API.
+ *
+ * @type {import("../../types.d.ts").WebArpPresetStore}
+ */
+export const presetStore = {
+    save,
+    get,
+    loadLatest,
+    list,
+    remove,
+    clear,
+    saveLastSession,
+    loadLastSession,
+    dbName: DB_NAME,
+};

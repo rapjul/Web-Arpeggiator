@@ -148,32 +148,12 @@ export type TonePatternDirection =
     | "randomWalk";
 
 /**
- * Global window type augmentations for Web Arpeggiator.
+ * Global browser type augmentations for Web Arpeggiator.
  */
 declare global {
     interface Window {
-        /** Audio engine controller */
-        audioEngine: unknown;
-        /** Test hooks interface */
-        __WEB_ARP_TEST__: Record<string, unknown>;
-        /** Preset storage persistence layer */
-        WebArpPresetStore?: WebArpPresetStore;
-        /** PWA runtime manager */
-        WebArpPWA?: WebArpPWA;
         /** PWA asset manifest cache list */
         __WEB_ARP_ASSET_MANIFEST__?: WebArpAssetManifest;
-        /** PWA runtime state container */
-        __WEB_ARP_PWA_STATE__?: WebArpPWAState;
-        /** Global PWA state helper */
-        WebArpPWAState?: WebArpPWAState;
-        /** Input filtering handler for note sequences */
-        filterNoteInput: (event: KeyboardEvent) => boolean;
-        /** Input filtering handler for numeric fields */
-        filterNumericInput: (event: KeyboardEvent) => boolean;
-        /** Global audio initialization handler */
-        startAudio: () => Promise<void>;
-        /** Global toast notification handler */
-        showToast: (message: string, type?: string) => void;
         /** LameJS MP3 encoder library instance */
         lamejs: typeof import("@breezystack/lamejs");
     }

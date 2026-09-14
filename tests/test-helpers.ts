@@ -89,7 +89,7 @@ export function cleanupProcesses(): void {
 
 /**
  * Navigates to the test URL and waits for service worker registration/activation
- * and session state restoration to complete.
+ * and application rendering to complete.
  *
  * @param {string} url - The target application URL to open.
  * @returns {Promise<void>} Resolves when the PWA is initialized and ready.
@@ -104,26 +104,28 @@ export async function waitForPwaReady(url: string): Promise<void> {
     console.log("  [PWA Ready] Waiting for load networkidle...");
     await runBrowser(["wait", "--load", "networkidle"]);
 
-    // Wait for the app state to report service worker registration
-    console.log("  [PWA Ready] Waiting for SW registration state...");
+    // Wait for the browser's public Service Worker API to report registration.
+    console.log("  [PWA Ready] Waiting for SW registration...");
     await runBrowser([
         "wait",
         "--fn",
-        "window.__WEB_ARP_PWA_STATE__?.serviceWorkerRegistered === true",
+        "navigator.serviceWorker?.getRegistration('./').then((registration) => registration !== undefined)",
     ]);
 
     console.log("  [PWA Ready] Waiting for SW controller not null...");
     await runBrowser(["wait", "--fn", "navigator.serviceWorker?.controller !== null"]);
 
-    // Reload to activate the service worker controller and restore last session
+    // Reload to activate the service worker controller and finish application startup.
     console.log("  [PWA Ready] Reloading page...");
     await runBrowser(["reload"]);
 
-    console.log("  [PWA Ready] Waiting for active controller and session restore after reload...");
+    console.log(
+        "  [PWA Ready] Waiting for active controller and application shell after reload...",
+    );
     await runBrowser([
         "wait",
         "--fn",
-        "navigator.serviceWorker?.controller !== null && document.getElementById('notes') !== null && window.__WEB_ARP_TEST__?.lastSessionRestoreFinished === true",
+        "navigator.serviceWorker?.controller !== null && document.getElementById('notes') !== null",
     ]);
     console.log("  [PWA Ready] Done!");
 }

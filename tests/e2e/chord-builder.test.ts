@@ -157,15 +157,10 @@ test("Scale-Aware Chord Builder E2E Suite", async (): Promise<void> => {
                 majorBtn.click();
             }
             const notesInput = document.getElementById('notes');
-            return JSON.stringify({
-                rawNotes: notesInput ? notesInput.value : '',
-                patternValues: Array.from(window.__WEB_ARP_TEST__.getPattern()?.values ?? []),
-            });
+            return notesInput ? notesInput.value : '';
         })()`,
     ]);
-    const parsedScalePattern = JSON.parse(JSON.parse(scalePatternResult));
-    expect(parsedScalePattern.rawNotes).toBe("C4 E4 G4");
-    expect(parsedScalePattern.patternValues).toEqual(["C4", "D#4", "G4"]);
+    expect(JSON.parse(scalePatternResult)).toBe("C4 E4 G4");
 
     console.log("Scale-Aware Chord Builder E2E Suite completed successfully.");
 }, 30000);

@@ -43,19 +43,11 @@ export function debounce(func, wait) {
  * @param {() => Record<string, unknown>} options.getSettings - Accessor for serialized settings snapshot.
  * @param {() => Record<string, unknown> | null} [options.getHistoryState] - Accessor for undo/redo history state.
  * @param {(settings: Record<string, unknown>, history: Record<string, unknown> | null) => void} options.onRestore - Callback when a previous session is restored.
- * @param {(updates: Record<string, unknown>) => void} [options.updateTestState] - Callback to report test state mirror updates.
  * @param {number} [options.delayMs=2000] - Auto-save debounce delay in milliseconds.
  * @returns {SessionManager} Session manager controller.
  */
 export function createSessionManager(options) {
-    const {
-        getPresetStore,
-        getSettings,
-        getHistoryState,
-        onRestore,
-        updateTestState,
-        delayMs = 2000,
-    } = options;
+    const { getPresetStore, getSettings, getHistoryState, onRestore, delayMs = 2000 } = options;
 
     let saveTimer = null;
     let isRestoring = false;
@@ -73,13 +65,7 @@ export function createSessionManager(options) {
         try {
             const settings = getSettings();
             const history = typeof getHistoryState === "function" ? getHistoryState() : null;
-            const record = await store.saveLastSession(settings, history);
-            if (updateTestState && record) {
-                updateTestState({
-                    lastSessionId: record.id,
-                    lastSessionSavedAt: record.savedAt,
-                });
-            }
+            await store.saveLastSession(settings, history);
         } catch (error) {
             console.warn("Failed to persist workspace session:", error);
         }
@@ -121,12 +107,7 @@ export function createSessionManager(options) {
      */
     async function restoreSession() {
         const store = getPresetStore();
-        if (!store) {
-            if (updateTestState) {
-                updateTestState({ lastSessionRestoreFinished: true });
-            }
-            return false;
-        }
+        if (!store) return false;
 
         try {
             const record = await store.loadLastSession();
@@ -134,18 +115,12 @@ export function createSessionManager(options) {
                 isRestoring = true;
                 onRestore(record.settings, record.history || null);
                 isRestoring = false;
-                if (updateTestState) {
-                    updateTestState({ lastSessionRestoreFinished: true });
-                }
                 return true;
             }
         } catch (error) {
             console.warn("Failed to restore workspace session:", error);
         } finally {
             isRestoring = false;
-            if (updateTestState) {
-                updateTestState({ lastSessionRestoreFinished: true });
-            }
         }
         return false;
     }

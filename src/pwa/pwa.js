@@ -1,8 +1,20 @@
 /**
  * Browser-side PWA helper for registering and controlling the Web Arpeggiator
  * service worker.
+ *
+ * @module pwa
  */
-(() => {
+
+/**
+ * Creates and starts the PWA controller after application UI dependencies are
+ * available. Keeping status and actions in this module avoids publishing a
+ * production API on `window`.
+ *
+ * @param {{showToast?: (message: string, type?: 'info'|'success'|'error') => void}} [dependencies={}] UI feedback dependency.
+ * @returns {import('../../types.d.ts').WebArpPWA} PWA controller API.
+ */
+export function initializePwa(dependencies = {}) {
+    const { showToast = () => {} } = dependencies;
     /** @type {import('../../types.d.ts').WebArpAssetManifest} */
     const manifest = window.__WEB_ARP_ASSET_MANIFEST__ || {
         cacheVersion: "dev",
@@ -11,17 +23,14 @@
         assets: [],
     };
 
-    if (!window.__WEB_ARP_PWA_STATE__) {
-        window.__WEB_ARP_PWA_STATE__ = {
-            cacheVersion: manifest.cacheVersion || "dev",
-            serviceWorkerRegistered: false,
-            serviceWorkerUrl: null,
-            serviceWorkerError: null,
-            hasWaitingWorker: false,
-        };
-    }
     /** @type {import('../../types.d.ts').WebArpPWAState} */
-    const state = window.__WEB_ARP_PWA_STATE__;
+    const state = {
+        cacheVersion: manifest.cacheVersion || "dev",
+        serviceWorkerRegistered: false,
+        serviceWorkerUrl: null,
+        serviceWorkerError: null,
+        hasWaitingWorker: false,
+    };
 
     let registration = null;
     let messageCounter = 0;
@@ -94,14 +103,10 @@
                 installingWorker.addEventListener("statechange", () => {
                     if (
                         installingWorker.state === "installed" &&
-                        navigator.serviceWorker.controller &&
-                        typeof window.showToast === "function"
+                        navigator.serviceWorker.controller
                     ) {
                         state.hasWaitingWorker = Boolean(registration.waiting);
-                        window.showToast(
-                            "App cache updated. Reload to use the latest assets.",
-                            "info",
-                        );
+                        showToast("App cache updated. Reload to use the latest assets.", "info");
                     }
                 });
             });
@@ -280,8 +285,9 @@
         );
     }
 
-    // Public PWA control API used by the app UI and browser automation checks.
-    window.WebArpPWA = {
+    init();
+
+    return {
         registerServiceWorker,
         refreshServiceWorker,
         activateWaitingWorker,
@@ -300,21 +306,4 @@
          */
         getState: () => ({ ...state }),
     };
-
-    // Test hooks intentionally mirror public helpers for headless browser checks.
-    window.__WEB_ARP_TEST__ = window.__WEB_ARP_TEST__ || {};
-    Object.assign(window.__WEB_ARP_TEST__, {
-        /**
-         * Returns a shallow copy of PWA state for browser automation.
-         *
-         * @returns {import('../../types.d.ts').WebArpPWAState} Current PWA state snapshot.
-         */
-        getPwaState: () => ({ ...state }),
-        refreshServiceWorker,
-        activateWaitingWorker,
-        clearCaches,
-        listCaches,
-    });
-
-    init();
-})();
+}

@@ -363,6 +363,7 @@ Web Arpeggiator/
 │   │   ├── a11y-navigation.js # WAI-ARIA arrow-key navigation for button groups
 │   │   ├── effects-controls-controller.js # Post-gain, filter, and effects control wiring
 │   │   ├── history-controller.js # Settings undo, redo, and reset interactions
+│   │   ├── input-filter-controller.js # Notes and export-count keyboard filtering
 │   │   ├── keyboard-controller.js # Virtual keyboard input handling
 │   │   ├── note-step-controller.js # Pattern-step indicator rendering and updates
 │   │   ├── onboarding-controller.js # First-visit and quick-start onboarding flow
@@ -421,10 +422,12 @@ All preset-related settings must be:
 
 ### Toast Notifications
 
-Use the global `showToast()` function:
+Create the toast manager in the composition root, then inject its `showToast`
+callback into controllers that need user feedback:
 
 ```javascript
-showToast(message, type);
+const { showToast } = createToastManager({ toastContainer, liveRegion });
+createController({ showToast });
 // type: 'success', 'info', 'error'
 ```
 
