@@ -67,9 +67,9 @@ export interface WebArpPresetMetadata {
 /**
  * Stored preset record snapshot in IndexedDB.
  */
-export interface WebArpPresetRecord {
+export interface WebArpPresetRecord extends Record<string, unknown> {
     /** Unique preset identifier */
-    id?: string;
+    id: string;
     /** User-defined display name */
     name?: string;
     /** ISO timestamp when the preset was saved */
@@ -80,6 +80,8 @@ export interface WebArpPresetRecord {
     source?: string;
     /** Serializable settings object */
     settings: Record<string, unknown>;
+    /** Optional persisted undo/redo state for the workspace session. */
+    history?: Record<string, unknown> | null;
 }
 
 /**
@@ -110,7 +112,10 @@ export interface WebArpPresetStore {
     /** Clears all stored presets */
     clear: () => Promise<void>;
     /** Saves current workspace session snapshot */
-    saveLastSession: (settings: Record<string, unknown>) => Promise<WebArpPresetRecord>;
+    saveLastSession: (
+        settings: Record<string, unknown>,
+        history?: Record<string, unknown> | null,
+    ) => Promise<WebArpPresetRecord>;
     /** Loads the last saved workspace session */
     loadLastSession: () => Promise<WebArpPresetRecord | null>;
 }

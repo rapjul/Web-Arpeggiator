@@ -3,19 +3,38 @@
  */
 
 /**
+ * @typedef {object} KeyboardControllerState
+ * @property {{triggerAttack: (note: string, time: number) => void, triggerRelease: (time: number) => void}|null} activeSynth
+ * @property {boolean} isAudioContextStarted
+ * @property {string|null} activeNote
+ */
+
+/**
+ * @typedef {object} KeyboardControllerDom
+ * @property {HTMLElement} keyboardVisual
+ * @property {HTMLInputElement} keyboardToggle
+ * @property {HTMLElement} keyboardToggleStatus
+ * @property {HTMLElement} keyboardDescription
+ * @property {HTMLInputElement} notesInput
+ */
+
+/**
+ * @typedef {object} KeyboardControllerActions
+ * @property {() => number} [getCurrentTime]
+ * @property {(note: string) => void} [onNoteAttack]
+ * @property {(note?: string) => void} [onNoteRelease]
+ */
+
+/**
  * Initializes the virtual keyboard against the live app state.
  *
- * @param {object} context - Bound app references.
- * @param {object} context.state - Shared application state.
- * @param {object} context.dom - Injected DOM element references.
- * @param {object} [context.actions] - Optional event callbacks.
- * @param {Function} [context.actions.getCurrentTime] - Returns the live audio clock time.
- * @param {Function} [context.actions.onNoteAttack] - Callback when a key attack is triggered.
- * @param {Function} [context.actions.onNoteRelease] - Callback when a key is released.
+ * @param {{state: object, dom: object, actions?: object}} context - Bound app references.
  * @returns {{updateKeyboardControlUi: Function}} Keyboard helpers.
  */
 export function initializeKeyboardControls(context) {
-    const { state, dom, actions = {} } = context;
+    const state = /** @type {KeyboardControllerState} */ (context.state);
+    const dom = /** @type {KeyboardControllerDom} */ (context.dom);
+    const actions = /** @type {KeyboardControllerActions} */ (context.actions || {});
 
     const keyboardMapping = {
         z: "C4",
@@ -368,7 +387,9 @@ export function initializeKeyboardControls(context) {
      */
     function updateKeyboardControlUi() {
         const isEnabled = dom.keyboardToggle.checked;
-        const keys = keyboardMainWrapper.querySelectorAll(".piano-key");
+        const keys = /** @type {NodeListOf<HTMLButtonElement>} */ (
+            keyboardMainWrapper.querySelectorAll(".piano-key")
+        );
         keys.forEach((key) => {
             key.disabled = !isEnabled;
             if (isEnabled) {

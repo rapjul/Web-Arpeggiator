@@ -18,6 +18,6 @@
     },
     "lib": ["DOM", "DOM.Iterable", "ESNext"]
   },
-  "include": ["src/**/*.js", "src/**/*.ts", "tests/**/*.ts", "types.d.ts"],
+  "include": ["src/**/*.js", "src/**/*.ts", "types.d.ts"],
   "exclude": ["node_modules", "dist", "sw.js"]
 }

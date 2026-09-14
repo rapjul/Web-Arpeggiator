@@ -12,7 +12,7 @@
  * @param {object} [context={}] - Optional DOM element references.
  * @param {HTMLElement|null} [context.toastContainer=null] - Container element for stacking toasts.
  * @param {HTMLElement|null} [context.liveRegion=null] - ARIA live region for screen readers.
- * @param {(...args: any[]) => void} [context.logger] - Optional logger callback.
+ * @param {(message: string) => void} [context.logger] - Optional logger callback.
  * @returns {{showToast: (message: string, type?: 'info'|'success'|'error') => void, announce: (message: string) => void}} Feedback API.
  */
 export function createToastManager(context = {}) {

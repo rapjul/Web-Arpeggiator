@@ -30,7 +30,7 @@ export function getPresetDisplayName(record) {
  * @property {{savedPresetSelect?: HTMLSelectElement|null, soundStartersGrid?: HTMLElement|null, soundStartersDetails?: HTMLDetailsElement|null}} dom
  * @property {Document} documentRef
  * @property {Pick<Storage, "getItem" | "setItem">} storage
- * @property {() => ({list: () => Promise<Array<{id: string, name?: string, filename?: string, savedAt?: string|number|Date}>} | null)} getPresetStore
+ * @property {() => ({list: () => Promise<Array<{id: string, name?: string, filename?: string, savedAt?: string|number|Date}>>} | null)} getPresetStore
  * @property {(preset: FactoryPreset) => Promise<void>|void} onFactoryPresetSelected
  * @property {() => void} onStorageAvailable
  * @property {() => void} onStorageUnavailable

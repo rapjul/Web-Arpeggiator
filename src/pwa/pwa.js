@@ -3,7 +3,7 @@
  * service worker.
  */
 (() => {
-    /** @type {import('../types.d.ts').WebArpAssetManifest} */
+    /** @type {import('../../types.d.ts').WebArpAssetManifest} */
     const manifest = window.__WEB_ARP_ASSET_MANIFEST__ || {
         cacheVersion: "dev",
         appShell: "./index.html",
@@ -20,7 +20,7 @@
             hasWaitingWorker: false,
         };
     }
-    /** @type {import('../types.d.ts').WebArpPWAState} */
+    /** @type {import('../../types.d.ts').WebArpPWAState} */
     const state = window.__WEB_ARP_PWA_STATE__;
 
     let registration = null;
@@ -156,9 +156,9 @@
      * Sends a request/response-style message to the active or waiting service worker.
      *
      * @param {string} type - Message command name handled by `sw.js`.
-     * @param {object} [payload={}] - Extra serializable command data.
+     * @param {Record<string, unknown>} [payload={}] - Extra serializable command data.
      * @param {ServiceWorker|null} [preferredWorker=null] - Specific worker to target.
-     * @returns {Promise<object>} Structured response posted back by the service worker.
+     * @returns {Promise<Record<string, unknown>>} Structured response posted back by the service worker.
      */
     async function sendServiceWorkerMessage(type, payload = {}, preferredWorker = null) {
         if (!("serviceWorker" in navigator)) {
@@ -221,7 +221,7 @@
     /**
      * Tells a waiting worker to skip the waiting phase when an update is available.
      *
-     * @returns {Promise<object>} Activation response or skipped status.
+     * @returns {Promise<Record<string, unknown>>} Activation response or skipped status.
      */
     async function activateWaitingWorker() {
         const readyRegistration = await getReadyRegistration();
@@ -243,7 +243,9 @@
      */
     async function listCaches() {
         const result = await sendServiceWorkerMessage("listCaches");
-        return result.caches || [];
+        return Array.isArray(result.caches)
+            ? result.caches.filter((cacheName) => typeof cacheName === "string")
+            : [];
     }
 
     /**
@@ -253,7 +255,9 @@
      */
     async function clearCaches() {
         const result = await sendServiceWorkerMessage("clearCaches");
-        return result.caches || [];
+        return Array.isArray(result.caches)
+            ? result.caches.filter((cacheName) => typeof cacheName === "string")
+            : [];
     }
 
     /**
@@ -292,7 +296,7 @@
         /**
          * Returns a shallow copy of PWA registration/update state.
          *
-         * @returns {object} Current PWA state snapshot.
+         * @returns {import('../../types.d.ts').WebArpPWAState} Current PWA state snapshot.
          */
         getState: () => ({ ...state }),
     };
@@ -303,7 +307,7 @@
         /**
          * Returns a shallow copy of PWA state for browser automation.
          *
-         * @returns {object} Current PWA state snapshot.
+         * @returns {import('../../types.d.ts').WebArpPWAState} Current PWA state snapshot.
          */
         getPwaState: () => ({ ...state }),
         refreshServiceWorker,

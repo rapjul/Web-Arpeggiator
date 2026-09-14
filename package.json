@@ -13,6 +13,7 @@
     "format:check": "bunx biome format .",
     "lint": "bunx biome lint .",
     "lint:fix": "bunx biome lint --write .",
+    "typecheck": "tsc --project tsconfig.json",
     "test:unit": "vitest run tests/unit",
     "test:coverage": "vitest run --coverage tests/unit",
     "test:watch": "vitest tests/unit",

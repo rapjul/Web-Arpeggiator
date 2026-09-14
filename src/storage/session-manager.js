@@ -4,21 +4,32 @@
  * @module storage/session-manager
  */
 
+/** @typedef {import("../../types.d.ts").WebArpPresetStore} WebArpPresetStore */
+
+/**
+ * @typedef {object} SessionManager
+ * @property {() => Promise<void>} saveNow
+ * @property {() => void} scheduleSave
+ * @property {() => void} cancelScheduledSave
+ * @property {() => Promise<boolean>} restoreSession
+ * @property {() => boolean} getIsRestoring
+ */
+
 /**
  * Creates a debounced version of a callback function.
  *
- * @template {(...args: any[]) => any} T
+ * @template {(...args: never[]) => unknown} T
  * @param {T} func - Callback function to debounce.
  * @param {number} wait - Delay duration in milliseconds.
  * @returns {T} Debounced wrapper function.
  */
 export function debounce(func, wait) {
     let timeoutId;
-    return /** @type {any} */ (
-        function (...args) {
+    return /** @type {T} */ (
+        (...args) => {
             clearTimeout(timeoutId);
             timeoutId = setTimeout(() => {
-                func.apply(this, args);
+                func(...args);
             }, wait);
         }
     );
@@ -28,13 +39,13 @@ export function debounce(func, wait) {
  * Creates a session manager to coordinate auto-saving and restoring workspace state from IndexedDB.
  *
  * @param {object} options - Configuration options for session management.
- * @param {() => any} options.getPresetStore - Accessor for WebArpPresetStore instance.
+ * @param {() => WebArpPresetStore|undefined} options.getPresetStore - Accessor for WebArpPresetStore instance.
  * @param {() => Record<string, unknown>} options.getSettings - Accessor for serialized settings snapshot.
  * @param {() => Record<string, unknown> | null} [options.getHistoryState] - Accessor for undo/redo history state.
  * @param {(settings: Record<string, unknown>, history: Record<string, unknown> | null) => void} options.onRestore - Callback when a previous session is restored.
  * @param {(updates: Record<string, unknown>) => void} [options.updateTestState] - Callback to report test state mirror updates.
  * @param {number} [options.delayMs=2000] - Auto-save debounce delay in milliseconds.
- * @returns {object} Session manager controller.
+ * @returns {SessionManager} Session manager controller.
  */
 export function createSessionManager(options) {
     const {

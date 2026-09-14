@@ -3,6 +3,54 @@ import {
     normalizeOfflineExportMode,
     normalizeOfflineExportTailSeconds,
 } from "@core/export-duration.js";
+import { normalizeSettings } from "@core/settings-contract.js";
+
+/** @typedef {import("../core/settings-contract.js").ArpeggiatorSettings} ArpeggiatorSettings */
+
+/**
+ * The settings manager reads form-control values and updates their companion
+ * labels. Its controls are supplied by the application composition root.
+ *
+ * @typedef {HTMLInputElement & HTMLSelectElement & HTMLElement & NodeListOf<HTMLInputElement>} SettingsControl
+ */
+
+/**
+ * @typedef {object} SettingsManagerState
+ * @property {string[]} currentNotes
+ * @property {number} currentOctaveRange
+ * @property {number} currentOctaveShift
+ * @property {string} currentWaveform
+ * @property {{oscillator?: {type: string}}|null} activeSynth
+ */
+
+/**
+ * @typedef {object} SettingsManagerActions
+ * @property {(notes: string[], octaveRange: number, octaveShift: number) => string[]} getArpeggioNotes
+ * @property {() => string} getSelectedPatternDirection
+ * @property {(direction: string) => void} setSelectedPatternDirection
+ * @property {() => void} updateScaleQuantizeUi
+ * @property {() => void} updateScaleQuantizeToggleText
+ * @property {(waveform: string) => void} updateWaveformButtons
+ * @property {(synthType: string) => void} setSynth
+ * @property {() => {bpm?: {value: number}, swing?: number}|null} getTransport
+ * @property {(container: HTMLElement, value: number, attribute: string) => void} updateButtonGroup
+ * @property {() => void} createOrUpdatePattern
+ * @property {() => void} updateEstimatedExportDuration
+ * @property {() => void} updateOfflineExportModeUi
+ * @property {() => void} updateEnvelope
+ * @property {(message: string, type?: string) => void} showToast
+ */
+
+/**
+ * @typedef {object} SettingsManagerAudio
+ * @property {{wet: {value: number}}|undefined} distortion
+ * @property {{frequency: {value: number}, Q: {value: number}}|undefined} filter
+ * @property {{wet: {value: number}}|undefined} chorus
+ * @property {{wet: {value: number}}|undefined} autoPanner
+ * @property {{wet: {value: number}}|undefined} delay
+ * @property {{wet: {value: number}}|undefined} reverb
+ * @property {{volume: {value: number}}|undefined} postGain
+ */
 
 /**
  * Settings serialization, restoration, and naming helpers.
@@ -13,7 +61,6 @@ import {
  * @property {object} state - App state references.
  * @property {object} dom - Bound DOM element references.
  * @property {object} actions - Bound app action functions.
- * @property {Function} [actions.getTransport] - Returns the live transport when audio is ready.
  * @property {object} audio - Bound audio engine references.
  */
 
@@ -21,15 +68,18 @@ import {
  * Builds a settings API bound to the app's live DOM and state.
  *
  * @param {SettingsManagerContext} context - Bound app references.
- * @returns {{getAllSettings: Function, loadAllSettings: Function, generateFilename: Function}} Settings helpers.
+ * @returns {{getAllSettings: () => ArpeggiatorSettings, loadAllSettings: (settings: unknown) => void, generateFilename: (isRealtime: boolean, settingsSnapshot?: ArpeggiatorSettings, exportType?: "audio"|"general") => string}} Settings helpers.
  */
 export function createSettingsManager(context) {
-    const { state, dom, actions, audio } = context;
+    const state = /** @type {SettingsManagerState} */ (context.state);
+    const dom = /** @type {Record<string, SettingsControl>} */ (context.dom);
+    const actions = /** @type {SettingsManagerActions} */ (context.actions);
+    const audio = /** @type {SettingsManagerAudio} */ (context.audio);
 
     /**
      * Collects all current UI settings into an object.
      *
-     * @returns {object} A settings snapshot.
+     * @returns {ArpeggiatorSettings} A settings snapshot.
      */
     function getAllSettings() {
         const baseNotes = state.currentNotes;
@@ -108,19 +158,20 @@ export function createSettingsManager(context) {
     /**
      * Loads a settings snapshot into the UI and live Tone.js state.
      *
-     * @param {object} settings - The snapshot to restore.
+     * @param {unknown} rawSettings - Imported, restored, or in-memory settings to restore.
      * @returns {void}
      */
-    function loadAllSettings(settings) {
+    function loadAllSettings(rawSettings) {
         try {
-            dom.bpmSlider.value = settings.bpm;
-            dom.bpmValue.textContent = settings.bpm;
+            const settings = normalizeSettings(rawSettings, getAllSettings());
+            dom.bpmSlider.value = String(settings.bpm);
+            dom.bpmValue.textContent = String(settings.bpm);
             const transport =
                 typeof actions.getTransport === "function" ? actions.getTransport() : null;
             if (transport?.bpm) {
                 transport.bpm.value = settings.bpm;
             }
-            dom.swingSlider.value = settings.swing;
+            dom.swingSlider.value = String(settings.swing);
             dom.swingValue.textContent = settings.swing.toFixed(2);
             if (transport) {
                 transport.swing = settings.swing;
@@ -128,25 +179,18 @@ export function createSettingsManager(context) {
 
             // Restore post gain
             if (settings.postGain !== undefined && dom.postGainSlider) {
-                dom.postGainSlider.value = settings.postGain;
+                dom.postGainSlider.value = String(settings.postGain);
                 const pct = Math.round(((settings.postGain + 40) / 40) * 100);
-                dom.postGainValue.textContent = pct;
+                dom.postGainValue.textContent = String(pct);
                 if (audio.postGain) audio.postGain.volume.value = settings.postGain;
             }
 
-            const notesArr =
-                Array.isArray(settings.baseNotes) && settings.baseNotes.length > 0
-                    ? settings.baseNotes
-                    : Array.isArray(settings.notes) && settings.notes.length > 0
-                      ? settings.notes
-                      : typeof settings.notes === "string" && settings.notes.trim().length > 0
-                        ? settings.notes.trim().split(/\s+/)
-                        : ["C4", "E4", "G4"];
+            const notesArr = settings.baseNotes;
 
             if (dom.notesInput) {
                 dom.notesInput.value = notesArr.join(" ");
             }
-            state.currentNotes = notesArr;
+            state.currentNotes = [...notesArr];
             if (settings.direction) {
                 actions.setSelectedPatternDirection(settings.direction);
             }
@@ -179,61 +223,61 @@ export function createSettingsManager(context) {
             }
 
             if (settings.harmonicity) {
-                dom.harmonicitySlider.value = settings.harmonicity;
+                dom.harmonicitySlider.value = String(settings.harmonicity);
                 dom.harmonicityValue.textContent = settings.harmonicity.toFixed(1);
             }
             if (settings.modulationIndex) {
-                dom.modIndexSlider.value = settings.modulationIndex;
+                dom.modIndexSlider.value = String(settings.modulationIndex);
                 dom.modIndexValue.textContent = settings.modulationIndex.toFixed(1);
             }
 
             // Restore extended synth params
             if (settings.monoCutoff !== undefined && dom.monoCutoffSlider) {
-                dom.monoCutoffSlider.value = settings.monoCutoff;
+                dom.monoCutoffSlider.value = String(settings.monoCutoff);
                 if (dom.monoCutoffValue)
                     dom.monoCutoffValue.textContent = settings.monoCutoff.toFixed(0);
             }
             if (settings.monoOctaves !== undefined && dom.monoOctavesSlider) {
-                dom.monoOctavesSlider.value = settings.monoOctaves;
+                dom.monoOctavesSlider.value = String(settings.monoOctaves);
                 if (dom.monoOctavesValue)
                     dom.monoOctavesValue.textContent = settings.monoOctaves.toFixed(1);
             }
             if (settings.monoQ !== undefined && dom.monoQSlider) {
-                dom.monoQSlider.value = settings.monoQ;
+                dom.monoQSlider.value = String(settings.monoQ);
                 if (dom.monoQValue) dom.monoQValue.textContent = settings.monoQ.toFixed(1);
             }
             if (settings.duoHarm !== undefined && dom.duoHarmSlider) {
-                dom.duoHarmSlider.value = settings.duoHarm;
+                dom.duoHarmSlider.value = String(settings.duoHarm);
                 if (dom.duoHarmValue) dom.duoHarmValue.textContent = settings.duoHarm.toFixed(2);
             }
             if (settings.duoVibrato !== undefined && dom.duoVibratoSlider) {
-                dom.duoVibratoSlider.value = settings.duoVibrato;
+                dom.duoVibratoSlider.value = String(settings.duoVibrato);
                 if (dom.duoVibratoValue)
                     dom.duoVibratoValue.textContent = settings.duoVibrato.toFixed(2);
             }
             if (settings.pluckDampening !== undefined && dom.pluckDampeningSlider) {
-                dom.pluckDampeningSlider.value = settings.pluckDampening;
+                dom.pluckDampeningSlider.value = String(settings.pluckDampening);
                 if (dom.pluckDampeningValue)
                     dom.pluckDampeningValue.textContent = settings.pluckDampening.toFixed(0);
             }
             if (settings.pluckResonance !== undefined && dom.pluckResonanceSlider) {
-                dom.pluckResonanceSlider.value = settings.pluckResonance;
+                dom.pluckResonanceSlider.value = String(settings.pluckResonance);
                 if (dom.pluckResonanceValue)
                     dom.pluckResonanceValue.textContent = settings.pluckResonance.toFixed(2);
             }
             if (settings.pluckNoise !== undefined && dom.pluckNoiseSlider) {
-                dom.pluckNoiseSlider.value = settings.pluckNoise;
+                dom.pluckNoiseSlider.value = String(settings.pluckNoise);
                 if (dom.pluckNoiseValue)
                     dom.pluckNoiseValue.textContent = settings.pluckNoise.toFixed(1);
             }
             if (settings.membranePitchDecay !== undefined && dom.membranePitchDecaySlider) {
-                dom.membranePitchDecaySlider.value = settings.membranePitchDecay;
+                dom.membranePitchDecaySlider.value = String(settings.membranePitchDecay);
                 if (dom.membranePitchDecayValue)
                     dom.membranePitchDecayValue.textContent =
                         settings.membranePitchDecay.toFixed(3);
             }
             if (settings.membraneOctaves !== undefined && dom.membraneOctavesSlider) {
-                dom.membraneOctavesSlider.value = settings.membraneOctaves;
+                dom.membraneOctavesSlider.value = String(settings.membraneOctaves);
                 if (dom.membraneOctavesValue)
                     dom.membraneOctavesValue.textContent = settings.membraneOctaves.toFixed(1);
             }
@@ -242,25 +286,25 @@ export function createSettingsManager(context) {
 
             // Restore duty cycle
             if (settings.dutyCycle !== undefined && dom.dutySlider) {
-                dom.dutySlider.value = settings.dutyCycle;
+                dom.dutySlider.value = String(settings.dutyCycle);
                 dom.dutyValue.textContent = settings.dutyCycle.toFixed(2);
             }
 
             // Restore ADSR envelope
             if (settings.envAttack !== undefined && dom.envAttackSlider) {
-                dom.envAttackSlider.value = settings.envAttack;
+                dom.envAttackSlider.value = String(settings.envAttack);
                 dom.envAttackValue.textContent = settings.envAttack.toFixed(2);
             }
             if (settings.envDecay !== undefined && dom.envDecaySlider) {
-                dom.envDecaySlider.value = settings.envDecay;
+                dom.envDecaySlider.value = String(settings.envDecay);
                 dom.envDecayValue.textContent = settings.envDecay.toFixed(2);
             }
             if (settings.envSustain !== undefined && dom.envSustainSlider) {
-                dom.envSustainSlider.value = settings.envSustain;
+                dom.envSustainSlider.value = String(settings.envSustain);
                 dom.envSustainValue.textContent = settings.envSustain.toFixed(2);
             }
             if (settings.envRelease !== undefined && dom.envReleaseSlider) {
-                dom.envReleaseSlider.value = settings.envRelease;
+                dom.envReleaseSlider.value = String(settings.envRelease);
                 dom.envReleaseValue.textContent = settings.envRelease.toFixed(2);
             }
             if (typeof actions.updateEnvelope === "function") {
@@ -281,39 +325,39 @@ export function createSettingsManager(context) {
             );
 
             const gateRatio = settings.gateRatio || 0.8;
-            dom.gateSlider.value = gateRatio;
+            dom.gateSlider.value = String(gateRatio);
             dom.gateValue.textContent = gateRatio.toFixed(2);
 
-            dom.filterCutoffSlider.value = settings.filterCutoff;
+            dom.filterCutoffSlider.value = String(settings.filterCutoff);
             dom.filterCutoffValue.textContent = settings.filterCutoff.toFixed(0);
             if (audio.filter) audio.filter.frequency.value = settings.filterCutoff;
-            dom.filterResonanceSlider.value = settings.filterResonance;
+            dom.filterResonanceSlider.value = String(settings.filterResonance);
             dom.filterResonanceValue.textContent = settings.filterResonance.toFixed(1);
             if (audio.filter) audio.filter.Q.value = settings.filterResonance;
 
             // Restore effects
             if (settings.driveMix !== undefined && dom.driveMixSlider) {
-                dom.driveMixSlider.value = settings.driveMix;
+                dom.driveMixSlider.value = String(settings.driveMix);
                 if (dom.driveMixValue) dom.driveMixValue.textContent = settings.driveMix.toFixed(2);
                 if (audio.distortion) audio.distortion.wet.value = settings.driveMix;
             }
             if (settings.chorusMix !== undefined && dom.chorusMixSlider) {
-                dom.chorusMixSlider.value = settings.chorusMix;
+                dom.chorusMixSlider.value = String(settings.chorusMix);
                 if (dom.chorusMixValue)
                     dom.chorusMixValue.textContent = settings.chorusMix.toFixed(2);
                 if (audio.chorus) audio.chorus.wet.value = settings.chorusMix;
             }
             if (settings.autoPanMix !== undefined && dom.autoPanMixSlider) {
-                dom.autoPanMixSlider.value = settings.autoPanMix;
+                dom.autoPanMixSlider.value = String(settings.autoPanMix);
                 if (dom.autoPanMixValue)
                     dom.autoPanMixValue.textContent = settings.autoPanMix.toFixed(2);
                 if (audio.autoPanner) audio.autoPanner.wet.value = settings.autoPanMix;
             }
 
-            dom.delayMixSlider.value = settings.delayMix;
+            dom.delayMixSlider.value = String(settings.delayMix);
             dom.delayMixValue.textContent = settings.delayMix.toFixed(2);
             if (audio.delay) audio.delay.wet.value = settings.delayMix;
-            dom.reverbMixSlider.value = settings.reverbMix;
+            dom.reverbMixSlider.value = String(settings.reverbMix);
             dom.reverbMixValue.textContent = settings.reverbMix.toFixed(2);
             if (audio.reverb) audio.reverb.wet.value = settings.reverbMix;
 
@@ -352,7 +396,7 @@ export function createSettingsManager(context) {
      * Generates a descriptive filename based on current settings.
      *
      * @param {boolean} isRealtime - Whether to add a timestamp for real-time recording.
-     * @param {object} [settingsSnapshot] - Settings captured when an export begins.
+     * @param {ArpeggiatorSettings} [settingsSnapshot] - Settings captured when an export begins.
      * @param {"audio"|"general"} [exportType="general"] - Filename use case.
      * @returns {string} The formatted filename without extension.
      */

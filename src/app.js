@@ -477,10 +477,14 @@ function initializeApp() {
     const exportButton = document.getElementById("realtime-export-button");
 
     // Offline Export card
-    const loopCountInput = document.getElementById("loop-count");
-    const offlineExportModeInputs = document.querySelectorAll("input[name='offline-export-mode']");
+    const loopCountInput = /** @type {HTMLInputElement} */ (document.getElementById("loop-count"));
+    const offlineExportModeInputs = /** @type {NodeListOf<HTMLInputElement>} */ (
+        document.querySelectorAll("input[name='offline-export-mode']")
+    );
     const offlineExportTailControl = document.getElementById("offline-export-tail-control");
-    const offlineExportTailSecondsInput = document.getElementById("offline-export-tail-seconds");
+    const offlineExportTailSecondsInput = /** @type {HTMLInputElement | null} */ (
+        document.getElementById("offline-export-tail-seconds")
+    );
     const offlineExportDuration = document.getElementById("offline-export-duration");
     const offlineExportWavCheck = document.getElementById("offline-export-wav");
     const offlineExportMp3Check = document.getElementById("offline-export-mp3");
@@ -2196,7 +2200,9 @@ function initializeApp() {
     resetDefaultsDialog?.addEventListener("keydown", (event) => {
         if (event.key !== "Tab") return;
         const focusable = Array.from(
-            resetDefaultsDialog.querySelectorAll("button:not([disabled])"),
+            /** @type {NodeListOf<HTMLButtonElement>} */ (
+                resetDefaultsDialog.querySelectorAll("button:not([disabled])")
+            ),
         );
         const firstElement = focusable[0];
         const lastElement = focusable[focusable.length - 1];
@@ -2950,9 +2956,10 @@ function initializeApp() {
                 try {
                     const settings = JSON.parse(fileReaderTarget.result);
                     applySettingsWithHistory(settings);
-                    updateTestState({ lastImportedPreset: settings });
+                    const restoredSettings = getAllSettings();
+                    updateTestState({ lastImportedPreset: restoredSettings });
                     if (window.WebArpPresetStore) {
-                        window.WebArpPresetStore.save(settings, {
+                        window.WebArpPresetStore.save(restoredSettings, {
                             filename: file.name,
                             name: file.name,
                             source: "import",
@@ -3170,7 +3177,10 @@ function initializeApp() {
             visualizer.updateStaticLoopMap(audioBuffer, markers);
             updateTestState({
                 lastLoopMapRenderMarkers: markers,
-                loopMapRenderCount: (window.__WEB_ARP_TEST__?.loopMapRenderCount || 0) + 1,
+                loopMapRenderCount:
+                    (typeof window.__WEB_ARP_TEST__?.loopMapRenderCount === "number"
+                        ? window.__WEB_ARP_TEST__.loopMapRenderCount
+                        : 0) + 1,
             });
         } catch (e) {
             console.error("Static loop render failed:", e);
@@ -3437,7 +3447,9 @@ function initializeApp() {
         quickStartModal.addEventListener("keydown", (event) => {
             if (event.key !== "Tab") return;
             const focusable = Array.from(
-                quickStartModal.querySelectorAll("button:not([disabled])"),
+                /** @type {NodeListOf<HTMLButtonElement>} */ (
+                    quickStartModal.querySelectorAll("button:not([disabled])")
+                ),
             );
             if (focusable.length === 0) return;
             const firstElement = focusable[0];

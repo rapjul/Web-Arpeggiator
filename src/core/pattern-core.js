@@ -129,7 +129,7 @@ export function normalizeNotesSequence(notes, defaultOctave = 4) {
 /**
  * Quantizes a list of notes to the closest matching pitches in a given scale.
  *
- * @param {string[]} baseNotes - Input note strings (e.g. ['C4', 'E4', 'G4']).
+ * @param {readonly string[]} baseNotes - Input note strings (e.g. ['C4', 'E4', 'G4']).
  * @param {string} root - Scale root note (e.g. 'C', 'F#').
  * @param {string} scaleType - Scale type identifier (e.g. 'major', 'minor', 'blues').
  * @returns {string[]} Quantized array of note strings.
@@ -237,7 +237,7 @@ export function getArpeggioNotes(baseNotes, opts = {}) {
 /**
  * Builds expanded notes along with a mapping of each note to its index in the original baseNotes.
  *
- * @param {string[]} baseNotes - Original input sequence of notes.
+ * @param {readonly string[]} baseNotes - Original input sequence of notes.
  * @param {number} octaveRange - Octave range (1 to 5).
  * @param {number} octaveShift - Octave shift (-3 to 3).
  * @param {{enabled?: boolean, root?: string, scale?: string}} [quantize] - Quantization options.
@@ -279,13 +279,13 @@ export function buildPatternNotesAndMap(baseNotes, octaveRange, octaveShift, qua
  * @typedef {object} PatternSequenceResult
  * @property {string[]} finalNotes - Final ordered note sequence to schedule.
  * @property {number[]} stepToBaseIndexMap - Array mapping each step index back to the base note index.
- * @property {import('../types.d.ts').TonePatternDirection} finalDirection - Direction identifier passed to Tone.Pattern (e.g. 'up', 'down', 'random').
+ * @property {import('../../types.d.ts').TonePatternDirection} finalDirection - Direction identifier passed to Tone.Pattern (e.g. 'up', 'down', 'random').
  */
 
 /**
  * Generates the note sequence, step mapping, and Tone.Pattern direction for any of the 12 supported pattern modes.
  *
- * @param {string[]} baseNotes - Input note strings.
+ * @param {readonly string[]} baseNotes - Input note strings.
  * @param {object} options - Configuration options.
  * @param {string} [options.direction='up'] - One of the 12 supported pattern directions.
  * @param {number} [options.octaveRange=1] - Octave range (1 to 5).
@@ -308,7 +308,7 @@ export function buildPatternSequence(baseNotes, options = {}) {
     }
 
     let finalNotes = [];
-    /** @type {import("../types.d.ts").TonePatternDirection} */
+    /** @type {import("../../types.d.ts").TonePatternDirection} */
     let finalDirection = "up";
     let stepToBaseIndexMap = [];
 
@@ -343,7 +343,7 @@ export function buildPatternSequence(baseNotes, options = {}) {
     } else if (direction === "octaveCycle") {
         const quantizedBaseNotes = quantize?.enabled
             ? quantizeToScale(baseNotes, quantize.root, quantize.scale)
-            : baseNotes;
+            : [...baseNotes];
 
         quantizedBaseNotes.forEach((baseNote, i) => {
             const parsed = parseNoteWithOctave(baseNote);
@@ -360,7 +360,7 @@ export function buildPatternSequence(baseNotes, options = {}) {
     } else if (direction === "octaveCycleReverse") {
         const quantizedBaseNotes = quantize?.enabled
             ? quantizeToScale(baseNotes, quantize.root, quantize.scale)
-            : baseNotes;
+            : [...baseNotes];
 
         const indexedNotes = quantizedBaseNotes.map((note, index) => ({
             note,
@@ -383,7 +383,7 @@ export function buildPatternSequence(baseNotes, options = {}) {
     } else if (direction === "octaveCyclePingPong") {
         const quantizedBaseNotes = quantize?.enabled
             ? quantizeToScale(baseNotes, quantize.root, quantize.scale)
-            : baseNotes;
+            : [...baseNotes];
 
         quantizedBaseNotes.forEach((baseNote, i) => {
             const parsed = parseNoteWithOctave(baseNote);
@@ -447,7 +447,7 @@ export function buildPatternSequence(baseNotes, options = {}) {
         );
         finalNotes = notes;
         stepToBaseIndexMap = map;
-        finalDirection = /** @type {import("../types.d.ts").TonePatternDirection} */ (direction);
+        finalDirection = /** @type {import("../../types.d.ts").TonePatternDirection} */ (direction);
     }
 
     return {
@@ -464,7 +464,7 @@ export function buildPatternSequence(baseNotes, options = {}) {
  * to Tone.Pattern traversal during playback, this function unrolls all 12 directions deterministically into a
  * finite concrete sequence suitable for Standard MIDI export, offline renderers, and static timeline mapping.
  *
- * @param {string[]} baseNotes - Input note strings.
+ * @param {readonly string[]} baseNotes - Input note strings.
  * @param {object} [options={}] - Configuration options.
  * @param {string} [options.direction='up'] - One of the 12 supported pattern directions.
  * @param {number} [options.octaveRange=1] - Octave range (1 to 5).
@@ -661,7 +661,7 @@ export function materializePatternSequence(baseNotes, options = {}) {
  * Calculates normalized note trigger positions across a single arpeggio loop cycle.
  *
  * @param {object} settings - Application settings snapshot.
- * @param {string[]} settings.baseNotes - Base note strings.
+ * @param {readonly string[]} settings.baseNotes - Base note strings.
  * @param {number} [settings.octaveRange=1] - Octave range (1 to 5).
  * @param {number} [settings.octaveShift=0] - Octave shift (-3 to 3).
  * @param {boolean} [settings.scaleQuantize=false] - Whether scale quantization is enabled.

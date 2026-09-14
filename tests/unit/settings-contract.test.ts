@@ -1,6 +1,7 @@
 import {
     DEFAULT_SETTINGS,
     mergeSettings,
+    normalizeSettings,
     SETTINGS_SCHEMA_VERSION,
 } from "@core/settings-contract.js";
 import { describe, expect, test } from "vitest";
@@ -51,5 +52,162 @@ describe("settings contract", () => {
             expect(settings.offlineExportMode).toBe(DEFAULT_SETTINGS.offlineExportMode);
             expect(settings.baseNotes).not.toBe(DEFAULT_SETTINGS.baseNotes);
         }
+    });
+
+    test("normalizes a complete imported snapshot into supported control values", () => {
+        const importedSettings = {
+            bpm: 172,
+            swing: 0.35,
+            postGain: -12,
+            baseNotes: ["D4", "F#4", "A4"],
+            direction: "randomWalkDrunk",
+            interval: "8n",
+            octaveShift: -2,
+            octaveRange: 4,
+            scaleQuantize: false,
+            scaleRoot: "F#",
+            scaleType: "dorian",
+            synthType: "monoSynth",
+            waveform: "pulse",
+            harmonicity: 4,
+            modulationIndex: 24,
+            dutyCycle: 0.7,
+            gateRatio: 0.6,
+            monoCutoff: 500,
+            monoOctaves: 6,
+            monoQ: 3,
+            duoHarm: 2,
+            duoVibrato: 0.4,
+            pluckDampening: 3000,
+            pluckResonance: 0.7,
+            pluckNoise: 2,
+            membranePitchDecay: 0.2,
+            membraneOctaves: 10,
+            envAttack: 0.2,
+            envDecay: 0.3,
+            envSustain: 0.6,
+            envRelease: 1.2,
+            filterCutoff: 2500,
+            filterResonance: 5,
+            driveMix: 0.1,
+            chorusMix: 0.2,
+            autoPanMix: 0.3,
+            delayMix: 0.4,
+            reverbMix: 0.5,
+            loopCount: 8,
+            offlineExportMode: "seamless",
+            offlineExportTailSeconds: 4,
+        };
+        const settings = normalizeSettings(importedSettings);
+
+        expect(settings).toEqual(importedSettings);
+    });
+
+    test("falls back safely when an import has malformed values", () => {
+        const fallback = mergeSettings(DEFAULT_SETTINGS, {
+            bpm: 144,
+            baseNotes: ["E4", "G4", "B4"],
+            direction: "down",
+            synthType: "fmSynth",
+            waveform: "square",
+        });
+        const settings = normalizeSettings(
+            {
+                bpm: Number.POSITIVE_INFINITY,
+                swing: -2,
+                postGain: -100,
+                baseNotes: ["C4", 12],
+                direction: "not-a-pattern",
+                interval: "99n",
+                octaveShift: 2.8,
+                octaveRange: 7.2,
+                scaleQuantize: "yes",
+                scaleRoot: "H",
+                scaleType: "not-a-scale",
+                synthType: "not-a-synth",
+                waveform: "not-a-wave",
+                harmonicity: 100,
+                modulationIndex: -1,
+                dutyCycle: 2,
+                gateRatio: 0,
+                monoCutoff: 0,
+                monoOctaves: 20,
+                monoQ: -1,
+                duoHarm: 20,
+                duoVibrato: 2,
+                pluckDampening: -1,
+                pluckResonance: 2,
+                pluckNoise: 20,
+                membranePitchDecay: 2,
+                membraneOctaves: 20,
+                envAttack: -1,
+                envDecay: 20,
+                envSustain: 2,
+                envRelease: -1,
+                filterCutoff: 20,
+                filterResonance: 100,
+                driveMix: -1,
+                chorusMix: 2,
+                autoPanMix: -1,
+                delayMix: 2,
+                reverbMix: -1,
+                loopCount: 101,
+                offlineExportMode: "invalid",
+                offlineExportTailSeconds: 99,
+            },
+            fallback,
+        );
+
+        expect(settings).toMatchObject({
+            bpm: 144,
+            swing: 0,
+            postGain: -40,
+            baseNotes: ["E4", "G4", "B4"],
+            direction: "down",
+            interval: "16n",
+            octaveShift: 2,
+            octaveRange: 5,
+            scaleQuantize: true,
+            scaleRoot: "C",
+            scaleType: "major",
+            synthType: "fmSynth",
+            waveform: "square",
+            harmonicity: 10,
+            modulationIndex: 1,
+            dutyCycle: 0.99,
+            gateRatio: 0.05,
+            monoCutoff: 20,
+            monoOctaves: 8,
+            monoQ: 0,
+            duoHarm: 10,
+            duoVibrato: 1,
+            pluckDampening: 0,
+            pluckResonance: 1,
+            pluckNoise: 10,
+            membranePitchDecay: 1,
+            membraneOctaves: 16,
+            envAttack: 0,
+            envDecay: 2,
+            envSustain: 1,
+            envRelease: 0,
+            filterCutoff: 100,
+            filterResonance: 20,
+            driveMix: 0,
+            chorusMix: 1,
+            autoPanMix: 0,
+            delayMix: 1,
+            reverbMix: 0,
+            loopCount: 100,
+            offlineExportMode: "tail",
+            offlineExportTailSeconds: 10,
+        });
+    });
+
+    test("returns a detached default snapshot for a corrupted import", () => {
+        const settings = normalizeSettings(["not", "a", "settings", "record"]);
+
+        expect(settings).toMatchObject(DEFAULT_SETTINGS);
+        expect(settings.baseNotes).not.toBe(DEFAULT_SETTINGS.baseNotes);
+        expect(DEFAULT_SETTINGS.baseNotes).toEqual(["C4", "E4", "G4"]);
     });
 });
