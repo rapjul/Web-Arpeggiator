@@ -1,4 +1,3 @@
-import { describe, expect, test } from "vitest";
 import {
     clampFloat,
     clampInt,
@@ -7,6 +6,7 @@ import {
     parsePresetFromUrlParams,
     serializePresetToUrlParams,
 } from "@core/url-preset.js";
+import { describe, expect, test } from "vitest";
 
 describe("URL Preset Domain Module", () => {
     const defaultSettings = {
@@ -75,6 +75,12 @@ describe("URL Preset Domain Module", () => {
         const parsed = parsePresetFromUrlParams(query, defaultSettings);
         expect(parsed).not.toBeNull();
         expect(parsed?.baseNotes).toEqual(["C4", "E4", "G4"]);
+    });
+
+    test("preserves the major pentatonic scale used by the Chiptune factory preset", () => {
+        const parsed = parsePresetFromUrlParams("?scale=majorPentatonic", defaultSettings);
+
+        expect(parsed?.scaleType).toBe("majorPentatonic");
     });
 
     test("serializes settings to URLSearchParams with formatted numeric fields", () => {
