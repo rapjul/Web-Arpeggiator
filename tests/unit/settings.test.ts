@@ -2,8 +2,8 @@
  * @file Unit tests for settings serialization, preset loading, and filename generation.
  */
 
-import { describe, expect, it, vi } from "vitest";
 import { createSettingsManager } from "@storage/settings-manager.js";
+import { describe, expect, it, vi } from "vitest";
 
 describe("Settings Manager Domain Module", () => {
     const createMockDom = () => {
@@ -130,7 +130,6 @@ describe("Settings Manager Domain Module", () => {
             updateWaveformButtons: () => {},
             setSynth: () => {},
             updateButtonGroup: () => {},
-            syncPatternModuleState: () => {},
             createOrUpdatePattern: () => {},
             showToast: () => {},
         };
@@ -208,7 +207,6 @@ describe("Settings Manager Domain Module", () => {
             updateWaveformButtons: () => {},
             setSynth: () => {},
             updateButtonGroup: () => {},
-            syncPatternModuleState: () => {},
             createOrUpdatePattern: () => {},
             showToast: () => {},
         };
@@ -253,7 +251,6 @@ describe("Settings Manager Domain Module", () => {
             setSynth: vi.fn(),
             updateEnvelope: vi.fn(),
             updateButtonGroup: vi.fn(),
-            syncPatternModuleState: vi.fn(),
             createOrUpdatePattern: vi.fn(),
             updateEstimatedExportDuration: vi.fn(),
             updateOfflineExportModeUi: vi.fn(),
@@ -359,10 +356,9 @@ describe("Settings Manager Domain Module", () => {
             updateWaveformButtons: () => {},
             setSynth: () => {},
             updateButtonGroup: () => {},
-            syncPatternModuleState: () => {
+            createOrUpdatePattern: () => {
                 throw new Error("Corrupt preset data");
             },
-            createOrUpdatePattern: () => {},
             showToast: vi.fn(),
         };
 
@@ -401,7 +397,6 @@ describe("Settings Manager Domain Module", () => {
             updateWaveformButtons: vi.fn(),
             setSynth: vi.fn(),
             updateButtonGroup: vi.fn(),
-            syncPatternModuleState: vi.fn(),
             createOrUpdatePattern: vi.fn(),
             showToast: vi.fn(),
         };

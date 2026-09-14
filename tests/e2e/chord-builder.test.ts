@@ -159,7 +159,7 @@ test("Scale-Aware Chord Builder E2E Suite", async (): Promise<void> => {
             const notesInput = document.getElementById('notes');
             return JSON.stringify({
                 rawNotes: notesInput ? notesInput.value : '',
-                patternValues: Array.from(window.arpPattern?.values ?? []),
+                patternValues: Array.from(window.__WEB_ARP_TEST__.getPattern()?.values ?? []),
             });
         })()`,
     ]);

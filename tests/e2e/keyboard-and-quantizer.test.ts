@@ -148,19 +148,20 @@ test("Keyboard Controls & Scale Quantizer Suite", async (): Promise<void> => {
         // Wait 100ms for debounced pattern rebuild
         await new Promise((resolve) => setTimeout(resolve, 100));
 
-        // Verify snapping by checking the Tone.Pattern values array
-        if (!window.arpPattern || !window.arpPattern.values) {
+        // Verify snapping through the dedicated browser-test API.
+        const pattern = window.__WEB_ARP_TEST__.getPattern();
+        if (!pattern || !pattern.values) {
             return 'missing-pattern';
         }
         
         // G#4 is equally close to G4 and A4, so the quantizer must choose G4.
-        if (window.arpPattern.values[4] !== 'G4') {
-            return 'quantize-tie-break-failed: ' + window.arpPattern.values[4];
+        if (pattern.values[4] !== 'G4') {
+            return 'quantize-tie-break-failed: ' + pattern.values[4];
         }
         
         // Check that notes snapped to valid C Major pitches
         const validPitches = ['C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4', 'C5', 'D5', 'E5', 'F5', 'G5', 'A5', 'B5'];
-        for (const val of window.arpPattern.values) {
+        for (const val of pattern.values) {
             if (!validPitches.includes(val)) {
                 return 'invalid-pitch-in-quantized-pattern: ' + val;
             }

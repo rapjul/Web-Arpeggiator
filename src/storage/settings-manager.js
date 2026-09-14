@@ -331,7 +331,6 @@ export function createSettingsManager(context) {
                 actions.updateOfflineExportModeUi();
             }
 
-            actions.syncPatternModuleState();
             actions.createOrUpdatePattern();
             if (typeof actions.updateEstimatedExportDuration === "function") {
                 actions.updateEstimatedExportDuration();

@@ -1,13 +1,11 @@
 /**
  * Pattern Generator Module
  *
- * Bridges the pure domain algorithms in pattern-core.js with the DOM and Tone.js
- * audio scheduling engine.
+ * Bridges the pure domain algorithms in pattern-core.js with Tone.js scheduling.
  *
  * @module pattern-generator
  */
 
-import * as Tone from "tone";
 import {
     buildPatternNotesAndMap,
     buildPatternSequence,
@@ -18,6 +16,7 @@ import {
     materializePatternSequence,
     quantizeToScale,
 } from "@core/pattern-core.js";
+import * as Tone from "tone";
 
 // Re-export pure domain helpers for backwards compatibility
 export {
@@ -32,163 +31,142 @@ export {
 };
 
 /**
- * Module-level cache mapping each arpeggiator pattern step index to its corresponding base note index.
- * @type {number[]}
+ * @typedef {object} PatternSettings
+ * @property {string[]} baseNotes
+ * @property {number} octaveRange
+ * @property {number} octaveShift
+ * @property {string} interval
+ * @property {number} gate
+ * @property {string} direction
+ * @property {{enabled: boolean, root: string, scale: string}} quantize
  */
-let stepToBaseIndexMap = [];
 
 /**
- * Builds the active Tone.Pattern from the current DOM and shared window state.
+ * Builds and owns the active Tone.Pattern. Every application dependency is
+ * injected, keeping this scheduler independent of DOM and window globals.
  *
- * Reads the current note input, interval, gate, pattern direction, octave settings,
- * and quantizer state from the page, then replaces window.arpPattern.
- *
- * @returns {void}
+ * @param {{getSynth: () => unknown, getIsPlaying: () => boolean, onPatternChange?: (pattern: Tone.Pattern<string>|null) => void, onStep?: (index: number) => void, logger?: Pick<Console, "error">}} context - Runtime callbacks.
+ * @returns {{update: (settings: PatternSettings) => Tone.Pattern<string>|null, getPattern: () => Tone.Pattern<string>|null, dispose: () => void}} Pattern controller API.
  */
-export function createOrUpdatePattern() {
-    try {
-        const baseNotesInput = /** @type {HTMLInputElement|null} */ (
-            document.getElementById("notes")
-        );
-        if (!baseNotesInput) return;
+export function createPatternController({
+    getSynth,
+    getIsPlaying,
+    onPatternChange = () => {},
+    onStep = () => {},
+    logger = console,
+}) {
+    /** @type {Tone.Pattern<string>|null} */
+    let pattern = null;
+    /** @type {number[]} */
+    let stepToBaseIndexMap = [];
 
-        const raw = baseNotesInput.value.trim();
-        const baseNotes = raw.length ? raw.split(/\s+/) : [];
-
-        const octaveRange = parseInt(String(window.currentOctaveRange || 1), 10) || 1;
-        const octaveShift = parseInt(String(window.currentOctaveShift || 0), 10) || 0;
-
-        const intervalSelect = /** @type {HTMLSelectElement|null} */ (
-            document.getElementById("interval")
-        );
-        const gateSlider = /** @type {HTMLInputElement|null} */ (document.getElementById("gate"));
-
-        const interval = intervalSelect ? intervalSelect.value : "16n";
-        const gate = gateSlider ? parseFloat(gateSlider.value) : 0.8;
-
-        // Determine pattern direction from checked radio input or selected element
-        const patternButtons = document.getElementById("pattern-buttons");
-        let direction = "up";
-        if (patternButtons) {
-            const checkedRadio = /** @type {HTMLInputElement|null} */ (
-                patternButtons.querySelector("input[name='pattern-direction']:checked")
-            );
-            if (checkedRadio?.value) {
-                direction = checkedRadio.value;
-            } else {
-                const active = patternButtons.querySelector(
-                    ".pattern-btn.selected, button.selected, [data-pattern].selected",
-                );
-                if (active) direction = active.getAttribute("data-pattern") || "up";
-            }
-        }
-
-        // Quantize options (if present in DOM)
-        const quantizeToggle = /** @type {HTMLInputElement|null} */ (
-            document.getElementById("scale-quantize-toggle")
-        );
-        const quantizeRootEl = /** @type {HTMLSelectElement|null} */ (
-            document.getElementById("scale-root")
-        );
-        const quantizeTypeEl = /** @type {HTMLSelectElement|null} */ (
-            document.getElementById("scale-type")
-        );
-
-        const quantizeRoot = quantizeRootEl ? quantizeRootEl.value : "C";
-        const quantizeType = quantizeTypeEl ? quantizeTypeEl.value : "major";
-        const quantizeOpts = {
-            enabled: quantizeToggle ? quantizeToggle.checked : false,
-            root: quantizeRoot,
-            scale: quantizeType,
-        };
-
-        const {
-            finalNotes,
-            stepToBaseIndexMap: computedMap,
-            finalDirection,
-        } = buildPatternSequence(baseNotes, {
-            direction,
-            octaveRange,
-            octaveShift,
-            quantize: quantizeOpts,
-        });
-
-        stepToBaseIndexMap = computedMap;
-
-        // Dispose old pattern if present
-        if (window.arpPattern) {
+    function dispose() {
+        if (pattern) {
             try {
-                window.arpPattern.dispose();
+                pattern.dispose();
             } catch {}
-            window.arpPattern = null;
         }
-
-        if (!finalNotes || finalNotes.length === 0) return;
-
-        // Calculate note duration in seconds once outside the scheduling callback
-        let durationSeconds = 0.1;
-        try {
-            durationSeconds = Tone.Time(interval).toSeconds() * gate;
-        } catch {
-            durationSeconds = 0.1 * gate;
-        }
-
-        // Create Tone.Pattern with direction mapping
-        const patternInstance = new Tone.Pattern(
-            (time, note) => {
-                const synth = window.activeSynth;
-                if (synth) {
-                    try {
-                        if (
-                            typeof synth.triggerAttack === "function" &&
-                            typeof synth.triggerRelease === "function"
-                        ) {
-                            synth.triggerAttack(note, time);
-                            synth.triggerRelease(time + durationSeconds);
-                        } else if (typeof synth.triggerAttackRelease === "function") {
-                            synth.triggerAttackRelease(note, durationSeconds, time);
-                        }
-                    } catch {
-                        try {
-                            if (
-                                typeof synth.triggerAttack === "function" &&
-                                typeof synth.triggerRelease === "function"
-                            ) {
-                                synth.triggerAttack(note);
-                                synth.triggerRelease(`+${durationSeconds}`);
-                            } else if (typeof synth.triggerAttackRelease === "function") {
-                                synth.triggerAttackRelease(note, durationSeconds);
-                            }
-                        } catch {}
-                    }
-                }
-
-                // Resolve the current step index to highlight the correct pip
-                const currentPattern = patternInstance || window.arpPattern;
-                const patternIndex = currentPattern ? currentPattern.index : 0;
-                const pipIndex =
-                    stepToBaseIndexMap[patternIndex] !== undefined
-                        ? stepToBaseIndexMap[patternIndex]
-                        : 0;
-
-                if (typeof window.__WEB_ARP_STEP_HIGHLIGHT__ === "function") {
-                    Tone.Draw.schedule(() => {
-                        window.__WEB_ARP_STEP_HIGHLIGHT__(pipIndex);
-                    }, time);
-                }
-            },
-            finalNotes,
-            finalDirection,
-        );
-
-        patternInstance.interval = interval;
-        window.arpPattern = patternInstance;
-
-        if (window.isPlaying) patternInstance.start(0);
-    } catch (e) {
-        console.error("createOrUpdatePattern error", e);
+        pattern = null;
+        onPatternChange(null);
     }
+
+    /**
+     * @param {PatternSettings} settings - Materialized settings snapshot.
+     * @returns {Tone.Pattern<string>|null} The new pattern, or null for no notes.
+     */
+    function update(settings) {
+        try {
+            const {
+                finalNotes,
+                stepToBaseIndexMap: computedMap,
+                finalDirection,
+            } = buildPatternSequence(settings.baseNotes, {
+                direction: settings.direction,
+                octaveRange: settings.octaveRange,
+                octaveShift: settings.octaveShift,
+                quantize: settings.quantize,
+            });
+
+            dispose();
+            stepToBaseIndexMap = computedMap;
+            if (finalNotes.length === 0) return null;
+
+            /** @type {string|number} */
+            let patternInterval = settings.interval;
+            let durationSeconds = 0.1;
+            try {
+                durationSeconds = Tone.Time(patternInterval).toSeconds() * settings.gate;
+            } catch {
+                patternInterval = 0.1;
+                durationSeconds = 0.1 * settings.gate;
+            }
+
+            const patternInstance = new Tone.Pattern(
+                (time, note) => {
+                    const synth = getSynth();
+                    if (isTriggerableSynth(synth)) {
+                        triggerSynth(synth, note, time, durationSeconds);
+                    }
+
+                    const patternIndex = patternInstance.index;
+                    const pipIndex = stepToBaseIndexMap[patternIndex] ?? 0;
+                    Tone.Draw.schedule(() => onStep(pipIndex), time);
+                },
+                finalNotes,
+                finalDirection,
+            );
+
+            patternInstance.interval = patternInterval;
+            pattern = patternInstance;
+            onPatternChange(pattern);
+            if (getIsPlaying()) pattern.start(0);
+            return pattern;
+        } catch (error) {
+            logger.error("createOrUpdatePattern error", error);
+            return pattern;
+        }
+    }
+
+    return { update, getPattern: () => pattern, dispose };
 }
 
-// Expose for debug/test hooks.
-window.__patternGenerator = { getArpeggioNotes, createOrUpdatePattern };
+/**
+ * @param {unknown} synth - Candidate Tone synth.
+ * @returns {synth is {triggerAttack?: (note: string, time?: number) => void, triggerRelease?: (time: number|string) => void, triggerAttackRelease?: (note: string, duration: number, time?: number) => void}} Whether scheduling methods are available.
+ */
+function isTriggerableSynth(synth) {
+    return typeof synth === "object" && synth !== null;
+}
+
+/**
+ * @param {{triggerAttack?: (note: string, time?: number) => void, triggerRelease?: (time: number|string) => void, triggerAttackRelease?: (note: string, duration: number, time?: number) => void}} synth - Active synth.
+ * @param {string} note - Note to trigger.
+ * @param {number} time - AudioContext time.
+ * @param {number} durationSeconds - Note duration.
+ * @returns {void}
+ */
+function triggerSynth(synth, note, time, durationSeconds) {
+    try {
+        if (
+            typeof synth.triggerAttack === "function" &&
+            typeof synth.triggerRelease === "function"
+        ) {
+            synth.triggerAttack(note, time);
+            synth.triggerRelease(time + durationSeconds);
+        } else if (typeof synth.triggerAttackRelease === "function") {
+            synth.triggerAttackRelease(note, durationSeconds, time);
+        }
+    } catch {
+        try {
+            if (
+                typeof synth.triggerAttack === "function" &&
+                typeof synth.triggerRelease === "function"
+            ) {
+                synth.triggerAttack(note);
+                synth.triggerRelease(`+${durationSeconds}`);
+            } else if (typeof synth.triggerAttackRelease === "function") {
+                synth.triggerAttackRelease(note, durationSeconds);
+            }
+        } catch {}
+    }
+}

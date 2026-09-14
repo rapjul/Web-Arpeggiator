@@ -8,13 +8,15 @@
  * @module app
  */
 import { downloadBlob } from "@core/audio-utils.js";
-import { initializeKeyboardControls } from "@ui/keyboard-controller.js";
-import { createMidiBlob, exportMidiFile } from "@core/midi-export.js";
+import { buildChordString, resolveChordDefinition } from "@core/chord-builder.js";
 import {
     formatEstimatedExportDuration,
     normalizeLoopCount,
     normalizeOfflineExportTailSeconds,
 } from "@core/export-duration.js";
+import { filterNoteInput, filterNumericInput } from "@core/input-filters.js";
+import { dbToPercent } from "@core/meter-utils.js";
+import { createMidiBlob, exportMidiFile } from "@core/midi-export.js";
 import {
     calculateNoteMarkers,
     getArpeggioNotes as getArpeggioNotesFromModule,
@@ -22,20 +24,19 @@ import {
     normalizeNotesSequence,
 } from "@core/pattern-core.js";
 import { generateRandomNotes } from "@core/randomizer.js";
-import { buildChordString, resolveChordDefinition } from "@core/chord-builder.js";
 import { createSettingsHistory } from "@core/settings-history.js";
-import { createSettingsManager } from "@storage/settings-manager.js";
-import { createToastManager } from "@ui/ui-feedback.js";
 import {
-    PRESET_URL_KEYS,
     hasPresetChanges,
+    PRESET_URL_KEYS,
     parsePresetFromUrlParams,
     serializePresetToUrlParams,
 } from "@core/url-preset.js";
-import { filterNoteInput, filterNumericInput } from "@core/input-filters.js";
-import { dbToPercent } from "@core/meter-utils.js";
+import { createSessionManager, debounce } from "@storage/session-manager.js";
+import { createSettingsManager } from "@storage/settings-manager.js";
 import { setupKeyboardNavigation } from "@ui/a11y-navigation.js";
-import { debounce, createSessionManager } from "@storage/session-manager.js";
+import { initializeKeyboardControls } from "@ui/keyboard-controller.js";
+import { createNoteStepController } from "@ui/note-step-controller.js";
+import { createToastManager } from "@ui/ui-feedback.js";
 
 // --- Global Config ---
 // Set to true to show a toast message when audio is ready (for testing)
@@ -92,7 +93,7 @@ let audioStartPromise = null;
 let audioModulesPromise = null;
 let Tone;
 let createAudioEngine;
-let createOrUpdatePatternFromModule;
+let createPatternController;
 let createRecorderManager;
 let createVisualizer;
 
@@ -115,7 +116,7 @@ async function loadAudioModules() {
             .then(([tone, audioEngineModule, patternModule, recorderModule, visualizerModule]) => {
                 Tone = tone;
                 ({ createAudioEngine } = audioEngineModule);
-                ({ createOrUpdatePattern: createOrUpdatePatternFromModule } = patternModule);
+                ({ createPatternController } = patternModule);
                 ({ createRecorderManager } = recorderModule);
                 ({ createVisualizer } = visualizerModule);
             })
@@ -545,6 +546,7 @@ function initializeApp() {
     let isPlaying = false;
     let currentNotes = ["C4", "E4", "G4"];
     let arpPattern = null;
+    let patternController;
     let currentOctaveShift = 0;
     let currentOctaveRange = 2;
     let activeNote = null;
@@ -557,13 +559,6 @@ function initializeApp() {
     let audioRuntimeConstructionCount = 0;
     let observedRawAudioContext = null;
     let audioContextStateListener = null;
-
-    // Sync legacy window globals (needed by extracted modules)
-    window.currentNotes = currentNotes;
-    window.currentOctaveShift = currentOctaveShift;
-    window.currentOctaveRange = currentOctaveRange;
-    window.isPlaying = isPlaying;
-    window.arpPattern = arpPattern;
 
     /**
      * Returns the engine being assembled, if any, so settings can be applied
@@ -582,28 +577,24 @@ function initializeApp() {
         },
         set isPlaying(value) {
             isPlaying = value;
-            window.isPlaying = value;
         },
         get currentNotes() {
             return currentNotes;
         },
         set currentNotes(value) {
             currentNotes = value;
-            window.currentNotes = value;
         },
         get currentOctaveShift() {
             return currentOctaveShift;
         },
         set currentOctaveShift(value) {
             currentOctaveShift = value;
-            window.currentOctaveShift = value;
         },
         get currentOctaveRange() {
             return currentOctaveRange;
         },
         set currentOctaveRange(value) {
             currentOctaveRange = value;
-            window.currentOctaveRange = value;
         },
         get activeSynth() {
             return getAvailableAudioEngine()?.activeSynth || null;
@@ -621,7 +612,6 @@ function initializeApp() {
             if (availableAudioEngine) {
                 availableAudioEngine.currentWaveform = value;
             }
-            window.currentWaveform = value;
         },
         get activeNote() {
             return activeNote;
@@ -640,26 +630,6 @@ function initializeApp() {
     // --- Pattern Helpers ---
 
     /**
-     * Copies the app's live pattern state onto window so the extracted module
-     * can continue to read the same values as the legacy implementation.
-     * @returns {void}
-     */
-    function syncPatternModuleState() {
-        // Sync local arpPattern from pattern generator before writing to window
-        arpPattern = window.arpPattern;
-        window.currentNotes = currentNotes;
-        window.currentOctaveShift = currentOctaveShift;
-        window.currentOctaveRange = currentOctaveRange;
-        const availableAudioEngine = getAvailableAudioEngine();
-        window.activeSynth = availableAudioEngine?.activeSynth || null;
-        window.currentWaveform = availableAudioEngine
-            ? availableAudioEngine.currentWaveform
-            : currentWaveform;
-        window.isPlaying = isPlaying;
-        window.arpPattern = arpPattern;
-    }
-
-    /**
      * Returns expanded note list with octave shift and range applied.
      * @param {string[]} baseNotes - Base note names (e.g. ['C4', 'E4', 'G4']).
      * @param {number} range - Octave range (1-5).
@@ -674,20 +644,31 @@ function initializeApp() {
     }
 
     /**
-     * Delegates to pattern-generator's createOrUpdatePattern.
+     * Rebuilds the scheduler from the current UI and application state.
      * @returns {void}
      */
     function createOrUpdatePattern() {
         if (!getAvailableAudioEngine()) {
-            rebuildNoteStepIndicator();
+            noteStepController.rebuild();
             updateEstimatedExportDuration();
             return;
         }
-        createOrUpdatePatternFromModule();
-        // Sync local arpPattern from the pattern generator's window.arpPattern
-        arpPattern = window.arpPattern;
+        arpPattern =
+            patternController?.update({
+                baseNotes: currentNotes,
+                octaveRange: currentOctaveRange,
+                octaveShift: currentOctaveShift,
+                interval: intervalSelect.value,
+                gate: parseFloat(gateSlider.value),
+                direction: getSelectedPatternDirection(),
+                quantize: {
+                    enabled: scaleQuantizeToggle.checked,
+                    root: scaleRootSelect.value,
+                    scale: scaleTypeSelect.value,
+                },
+            }) ?? null;
         // Rebuild the note step indicator pips to match the new note count
-        rebuildNoteStepIndicator();
+        noteStepController.rebuild();
         updateEstimatedExportDuration();
     }
 
@@ -701,67 +682,10 @@ function initializeApp() {
         Object.assign(window.__WEB_ARP_TEST__, updates);
     }
 
-    // ==================================================================
-    //    Note Step Indicator
-    // ==================================================================
-
-    /**
-     * Tracks the currently highlighted pip index for the step indicator.
-     * @type {number}
-     */
-    let currentStepIndex = -1;
-
-    /**
-     * Cache array containing the note step indicator DOM element pips.
-     * @type {HTMLElement[]}
-     */
-    let noteStepPips = [];
-
-    /**
-     * Rebuilds the step indicator pips to match the current base note count.
-     * Call whenever notes or pattern settings change.
-     * @returns {void}
-     */
-    function rebuildNoteStepIndicator() {
-        if (!noteStepIndicator) return;
-        const count = currentNotes.length;
-        noteStepIndicator.innerHTML = "";
-        noteStepPips = [];
-        for (let i = 0; i < count; i++) {
-            const pip = document.createElement("div");
-            pip.className = "note-step-pip";
-            pip.setAttribute("aria-label", currentNotes[i] || "");
-            noteStepIndicator.appendChild(pip);
-            noteStepPips.push(pip);
-        }
-        currentStepIndex = -1;
-    }
-
-    /**
-     * Highlights the pip at the given index, removing the highlight from all others.
-     * Intended to be called from the pattern callback on each note trigger.
-     * Runs in O(1) time by leveraging the noteStepPips element cache.
-     * @param {number} index - Zero-based index of the currently playing note.
-     * @returns {void}
-     */
-    function highlightNoteStep(index) {
-        if (!noteStepIndicator || noteStepPips.length === 0) return;
-
-        // Remove active class from previous step
-        if (currentStepIndex >= 0 && currentStepIndex < noteStepPips.length) {
-            noteStepPips[currentStepIndex].classList.remove("active");
-        }
-
-        // Add active class to new step
-        if (index >= 0 && index < noteStepPips.length) {
-            noteStepPips[index].classList.add("active");
-        }
-
-        currentStepIndex = index;
-    }
-
-    // Expose for the pattern generator module (which runs in window scope)
-    window.__WEB_ARP_STEP_HIGHLIGHT__ = highlightNoteStep;
+    const noteStepController = createNoteStepController({
+        container: noteStepIndicator,
+        getNotes: () => currentNotes,
+    });
 
     /**
      * Returns the currently selected pattern direction value.
@@ -1236,7 +1160,6 @@ function initializeApp() {
             updateEnvelope: () => getAvailableAudioEngine()?.updateEnvelope(),
             getTransport: () => (getAvailableAudioEngine() ? Tone.getTransport() : null),
             updateButtonGroup,
-            syncPatternModuleState,
             createOrUpdatePattern,
             updateEstimatedExportDuration,
             updateOfflineExportModeUi,
@@ -1345,10 +1268,6 @@ function initializeApp() {
                             chorusMixSlider,
                             autoPanMixSlider,
                         },
-                        actions: {
-                            syncPatternModuleState,
-                            showToast: (msg, type) => showToast(msg, type),
-                        },
                     });
                     nextAudioEngine.currentWaveform = currentWaveform;
 
@@ -1442,8 +1361,15 @@ function initializeApp() {
                     // Apply any URL, session, or form state accumulated before audio
                     // activation before publishing the finished audio runtime.
                     pendingAudioEngine = nextAudioEngine;
+                    patternController = createPatternController({
+                        getSynth: () => getAvailableAudioEngine()?.activeSynth || null,
+                        getIsPlaying: () => isPlaying,
+                        onPatternChange: (pattern) => {
+                            arpPattern = pattern;
+                        },
+                        onStep: noteStepController.highlight,
+                    });
                     loadAllSettings(getAllSettings());
-                    syncPatternModuleState();
 
                     audioEngine = nextAudioEngine;
                     visualizer = nextVisualizer;
@@ -1455,7 +1381,7 @@ function initializeApp() {
                     nextVisualizer?.destroy();
                     nextAudioEngine?.dispose();
                     try {
-                        arpPattern?.dispose();
+                        patternController?.dispose();
                     } catch (cleanupError) {
                         console.warn("Failed to dispose a partial arpeggio pattern:", cleanupError);
                     }
@@ -1463,11 +1389,9 @@ function initializeApp() {
                     pendingAudioEngine = null;
                     visualizer = undefined;
                     recorderManager = undefined;
+                    patternController = undefined;
                     delete window.audioEngine;
                     arpPattern = null;
-                    window.arpPattern = null;
-                    window.activeSynth = null;
-                    window.currentWaveform = currentWaveform;
                     throw error;
                 }
             })().catch((error) => {
@@ -2544,7 +2468,6 @@ function initializeApp() {
                 playStopButton.classList.remove("bg-blue-600", "hover:bg-blue-700");
             }
             isPlaying = true;
-            syncPatternModuleState();
             if (visualizer) visualizer.startUiLoop();
         }
     }
@@ -2564,12 +2487,8 @@ function initializeApp() {
                 playStopButton.classList.add("bg-blue-600", "hover:bg-blue-700");
             }
             isPlaying = false;
-            syncPatternModuleState();
             if (visualizer) visualizer.stopUiLoop();
-            noteStepPips.forEach((p) => {
-                p.classList.remove("active");
-            });
-            currentStepIndex = -1;
+            noteStepController.clear();
         }
     }
 
@@ -2919,13 +2838,11 @@ function initializeApp() {
         } else {
             currentNotes = raw.length ? raw : ["C4"];
         }
-        syncPatternModuleState();
         createOrUpdatePattern();
     });
     notesInput.addEventListener("input", () => {
         currentNotes = notesInput.value.trim().split(/\s+/).filter(Boolean);
         if (currentNotes.length === 0) currentNotes = ["C4"];
-        syncPatternModuleState();
         updateEstimatedExportDuration();
     });
 
@@ -3000,7 +2917,6 @@ function initializeApp() {
         const target = /** @type {HTMLInputElement} */ (e.target);
         if (target && target.value !== undefined) {
             currentOctaveShift = parseInt(target.value, 10) || 0;
-            syncPatternModuleState();
             updateButtonGroup(octaveShiftButtons, currentOctaveShift, "data-shift");
             createOrUpdatePattern();
             debouncedRenderStaticLoop();
@@ -3015,7 +2931,6 @@ function initializeApp() {
             const shiftVal = btn.getAttribute("data-shift");
             if (shiftVal !== null) {
                 currentOctaveShift = parseInt(shiftVal, 10);
-                syncPatternModuleState();
                 updateButtonGroup(octaveShiftButtons, currentOctaveShift, "data-shift");
                 createOrUpdatePattern();
                 debouncedRenderStaticLoop();
@@ -3027,7 +2942,6 @@ function initializeApp() {
         const target = /** @type {HTMLInputElement} */ (e.target);
         if (target && target.value !== undefined) {
             currentOctaveRange = parseInt(target.value, 10) || 1;
-            syncPatternModuleState();
             updateButtonGroup(octaveRangeButtons, currentOctaveRange, "data-range");
             createOrUpdatePattern();
             debouncedRenderStaticLoop();
@@ -3042,7 +2956,6 @@ function initializeApp() {
             const rangeVal = btn.getAttribute("data-range");
             if (rangeVal !== null) {
                 currentOctaveRange = parseInt(rangeVal, 10);
-                syncPatternModuleState();
                 updateButtonGroup(octaveRangeButtons, currentOctaveRange, "data-range");
                 createOrUpdatePattern();
                 debouncedRenderStaticLoop();
@@ -3701,6 +3614,8 @@ function initializeApp() {
             isAudioContextStarted,
         }),
         getAudioRuntimeConstructionCount: () => audioRuntimeConstructionCount,
+        getPattern: () => arpPattern,
+        getActiveSynth: () => getAvailableAudioEngine()?.activeSynth || null,
         getHistoryState: () => settingsHistory.exportState(),
         undo: undoSettings,
         redo: redoSettings,
@@ -3853,7 +3768,6 @@ function initializeApp() {
     // ==================================================================
 
     currentNotes = notesInput.value.trim().split(/\s+/).filter(Boolean);
-    syncPatternModuleState();
 
     updateButtonGroup(octaveShiftButtons, currentOctaveShift, "data-shift");
     updateButtonGroup(octaveRangeButtons, currentOctaveRange, "data-range");
@@ -3865,7 +3779,6 @@ function initializeApp() {
     keyboardToggle.checked = false;
     updateKeyboardControlUi();
     setSelectedPatternDirection("up");
-    syncPatternModuleState();
     createOrUpdatePattern();
 
     defaultSettings = getAllSettings();

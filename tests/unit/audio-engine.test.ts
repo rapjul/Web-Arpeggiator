@@ -269,7 +269,6 @@ describe("Audio Engine Model Definitions", () => {
             };
 
             mockActions = {
-                syncPatternModuleState: vi.fn(),
                 showToast: vi.fn(),
             };
         });
@@ -295,7 +294,6 @@ describe("Audio Engine Model Definitions", () => {
             for (const synthType of supportedSynthTypes) {
                 engine.setSynth(synthType);
                 expect(engine.activeSynth).toBe(engine.synths[synthType]);
-                expect(mockActions.syncPatternModuleState).toHaveBeenCalled();
             }
         });
 
