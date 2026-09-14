@@ -40,6 +40,7 @@ import { createHistoryController } from "@ui/history-controller.js";
 import { createNoteStepController } from "@ui/note-step-controller.js";
 import { createOnboardingController } from "@ui/onboarding-controller.js";
 import { createPresetController } from "@ui/preset-controller.js";
+import { createTransportController } from "@ui/transport-controller.js";
 import { createToastManager } from "@ui/ui-feedback.js";
 import { FACTORY_PRESETS } from "./config/factory-presets.js";
 
@@ -192,36 +193,9 @@ function initializeApp() {
      * @type {HTMLElement | null}
      */
     const appMain = document.getElementById("app-main");
-    const stickyTransportBar = document.querySelector(".sticky-transport-bar");
-
-    /**
-     * Toggles the square sticky-bar treatment after the desktop transport bar
-     * reaches the viewport edge.
-     *
-     * @returns {void}
-     */
-    function updateStickyTransportAppearance() {
-        if (!stickyTransportBar) return;
-        const isDesktop = window.matchMedia("(min-width: 640px)").matches;
-        const hasReachedViewportTop = stickyTransportBar.getBoundingClientRect().top <= 0;
-        stickyTransportBar.classList.toggle("is-stuck", isDesktop && hasReachedViewportTop);
-    }
-
-    let stickyTransportUpdateScheduled = false;
-    window.addEventListener(
-        "scroll",
-        () => {
-            if (stickyTransportUpdateScheduled) return;
-            stickyTransportUpdateScheduled = true;
-            window.requestAnimationFrame(() => {
-                stickyTransportUpdateScheduled = false;
-                updateStickyTransportAppearance();
-            });
-        },
-        { passive: true },
+    const stickyTransportBar = /** @type {HTMLElement | null} */ (
+        document.querySelector(".sticky-transport-bar")
     );
-    window.addEventListener("resize", updateStickyTransportAppearance);
-    updateStickyTransportAppearance();
 
     const playStopButton = /** @type {HTMLButtonElement | null} */ (
         document.getElementById("play-stop")
@@ -1935,18 +1909,14 @@ function initializeApp() {
         rawAudioContext.addEventListener("statechange", audioContextStateListener);
     }
 
-    // --- Transport: Play / Stop ---
-    playStopButton.addEventListener("click", async () => {
-        if (isPlaying) {
-            stopPlayback();
-        } else {
-            try {
-                await startPlayback();
-            } catch (error) {
-                console.warn("AudioContext failed to start from play button:", error);
-            }
-        }
+    const transportController = createTransportController({
+        dom: { playStopButton, stickyTransportBar },
+        windowRef: window,
+        getIsPlaying: () => isPlaying,
+        onStart: startPlayback,
+        onStop: stopPlayback,
     });
+    transportController.initialize();
 
     /**
      * Debounced wrapper to update the synth envelope.
