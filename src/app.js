@@ -39,6 +39,7 @@ import { initializeKeyboardControls } from "@ui/keyboard-controller.js";
 import { createHistoryController } from "@ui/history-controller.js";
 import { createNoteStepController } from "@ui/note-step-controller.js";
 import { createOnboardingController } from "@ui/onboarding-controller.js";
+import { createPatternControlsController } from "@ui/pattern-controls-controller.js";
 import { createPresetController } from "@ui/preset-controller.js";
 import { createTransportController } from "@ui/transport-controller.js";
 import { createToastManager } from "@ui/ui-feedback.js";
@@ -1176,30 +1177,27 @@ function initializeApp() {
     // ==================================================================
 
     /**
-     * Updates button group selection state by setting the selected class on elements
-     * and checking the corresponding radio input.
-     * @param {HTMLElement} container - The container element holding the buttons or radio inputs.
-     * @param {string|number} selectedValue - The value matching the data attribute or radio value.
-     * @param {string} dataAttribute - e.g. 'data-shift', 'data-range'.
+     * Reflects a selected numeric setting in a button/radio group.
+     *
+     * @param {HTMLElement} container - Group containing radio inputs and buttons.
+     * @param {number} selectedValue - Numeric value to select.
+     * @param {string} dataAttribute - Attribute that stores button values.
      * @returns {void}
      */
     function updateButtonGroup(container, selectedValue, dataAttribute) {
         const radio = container.querySelector(
             `input[type="radio"][${dataAttribute}="${selectedValue}"], input[type="radio"][value="${selectedValue}"]`,
         );
-        if (radio) {
-            /** @type {HTMLInputElement} */ (radio).checked = true;
-        }
-
-        container.querySelectorAll(".octave-btn, button").forEach((btn) => {
-            btn.classList.remove("selected");
-            const btnVal = btn.getAttribute(dataAttribute);
-            if (btnVal !== null) {
-                const numVal = parseInt(btnVal, 10);
-                if (numVal === selectedValue) {
-                    btn.classList.add("selected");
-                }
-            }
+        if (radio) /** @type {HTMLInputElement} */ (radio).checked = true;
+        container.querySelectorAll(".octave-btn, button").forEach((button) => {
+            const valueControl = button.matches(`[${dataAttribute}]`)
+                ? button
+                : button.querySelector(`[${dataAttribute}]`);
+            button.classList.toggle(
+                "selected",
+                valueControl !== null &&
+                    Number(valueControl.getAttribute(dataAttribute)) === selectedValue,
+            );
         });
     }
 
@@ -1422,11 +1420,35 @@ function initializeApp() {
         showToast("Restored default settings. Undo is available.", "info");
     }
 
-    /**
-     * Tracks the last selected non-chromatic scale type so it can be restored when re-enabling.
-     * @type {string}
-     */
-    let lastActiveScaleType = "major";
+    const patternControlsController = createPatternControlsController({
+        dom: {
+            notesInput,
+            intervalSelect,
+            gateSlider,
+            gateValue,
+            scaleQuantizeToggle,
+            scaleTypeSelect,
+            scaleRootSelect,
+            octaveShiftButtons,
+            octaveRangeButtons,
+        },
+        normalizeNotes: normalizeNotesSequence,
+        setNotes: (notes) => {
+            currentNotes = notes;
+        },
+        setOctaveShift: (value) => {
+            currentOctaveShift = value;
+        },
+        setOctaveRange: (value) => {
+            currentOctaveRange = value;
+        },
+        onPatternChange: createOrUpdatePattern,
+        onEstimatedDurationChange: updateEstimatedExportDuration,
+        onStaticLoopChange: () => debouncedRenderStaticLoop(),
+        onScaleQuantizeUiChange: updateScaleQuantizeUi,
+        onScaleQuantizeTextChange: updateScaleQuantizeToggleText,
+        debounce,
+    });
 
     const resetDefinitions = [
         {
@@ -2054,14 +2076,6 @@ function initializeApp() {
     }, 16);
 
     /**
-     * Debounced wrapper to create or update pattern at 50ms.
-     * @type {() => void}
-     */
-    const debouncedCreateOrUpdatePattern50 = debounce(() => {
-        createOrUpdatePattern();
-    }, 50);
-
-    /**
      * Debounced wrapper to set filter cutoff frequency.
      * @type {(val: number) => void}
      */
@@ -2132,55 +2146,6 @@ function initializeApp() {
         swingValue.textContent = parseFloat(swingSlider.value).toFixed(2);
     });
 
-    notesInput.addEventListener("change", () => {
-        const raw = notesInput.value.trim().split(/\s+/).filter(Boolean);
-        const normalized = normalizeNotesSequence(raw);
-        if (normalized.length > 0) {
-            notesInput.value = normalized.join(" ");
-            currentNotes = normalized;
-        } else {
-            currentNotes = raw.length ? raw : ["C4"];
-        }
-        createOrUpdatePattern();
-    });
-    notesInput.addEventListener("input", () => {
-        currentNotes = notesInput.value.trim().split(/\s+/).filter(Boolean);
-        if (currentNotes.length === 0) currentNotes = ["C4"];
-        updateEstimatedExportDuration();
-    });
-
-    scaleQuantizeToggle.addEventListener("change", () => {
-        if (scaleQuantizeToggle.checked) {
-            if (scaleTypeSelect.value === "chromatic") {
-                scaleTypeSelect.value = lastActiveScaleType || "major";
-            }
-        } else {
-            if (scaleTypeSelect.value !== "chromatic") {
-                lastActiveScaleType = scaleTypeSelect.value;
-            }
-            scaleTypeSelect.value = "chromatic";
-        }
-        updateScaleQuantizeUi();
-        updateScaleQuantizeToggleText();
-        createOrUpdatePattern();
-    });
-
-    scaleTypeSelect.addEventListener("change", () => {
-        if (scaleTypeSelect.value === "chromatic") {
-            scaleQuantizeToggle.checked = false;
-        } else {
-            scaleQuantizeToggle.checked = true;
-            lastActiveScaleType = scaleTypeSelect.value;
-        }
-        updateScaleQuantizeUi();
-        updateScaleQuantizeToggleText();
-        createOrUpdatePattern();
-    });
-
-    scaleRootSelect.addEventListener("change", createOrUpdatePattern);
-
-    intervalSelect.addEventListener("change", createOrUpdatePattern);
-
     // --- Synth & Effects ---
     synthTypeSelect.addEventListener("change", () => {
         audioEngine?.setSynth(synthTypeSelect.value);
@@ -2213,63 +2178,6 @@ function initializeApp() {
         const val = parseFloat(dutySlider.value);
         dutyValue.textContent = val.toFixed(2);
         debouncedSetDuty(val);
-    });
-
-    // --- Octave Controls (Native change events & Click delegation) ---
-    octaveShiftButtons.addEventListener("change", (e) => {
-        const target = /** @type {HTMLInputElement} */ (e.target);
-        if (target && target.value !== undefined) {
-            currentOctaveShift = parseInt(target.value, 10) || 0;
-            updateButtonGroup(octaveShiftButtons, currentOctaveShift, "data-shift");
-            createOrUpdatePattern();
-            debouncedRenderStaticLoop();
-        }
-    });
-
-    octaveShiftButtons.addEventListener("click", (e) => {
-        const target = /** @type {Element} */ (e.target).closest("button, label");
-        if (!target) return;
-        const btn = target.tagName === "BUTTON" ? target : target.querySelector("[data-shift]");
-        if (btn) {
-            const shiftVal = btn.getAttribute("data-shift");
-            if (shiftVal !== null) {
-                currentOctaveShift = parseInt(shiftVal, 10);
-                updateButtonGroup(octaveShiftButtons, currentOctaveShift, "data-shift");
-                createOrUpdatePattern();
-                debouncedRenderStaticLoop();
-            }
-        }
-    });
-
-    octaveRangeButtons.addEventListener("change", (e) => {
-        const target = /** @type {HTMLInputElement} */ (e.target);
-        if (target && target.value !== undefined) {
-            currentOctaveRange = parseInt(target.value, 10) || 1;
-            updateButtonGroup(octaveRangeButtons, currentOctaveRange, "data-range");
-            createOrUpdatePattern();
-            debouncedRenderStaticLoop();
-        }
-    });
-
-    octaveRangeButtons.addEventListener("click", (e) => {
-        const target = /** @type {Element} */ (e.target).closest("button, label");
-        if (!target) return;
-        const btn = target.tagName === "BUTTON" ? target : target.querySelector("[data-range]");
-        if (btn) {
-            const rangeVal = btn.getAttribute("data-range");
-            if (rangeVal !== null) {
-                currentOctaveRange = parseInt(rangeVal, 10);
-                updateButtonGroup(octaveRangeButtons, currentOctaveRange, "data-range");
-                createOrUpdatePattern();
-                debouncedRenderStaticLoop();
-            }
-        }
-    });
-
-    // --- Gate ---
-    gateSlider.addEventListener("input", () => {
-        gateValue.textContent = parseFloat(gateSlider.value).toFixed(2);
-        debouncedCreateOrUpdatePattern50();
     });
 
     // --- Filter ---
@@ -2850,6 +2758,8 @@ function initializeApp() {
             renderStaticLoop();
         }
     }, 150);
+
+    patternControlsController.initialize();
 
     // --- Autosave (on any input/change/click) ---
     document.addEventListener("input", (event) => {
