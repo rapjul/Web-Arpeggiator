@@ -812,7 +812,10 @@ function initializeApp() {
             soundStartersDetails,
         },
         documentRef: document,
-        storage: window.localStorage,
+        storage: {
+            getItem: (key) => window.localStorage.getItem(key),
+            setItem: (key, value) => window.localStorage.setItem(key, value),
+        },
         getPresetStore: () => window.WebArpPresetStore,
         onFactoryPresetSelected: async (preset) => {
             applySettingsWithHistory(mergeSettings(DEFAULT_SETTINGS, preset.settings));

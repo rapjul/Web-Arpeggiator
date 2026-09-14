@@ -120,6 +120,35 @@ describe("preset controller", () => {
         expect(onStorageUnavailable).toHaveBeenCalledOnce();
     });
 
+    test("recovers when reading or writing the Sound Starters state fails", () => {
+        const soundStartersGrid = document.createElement("div");
+        const soundStartersDetails = document.createElement("details");
+        const logger = { warn: vi.fn() };
+        const storage = {
+            getItem: () => {
+                throw new Error("storage unavailable");
+            },
+            setItem: () => {
+                throw new Error("storage unavailable");
+            },
+        };
+        const controller = createPresetController({
+            dom: { soundStartersGrid, soundStartersDetails },
+            documentRef: document,
+            storage,
+            getPresetStore: () => null,
+            onFactoryPresetSelected: () => {},
+            onStorageAvailable: vi.fn(),
+            onStorageUnavailable: vi.fn(),
+            logger,
+        });
+
+        controller.buildSoundStartersStrip();
+        soundStartersDetails.dispatchEvent(new Event("toggle"));
+
+        expect(logger.warn).toHaveBeenCalledTimes(2);
+    });
+
     test("creates resilient labels for stored preset metadata", () => {
         expect(getPresetDisplayName({ name: "Warm Pad", savedAt: "invalid" })).toBe(
             "Warm Pad (unknown date)",
