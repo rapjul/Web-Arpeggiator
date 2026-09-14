@@ -6,6 +6,7 @@ import {
     resetBrowserState,
     runBrowser,
     startTestServer,
+    waitForSessionAutosave,
     waitForPwaReady,
 } from "../test-helpers";
 
@@ -43,6 +44,7 @@ test("Synthesizer & Audio Effects Chain Suite", async (): Promise<void> => {
     // 2. Initialize Audio playback
     console.log("Step 2: Initializing audio...");
     await initializeAudio();
+    await waitForSessionAutosave();
 
     // 3. Verify Synthesizer Switching and DOM view updates
     console.log("Step 3: Testing switching synth types...");
@@ -54,7 +56,7 @@ test("Synthesizer & Audio Effects Chain Suite", async (): Promise<void> => {
         
         // Switch to FM Synth
         sel.value = 'fmSynth';
-        sel.dispatchEvent(new Event('change'));
+        sel.dispatchEvent(new Event('change', { bubbles: true }));
         
         // Assert FM synth UI elements are visible and the selected option updated.
         if (adv.classList.contains('hidden')) {
@@ -75,13 +77,13 @@ test("Synthesizer & Audio Effects Chain Suite", async (): Promise<void> => {
         `(async () => {
         const harm = document.getElementById('harmonicity');
         harm.value = 5.5;
-        harm.dispatchEvent(new Event('input'));
-        harm.dispatchEvent(new Event('change'));
+        harm.dispatchEvent(new Event('input', { bubbles: true }));
+        harm.dispatchEvent(new Event('change', { bubbles: true }));
 
         const mod = document.getElementById('modulation-index');
         mod.value = 22.4;
-        mod.dispatchEvent(new Event('input'));
-        mod.dispatchEvent(new Event('change'));
+        mod.dispatchEvent(new Event('input', { bubbles: true }));
+        mod.dispatchEvent(new Event('change', { bubbles: true }));
 
         if (harm.value !== '5.5') {
             return 'incorrect-harmonicity: ' + harm.value;
@@ -101,13 +103,13 @@ test("Synthesizer & Audio Effects Chain Suite", async (): Promise<void> => {
         `(async () => {
         const att = document.getElementById('env-attack');
         att.value = 0.45;
-        att.dispatchEvent(new Event('input'));
-        att.dispatchEvent(new Event('change'));
+        att.dispatchEvent(new Event('input', { bubbles: true }));
+        att.dispatchEvent(new Event('change', { bubbles: true }));
 
         const rel = document.getElementById('env-release');
         rel.value = 2.15;
-        rel.dispatchEvent(new Event('input'));
-        rel.dispatchEvent(new Event('change'));
+        rel.dispatchEvent(new Event('input', { bubbles: true }));
+        rel.dispatchEvent(new Event('change', { bubbles: true }));
 
         // Verify values remain after the controller's deferred update.
         await new Promise((resolve) => setTimeout(resolve, 100));
@@ -129,13 +131,13 @@ test("Synthesizer & Audio Effects Chain Suite", async (): Promise<void> => {
         `(async () => {
         const cutoff = document.getElementById('filter-cutoff');
         cutoff.value = 2500;
-        cutoff.dispatchEvent(new Event('input'));
-        cutoff.dispatchEvent(new Event('change'));
+        cutoff.dispatchEvent(new Event('input', { bubbles: true }));
+        cutoff.dispatchEvent(new Event('change', { bubbles: true }));
 
         const delayMix = document.getElementById('delay-mix');
         delayMix.value = 0.45;
-        delayMix.dispatchEvent(new Event('input'));
-        delayMix.dispatchEvent(new Event('change'));
+        delayMix.dispatchEvent(new Event('input', { bubbles: true }));
+        delayMix.dispatchEvent(new Event('change', { bubbles: true }));
 
         if (cutoff.value !== '2500') {
             return 'incorrect-cutoff: ' + cutoff.value;
@@ -161,7 +163,7 @@ test("Synthesizer & Audio Effects Chain Suite", async (): Promise<void> => {
 
         // 7a. MonoSynth
         sel.value = 'monoSynth';
-        sel.dispatchEvent(new Event('change'));
+        sel.dispatchEvent(new Event('change', { bubbles: true }));
         if (monoParams.classList.contains('hidden')) return 'mono-params-hidden';
         if (sel.value !== 'monoSynth') return 'mono-settings-mismatch';
         const sineBtn = document.querySelector('button[data-wave="sine"]');
@@ -171,13 +173,13 @@ test("Synthesizer & Audio Effects Chain Suite", async (): Promise<void> => {
 
         // 7b. DuoSynth
         sel.value = 'duoSynth';
-        sel.dispatchEvent(new Event('change'));
+        sel.dispatchEvent(new Event('change', { bubbles: true }));
         if (duoParams.classList.contains('hidden')) return 'duo-params-hidden';
         if (sel.value !== 'duoSynth') return 'duo-settings-mismatch';
 
         // 7c. PluckSynth
         sel.value = 'pluckSynth';
-        sel.dispatchEvent(new Event('change'));
+        sel.dispatchEvent(new Event('change', { bubbles: true }));
         if (pluckParams.classList.contains('hidden')) return 'pluck-params-hidden';
         if (sel.value !== 'pluckSynth') return 'pluck-settings-mismatch';
         if (sineBtn && !sineBtn.disabled) return 'sine-btn-should-be-disabled-for-plucksynth';
@@ -185,7 +187,7 @@ test("Synthesizer & Audio Effects Chain Suite", async (): Promise<void> => {
 
         // 7d. MembraneSynth
         sel.value = 'membraneSynth';
-        sel.dispatchEvent(new Event('change'));
+        sel.dispatchEvent(new Event('change', { bubbles: true }));
         if (membraneParams.classList.contains('hidden')) return 'membrane-params-hidden';
         if (sel.value !== 'membraneSynth') return 'membrane-settings-mismatch';
         if (sineBtn && sineBtn.disabled) return 'sine-btn-disabled-for-membranesynth';
@@ -203,18 +205,18 @@ test("Synthesizer & Audio Effects Chain Suite", async (): Promise<void> => {
         `(async () => {
         const drive = document.getElementById('drive-mix');
         drive.value = 0.65;
-        drive.dispatchEvent(new Event('input'));
-        drive.dispatchEvent(new Event('change'));
+        drive.dispatchEvent(new Event('input', { bubbles: true }));
+        drive.dispatchEvent(new Event('change', { bubbles: true }));
 
         const chorus = document.getElementById('chorus-mix');
         chorus.value = 0.50;
-        chorus.dispatchEvent(new Event('input'));
-        chorus.dispatchEvent(new Event('change'));
+        chorus.dispatchEvent(new Event('input', { bubbles: true }));
+        chorus.dispatchEvent(new Event('change', { bubbles: true }));
 
         const pan = document.getElementById('autopan-mix');
         pan.value = 0.75;
-        pan.dispatchEvent(new Event('input'));
-        pan.dispatchEvent(new Event('change'));
+        pan.dispatchEvent(new Event('input', { bubbles: true }));
+        pan.dispatchEvent(new Event('change', { bubbles: true }));
 
         if (drive.value !== '0.65') return 'incorrect-drive-mix: ' + drive.value;
         if (chorus.value !== '0.5') return 'incorrect-chorus-mix: ' + chorus.value;
@@ -224,6 +226,41 @@ test("Synthesizer & Audio Effects Chain Suite", async (): Promise<void> => {
     })()`,
     ]);
     expect(studioEffectsResult).toBe('"success"');
+
+    // Persisted settings are a public application outcome of each control event.
+    // Audio-node updates themselves are covered with injected nodes in the
+    // controller and audio-engine Vitest suites.
+    const persistedControlsResult: string = await runBrowser([
+        "eval",
+        `(async () => {
+            await new Promise((resolve) => setTimeout(resolve, 2200));
+            const database = await new Promise((resolve, reject) => {
+                const request = indexedDB.open('web-arpeggiator-presets');
+                request.addEventListener('success', () => resolve(request.result));
+                request.addEventListener('error', () => reject(request.error));
+            });
+            const transaction = database.transaction('lastSession', 'readonly');
+            const request = transaction.objectStore('lastSession').get('current');
+            const record = await new Promise((resolve, reject) => {
+                request.addEventListener('success', () => resolve(request.result));
+                request.addEventListener('error', () => reject(request.error));
+            });
+            database.close();
+            const settings = record?.settings;
+            return settings?.harmonicity === 5.5
+                && settings?.modulationIndex === 22.4
+                && settings?.envAttack === 0.45
+                && settings?.envRelease === 2.15
+                && settings?.filterCutoff === 2500
+                && settings?.delayMix === 0.45
+                && settings?.driveMix === 0.65
+                && settings?.chorusMix === 0.5
+                && settings?.autoPanMix === 0.75
+                ? 'success'
+                : 'settings-not-persisted';
+        })()`,
+    ]);
+    expect(persistedControlsResult).toBe('"success"');
 
     console.log("Synthesizer & Audio Effects Chain Integration Suite complete!");
 }, 30000);

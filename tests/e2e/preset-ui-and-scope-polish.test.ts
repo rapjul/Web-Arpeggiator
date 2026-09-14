@@ -98,6 +98,65 @@ test("Preset UI Hierarchy & Visualizer Status Suite", async (): Promise<void> =>
     ]);
     expect(checkPresetSaved).toBe('"success"');
 
+    // Exercise the real browser-storage failure path without an application test hook.
+    // Raising the IndexedDB version releases the app's cached connection; temporarily
+    // withholding the native API then makes the next save fail exactly as an unsupported
+    // storage implementation would.
+    const storageRecoveryResult: string = await runBrowser([
+        "eval",
+        `(async () => {
+            const storageName = "web-arpeggiator-presets";
+            const saveButton = document.getElementById("save-preset-to-browser-button");
+            const nameInput = document.getElementById("preset-name-input");
+            const recovery = document.getElementById("browser-storage-recovery");
+            if (!saveButton || !nameInput || !recovery) return "recovery-controls-missing";
+
+            const originalDescriptor = Object.getOwnPropertyDescriptor(window, "indexedDB");
+            const restoreIndexedDB = () => {
+                if (originalDescriptor) {
+                    Object.defineProperty(window, "indexedDB", originalDescriptor);
+                } else {
+                    delete window.indexedDB;
+                }
+            };
+            const requestResult = (request) => new Promise((resolve, reject) => {
+                request.addEventListener("success", () => resolve(request.result));
+                request.addEventListener("error", () => reject(request.error));
+                request.addEventListener("blocked", () => reject(new Error("IndexedDB request blocked")));
+            });
+
+            try {
+                const upgradedDatabase = await requestResult(window.indexedDB.open(storageName, 3));
+                upgradedDatabase.close();
+                Object.defineProperty(window, "indexedDB", {
+                    configurable: true,
+                    value: undefined,
+                });
+
+                saveButton.click();
+                await new Promise((resolve) => setTimeout(resolve, 100));
+                if (recovery.classList.contains("hidden") || !recovery.open) {
+                    return "recovery-guidance-not-visible";
+                }
+
+                restoreIndexedDB();
+                await requestResult(window.indexedDB.deleteDatabase(storageName));
+
+                nameInput.value = "Recovery Retry Preset";
+                nameInput.dispatchEvent(new Event("input", { bubbles: true }));
+                saveButton.click();
+                await new Promise((resolve) => setTimeout(resolve, 100));
+                if (!recovery.classList.contains("hidden") || recovery.open) {
+                    return "recovery-guidance-not-hidden-after-retry";
+                }
+                return "success";
+            } finally {
+                restoreIndexedDB();
+            }
+        })()`,
+    ]);
+    expect(storageRecoveryResult).toBe('"success"');
+
     // 4. Test Visualizer Toggle & Pause Controls
     console.log("Step 4: Testing Visualizer Toggle and Pause Controls...");
     const visualizerControlsResult: string = await runBrowser([

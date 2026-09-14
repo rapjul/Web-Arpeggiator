@@ -2,6 +2,7 @@ import { afterAll, beforeAll, expect, test } from "bun:test";
 import {
     cleanupProcesses,
     closeBrowser,
+    exportCurrentPatternMidiNotes,
     initializeAudio,
     resetBrowserState,
     runBrowser,
@@ -124,14 +125,17 @@ test("Keyboard Controls & Scale Quantizer Suite", async (): Promise<void> => {
         const scaleType = document.getElementById('scale-type');
         const notesInput = document.getElementById('notes');
         const singleOctave = document.querySelector('input[name="octave-range"][value="1"]');
+        const loopCount = document.getElementById('loop-count');
 
         // Keep this assertion focused on the five base notes rather than the
         // app's interleaved multi-octave sequence.
-        if (!singleOctave) {
-            return 'missing-single-octave-control';
+        if (!singleOctave || !loopCount) {
+            return 'missing-export-setup-control';
         }
         singleOctave.checked = true;
         singleOctave.dispatchEvent(new Event('change', { bubbles: true }));
+        loopCount.value = '1';
+        loopCount.dispatchEvent(new Event('change', { bubbles: true }));
 
         // Enable scale quantization, set to C Major
         quantizeToggle.checked = true;
@@ -157,6 +161,7 @@ test("Keyboard Controls & Scale Quantizer Suite", async (): Promise<void> => {
     })()`,
     ]);
     expect(quantizerResult).toBe('"success"');
+    expect(await exportCurrentPatternMidiNotes()).toEqual([60, 62, 64, 65, 67]);
 
     // 5. Verify Scale Quantizer 13-State Dropdown <-> Toggle Synchronization
     console.log("Step 5: Testing bidirectional scale quantization sync...");

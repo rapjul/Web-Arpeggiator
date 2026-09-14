@@ -2,6 +2,7 @@ import { afterAll, beforeAll, expect, test } from "bun:test";
 import {
     cleanupProcesses,
     closeBrowser,
+    exportCurrentPatternMidiNotes,
     initializeAudio,
     runBrowser,
     startTestServer,
@@ -135,6 +136,7 @@ test("Scale-Aware Chord Builder E2E Suite", async (): Promise<void> => {
             const scaleTypeSelect = document.getElementById('scale-type');
             const quantizeToggle = document.getElementById('scale-quantize-toggle');
             const singleOctave = document.querySelector('input[name="octave-range"][value="1"]');
+            const loopCount = document.getElementById('loop-count');
             if (singleOctave && !singleOctave.checked) {
                 singleOctave.checked = true;
                 singleOctave.dispatchEvent(new Event('change', { bubbles: true }));
@@ -151,6 +153,10 @@ test("Scale-Aware Chord Builder E2E Suite", async (): Promise<void> => {
                 quantizeToggle.checked = true;
                 quantizeToggle.dispatchEvent(new Event('change', { bubbles: true }));
             }
+            if (loopCount) {
+                loopCount.value = '1';
+                loopCount.dispatchEvent(new Event('change', { bubbles: true }));
+            }
             // Click Major chord (C4, E4, G4) -> in C Minor, E4 quantizes to D#4
             const majorBtn = document.querySelector('.chord-btn[data-chord="major"]');
             if (majorBtn) {
@@ -160,7 +166,10 @@ test("Scale-Aware Chord Builder E2E Suite", async (): Promise<void> => {
             return notesInput ? notesInput.value : '';
         })()`,
     ]);
+    // The source input remains the selected chord. Quantization is applied when
+    // the application materializes the playback/export sequence.
     expect(JSON.parse(scalePatternResult)).toBe("C4 E4 G4");
+    expect(await exportCurrentPatternMidiNotes()).toEqual([60, 63, 67]);
 
     console.log("Scale-Aware Chord Builder E2E Suite completed successfully.");
 }, 30000);

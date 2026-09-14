@@ -3,6 +3,7 @@ import { ALLOWED_DIRECTIONS } from "@core/url-preset.js";
 import {
     cleanupProcesses,
     closeBrowser,
+    exportCurrentPatternMidiNotes,
     initializeAudio,
     resetBrowserState,
     runBrowser,
@@ -21,6 +22,26 @@ const PORT: number = 4174;
  * @type {string}
  */
 const APP_URL: string = `http://127.0.0.1:${PORT}/index.html`;
+
+const deterministicMidiSequences: Readonly<Record<string, readonly number[]>> = {
+    up: [60, 64, 67],
+    down: [67, 64, 60],
+    upDown: [60, 64, 67, 64],
+    downUp: [67, 64, 60, 64],
+    upDownRepeat: [60, 64, 67, 67, 64, 60],
+    downUpRepeat: [67, 64, 60, 60, 64, 67],
+    octaveCycle: [60, 72, 84, 60, 72, 84, 64, 76, 88, 64, 76, 88, 67, 79, 91, 67, 79, 91],
+    octaveCycleReverse: [91, 79, 67, 91, 79, 67, 88, 76, 64, 88, 76, 64, 84, 72, 60, 84, 72, 60],
+    octaveCyclePingPong: [
+        60, 72, 84, 72, 60, 72, 84, 64, 76, 88, 76, 64, 76, 88, 67, 79, 91, 79, 67, 79, 91,
+    ],
+};
+
+const randomizedPatternLengths: Readonly<Record<string, number>> = {
+    random: 3,
+    randomWalk: 3,
+    randomWalkDrunk: 16,
+};
 
 beforeAll(async (): Promise<void> => {
     await startTestServer(PORT);
@@ -46,6 +67,31 @@ test("Arpeggiator Pattern Direction Verification Suite", async (): Promise<void>
     await initializeAudio();
 
     // 3. Exercise every direction the URL parser accepts and the UI exposes.
+    const setupResult: string = await runBrowser([
+        "eval",
+        `(() => {
+            const notes = document.getElementById("notes");
+            const quantize = document.getElementById("scale-quantize-toggle");
+            const octaveRange = document.querySelector("input[name='octave-range'][value='1']");
+            const loopCount = document.getElementById("loop-count");
+            if (!notes || !quantize || !octaveRange || !loopCount) {
+                return "missing-pattern-setup-control";
+            }
+
+            notes.value = "C4 E4 G4";
+            notes.dispatchEvent(new Event("input", { bubbles: true }));
+            notes.dispatchEvent(new Event("change", { bubbles: true }));
+            quantize.checked = false;
+            quantize.dispatchEvent(new Event("change", { bubbles: true }));
+            octaveRange.checked = true;
+            octaveRange.dispatchEvent(new Event("change", { bubbles: true }));
+            loopCount.value = "1";
+            loopCount.dispatchEvent(new Event("change", { bubbles: true }));
+            return "success";
+        })()`,
+    ]);
+    expect(setupResult).toBe('"success"');
+
     for (const name of ALLOWED_DIRECTIONS) {
         console.log(`Testing pattern selection: ${name}`);
 
@@ -55,7 +101,6 @@ test("Arpeggiator Pattern Direction Verification Suite", async (): Promise<void>
         // Wait briefly for pattern update
         await new Promise((resolve) => setTimeout(resolve, 300));
 
-        // The pattern engine's exact sequence is covered directly by pattern-core unit tests.
         const patternState: string = await runBrowser([
             "eval",
             `(async () => {
@@ -73,6 +118,15 @@ test("Arpeggiator Pattern Direction Verification Suite", async (): Promise<void>
         })()`,
         ]);
         expect(patternState).toBe('"success"');
+
+        const midiNotes = await exportCurrentPatternMidiNotes();
+        const expectedSequence = deterministicMidiSequences[name];
+        if (expectedSequence) {
+            expect(midiNotes).toEqual(expectedSequence);
+        } else {
+            expect(midiNotes).toHaveLength(randomizedPatternLengths[name]);
+            expect(midiNotes.every((pitch) => [60, 64, 67].includes(pitch))).toBe(true);
+        }
     }
 
     console.log("All 12 pattern controls verified successfully!");

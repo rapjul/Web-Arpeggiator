@@ -64,6 +64,30 @@ async function scrollVisualizerIntoView(): Promise<void> {
 }
 
 /**
+ * Returns a compact fingerprint of the rendered Loop Map canvas.
+ *
+ * @returns {Promise<string>} Pixel-based canvas fingerprint.
+ */
+async function getLoopMapFingerprint(): Promise<string> {
+    const result = await runBrowser([
+        "eval",
+        `(() => {
+            const canvas = document.getElementById('visualizer-plot');
+            if (!(canvas instanceof HTMLCanvasElement)) return '';
+            const context = canvas.getContext('2d');
+            if (!context || canvas.width === 0 || canvas.height === 0) return '';
+            const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+            let hash = 2166136261;
+            for (const pixel of pixels) {
+                hash = Math.imul(hash ^ pixel, 16777619);
+            }
+            return canvas.width + ':' + canvas.height + ':' + (hash >>> 0);
+        })()`,
+    ]);
+    return JSON.parse(result);
+}
+
+/**
  * Switches the visualizer to the specified mode, cycles zoom factors, and captures screenshots.
  *
  * @param {string} mode - The visualizer mode (oscilloscope, fft, loopMap).
@@ -188,6 +212,16 @@ test("Canvas Visualizer Suite", async (): Promise<void> => {
     console.log("Step 7: Testing Loop Map Canvas Updates on Octave Changes...");
     await runBrowser(["select", "#visualizer-mode", "loopMap"]);
     await new Promise((resolve) => setTimeout(resolve, 500));
+    let previousLoopMapFingerprint = "";
+
+    const expectLoopMapToRerender = async (): Promise<void> => {
+        const fingerprint = await getLoopMapFingerprint();
+        expect(fingerprint).not.toBe("");
+        if (previousLoopMapFingerprint) {
+            expect(fingerprint).not.toBe(previousLoopMapFingerprint);
+        }
+        previousLoopMapFingerprint = fingerprint;
+    };
 
     // Test Octave Range variations (1 -> 3 -> 5) through their visible controls.
     for (const rangeVal of ["1", "3", "5"]) {
@@ -212,6 +246,7 @@ test("Canvas Visualizer Suite", async (): Promise<void> => {
             })()`,
         ]);
         expect(selectedRange).toBe(`"${rangeVal}"`);
+        await expectLoopMapToRerender();
     }
 
     // Reset range to 1 before testing shift
@@ -250,6 +285,7 @@ test("Canvas Visualizer Suite", async (): Promise<void> => {
             })()`,
         ]);
         expect(selectedShift).toBe(`"${shiftVal}"`);
+        await expectLoopMapToRerender();
     }
 
     // 8. Test Loop Map updates on Pattern Direction, Notes, and Scale Quantization
@@ -278,6 +314,7 @@ test("Canvas Visualizer Suite", async (): Promise<void> => {
         })()`,
     ]);
     expect(octaveCycleSelection).toBe('"octaveCycle"');
+    await expectLoopMapToRerender();
 
     // 8b. Test Note Input modification
     const notesChangeStr: string = await runBrowser([
@@ -301,6 +338,7 @@ test("Canvas Visualizer Suite", async (): Promise<void> => {
         })()`,
     ]);
     expect(updatedNotes).toBe('"D3 F#3 A3"');
+    await expectLoopMapToRerender();
 
     // 8c. Test Scale Quantization toggle (starts true, toggle to false)
     const quantizeToggleStr: string = await runBrowser([
@@ -345,4 +383,4 @@ test("Canvas Visualizer Suite", async (): Promise<void> => {
     await new Promise((resolve) => setTimeout(resolve, 350));
 
     console.log("Visualizer Integration Suite complete!");
-}, 45000);
+}, 60000);

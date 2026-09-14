@@ -151,26 +151,37 @@ test("PWA Shell Integration Suite", async (): Promise<void> => {
     const sessionCheck: string = await runBrowser([
         "eval",
         `(async () => {
-        const settings = { notes: 'E4 G4 B4', baseNotes: ['E4', 'G4', 'B4'] };
-        const database = await new Promise((resolve, reject) => {
-            const request = indexedDB.open('web-arpeggiator-presets');
-            request.addEventListener('success', () => resolve(request.result));
-            request.addEventListener('error', () => reject(request.error));
-        });
-        const transaction = database.transaction('lastSession', 'readwrite');
-        transaction.objectStore('lastSession').put({
-            id: 'current',
-            savedAt: new Date().toISOString(),
-            settings,
-            history: null,
-        });
-        await new Promise((resolve, reject) => {
-            transaction.addEventListener('complete', resolve);
-            transaction.addEventListener('error', () => reject(transaction.error));
-            transaction.addEventListener('abort', () => reject(transaction.error));
-        });
-        database.close();
-        return true;
+        const notes = document.getElementById('notes');
+        if (!notes) return false;
+        notes.value = 'E4 G4 B4';
+        notes.dispatchEvent(new Event('input', { bubbles: true }));
+        notes.dispatchEvent(new Event('change', { bubbles: true }));
+
+        const readCurrentSession = async () => {
+            const database = await new Promise((resolve, reject) => {
+                const request = indexedDB.open('web-arpeggiator-presets');
+                request.addEventListener('success', () => resolve(request.result));
+                request.addEventListener('error', () => reject(request.error));
+            });
+            const transaction = database.transaction('lastSession', 'readonly');
+            const request = transaction.objectStore('lastSession').get('current');
+            const record = await new Promise((resolve, reject) => {
+                request.addEventListener('success', () => resolve(request.result));
+                request.addEventListener('error', () => reject(request.error));
+            });
+            database.close();
+            return record;
+        };
+
+        const deadline = Date.now() + 5000;
+        while (Date.now() < deadline) {
+            const record = await readCurrentSession();
+            if (record?.settings?.baseNotes?.join(' ') === 'E4 G4 B4') {
+                return true;
+            }
+            await new Promise((resolve) => setTimeout(resolve, 100));
+        }
+        return false;
     })()`,
     ]);
     expect(sessionCheck).toBe("true");

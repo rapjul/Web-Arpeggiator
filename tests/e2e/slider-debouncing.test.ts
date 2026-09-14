@@ -6,6 +6,7 @@ import {
     resetBrowserState,
     runBrowser,
     startTestServer,
+    waitForSessionAutosave,
     waitForPwaReady,
 } from "../test-helpers";
 
@@ -43,6 +44,7 @@ test("UI Slider Debouncing Verification Suite", async (): Promise<void> => {
     // 2. Initialize Audio playback
     console.log("Step 2: Initializing audio...");
     await initializeAudio();
+    await waitForSessionAutosave();
 
     // 3. Verify Filter Cutoff Slider Debouncing (16ms)
     console.log("Step 3: Testing Filter Cutoff slider debouncing...");
@@ -53,7 +55,7 @@ test("UI Slider Debouncing Verification Suite", async (): Promise<void> => {
         const label = document.getElementById('filter-cutoff-value');
         
         slider.value = '5000';
-        slider.dispatchEvent(new Event('input'));
+        slider.dispatchEvent(new Event('input', { bubbles: true }));
         
         // 1. Label MUST update immediately (synchronously)
         if (label.textContent !== '5000') {
@@ -80,7 +82,7 @@ test("UI Slider Debouncing Verification Suite", async (): Promise<void> => {
         const label = document.getElementById('bpm-value');
         
         slider.value = '180';
-        slider.dispatchEvent(new Event('input'));
+        slider.dispatchEvent(new Event('input', { bubbles: true }));
         
         // Label updates immediately
         if (label.textContent !== '180') {
@@ -107,7 +109,7 @@ test("UI Slider Debouncing Verification Suite", async (): Promise<void> => {
         const label = document.getElementById('gate-value');
         
         slider.value = '0.35';
-        slider.dispatchEvent(new Event('input'));
+        slider.dispatchEvent(new Event('input', { bubbles: true }));
         
         // Label updates immediately
         if (label.textContent !== '0.35') {
@@ -130,6 +132,32 @@ test("UI Slider Debouncing Verification Suite", async (): Promise<void> => {
     })()`,
     ]);
     expect(gateDebounceResult).toBe('"success"');
+
+    // The browser-visible labels cover immediate feedback. Persisted settings
+    // prove the input events also reached the application settings lifecycle.
+    const persistedSliderResult: string = await runBrowser([
+        "eval",
+        `(async () => {
+            await new Promise((resolve) => setTimeout(resolve, 2200));
+            const database = await new Promise((resolve, reject) => {
+                const request = indexedDB.open('web-arpeggiator-presets');
+                request.addEventListener('success', () => resolve(request.result));
+                request.addEventListener('error', () => reject(request.error));
+            });
+            const transaction = database.transaction('lastSession', 'readonly');
+            const request = transaction.objectStore('lastSession').get('current');
+            const record = await new Promise((resolve, reject) => {
+                request.addEventListener('success', () => resolve(request.result));
+                request.addEventListener('error', () => reject(request.error));
+            });
+            database.close();
+            const settings = record?.settings;
+            return settings?.filterCutoff === 5000 && settings?.bpm === 180 && settings?.gateRatio === 0.35
+                ? 'success'
+                : 'settings-not-persisted';
+        })()`,
+    ]);
+    expect(persistedSliderResult).toBe('"success"');
 
     console.log("Slider Debouncing Verification Suite complete!");
 }, 30000);
