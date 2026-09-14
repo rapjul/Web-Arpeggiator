@@ -147,32 +147,14 @@ export type TonePatternDirection =
  */
 declare global {
     interface Window {
-        /** Currently selected notes */
-        currentNotes: string[];
-        /** Active octave shift offset (-3 to 3) */
-        currentOctaveShift: number;
-        /** Active octave range multiplier (1 to 5) */
-        currentOctaveRange: number;
-        /** Indicates whether playback transport is running */
-        isPlaying: boolean;
-        /** Active Tone.js pattern instance */
-        arpPattern: Tone.Pattern<string> | null;
-        /** Currently active synthesizer instance */
-        activeSynth: WebArpSynth | null;
-        /** Current waveform name */
-        currentWaveform: string;
         /** Audio engine controller */
         audioEngine: unknown;
         /** Test hooks interface */
         __WEB_ARP_TEST__: Record<string, unknown>;
-        /** Step highlighting UI callback */
-        __WEB_ARP_STEP_HIGHLIGHT__: (index: number) => void;
         /** Preset storage persistence layer */
         WebArpPresetStore?: WebArpPresetStore;
         /** PWA runtime manager */
         WebArpPWA?: WebArpPWA;
-        /** Pattern generator module reference */
-        __patternGenerator?: Record<string, unknown>;
         /** PWA asset manifest cache list */
         __WEB_ARP_ASSET_MANIFEST__?: WebArpAssetManifest;
         /** PWA runtime state container */

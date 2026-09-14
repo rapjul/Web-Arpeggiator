@@ -124,7 +124,7 @@ test("UI Slider Debouncing Verification Suite", async (): Promise<void> => {
         const slider = document.getElementById('gate');
         const label = document.getElementById('gate-value');
         
-        const oldPattern = window.arpPattern;
+        const oldPattern = window.__WEB_ARP_TEST__.getPattern();
         slider.value = '0.35';
         slider.dispatchEvent(new Event('input'));
         
@@ -135,13 +135,13 @@ test("UI Slider Debouncing Verification Suite", async (): Promise<void> => {
         
         // Wait 20ms (less than 50ms debounce) - should still not be updated
         await new Promise((resolve) => setTimeout(resolve, 20));
-        if (window.arpPattern !== oldPattern) {
+        if (window.__WEB_ARP_TEST__.getPattern() !== oldPattern) {
             return 'gate-updated-too-early';
         }
         
         // Wait another 60ms (total 80ms, greater than 50ms debounce)
         await new Promise((resolve) => setTimeout(resolve, 60));
-        if (window.arpPattern === oldPattern) {
+        if (window.__WEB_ARP_TEST__.getPattern() === oldPattern) {
             return 'gate-not-updated-after-debounce';
         }
         

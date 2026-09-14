@@ -113,14 +113,15 @@ test("Synthesizer & Audio Effects Chain Suite", async (): Promise<void> => {
 
         // Verify tone envelope directly
         await new Promise((resolve) => setTimeout(resolve, 100));
-        if (!window.activeSynth || !window.activeSynth.envelope) {
+        const activeSynth = window.__WEB_ARP_TEST__.getActiveSynth();
+        if (!activeSynth || !activeSynth.envelope) {
             return 'missing-active-envelope';
         }
-        if (Math.abs(window.activeSynth.envelope.attack - 0.45) > 0.001) {
-            return 'attack-mismatch: ' + window.activeSynth.envelope.attack;
+        if (Math.abs(activeSynth.envelope.attack - 0.45) > 0.001) {
+            return 'attack-mismatch: ' + activeSynth.envelope.attack;
         }
-        if (Math.abs(window.activeSynth.envelope.release - 2.15) > 0.001) {
-            return 'release-mismatch: ' + window.activeSynth.envelope.release;
+        if (Math.abs(activeSynth.envelope.release - 2.15) > 0.001) {
+            return 'release-mismatch: ' + activeSynth.envelope.release;
         }
         return 'success';
     })()`,

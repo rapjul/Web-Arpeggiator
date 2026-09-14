@@ -74,19 +74,20 @@ test("Arpeggiator Pattern Direction Verification Suite", async (): Promise<void>
         const patternState: string = await runBrowser([
             "eval",
             `(async () => {
-            if (!window.arpPattern) {
+            const pattern = window.__WEB_ARP_TEST__.getPattern();
+            if (!pattern) {
                 return 'missing-pattern';
             }
-            if (window.arpPattern.state !== 'started') {
-                return 'pattern-not-started: ' + window.arpPattern.state;
+            if (pattern.state !== 'started') {
+                return 'pattern-not-started: ' + pattern.state;
             }
-            if (window.arpPattern.pattern !== '${expectedTonePattern}') {
-                return 'unexpected-tone-pattern: ' + window.arpPattern.pattern + ' (expected ${expectedTonePattern})';
+            if (pattern.pattern !== '${expectedTonePattern}') {
+                return 'unexpected-tone-pattern: ' + pattern.pattern + ' (expected ${expectedTonePattern})';
             }
             ${
                 minValues
-                    ? `if (!window.arpPattern.values || window.arpPattern.values.length < ${minValues}) {
-                return 'unexpected-values-length: ' + (window.arpPattern.values ? window.arpPattern.values.length : 0);
+                    ? `if (!pattern.values || pattern.values.length < ${minValues}) {
+                return 'unexpected-values-length: ' + (pattern.values ? pattern.values.length : 0);
             }`
                     : ""
             }

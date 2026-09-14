@@ -17,13 +17,6 @@ interface MockPatternInstance {
     dispose: () => void;
 }
 
-interface WebArpeggiatorWindow extends Window {
-    currentOctaveRange?: number;
-    currentOctaveShift?: number;
-    isPlaying?: boolean;
-    arpPattern?: MockPatternInstance | null;
-}
-
 vi.mock("tone", async (importOriginal) => {
     const actual = await importOriginal<typeof import("tone")>();
     class MockPattern implements MockPatternInstance {
@@ -62,11 +55,30 @@ vi.mock("tone", async (importOriginal) => {
     };
 });
 
-import { createOrUpdatePattern } from "@audio/pattern-generator.js";
+import { createPatternController } from "@audio/pattern-generator.js";
 
 describe("Production DOM Parity Suite", () => {
-    const appWindow = window as unknown as WebArpeggiatorWindow;
     let htmlContent: string;
+
+    function updatePattern() {
+        const direction =
+            document.querySelector<HTMLInputElement>("input[name='pattern-direction']:checked")
+                ?.value || "up";
+        const controller = createPatternController({
+            getSynth: () => null,
+            getIsPlaying: () => false,
+            onPatternChange: () => {},
+        });
+        return controller.update({
+            baseNotes: document.getElementById("notes")?.getAttribute("value")?.split(/\s+/) || [],
+            octaveRange: 1,
+            octaveShift: 0,
+            interval: "16n",
+            gate: 0.8,
+            direction,
+            quantize: { enabled: false, root: "C", scale: "major" },
+        }) as unknown as MockPatternInstance | null;
+    }
 
     beforeEach(() => {
         const htmlPath = resolve(__dirname, "../../index.html");
@@ -85,19 +97,9 @@ describe("Production DOM Parity Suite", () => {
             element.remove();
         });
         document.body.innerHTML = doc.body.innerHTML;
-
-        appWindow.currentOctaveRange = 1;
-        appWindow.currentOctaveShift = 0;
-        appWindow.isPlaying = false;
     });
 
     afterEach(() => {
-        if (appWindow.arpPattern) {
-            try {
-                appWindow.arpPattern.dispose();
-            } catch {}
-            appWindow.arpPattern = null;
-        }
         document.body.innerHTML = "";
     });
 
@@ -169,9 +171,7 @@ describe("Production DOM Parity Suite", () => {
                 targetRadio.checked = true;
             }
 
-            createOrUpdatePattern();
-
-            const pattern = appWindow.arpPattern;
+            const pattern = updatePattern();
             expect(pattern).toBeDefined();
             expect(pattern?.pattern).toBe(expectedPattern);
             expect(pattern?.values.length).toBeGreaterThan(0);

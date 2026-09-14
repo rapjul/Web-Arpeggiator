@@ -13,7 +13,6 @@
  * @module audio-engine
  */
 
-import * as Tone from "tone";
 import {
     OFFLINE_AUTO_PAN_DEPTH,
     OFFLINE_AUTO_PAN_INTERVAL,
@@ -24,6 +23,7 @@ import {
     OFFLINE_DELAY_INTERVAL,
     OFFLINE_REVERB_DECAY_SECONDS,
 } from "@core/export-duration.js";
+import * as Tone from "tone";
 
 /**
  * Creates the audio engine and all Tone.js nodes.
@@ -61,9 +61,6 @@ import {
  * @param {HTMLInputElement} [context.dom.driveMixSlider] - Drive distortion mix <input>.
  * @param {HTMLInputElement} [context.dom.chorusMixSlider] - Chorus effect mix <input>.
  * @param {HTMLInputElement} [context.dom.autoPanMixSlider] - Auto-pan effect mix <input>.
- * @param {object} context.actions - App action callbacks.
- * @param {Function} context.actions.syncPatternModuleState - Syncs pattern state.
- * @param {Function} context.actions.showToast - Toast notification.
  * @typedef {object} AudioEngine
  * @property {Tone.Analyser} analyser - Waveform analyser node.
  * @property {Tone.Meter} meter - Real-time smoothed VU meter node.
@@ -87,7 +84,7 @@ import {
  * @returns {AudioEngine} Public API.
  */
 export function createAudioEngine(context) {
-    const { dom, actions } = context;
+    const { dom } = context;
 
     // --- Internal state ---
     let currentWaveform = "sine";
@@ -283,8 +280,6 @@ export function createAudioEngine(context) {
      */
     function setSynth(type = "synth") {
         activeSynth = synths[type] || synths.synth;
-        actions.syncPatternModuleState();
-
         // Apply current ADSR to new synth
         updateEnvelope();
 
