@@ -2,11 +2,27 @@ import { createTransportController } from "@ui/transport-controller.js";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
 const controllers: Array<ReturnType<typeof createTransportController>> = [];
+type TransportControllerDependencies = Parameters<typeof createTransportController>[0];
+
+interface TransportFixture {
+    controller: ReturnType<typeof createTransportController>;
+    dependencies: TransportControllerDependencies;
+    flushFrame: (frameId: number) => void;
+    matchMedia: ReturnType<typeof vi.fn>;
+    onStart: ReturnType<typeof vi.fn>;
+    onStop: ReturnType<typeof vi.fn>;
+    playStopButton: HTMLButtonElement;
+    requestAnimationFrame: ReturnType<typeof vi.fn>;
+    setBarTop: (value: number) => void;
+    setDesktop: (value: boolean) => void;
+    setIsPlaying: (value: boolean) => void;
+    stickyTransportBar: HTMLDivElement;
+}
 
 /**
  * Builds transport controls with an isolated viewport state.
  */
-function createFixture() {
+function createFixture(): TransportFixture {
     const playStopButton = document.createElement("button");
     const stickyTransportBar = document.createElement("div");
     let isPlaying = false;
@@ -14,13 +30,19 @@ function createFixture() {
     let barTop = 0;
     const onStart = vi.fn().mockResolvedValue(undefined);
     const onStop = vi.fn();
+    const pendingFrames = new Map<number, FrameRequestCallback>();
+    let nextFrameId = 1;
     const requestAnimationFrame = vi.fn((callback: FrameRequestCallback) => {
-        callback(0);
-        return 1;
+        const frameId = nextFrameId;
+        nextFrameId += 1;
+        pendingFrames.set(frameId, callback);
+        return frameId;
     });
+    const cancelAnimationFrame = vi.fn((frameId: number) => pendingFrames.delete(frameId));
     const matchMedia = vi.fn(() => ({ matches: isDesktop }));
     const windowRef = {
         addEventListener: window.addEventListener.bind(window),
+        cancelAnimationFrame,
         matchMedia,
         requestAnimationFrame,
         removeEventListener: window.removeEventListener.bind(window),
@@ -30,17 +52,25 @@ function createFixture() {
     );
     document.body.append(playStopButton, stickyTransportBar);
 
-    const controller = createTransportController({
+    const dependencies: TransportControllerDependencies = {
         dom: { playStopButton, stickyTransportBar },
         windowRef,
         getIsPlaying: () => isPlaying,
         onStart,
         onStop,
-    });
+    };
+    const controller = createTransportController(dependencies);
     controllers.push(controller);
 
     return {
         controller,
+        dependencies,
+        flushFrame: (frameId: number) => {
+            const callback = pendingFrames.get(frameId);
+            if (!callback) return;
+            pendingFrames.delete(frameId);
+            callback(0);
+        },
         matchMedia,
         onStart,
         onStop,
@@ -83,9 +113,10 @@ describe("transport controller", () => {
         expect(onStop).toHaveBeenCalledOnce();
     });
 
-    test("updates sticky styling on viewport changes and defers scroll work", () => {
+    test("updates sticky styling on viewport changes and coalesces scroll work", () => {
         const {
             controller,
+            flushFrame,
             matchMedia,
             requestAnimationFrame,
             setBarTop,
@@ -104,7 +135,24 @@ describe("transport controller", () => {
         setDesktop(true);
         setBarTop(-4);
         window.dispatchEvent(new Event("scroll"));
+        window.dispatchEvent(new Event("scroll"));
         expect(requestAnimationFrame).toHaveBeenCalledOnce();
+        expect(stickyTransportBar.classList.contains("is-stuck")).toBe(false);
+        flushFrame(1);
         expect(stickyTransportBar.classList.contains("is-stuck")).toBe(true);
+    });
+
+    test("cancels a queued sticky update during teardown", () => {
+        const { controller, flushFrame, requestAnimationFrame, stickyTransportBar } =
+            createFixture();
+        controller.initialize();
+        stickyTransportBar.classList.remove("is-stuck");
+
+        window.dispatchEvent(new Event("scroll"));
+        expect(requestAnimationFrame).toHaveBeenCalledOnce();
+
+        controller.destroy();
+        flushFrame(1);
+        expect(stickyTransportBar.classList.contains("is-stuck")).toBe(false);
     });
 });

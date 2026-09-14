@@ -26,6 +26,8 @@ export function createTransportController(dependencies) {
     const { playStopButton, stickyTransportBar } = dom;
     let isInitialized = false;
     let stickyUpdateScheduled = false;
+    /** @type {number | null} */
+    let pendingStickyUpdateFrame = null;
     /** @type {AbortController | null} */
     let listenerController = null;
 
@@ -50,7 +52,8 @@ export function createTransportController(dependencies) {
     function scheduleStickyUpdate() {
         if (stickyUpdateScheduled) return;
         stickyUpdateScheduled = true;
-        windowRef.requestAnimationFrame(() => {
+        pendingStickyUpdateFrame = windowRef.requestAnimationFrame(() => {
+            pendingStickyUpdateFrame = null;
             stickyUpdateScheduled = false;
             updateStickyAppearance();
         });
@@ -104,6 +107,10 @@ export function createTransportController(dependencies) {
      * @returns {void}
      */
     function destroy() {
+        if (pendingStickyUpdateFrame !== null) {
+            windowRef.cancelAnimationFrame(pendingStickyUpdateFrame);
+            pendingStickyUpdateFrame = null;
+        }
         listenerController?.abort();
         listenerController = null;
         isInitialized = false;
