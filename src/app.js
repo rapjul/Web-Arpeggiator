@@ -39,6 +39,7 @@ import { initializeKeyboardControls } from "@ui/keyboard-controller.js";
 import { createHistoryController } from "@ui/history-controller.js";
 import { createNoteStepController } from "@ui/note-step-controller.js";
 import { createOnboardingController } from "@ui/onboarding-controller.js";
+import { createEffectsControlsController } from "@ui/effects-controls-controller.js";
 import { createPatternControlsController } from "@ui/pattern-controls-controller.js";
 import { createPresetController } from "@ui/preset-controller.js";
 import { createSynthControlsController } from "@ui/synth-controls-controller.js";
@@ -2207,11 +2208,42 @@ function initializeApp() {
     });
     synthControlsController.initialize();
 
-    postGainSlider.addEventListener("input", () => {
-        const db = parseFloat(postGainSlider.value);
-        debouncedSetPostGain(db);
-        postGainValue.textContent = String(dbToPercent(db));
+    const effectsControlsController = createEffectsControlsController({
+        dom: {
+            postGainSlider,
+            postGainValue,
+            filterCutoffSlider,
+            filterCutoffValue,
+            filterResonanceSlider,
+            filterResonanceValue,
+            driveMixSlider,
+            driveMixValue,
+            chorusMixSlider,
+            chorusMixValue,
+            autoPanMixSlider,
+            autoPanMixValue,
+            delayMixSlider,
+            delayMixValue,
+            reverbMixSlider,
+            reverbMixValue,
+        },
+        formatPostGain: dbToPercent,
+        onPostGainChange: debouncedSetPostGain,
+        onFilterCutoffChange: debouncedSetFilterCutoff,
+        onFilterResonanceChange: debouncedSetFilterQ,
+        onDriveMixChange: (value) => {
+            if (audioEngine?.distortion) audioEngine.distortion.wet.value = value;
+        },
+        onChorusMixChange: (value) => {
+            if (audioEngine?.chorus) audioEngine.chorus.wet.value = value;
+        },
+        onAutoPanMixChange: (value) => {
+            if (audioEngine?.autoPanner) audioEngine.autoPanner.wet.value = value;
+        },
+        onDelayMixChange: debouncedSetDelayMix,
+        onReverbMixChange: debouncedSetReverbMix,
     });
+    effectsControlsController.initialize();
 
     bpmSlider.addEventListener("input", () => {
         bpmValue.textContent = bpmSlider.value;
@@ -2244,51 +2276,6 @@ function initializeApp() {
     swingSlider.addEventListener("input", () => {
         debouncedSetSwing(parseFloat(swingSlider.value));
         swingValue.textContent = parseFloat(swingSlider.value).toFixed(2);
-    });
-
-    // --- Filter ---
-    filterCutoffSlider.addEventListener("input", () => {
-        const freq = parseFloat(filterCutoffSlider.value);
-        debouncedSetFilterCutoff(freq);
-        filterCutoffValue.textContent = freq.toFixed(0);
-    });
-    filterResonanceSlider.addEventListener("input", () => {
-        const res = parseFloat(filterResonanceSlider.value);
-        debouncedSetFilterQ(res);
-        filterResonanceValue.textContent = res.toFixed(1);
-    });
-
-    // --- Effects ---
-    if (driveMixSlider) {
-        driveMixSlider.addEventListener("input", () => {
-            const mix = parseFloat(driveMixSlider.value);
-            if (audioEngine?.distortion) audioEngine.distortion.wet.value = mix;
-            if (driveMixValue) driveMixValue.textContent = mix.toFixed(2);
-        });
-    }
-    if (chorusMixSlider) {
-        chorusMixSlider.addEventListener("input", () => {
-            const mix = parseFloat(chorusMixSlider.value);
-            if (audioEngine?.chorus) audioEngine.chorus.wet.value = mix;
-            if (chorusMixValue) chorusMixValue.textContent = mix.toFixed(2);
-        });
-    }
-    if (autoPanMixSlider) {
-        autoPanMixSlider.addEventListener("input", () => {
-            const mix = parseFloat(autoPanMixSlider.value);
-            if (audioEngine?.autoPanner) audioEngine.autoPanner.wet.value = mix;
-            if (autoPanMixValue) autoPanMixValue.textContent = mix.toFixed(2);
-        });
-    }
-    delayMixSlider.addEventListener("input", () => {
-        const mix = parseFloat(delayMixSlider.value);
-        debouncedSetDelayMix(mix);
-        delayMixValue.textContent = mix.toFixed(2);
-    });
-    reverbMixSlider.addEventListener("input", () => {
-        const mix = parseFloat(reverbMixSlider.value);
-        debouncedSetReverbMix(mix);
-        reverbMixValue.textContent = mix.toFixed(2);
     });
 
     // --- Recording Controls ---
