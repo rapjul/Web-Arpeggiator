@@ -37,6 +37,7 @@ import { createSettingsManager } from "@storage/settings-manager.js";
 import { setupKeyboardNavigation } from "@ui/a11y-navigation.js";
 import { initializeKeyboardControls } from "@ui/keyboard-controller.js";
 import { createNoteStepController } from "@ui/note-step-controller.js";
+import { createPresetController } from "@ui/preset-controller.js";
 import { createToastManager } from "@ui/ui-feedback.js";
 import { FACTORY_PRESETS } from "./config/factory-presets.js";
 
@@ -745,78 +746,6 @@ function initializeApp() {
         }
     }
 
-    // --- Preset UI Helpers ---
-
-    /**
-     * Creates a human-readable display name from a preset record.
-     * @param {object} record - Preset record from presets-store.
-     * @returns {string} Display label.
-     */
-    function getPresetDisplayName(record) {
-        const savedAt = record.savedAt ? new Date(record.savedAt) : null;
-        const savedAtLabel =
-            savedAt && !Number.isNaN(savedAt.getTime()) ? savedAt.toLocaleString() : "unknown date";
-        return `${record.name || record.filename || "Untitled"} (${savedAtLabel})`;
-    }
-
-    /**
-     * Rebuilds the saved-preset <select> from factory presets and IndexedDB.
-     * @param {string} [selectedId=''] - The preset id to select after refresh.
-     * @returns {Promise<void>}
-     */
-    async function refreshSavedPresetList(selectedId) {
-        if (selectedId === undefined) selectedId = savedPresetSelect?.value || "";
-        if (!savedPresetSelect) return;
-        try {
-            const store = window.WebArpPresetStore;
-            const records = store ? await store.list() : [];
-            if (store) {
-                hideBrowserStorageRecovery();
-            } else {
-                showBrowserStorageRecovery();
-            }
-            savedPresetSelect.innerHTML = "";
-
-            // 1. Factory Presets group
-            const factoryGroup = document.createElement("optgroup");
-            factoryGroup.label = "Factory Presets";
-            FACTORY_PRESETS.forEach((preset) => {
-                const option = document.createElement("option");
-                option.value = preset.id;
-                option.textContent = preset.name;
-                factoryGroup.appendChild(option);
-            });
-            savedPresetSelect.appendChild(factoryGroup);
-
-            // 2. User Presets group
-            const userGroup = document.createElement("optgroup");
-            userGroup.label = "User Presets";
-            if (records.length === 0) {
-                const option = document.createElement("option");
-                option.value = "";
-                option.disabled = true;
-                option.textContent = "— No saved user presets —";
-                userGroup.appendChild(option);
-            } else {
-                records.forEach((record) => {
-                    const option = document.createElement("option");
-                    option.value = record.id;
-                    option.textContent = getPresetDisplayName(record);
-                    userGroup.appendChild(option);
-                });
-            }
-            savedPresetSelect.appendChild(userGroup);
-
-            // Try to re-select the previously selected id
-            if (selectedId && [...savedPresetSelect.options].some((o) => o.value === selectedId)) {
-                savedPresetSelect.value = selectedId;
-            }
-        } catch (error) {
-            console.warn("Failed to refresh saved preset list:", error);
-            showBrowserStorageRecovery();
-        }
-    }
-
     /**
      * Displays non-destructive recovery steps after a browser storage error.
      * @returns {void}
@@ -875,6 +804,45 @@ function initializeApp() {
         logger: log,
     });
     const { showToast } = toastManager;
+
+    const presetController = createPresetController({
+        dom: {
+            savedPresetSelect,
+            soundStartersGrid,
+            soundStartersDetails,
+        },
+        documentRef: document,
+        storage: window.localStorage,
+        getPresetStore: () => window.WebArpPresetStore,
+        onFactoryPresetSelected: async (preset) => {
+            applySettingsWithHistory(mergeSettings(DEFAULT_SETTINGS, preset.settings));
+            if (presetNameInput) {
+                presetNameInput.value = preset.name;
+            }
+            if (savedPresetSelect) {
+                savedPresetSelect.value = preset.id;
+            }
+            if (!isPlaying) {
+                try {
+                    await startPlayback();
+                } catch (error) {
+                    console.warn("AudioContext failed to start from sound starter:", error);
+                    return;
+                }
+            }
+            showToast(`Loaded preset: ${preset.name}`, "info");
+            scheduleLastSessionSave();
+        },
+        onStorageAvailable: hideBrowserStorageRecovery,
+        onStorageUnavailable: showBrowserStorageRecovery,
+        logger: console,
+    });
+    const {
+        buildSoundStartersStrip,
+        clearActiveSoundStarterCard,
+        refreshSavedPresetList,
+        setActiveSoundStarterCard,
+    } = presetController;
 
     // 1. Settings Manager — serialization/restoration remains safe before audio starts.
     const settingsManager = createSettingsManager({
@@ -1902,133 +1870,6 @@ function initializeApp() {
     }
 
     // --- Sound Starters ---
-
-    /**
-     * Highlights a specific Sound Starter card by preset ID, or clears all active cards if null.
-     *
-     * @param {string | null} [presetId=null] - The factory preset ID to mark active, or null to clear.
-     * @returns {void}
-     */
-    function setActiveSoundStarterCard(presetId = null) {
-        if (!soundStartersGrid) return;
-        const cards = soundStartersGrid.querySelectorAll(".sound-starter-card");
-        cards.forEach((card) => {
-            const isTarget = Boolean(presetId && card.getAttribute("data-preset-id") === presetId);
-            if (isTarget) {
-                card.classList.add("active");
-                card.setAttribute("aria-pressed", "true");
-            } else {
-                card.classList.remove("active");
-                card.setAttribute("aria-pressed", "false");
-            }
-        });
-    }
-
-    /**
-     * Clears the active highlight state from all Sound Starter preset cards.
-     *
-     * @returns {void}
-     */
-    function clearActiveSoundStarterCard() {
-        setActiveSoundStarterCard(null);
-    }
-
-    /**
-     * Dynamically builds the Sound Starters factory presets card strip and wires interactions.
-     *
-     * @returns {void}
-     */
-    function buildSoundStartersStrip() {
-        if (!soundStartersGrid) return;
-        soundStartersGrid.innerHTML = "";
-
-        FACTORY_PRESETS.forEach((preset) => {
-            const card = document.createElement("button");
-            card.type = "button";
-            card.className = "sound-starter-card p-2.5 focus-visible:outline-none";
-            card.setAttribute("data-preset-id", preset.id);
-            card.setAttribute("aria-pressed", "false");
-            card.setAttribute(
-                "aria-label",
-                `Load ${preset.name} preset, ${preset.settings.bpm} BPM`,
-            );
-
-            const accentBar = document.createElement("div");
-            accentBar.className = `sound-starter-accent bg-gradient-to-r ${preset.accentGradient || "from-blue-500 to-indigo-500"} mb-2 rounded-full`;
-
-            const topRow = document.createElement("div");
-            topRow.className = "flex items-center justify-between gap-1 mb-1";
-
-            const emojiSpan = document.createElement("span");
-            emojiSpan.className = "text-xl shrink-0";
-            emojiSpan.textContent = preset.emoji || "🎵";
-
-            const bpmSpan = document.createElement("span");
-            bpmSpan.className =
-                "text-[11px] font-mono font-medium px-1.5 py-0.5 rounded bg-gray-900/60 text-gray-300 shrink-0";
-            bpmSpan.textContent = `${preset.settings.bpm} BPM`;
-
-            topRow.appendChild(emojiSpan);
-            topRow.appendChild(bpmSpan);
-
-            const title = document.createElement("div");
-            title.className = "text-xs font-semibold text-gray-100 truncate mb-0.5";
-            title.textContent = preset.name;
-
-            const tagline = document.createElement("div");
-            tagline.className = "text-[10px] text-gray-400 line-clamp-2 leading-tight";
-            tagline.textContent = preset.tagline || "";
-
-            card.appendChild(accentBar);
-            card.appendChild(topRow);
-            card.appendChild(title);
-            card.appendChild(tagline);
-
-            card.addEventListener("click", async () => {
-                applySettingsWithHistory(mergeSettings(DEFAULT_SETTINGS, preset.settings));
-                if (presetNameInput) {
-                    presetNameInput.value = preset.name;
-                }
-                if (savedPresetSelect) {
-                    savedPresetSelect.value = preset.id;
-                }
-                setActiveSoundStarterCard(preset.id);
-                if (!isPlaying) {
-                    try {
-                        await startPlayback();
-                    } catch (error) {
-                        console.warn("AudioContext failed to start from sound starter:", error);
-                        return;
-                    }
-                }
-                showToast(`Loaded preset: ${preset.name}`, "info");
-                scheduleLastSessionSave();
-            });
-
-            soundStartersGrid.appendChild(card);
-        });
-
-        if (soundStartersDetails) {
-            try {
-                const storedOpen = localStorage.getItem("soundStartersOpen");
-                if (storedOpen === "false") {
-                    soundStartersDetails.removeAttribute("open");
-                } else if (storedOpen === "true") {
-                    soundStartersDetails.setAttribute("open", "");
-                }
-            } catch (err) {
-                console.warn("Could not read soundStartersOpen from localStorage:", err);
-            }
-
-            soundStartersDetails.addEventListener("toggle", () => {
-                try {
-                    localStorage.setItem("soundStartersOpen", String(soundStartersDetails.open));
-                } catch (err) {
-                    console.warn("Could not write soundStartersOpen to localStorage:", err);
-                }
-            });
-        }
-    }
 
     // --- Sound Starters & Quick Start Onboarding ---
 
