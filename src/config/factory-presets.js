@@ -5,6 +5,8 @@
  * @module factory-presets
  */
 
+/** @typedef {import("../core/settings-contract.js").ArpeggiatorSettings} ArpeggiatorSettings */
+
 /**
  * @typedef {object} FactoryPreset
  * @property {string} id
@@ -13,7 +15,7 @@
  * @property {string} tagline
  * @property {string} accentGradient
  * @property {true} isFactory
- * @property {Record<string, unknown>} settings
+ * @property {Partial<ArpeggiatorSettings>} settings
  */
 
 /** @type {ReadonlyArray<FactoryPreset>} */

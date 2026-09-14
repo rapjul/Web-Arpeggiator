@@ -24,6 +24,7 @@ import {
     normalizeNotesSequence,
 } from "@core/pattern-core.js";
 import { generateRandomNotes } from "@core/randomizer.js";
+import { DEFAULT_SETTINGS, mergeSettings } from "@core/settings-contract.js";
 import { createSettingsHistory } from "@core/settings-history.js";
 import {
     hasPresetChanges,
@@ -38,6 +39,8 @@ import { initializeKeyboardControls } from "@ui/keyboard-controller.js";
 import { createNoteStepController } from "@ui/note-step-controller.js";
 import { createToastManager } from "@ui/ui-feedback.js";
 import { FACTORY_PRESETS } from "./config/factory-presets.js";
+
+/** @typedef {import("./config/factory-presets.js").FactoryPreset} FactoryPreset */
 
 // --- Global Config ---
 // Set to true to show a toast message when audio is ready (for testing)
@@ -1982,7 +1985,7 @@ function initializeApp() {
             card.appendChild(tagline);
 
             card.addEventListener("click", async () => {
-                applySettingsWithHistory(preset.settings);
+                applySettingsWithHistory(mergeSettings(DEFAULT_SETTINGS, preset.settings));
                 if (presetNameInput) {
                     presetNameInput.value = preset.name;
                 }
@@ -2168,14 +2171,14 @@ function initializeApp() {
     /**
      * Handles selecting a factory preset from the Quick Start onboarding dialog.
      *
-     * @param {object} preset - The selected factory preset definition.
+     * @param {FactoryPreset} preset - The selected factory preset definition.
      * @returns {Promise<void>}
      */
     async function handleQuickStartPresetClick(preset) {
         closeQuickStartModal();
         enablePlayStopButton();
         markVisited();
-        applySettingsWithHistory(preset.settings);
+        applySettingsWithHistory(mergeSettings(DEFAULT_SETTINGS, preset.settings));
         if (presetNameInput) {
             presetNameInput.value = preset.name;
         }
@@ -3136,7 +3139,7 @@ function initializeApp() {
             // Check if selected preset is a Factory Preset
             const factoryPreset = FACTORY_PRESETS.find((p) => p.id === selectedId);
             if (factoryPreset) {
-                applySettingsWithHistory(factoryPreset.settings);
+                applySettingsWithHistory(mergeSettings(DEFAULT_SETTINGS, factoryPreset.settings));
                 if (presetNameInput) presetNameInput.value = factoryPreset.name;
                 setActiveSoundStarterCard(factoryPreset.id);
                 updateTestState({
@@ -3563,19 +3566,9 @@ function initializeApp() {
     //    Initial Setup
     // ==================================================================
 
-    currentNotes = notesInput.value.trim().split(/\s+/).filter(Boolean);
-
-    updateButtonGroup(octaveShiftButtons, currentOctaveShift, "data-shift");
-    updateButtonGroup(octaveRangeButtons, currentOctaveRange, "data-range");
-    updateWaveformButtons(currentWaveform);
-
-    scaleQuantizeToggle.checked = true;
-    updateScaleQuantizeUi();
-    updateScaleQuantizeToggleText();
+    loadAllSettings(DEFAULT_SETTINGS);
     keyboardToggle.checked = false;
     updateKeyboardControlUi();
-    setSelectedPatternDirection("up");
-    createOrUpdatePattern();
 
     defaultSettings = getAllSettings();
     settingsHistory.initialize(defaultSettings);
