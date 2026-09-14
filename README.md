@@ -8,6 +8,12 @@ Web Arpeggiator is an interactive music tool that generates flowing musical patt
 
 **Live Demo**: [Play Web Arpeggiator on GitHub Pages](https://rapjul.github.io/Web-Arpeggiator/)
 
+## Architecture
+
+The application separates pure music logic (`src/core/`), Tone.js synthesis and scheduling (`src/audio/`), browser persistence (`src/storage/`), and DOM rendering and interaction (`src/ui/`). `src/app.js` composes those modules and owns application state.
+
+UI controllers own their event listeners, DOM value formatting, and listener teardown. Audio graph updates remain application-owned callbacks so user interactions do not communicate through browser globals. The current controller boundaries cover onboarding, history, transport, pattern, synth, filter, and effects controls, plus presets, virtual keyboard input, note-step feedback, accessibility navigation, and the visualizer.
+
 ## Features
 
 ### 🎹 Synthesis
