@@ -2553,6 +2553,21 @@
                                     Clear All
                                 </button>
                             </div>
+                            <details
+                                id="browser-storage-recovery"
+                                class="hidden mt-3 rounded-md border border-amber-500/50 bg-amber-950/30 p-2 text-xs text-amber-100"
+                            >
+                                <summary class="cursor-pointer font-semibold text-amber-300">
+                                    Browser storage recovery
+                                </summary>
+                                <p class="mt-2 leading-relaxed">
+                                    Retry the failed action first. If it keeps failing, use Export JSON to
+                                    back up the current preset, then delete
+                                    <code>web-arpeggiator-presets</code> in your browser's site-storage
+                                    tools and reload. Deleting it permanently removes locally saved presets
+                                    and the last restored session.
+                                </p>
+                            </details>
                         </div>
                     </div>
 

@@ -16,6 +16,40 @@ export const LAST_SESSION_ID = "current";
 let databasePromise = null;
 
 /**
+ * Clears a cached database-open attempt only when it is still the active one.
+ * A failed IndexedDB open can be transient (for example, while browser storage
+ * is being released). Keeping that rejected promise would make every later
+ * preset and session operation fail until the page reloads.
+ *
+ * @param {Promise<IDBDatabase>} attempt - The open attempt that settled.
+ * @returns {void}
+ */
+function clearCachedDatabaseAttempt(attempt) {
+    if (databasePromise === attempt) {
+        databasePromise = null;
+    }
+}
+
+/**
+ * Releases a cached connection after another browser context requests a
+ * database version change. A later operation can then reopen the database.
+ *
+ * @param {IDBDatabase} database - Open IndexedDB database handle.
+ * @param {Promise<IDBDatabase>} attempt - The successful open attempt.
+ * @returns {void}
+ */
+function releaseDatabaseOnVersionChange(database, attempt) {
+    if (typeof database.addEventListener !== "function") {
+        return;
+    }
+
+    database.addEventListener("versionchange", () => {
+        database.close();
+        clearCachedDatabaseAttempt(attempt);
+    });
+}
+
+/**
  * Creates a structured clone of preset settings for safe IndexedDB writes.
  *
  * @param {object} settings - Settings object collected from the app UI.
@@ -73,7 +107,7 @@ export function openDatabase() {
     }
 
     if (!databasePromise) {
-        databasePromise = new Promise((resolve, reject) => {
+        const openAttempt = new Promise((resolve, reject) => {
             const request = indexedDB.open(DB_NAME, DB_VERSION);
 
             request.addEventListener("upgradeneeded", () => {
@@ -102,6 +136,16 @@ export function openDatabase() {
                 reject(request.error || new Error("Unable to open IndexedDB"));
             });
         });
+
+        databasePromise = openAttempt;
+        openAttempt.then(
+            (database) => {
+                releaseDatabaseOnVersionChange(database, openAttempt);
+            },
+            () => {
+                clearCachedDatabaseAttempt(openAttempt);
+            },
+        );
     }
 
     return databasePromise;

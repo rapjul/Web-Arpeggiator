@@ -84,8 +84,66 @@ test("Preset UI Hierarchy & Visualizer Status Suite", async (): Promise<void> =>
     ]);
     expect(checkPresetSaved).toBe('"success"');
 
-    // 4. Test Visualizer Toggle & Pause Controls
-    console.log("Step 4: Testing Visualizer Toggle and Pause Controls...");
+    // 4. Test browser-storage recovery guidance after a failed save and successful retry.
+    console.log("Step 4: Testing browser storage recovery guidance...");
+    const recoverySubmission: string = await runBrowser([
+        "eval",
+        `(() => {
+        const recovery = document.getElementById("browser-storage-recovery");
+        const saveBrowserBtn = document.getElementById("save-preset-to-browser-button");
+        const store = window.WebArpPresetStore;
+        if (!recovery || !saveBrowserBtn || !store) return "recovery-controls-missing";
+
+        const originalSave = store.save;
+        store.save = async () => {
+            store.save = originalSave;
+            throw new Error("Temporary IndexedDB failure");
+        };
+        window.__WEB_ARP_TEST__.lastSaveFinished = false;
+        saveBrowserBtn.click();
+        return "submitted";
+    })()`,
+    ]);
+    expect(recoverySubmission).toBe('"submitted"');
+    await runBrowser(["wait", "--fn", "window.__WEB_ARP_TEST__.lastSaveFinished === true"]);
+
+    const recoveryVisible: string = await runBrowser([
+        "eval",
+        `(() => {
+        const recovery = document.getElementById("browser-storage-recovery");
+        return recovery && !recovery.classList.contains("hidden") && recovery.open
+            ? "visible"
+            : "not-visible";
+    })()`,
+    ]);
+    expect(recoveryVisible).toBe('"visible"');
+
+    const retrySubmission: string = await runBrowser([
+        "eval",
+        `(() => {
+        const saveBrowserBtn = document.getElementById("save-preset-to-browser-button");
+        if (!saveBrowserBtn) return "retry-button-missing";
+        window.__WEB_ARP_TEST__.lastSaveFinished = false;
+        saveBrowserBtn.click();
+        return "submitted";
+    })()`,
+    ]);
+    expect(retrySubmission).toBe('"submitted"');
+    await runBrowser(["wait", "--fn", "window.__WEB_ARP_TEST__.lastSaveFinished === true"]);
+
+    const recoveryHidden: string = await runBrowser([
+        "eval",
+        `(() => {
+        const recovery = document.getElementById("browser-storage-recovery");
+        return recovery && recovery.classList.contains("hidden") && !recovery.open
+            ? "hidden"
+            : "still-visible";
+    })()`,
+    ]);
+    expect(recoveryHidden).toBe('"hidden"');
+
+    // 5. Test Visualizer Toggle & Pause Controls
+    console.log("Step 5: Testing Visualizer Toggle and Pause Controls...");
     const visualizerControlsResult: string = await runBrowser([
         "eval",
         `(async () => {
@@ -133,8 +191,8 @@ test("Preset UI Hierarchy & Visualizer Status Suite", async (): Promise<void> =>
     ]);
     expect(visualizerControlsResult).toBe('"success"');
 
-    // 5. Test Factory Preset Loading
-    console.log("Step 5: Testing Factory Preset loading...");
+    // 6. Test Factory Preset Loading
+    console.log("Step 6: Testing Factory Preset loading...");
     const factoryPresetResult: string = await runBrowser([
         "eval",
         `(async () => {
