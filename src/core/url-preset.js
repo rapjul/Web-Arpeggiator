@@ -7,11 +7,11 @@
  * @module url-preset
  */
 
-import { normalizeNotesSequence } from "./pattern-core.js";
 import {
     normalizeOfflineExportMode,
     normalizeOfflineExportTailSeconds,
 } from "./export-duration.js";
+import { normalizeNotesSequence } from "./pattern-core.js";
 
 /**
  * Recognized query parameter keys mapped to preset settings.
@@ -112,6 +112,7 @@ export const ALLOWED_SCALES = Object.freeze([
     "mixolydian",
     "locrian",
     "blues",
+    "majorPentatonic",
     "chromatic",
 ]);
 
