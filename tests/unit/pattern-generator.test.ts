@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 interface MockPatternInstance {
     values: string[];
     pattern: string;
-    interval: string;
+    interval: string | number;
     index: number;
     isStarted: boolean;
     isDisposed: boolean;
@@ -19,7 +19,7 @@ vi.mock("tone", async (importOriginal) => {
     class MockPattern implements MockPatternInstance {
         values: string[];
         pattern: string;
-        interval = "16n";
+        interval: string | number = "16n";
         index = 0;
         isStarted = false;
         isDisposed = false;
@@ -48,7 +48,12 @@ vi.mock("tone", async (importOriginal) => {
         ...actual,
         Pattern: MockPattern,
         Draw: { schedule: (fn: () => void) => fn() },
-        Time: () => ({ toSeconds: () => 0.25 }),
+        Time: (interval: string | number) => {
+            if (interval === "invalid") {
+                throw new Error("invalid interval");
+            }
+            return { toSeconds: () => 0.25 };
+        },
     };
 });
 
@@ -80,6 +85,23 @@ describe("Pattern controller", () => {
         expect(pattern.interval).toBe("16n");
         expect(controller.getPattern()).toBe(pattern);
         expect(onPatternChange).toHaveBeenLastCalledWith(pattern);
+    });
+
+    it("uses a valid scheduling interval when duration conversion fails", () => {
+        const synth = { triggerAttackRelease: vi.fn() };
+        const controller = createPatternController({
+            getSynth: () => synth,
+            getIsPlaying: () => false,
+        });
+
+        const pattern = controller.update({
+            ...baseSettings(),
+            interval: "invalid",
+        }) as unknown as MockPatternInstance;
+
+        expect(pattern.interval).toBe(0.1);
+        pattern.callback(0.5, "C4");
+        expect(synth.triggerAttackRelease).toHaveBeenCalledWith("C4", expect.closeTo(0.075), 0.5);
     });
 
     it("schedules synth attack/release and the mapped indicator callback through injections", () => {

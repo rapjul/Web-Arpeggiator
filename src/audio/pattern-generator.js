@@ -91,10 +91,13 @@ export function createPatternController({
             stepToBaseIndexMap = computedMap;
             if (finalNotes.length === 0) return null;
 
+            /** @type {string|number} */
+            let patternInterval = settings.interval;
             let durationSeconds = 0.1;
             try {
-                durationSeconds = Tone.Time(settings.interval).toSeconds() * settings.gate;
+                durationSeconds = Tone.Time(patternInterval).toSeconds() * settings.gate;
             } catch {
+                patternInterval = 0.1;
                 durationSeconds = 0.1 * settings.gate;
             }
 
@@ -113,7 +116,7 @@ export function createPatternController({
                 finalDirection,
             );
 
-            patternInstance.interval = settings.interval;
+            patternInstance.interval = patternInterval;
             pattern = patternInstance;
             onPatternChange(pattern);
             if (getIsPlaying()) pattern.start(0);
