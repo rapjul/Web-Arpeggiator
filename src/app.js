@@ -41,6 +41,7 @@ import { createNoteStepController } from "@ui/note-step-controller.js";
 import { createOnboardingController } from "@ui/onboarding-controller.js";
 import { createPatternControlsController } from "@ui/pattern-controls-controller.js";
 import { createPresetController } from "@ui/preset-controller.js";
+import { createSynthControlsController } from "@ui/synth-controls-controller.js";
 import { createTransportController } from "@ui/transport-controller.js";
 import { createToastManager } from "@ui/ui-feedback.js";
 import { FACTORY_PRESETS } from "./config/factory-presets.js";
@@ -1948,24 +1949,6 @@ function initializeApp() {
         audioEngine?.updateEnvelope();
     }, 16);
 
-    // --- ADSR Listeners ---
-    envAttackSlider.addEventListener("input", () => {
-        envAttackValue.textContent = parseFloat(envAttackSlider.value).toFixed(2);
-        debouncedUpdateEnvelope();
-    });
-    envDecaySlider.addEventListener("input", () => {
-        envDecayValue.textContent = parseFloat(envDecaySlider.value).toFixed(2);
-        debouncedUpdateEnvelope();
-    });
-    envSustainSlider.addEventListener("input", () => {
-        envSustainValue.textContent = parseFloat(envSustainSlider.value).toFixed(2);
-        debouncedUpdateEnvelope();
-    });
-    envReleaseSlider.addEventListener("input", () => {
-        envReleaseValue.textContent = parseFloat(envReleaseSlider.value).toFixed(2);
-        debouncedUpdateEnvelope();
-    });
-
     // --- Randomize Notes ---
     randomizeNotesButton.addEventListener("click", () => {
         const isQuantized = scaleQuantizeToggle.checked && scaleTypeSelect.value !== "chromatic";
@@ -2107,6 +2090,123 @@ function initializeApp() {
         if (audioEngine) audioEngine.reverb.wet.value = val;
     }, 16);
 
+    const synthControlsController = createSynthControlsController({
+        dom: {
+            synthTypeSelect,
+            waveformButtons,
+            envAttackSlider,
+            envAttackValue,
+            envDecaySlider,
+            envDecayValue,
+            envSustainSlider,
+            envSustainValue,
+            envReleaseSlider,
+            envReleaseValue,
+            harmonicitySlider,
+            harmonicityValue,
+            modIndexSlider,
+            modIndexValue,
+            dutySlider,
+            dutyValue,
+            monoCutoffSlider,
+            monoCutoffValue,
+            monoOctavesSlider,
+            monoOctavesValue,
+            monoQSlider,
+            monoQValue,
+            duoHarmSlider,
+            duoHarmValue,
+            duoVibratoSlider,
+            duoVibratoValue,
+            pluckDampeningSlider,
+            pluckDampeningValue,
+            pluckResonanceSlider,
+            pluckResonanceValue,
+            pluckNoiseSlider,
+            pluckNoiseValue,
+            membranePitchDecaySlider,
+            membranePitchDecayValue,
+            membraneOctavesSlider,
+            membraneOctavesValue,
+        },
+        onSynthTypeChange: (type) => {
+            audioEngine?.setSynth(type);
+            createOrUpdatePattern();
+        },
+        onWaveformChange: (waveform) => {
+            appState.currentWaveform = waveform;
+            updateWaveformButtons(appState.currentWaveform);
+            audioEngine?.setSynth(synthTypeSelect.value);
+        },
+        onEnvelopeChange: debouncedUpdateEnvelope,
+        onHarmonicityChange: debouncedSetHarmonicity,
+        onModIndexChange: debouncedSetModIndex,
+        onDutyChange: debouncedSetDuty,
+        onMonoCutoffChange: (value) => {
+            if (
+                audioEngine?.activeSynth &&
+                "filterEnvelope" in audioEngine.activeSynth &&
+                audioEngine.activeSynth.filterEnvelope
+            ) {
+                audioEngine.activeSynth.filterEnvelope.baseFrequency = value;
+            }
+        },
+        onMonoOctavesChange: (value) => {
+            if (
+                audioEngine?.activeSynth &&
+                "filterEnvelope" in audioEngine.activeSynth &&
+                audioEngine.activeSynth.filterEnvelope
+            ) {
+                audioEngine.activeSynth.filterEnvelope.octaves = value;
+            }
+        },
+        onMonoQChange: (value) => {
+            if (
+                audioEngine?.activeSynth &&
+                "filter" in audioEngine.activeSynth &&
+                audioEngine.activeSynth.filter
+            ) {
+                audioEngine.activeSynth.filter.Q.value = value;
+            }
+        },
+        onDuoHarmonicityChange: (value) => {
+            if (audioEngine?.activeSynth && "harmonicity" in audioEngine.activeSynth) {
+                audioEngine.activeSynth.harmonicity.value = value;
+            }
+        },
+        onDuoVibratoChange: (value) => {
+            if (audioEngine?.activeSynth && "vibratoAmount" in audioEngine.activeSynth) {
+                audioEngine.activeSynth.vibratoAmount.value = value;
+            }
+        },
+        onPluckDampeningChange: (value) => {
+            if (audioEngine?.activeSynth && "dampening" in audioEngine.activeSynth) {
+                audioEngine.activeSynth.dampening = value;
+            }
+        },
+        onPluckResonanceChange: (value) => {
+            if (audioEngine?.activeSynth && "resonance" in audioEngine.activeSynth) {
+                audioEngine.activeSynth.resonance = value;
+            }
+        },
+        onPluckNoiseChange: (value) => {
+            if (audioEngine?.activeSynth && "attackNoise" in audioEngine.activeSynth) {
+                audioEngine.activeSynth.attackNoise = value;
+            }
+        },
+        onMembranePitchDecayChange: (value) => {
+            if (audioEngine?.activeSynth && "pitchDecay" in audioEngine.activeSynth) {
+                audioEngine.activeSynth.pitchDecay = value;
+            }
+        },
+        onMembraneOctavesChange: (value) => {
+            if (audioEngine?.activeSynth && "octaves" in audioEngine.activeSynth) {
+                audioEngine.activeSynth.octaves = value;
+            }
+        },
+    });
+    synthControlsController.initialize();
+
     postGainSlider.addEventListener("input", () => {
         const db = parseFloat(postGainSlider.value);
         debouncedSetPostGain(db);
@@ -2146,40 +2246,6 @@ function initializeApp() {
         swingValue.textContent = parseFloat(swingSlider.value).toFixed(2);
     });
 
-    // --- Synth & Effects ---
-    synthTypeSelect.addEventListener("change", () => {
-        audioEngine?.setSynth(synthTypeSelect.value);
-        createOrUpdatePattern();
-    });
-
-    waveformButtons.addEventListener("click", (e) => {
-        const btn = /** @type {Element} */ (e.target).closest("button.waveform-btn");
-        if (!btn) return;
-
-        appState.currentWaveform = btn.getAttribute("data-wave") || "sine";
-        updateWaveformButtons(appState.currentWaveform);
-        audioEngine?.setSynth(synthTypeSelect.value);
-    });
-
-    harmonicitySlider.addEventListener("input", () => {
-        const val = parseFloat(harmonicitySlider.value);
-        debouncedSetHarmonicity(val);
-        harmonicityValue.textContent = val.toFixed(1);
-    });
-
-    modIndexSlider.addEventListener("input", () => {
-        const val = parseFloat(modIndexSlider.value);
-        debouncedSetModIndex(val);
-        modIndexValue.textContent = val.toFixed(1);
-    });
-
-    // --- Duty Cycle ---
-    dutySlider.addEventListener("input", () => {
-        const val = parseFloat(dutySlider.value);
-        dutyValue.textContent = val.toFixed(2);
-        debouncedSetDuty(val);
-    });
-
     // --- Filter ---
     filterCutoffSlider.addEventListener("input", () => {
         const freq = parseFloat(filterCutoffSlider.value);
@@ -2191,116 +2257,6 @@ function initializeApp() {
         debouncedSetFilterQ(res);
         filterResonanceValue.textContent = res.toFixed(1);
     });
-
-    // --- MonoSynth Controls ---
-    if (monoCutoffSlider) {
-        monoCutoffSlider.addEventListener("input", () => {
-            const val = parseFloat(monoCutoffSlider.value);
-            if (monoCutoffValue) monoCutoffValue.textContent = val.toFixed(0);
-            if (
-                audioEngine?.activeSynth &&
-                "filterEnvelope" in audioEngine.activeSynth &&
-                audioEngine.activeSynth.filterEnvelope
-            ) {
-                audioEngine.activeSynth.filterEnvelope.baseFrequency = val;
-            }
-        });
-    }
-    if (monoOctavesSlider) {
-        monoOctavesSlider.addEventListener("input", () => {
-            const val = parseFloat(monoOctavesSlider.value);
-            if (monoOctavesValue) monoOctavesValue.textContent = val.toFixed(1);
-            if (
-                audioEngine?.activeSynth &&
-                "filterEnvelope" in audioEngine.activeSynth &&
-                audioEngine.activeSynth.filterEnvelope
-            ) {
-                audioEngine.activeSynth.filterEnvelope.octaves = val;
-            }
-        });
-    }
-    if (monoQSlider) {
-        monoQSlider.addEventListener("input", () => {
-            const val = parseFloat(monoQSlider.value);
-            if (monoQValue) monoQValue.textContent = val.toFixed(1);
-            if (
-                audioEngine?.activeSynth &&
-                "filter" in audioEngine.activeSynth &&
-                audioEngine.activeSynth.filter
-            ) {
-                audioEngine.activeSynth.filter.Q.value = val;
-            }
-        });
-    }
-
-    // --- DuoSynth Controls ---
-    if (duoHarmSlider) {
-        duoHarmSlider.addEventListener("input", () => {
-            const val = parseFloat(duoHarmSlider.value);
-            if (duoHarmValue) duoHarmValue.textContent = val.toFixed(2);
-            if (audioEngine?.activeSynth && "harmonicity" in audioEngine.activeSynth) {
-                audioEngine.activeSynth.harmonicity.value = val;
-            }
-        });
-    }
-    if (duoVibratoSlider) {
-        duoVibratoSlider.addEventListener("input", () => {
-            const val = parseFloat(duoVibratoSlider.value);
-            if (duoVibratoValue) duoVibratoValue.textContent = val.toFixed(2);
-            if (audioEngine?.activeSynth && "vibratoAmount" in audioEngine.activeSynth) {
-                audioEngine.activeSynth.vibratoAmount.value = val;
-            }
-        });
-    }
-
-    // --- PluckSynth Controls ---
-    if (pluckDampeningSlider) {
-        pluckDampeningSlider.addEventListener("input", () => {
-            const val = parseFloat(pluckDampeningSlider.value);
-            if (pluckDampeningValue) pluckDampeningValue.textContent = val.toFixed(0);
-            if (audioEngine?.activeSynth && "dampening" in audioEngine.activeSynth) {
-                audioEngine.activeSynth.dampening = val;
-            }
-        });
-    }
-    if (pluckResonanceSlider) {
-        pluckResonanceSlider.addEventListener("input", () => {
-            const val = parseFloat(pluckResonanceSlider.value);
-            if (pluckResonanceValue) pluckResonanceValue.textContent = val.toFixed(2);
-            if (audioEngine?.activeSynth && "resonance" in audioEngine.activeSynth) {
-                audioEngine.activeSynth.resonance = val;
-            }
-        });
-    }
-    if (pluckNoiseSlider) {
-        pluckNoiseSlider.addEventListener("input", () => {
-            const val = parseFloat(pluckNoiseSlider.value);
-            if (pluckNoiseValue) pluckNoiseValue.textContent = val.toFixed(1);
-            if (audioEngine?.activeSynth && "attackNoise" in audioEngine.activeSynth) {
-                audioEngine.activeSynth.attackNoise = val;
-            }
-        });
-    }
-
-    // --- MembraneSynth Controls ---
-    if (membranePitchDecaySlider) {
-        membranePitchDecaySlider.addEventListener("input", () => {
-            const val = parseFloat(membranePitchDecaySlider.value);
-            if (membranePitchDecayValue) membranePitchDecayValue.textContent = val.toFixed(3);
-            if (audioEngine?.activeSynth && "pitchDecay" in audioEngine.activeSynth) {
-                audioEngine.activeSynth.pitchDecay = val;
-            }
-        });
-    }
-    if (membraneOctavesSlider) {
-        membraneOctavesSlider.addEventListener("input", () => {
-            const val = parseFloat(membraneOctavesSlider.value);
-            if (membraneOctavesValue) membraneOctavesValue.textContent = val.toFixed(1);
-            if (audioEngine?.activeSynth && "octaves" in audioEngine.activeSynth) {
-                audioEngine.activeSynth.octaves = val;
-            }
-        });
-    }
 
     // --- Effects ---
     if (driveMixSlider) {
