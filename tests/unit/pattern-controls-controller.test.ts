@@ -242,4 +242,19 @@ describe("pattern controls controller", () => {
         intervalSelect.dispatchEvent(new Event("change"));
         expect(onPatternChange).toHaveBeenCalledOnce();
     });
+
+    test("suppresses queued gate changes after teardown, including reinitialization", () => {
+        const { controller, flushDebouncedPatternChange, gateSlider, onPatternChange } =
+            createFixture();
+        controller.initialize();
+
+        gateSlider.dispatchEvent(new Event("input"));
+        controller.destroy();
+        flushDebouncedPatternChange();
+        expect(onPatternChange).not.toHaveBeenCalled();
+
+        controller.initialize();
+        flushDebouncedPatternChange();
+        expect(onPatternChange).not.toHaveBeenCalled();
+    });
 });

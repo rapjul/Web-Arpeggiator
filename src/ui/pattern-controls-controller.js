@@ -53,9 +53,13 @@ export function createPatternControlsController(dependencies) {
     } = dom;
     let isInitialized = false;
     let lastActiveScaleType = "major";
+    let lifecycleId = 0;
     /** @type {AbortController | null} */
     let listenerController = null;
-    const debouncedPatternChange = debounce(onPatternChange, 50);
+    let pendingPatternChangeLifecycle = 0;
+    const debouncedPatternChange = debounce(() => {
+        if (isInitialized && pendingPatternChangeLifecycle === lifecycleId) onPatternChange();
+    }, 50);
 
     /** @param {HTMLElement} container @param {number} selectedValue @param {string} dataAttribute */
     function updateButtonGroup(container, selectedValue, dataAttribute) {
@@ -110,6 +114,7 @@ export function createPatternControlsController(dependencies) {
     function initialize() {
         if (isInitialized) return;
         isInitialized = true;
+        lifecycleId += 1;
         listenerController = new AbortController();
         const options = { signal: listenerController.signal };
         notesInput.addEventListener(
@@ -138,6 +143,7 @@ export function createPatternControlsController(dependencies) {
             "input",
             () => {
                 if (gateValue) gateValue.textContent = parseFloat(gateSlider.value).toFixed(2);
+                pendingPatternChangeLifecycle = lifecycleId;
                 debouncedPatternChange();
             },
             options,
@@ -196,6 +202,7 @@ export function createPatternControlsController(dependencies) {
         listenerController?.abort();
         listenerController = null;
         isInitialized = false;
+        lifecycleId += 1;
     }
     return { initialize, destroy };
 }
