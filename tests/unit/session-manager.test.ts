@@ -29,6 +29,21 @@ describe("Session Manager Domain Module", () => {
             expect(spy).toHaveBeenCalledTimes(1);
             expect(spy).toHaveBeenCalledWith("call 3");
         });
+
+        it("preserves a caller's receiver when invoking a debounced method", () => {
+            const counter = {
+                value: 0,
+                increment(amount: number) {
+                    this.value += amount;
+                },
+            };
+            const debouncedIncrement = debounce(counter.increment, 100);
+
+            debouncedIncrement.call(counter, 3);
+            vi.advanceTimersByTime(100);
+
+            expect(counter.value).toBe(3);
+        });
     });
 
     describe("createSessionManager", () => {

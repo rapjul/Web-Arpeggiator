@@ -85,7 +85,12 @@ function isRecord(value) {
  * @returns {WebArpPresetRecord|null} A normalized record, or null when structurally invalid.
  */
 function normalizeStoredPresetRecord(value) {
-    if (!isRecord(value) || typeof value.id !== "string" || typeof value.savedAt !== "string") {
+    if (
+        !isRecord(value) ||
+        typeof value.id !== "string" ||
+        typeof value.savedAt !== "string" ||
+        !isRecord(value.settings)
+    ) {
         return null;
     }
 

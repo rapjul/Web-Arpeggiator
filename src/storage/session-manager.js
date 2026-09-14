@@ -26,10 +26,10 @@
 export function debounce(func, wait) {
     let timeoutId;
     return /** @type {T} */ (
-        (...args) => {
+        function (...args) {
             clearTimeout(timeoutId);
             timeoutId = setTimeout(() => {
-                func(...args);
+                func.apply(this, args);
             }, wait);
         }
     );

@@ -196,6 +196,12 @@ describe("Presets Store Domain Module", () => {
                 savedAt: 42,
             } as unknown as StoredPresetRecord);
             await expect(get("malformed")).resolves.toBeNull();
+
+            mockStoreData.set("missing-settings", {
+                id: "missing-settings",
+                savedAt: "2026-09-14T00:00:00Z",
+            });
+            await expect(get("missing-settings")).resolves.toBeNull();
         });
 
         it("lists saved presets sorted by savedAt in descending order", async () => {
