@@ -1045,8 +1045,13 @@ function initializeApp() {
         if (selectedId === undefined) selectedId = savedPresetSelect?.value || "";
         if (!savedPresetSelect) return;
         try {
-            const records = window.WebArpPresetStore ? await window.WebArpPresetStore.list() : [];
-            hideBrowserStorageRecovery();
+            const store = window.WebArpPresetStore;
+            const records = store ? await store.list() : [];
+            if (store) {
+                hideBrowserStorageRecovery();
+            } else {
+                showBrowserStorageRecovery();
+            }
             savedPresetSelect.innerHTML = "";
 
             // 1. Factory Presets group

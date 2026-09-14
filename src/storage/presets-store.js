@@ -138,13 +138,14 @@ export function openDatabase() {
         });
 
         databasePromise = openAttempt;
-        openAttempt
-            .then((database) => {
+        openAttempt.then(
+            (database) => {
                 releaseDatabaseOnVersionChange(database, openAttempt);
-            })
-            .catch(() => {
+            },
+            () => {
                 clearCachedDatabaseAttempt(openAttempt);
-            });
+            },
+        );
     }
 
     return databasePromise;

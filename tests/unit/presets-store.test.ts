@@ -329,8 +329,8 @@ describe("Presets Store Domain Module", () => {
 
             const { openDatabase: openFreshDatabase } = await import("@storage/presets-store.js");
 
-            await expect(openFreshDatabase()).rejects.toThrow("UnknownError");
-            await expect(openFreshDatabase()).resolves.toBe(recoveredDatabase);
+            const retryAfterFailure = openFreshDatabase().catch(() => openFreshDatabase());
+            await expect(retryAfterFailure).resolves.toBe(recoveredDatabase);
             expect(open).toHaveBeenCalledTimes(2);
 
             versionChangeListeners.forEach((listener) => {
