@@ -12,8 +12,8 @@ export const OFFLINE_EXPORT_METADATA_VERSION = 1;
 /**
  * Creates an independent JSON-compatible copy of a settings record.
  *
- * @param {object} settings - Settings to copy.
- * @returns {object} Serializable settings copy.
+ * @param {Record<string, unknown>} settings - Settings to copy.
+ * @returns {Record<string, unknown>} Serializable settings copy.
  */
 function cloneSettings(settings) {
     try {
@@ -25,9 +25,9 @@ function cloneSettings(settings) {
 
 /**
  * @typedef {object} OfflineExportMetadataOptions
- * @property {object} settings - Complete serialized application settings snapshot.
+ * @property {Record<string, unknown>} settings - Complete serialized application settings snapshot.
  * @property {string[]} patternNotes - Exact note sequence scheduled for the render.
- * @property {object} exportDuration - Calculated timing window for the render.
+ * @property {{exportMode: string, loopCount: number, musicalDuration: number, preRollCycles: number, preRollDuration: number, tailDuration: number, renderDuration: number}} exportDuration - Calculated timing window for the render.
  * @property {number} sampleRate - Frames per second in the exported buffer.
  * @property {number} channelCount - Audio channels in the exported buffer.
  * @property {number} frameCount - PCM frames per channel in the exported buffer.

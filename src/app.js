@@ -1,8 +1,8 @@
 /**
  * Main Web Arpeggiator Application Module
  *
- * This module owns the shell: DOM wiring, transport control, preset/AI/test-hook
- * integration, and module initialization.  The heavy lifting (audio engine,
+ * This module owns the shell: DOM wiring, transport control, preset integration,
+ * and module initialization. The heavy lifting (audio engine,
  * recorder/export, visualizer) has been split into separate modules.
  *
  * @module app
@@ -16,7 +16,7 @@ import {
 } from "@core/export-duration.js";
 import { filterNoteInput, filterNumericInput } from "@core/input-filters.js";
 import { dbToPercent } from "@core/meter-utils.js";
-import { createMidiBlob, exportMidiFile } from "@core/midi-export.js";
+import { exportMidiFile } from "@core/midi-export.js";
 import {
     calculateNoteMarkers,
     getArpeggioNotes as getArpeggioNotesFromModule,
@@ -32,12 +32,21 @@ import {
     parsePresetFromUrlParams,
     serializePresetToUrlParams,
 } from "@core/url-preset.js";
+import { initializePwa } from "@pwa/pwa.js";
+import { presetStore } from "@storage/presets-store.js";
 import { createSessionManager, debounce } from "@storage/session-manager.js";
 import { createSettingsManager } from "@storage/settings-manager.js";
 import { setupKeyboardNavigation } from "@ui/a11y-navigation.js";
 import { initializeKeyboardControls } from "@ui/keyboard-controller.js";
+import { createHistoryController } from "@ui/history-controller.js";
+import { createInputFilterController } from "@ui/input-filter-controller.js";
 import { createNoteStepController } from "@ui/note-step-controller.js";
+import { createOnboardingController } from "@ui/onboarding-controller.js";
+import { createEffectsControlsController } from "@ui/effects-controls-controller.js";
+import { createPatternControlsController } from "@ui/pattern-controls-controller.js";
 import { createPresetController } from "@ui/preset-controller.js";
+import { createSynthControlsController } from "@ui/synth-controls-controller.js";
+import { createTransportController } from "@ui/transport-controller.js";
 import { createToastManager } from "@ui/ui-feedback.js";
 import { FACTORY_PRESETS } from "./config/factory-presets.js";
 
@@ -87,15 +96,13 @@ function hasOscillatorWidth(oscillator) {
     );
 }
 
-// Attach filter functions to window for global inline event handlers / test assertions
-window.filterNoteInput = filterNoteInput;
-window.filterNumericInput = filterNumericInput;
-
-// --- State (must be global for onclick) ---
-var isAudioContextStarted = false;
+// --- Application State ---
+let isAudioContextStarted = false;
 let initializeAudioRuntime = null;
 let audioStartPromise = null;
 let audioModulesPromise = null;
+let notifyAudioReady = () => {};
+let notifyAudioFailure = () => {};
 let Tone;
 let createAudioEngine;
 let createPatternController;
@@ -156,10 +163,10 @@ async function startAudio() {
                 await initializeAudioRuntime();
                 isAudioContextStarted = true;
                 log("AudioContext resumed successfully.");
-                window.dispatchEvent(new CustomEvent("audioReady"));
+                notifyAudioReady();
             } catch (err) {
                 console.error("AudioContext failed to start/resume:", err);
-                window.dispatchEvent(new CustomEvent("audioFailed"));
+                notifyAudioFailure();
                 throw err;
             }
         })().finally(() => {
@@ -190,36 +197,9 @@ function initializeApp() {
      * @type {HTMLElement | null}
      */
     const appMain = document.getElementById("app-main");
-    const stickyTransportBar = document.querySelector(".sticky-transport-bar");
-
-    /**
-     * Toggles the square sticky-bar treatment after the desktop transport bar
-     * reaches the viewport edge.
-     *
-     * @returns {void}
-     */
-    function updateStickyTransportAppearance() {
-        if (!stickyTransportBar) return;
-        const isDesktop = window.matchMedia("(min-width: 640px)").matches;
-        const hasReachedViewportTop = stickyTransportBar.getBoundingClientRect().top <= 0;
-        stickyTransportBar.classList.toggle("is-stuck", isDesktop && hasReachedViewportTop);
-    }
-
-    let stickyTransportUpdateScheduled = false;
-    window.addEventListener(
-        "scroll",
-        () => {
-            if (stickyTransportUpdateScheduled) return;
-            stickyTransportUpdateScheduled = true;
-            window.requestAnimationFrame(() => {
-                stickyTransportUpdateScheduled = false;
-                updateStickyTransportAppearance();
-            });
-        },
-        { passive: true },
+    const stickyTransportBar = /** @type {HTMLElement | null} */ (
+        document.querySelector(".sticky-transport-bar")
     );
-    window.addEventListener("resize", updateStickyTransportAppearance);
-    updateStickyTransportAppearance();
 
     const playStopButton = /** @type {HTMLButtonElement | null} */ (
         document.getElementById("play-stop")
@@ -247,37 +227,6 @@ function initializeApp() {
         document.getElementById("reset-defaults-desktop-button")
     );
 
-    /**
-     * Fullscreen overlay for returning user audio activation.
-     * @type {HTMLElement | null}
-     */
-    const startOverlay = document.getElementById("start-overlay");
-
-    /**
-     * Fullscreen overlay for first-visit quick start welcome modal.
-     * @type {HTMLElement | null}
-     */
-    const quickStartOverlay = document.getElementById("quick-start-overlay");
-
-    /**
-     * Modal dialog element containing quick start onboarding choices.
-     * @type {HTMLElement | null}
-     */
-    const quickStartModal = document.getElementById("quick-start-modal");
-
-    /**
-     * Grid container for dynamically rendered quick start preset cards.
-     * @type {HTMLElement | null}
-     */
-    const quickStartPresetsGrid = document.getElementById("quick-start-presets-grid");
-
-    /**
-     * Button to start blank session without loading a preset.
-     * @type {HTMLButtonElement | null}
-     */
-    const quickStartScratchButton = /** @type {HTMLButtonElement | null} */ (
-        document.getElementById("quick-start-scratch")
-    );
     const resetDefaultsOverlay = document.getElementById("reset-defaults-overlay");
     const resetDefaultsDialog = document.getElementById("reset-defaults-dialog");
     const resetDefaultsCancelButton = /** @type {HTMLButtonElement | null} */ (
@@ -300,8 +249,6 @@ function initializeApp() {
      * @type {HTMLElement | null}
      */
     const soundStartersGrid = document.getElementById("sound-starters-grid");
-
-    const pwaTestStateField = document.getElementById("pwa-test-state");
 
     const bpmSlider = /** @type {HTMLInputElement} */ (document.getElementById("bpm"));
     const bpmValue = document.getElementById("bpm-value");
@@ -477,10 +424,14 @@ function initializeApp() {
     const exportButton = document.getElementById("realtime-export-button");
 
     // Offline Export card
-    const loopCountInput = document.getElementById("loop-count");
-    const offlineExportModeInputs = document.querySelectorAll("input[name='offline-export-mode']");
+    const loopCountInput = /** @type {HTMLInputElement} */ (document.getElementById("loop-count"));
+    const offlineExportModeInputs = /** @type {NodeListOf<HTMLInputElement>} */ (
+        document.querySelectorAll("input[name='offline-export-mode']")
+    );
     const offlineExportTailControl = document.getElementById("offline-export-tail-control");
-    const offlineExportTailSecondsInput = document.getElementById("offline-export-tail-seconds");
+    const offlineExportTailSecondsInput = /** @type {HTMLInputElement | null} */ (
+        document.getElementById("offline-export-tail-seconds")
+    );
     const offlineExportDuration = document.getElementById("offline-export-duration");
     const offlineExportWavCheck = document.getElementById("offline-export-wav");
     const offlineExportMp3Check = document.getElementById("offline-export-mp3");
@@ -561,7 +512,6 @@ function initializeApp() {
     let recorderManager;
     let visualizer;
     let audioRuntimePromise = null;
-    let audioRuntimeConstructionCount = 0;
     let observedRawAudioContext = null;
     let audioContextStateListener = null;
 
@@ -677,16 +627,6 @@ function initializeApp() {
         updateEstimatedExportDuration();
     }
 
-    /**
-     * Writes key/value pairs onto the headless-test state object.
-     * @param {object} updates - Key/value map to merge.
-     * @returns {void}
-     */
-    function updateTestState(updates) {
-        window.__WEB_ARP_TEST__ = window.__WEB_ARP_TEST__ || {};
-        Object.assign(window.__WEB_ARP_TEST__, updates);
-    }
-
     const noteStepController = createNoteStepController({
         container: noteStepIndicator,
         getNotes: () => currentNotes,
@@ -773,7 +713,7 @@ function initializeApp() {
     const settingsHistory = createSettingsHistory();
 
     const sessionManager = createSessionManager({
-        getPresetStore: () => window.WebArpPresetStore,
+        getPresetStore: () => presetStore,
         getSettings: () => getAllSettings(),
         getHistoryState: () => settingsHistory.exportState(),
         onRestore: (settings, persistedHistory) => {
@@ -786,10 +726,8 @@ function initializeApp() {
             }
             updateHistoryControls();
         },
-        updateTestState,
     });
 
-    const saveLastSessionNow = () => sessionManager.saveNow();
     const scheduleLastSessionSave = () => sessionManager.scheduleSave();
     const restoreLastSession = () => sessionManager.restoreSession();
 
@@ -805,6 +743,24 @@ function initializeApp() {
     });
     const { showToast } = toastManager;
 
+    notifyAudioReady = () => {
+        if (SHOW_AUDIO_READY_TOAST) {
+            showToast("Audio is ready!", "success");
+        }
+    };
+    notifyAudioFailure = () => {
+        showToast("Audio failed to start. See console.", "error");
+    };
+
+    const inputFilterController = createInputFilterController({
+        dom: { notesInput, loopCountInput },
+        filterNoteInput,
+        filterNumericInput,
+    });
+    inputFilterController.initialize();
+
+    initializePwa({ showToast });
+
     const presetController = createPresetController({
         dom: {
             savedPresetSelect,
@@ -816,7 +772,7 @@ function initializeApp() {
             getItem: (key) => window.localStorage.getItem(key),
             setItem: (key, value) => window.localStorage.setItem(key, value),
         },
-        getPresetStore: () => window.WebArpPresetStore,
+        getPresetStore: () => presetStore,
         onFactoryPresetSelected: async (preset) => {
             applySettingsWithHistory(mergeSettings(DEFAULT_SETTINGS, preset.settings));
             if (presetNameInput) {
@@ -962,6 +918,56 @@ function initializeApp() {
 
     const { getAllSettings, loadAllSettings, generateFilename } = settingsManager;
 
+    const onboardingController = createOnboardingController({
+        dom: {
+            appMain,
+            playStopButton,
+            quickStartModal: document.getElementById("quick-start-modal"),
+            quickStartOverlay: document.getElementById("quick-start-overlay"),
+            quickStartPresetsGrid: document.getElementById("quick-start-presets-grid"),
+            quickStartScratchButton: /** @type {HTMLButtonElement | null} */ (
+                document.getElementById("quick-start-scratch")
+            ),
+            soundStartersDetails,
+            startOverlay: document.getElementById("start-overlay"),
+        },
+        documentRef: document,
+        storage: {
+            getItem: (key) => window.localStorage.getItem(key),
+            setItem: (key, value) => window.localStorage.setItem(key, value),
+        },
+        getLocationSearch: () => window.location.search,
+        presetUrlKeys: PRESET_URL_KEYS,
+        factoryPresets: FACTORY_PRESETS,
+        onPresetSelected: async (preset) => {
+            applySettingsWithHistory(mergeSettings(DEFAULT_SETTINGS, preset.settings));
+            if (presetNameInput) {
+                presetNameInput.value = preset.name;
+            }
+            if (savedPresetSelect) {
+                savedPresetSelect.value = preset.id;
+            }
+            setActiveSoundStarterCard(preset.id);
+            try {
+                await startAudio();
+                await startPlayback();
+                showToast(`Started with preset: ${preset.name}`, "success");
+            } catch (error) {
+                console.warn("AudioContext failed to start on quick start click:", error);
+            }
+            scheduleLastSessionSave();
+        },
+        onStartFromScratch: async () => {
+            await startAudio();
+            loadPresetFromUrl();
+        },
+        onStartOverlay: async () => {
+            await startAudio();
+            loadPresetFromUrl();
+        },
+        logger: console,
+    });
+
     // 5. Keyboard Controller
     const keyboardControls = initializeKeyboardControls({
         state: appState,
@@ -998,7 +1004,6 @@ function initializeApp() {
         if (audioEngine) return;
         if (!audioRuntimePromise) {
             audioRuntimePromise = (async () => {
-                audioRuntimeConstructionCount += 1;
                 let nextAudioEngine;
                 let nextVisualizer;
                 let nextRecorderManager;
@@ -1145,7 +1150,6 @@ function initializeApp() {
                     visualizer = nextVisualizer;
                     recorderManager = nextRecorderManager;
                     pendingAudioEngine = null;
-                    window.audioEngine = audioEngine;
                     observeAudioContextState();
                 } catch (error) {
                     nextVisualizer?.destroy();
@@ -1160,7 +1164,6 @@ function initializeApp() {
                     visualizer = undefined;
                     recorderManager = undefined;
                     patternController = undefined;
-                    delete window.audioEngine;
                     arpPattern = null;
                     throw error;
                 }
@@ -1177,30 +1180,27 @@ function initializeApp() {
     // ==================================================================
 
     /**
-     * Updates button group selection state by setting the selected class on elements
-     * and checking the corresponding radio input.
-     * @param {HTMLElement} container - The container element holding the buttons or radio inputs.
-     * @param {string|number} selectedValue - The value matching the data attribute or radio value.
-     * @param {string} dataAttribute - e.g. 'data-shift', 'data-range'.
+     * Reflects a selected numeric setting in a button/radio group.
+     *
+     * @param {HTMLElement} container - Group containing radio inputs and buttons.
+     * @param {number} selectedValue - Numeric value to select.
+     * @param {string} dataAttribute - Attribute that stores button values.
      * @returns {void}
      */
     function updateButtonGroup(container, selectedValue, dataAttribute) {
         const radio = container.querySelector(
             `input[type="radio"][${dataAttribute}="${selectedValue}"], input[type="radio"][value="${selectedValue}"]`,
         );
-        if (radio) {
-            /** @type {HTMLInputElement} */ (radio).checked = true;
-        }
-
-        container.querySelectorAll(".octave-btn, button").forEach((btn) => {
-            btn.classList.remove("selected");
-            const btnVal = btn.getAttribute(dataAttribute);
-            if (btnVal !== null) {
-                const numVal = parseInt(btnVal, 10);
-                if (numVal === selectedValue) {
-                    btn.classList.add("selected");
-                }
-            }
+        if (radio) /** @type {HTMLInputElement} */ (radio).checked = true;
+        container.querySelectorAll(".octave-btn, button").forEach((button) => {
+            const valueControl = button.matches(`[${dataAttribute}]`)
+                ? button
+                : button.querySelector(`[${dataAttribute}]`);
+            button.classList.toggle(
+                "selected",
+                valueControl !== null &&
+                    Number(valueControl.getAttribute(dataAttribute)) === selectedValue,
+            );
         });
     }
 
@@ -1303,8 +1303,42 @@ function initializeApp() {
 
     /** @type {Record<string, unknown> | null} */
     let defaultSettings = null;
-    /** @type {HTMLElement | null} */
-    let resetDialogReturnFocus = null;
+
+    const historyController = createHistoryController({
+        dom: {
+            appMain,
+            undoButton,
+            redoButton,
+            historyMenuButton,
+            historyMenu,
+            historyMenuUndoButton,
+            historyMenuRedoButton,
+            resetDefaultsButton,
+            resetDefaultsDesktopButton,
+            resetDefaultsOverlay,
+            resetDefaultsDialog,
+            resetDefaultsCancelButton,
+            resetDefaultsConfirmButton,
+            presetNameInput,
+        },
+        documentRef: document,
+        getStatus: () => ({
+            canUndo: settingsHistory.canUndo(),
+            canRedo: settingsHistory.canRedo(),
+            isAtDefault:
+                defaultSettings !== null &&
+                JSON.stringify(getAllSettings()) === JSON.stringify(defaultSettings),
+        }),
+        onUndo: undoSettings,
+        onRedo: redoSettings,
+        onResetDefaults: resetAllSettings,
+        onEscapeReset: () => {
+            const definition = getFocusedResetDefinition(document.activeElement);
+            if (!definition) return false;
+            resetIndividualSettings(definition);
+            return true;
+        },
+    });
 
     /**
      * Updates all history action availability states.
@@ -1312,38 +1346,7 @@ function initializeApp() {
      * @returns {void}
      */
     function updateHistoryControls() {
-        const canUndo = settingsHistory.canUndo();
-        const canRedo = settingsHistory.canRedo();
-        const isAtDefault =
-            defaultSettings !== null &&
-            JSON.stringify(getAllSettings()) === JSON.stringify(defaultSettings);
-
-        if (undoButton) undoButton.disabled = !canUndo;
-        if (redoButton) redoButton.disabled = !canRedo;
-        if (historyMenuUndoButton) historyMenuUndoButton.disabled = !canUndo;
-        if (historyMenuRedoButton) historyMenuRedoButton.disabled = !canRedo;
-        if (resetDefaultsButton) resetDefaultsButton.disabled = isAtDefault;
-        if (resetDefaultsDesktopButton) resetDefaultsDesktopButton.disabled = isAtDefault;
-    }
-
-    /**
-     * Sets the History menu visibility and accessibility state.
-     *
-     * @param {boolean} isOpen - Whether the menu should be shown.
-     * @returns {void}
-     */
-    function setHistoryMenuOpen(isOpen) {
-        if (!historyMenu || !historyMenuButton) return;
-        historyMenu.classList.toggle("hidden", !isOpen);
-        historyMenuButton.setAttribute("aria-expanded", isOpen ? "true" : "false");
-        if (isOpen) {
-            const firstAction = [
-                historyMenuUndoButton,
-                historyMenuRedoButton,
-                resetDefaultsButton,
-            ].find((button) => button && !button.disabled);
-            if (firstAction) firstAction.focus();
-        }
+        historyController.updateControls();
     }
 
     /**
@@ -1410,55 +1413,45 @@ function initializeApp() {
     }
 
     /**
-     * Opens the confirmation dialog before restoring all defaults.
-     *
-     * @returns {void}
-     */
-    function openResetDefaultsDialog() {
-        if (!resetDefaultsOverlay || !defaultSettings) return;
-        const activeElement = /** @type {HTMLElement | null} */ (document.activeElement);
-        setHistoryMenuOpen(false);
-        resetDialogReturnFocus =
-            activeElement === resetDefaultsButton ? historyMenuButton : activeElement;
-        resetDefaultsOverlay.classList.remove("hidden");
-        resetDefaultsOverlay.classList.add("flex");
-        resetDefaultsOverlay.setAttribute("aria-hidden", "false");
-        if (appMain) appMain.setAttribute("inert", "");
-        resetDefaultsConfirmButton?.focus();
-    }
-
-    /**
-     * Closes the default-reset confirmation dialog.
-     *
-     * @returns {void}
-     */
-    function closeResetDefaultsDialog() {
-        if (!resetDefaultsOverlay) return;
-        resetDefaultsOverlay.classList.add("hidden");
-        resetDefaultsOverlay.classList.remove("flex");
-        resetDefaultsOverlay.setAttribute("aria-hidden", "true");
-        if (appMain) appMain.removeAttribute("inert");
-        resetDialogReturnFocus?.focus();
-        resetDialogReturnFocus = null;
-    }
-
-    /**
      * Resets the entire serialized workspace to its captured defaults.
      *
      * @returns {void}
      */
     function resetAllSettings() {
         if (!defaultSettings) return;
-        closeResetDefaultsDialog();
         applySettingsWithHistory(defaultSettings);
         showToast("Restored default settings. Undo is available.", "info");
     }
 
-    /**
-     * Tracks the last selected non-chromatic scale type so it can be restored when re-enabling.
-     * @type {string}
-     */
-    let lastActiveScaleType = "major";
+    const patternControlsController = createPatternControlsController({
+        dom: {
+            notesInput,
+            intervalSelect,
+            gateSlider,
+            gateValue,
+            scaleQuantizeToggle,
+            scaleTypeSelect,
+            scaleRootSelect,
+            octaveShiftButtons,
+            octaveRangeButtons,
+        },
+        normalizeNotes: normalizeNotesSequence,
+        setNotes: (notes) => {
+            currentNotes = notes;
+        },
+        setOctaveShift: (value) => {
+            currentOctaveShift = value;
+        },
+        setOctaveRange: (value) => {
+            currentOctaveRange = value;
+        },
+        onPatternChange: createOrUpdatePattern,
+        onEstimatedDurationChange: updateEstimatedExportDuration,
+        onStaticLoopChange: () => debouncedRenderStaticLoop(),
+        onScaleQuantizeUiChange: updateScaleQuantizeUi,
+        onScaleQuantizeTextChange: updateScaleQuantizeToggleText,
+        debounce,
+    });
 
     const resetDefinitions = [
         {
@@ -1822,19 +1815,13 @@ function initializeApp() {
 
     /**
      * Serializes current settings to URL search parameters, writes the URL to the clipboard,
-     * and registers the URL on the global test hook for automated verification.
+     * and reports the result to the user.
      * @returns {void}
      */
     function sharePresetAsUrl() {
         const settings = getAllSettings();
         const params = serializePresetToUrlParams(settings);
         const shareUrl = `${window.location.origin}${window.location.pathname}?${params.toString()}`;
-
-        // Test Hook: register the last shared URL
-        if (!window.__WEB_ARP_TEST__) {
-            window.__WEB_ARP_TEST__ = {};
-        }
-        window.__WEB_ARP_TEST__.lastSharedUrl = shareUrl;
 
         navigator.clipboard
             .writeText(shareUrl)
@@ -1872,229 +1859,13 @@ function initializeApp() {
         showToast("Preset loaded from URL link!", "success");
     }
 
-    // --- Sound Starters ---
-
-    // --- Sound Starters & Quick Start Onboarding ---
-
-    /**
-     * Storage key used to track if the user has previously completed first-time onboarding.
-     * @type {string}
-     */
-    const FIRST_VISIT_KEY = "webArpHasVisited";
-
-    /**
-     * Checks whether the current session is considered a first-time visitor flow.
-     * Returns false if URL search contains recognized preset parameters.
-     *
-     * @returns {boolean} True if this is a first-time visitor without URL preset params.
-     */
-    function isFirstVisit() {
-        try {
-            const params = new URLSearchParams(window.location.search);
-            const hasUrlPreset = Array.from(params.keys()).some((key) => PRESET_URL_KEYS.has(key));
-            if (hasUrlPreset) return false;
-            return localStorage.getItem(FIRST_VISIT_KEY) !== "true";
-        } catch {
-            return false;
-        }
-    }
-
-    /**
-     * Marks the first-time onboarding flow as completed in localStorage.
-     *
-     * @returns {void}
-     */
-    function markVisited() {
-        try {
-            localStorage.setItem(FIRST_VISIT_KEY, "true");
-        } catch (err) {
-            console.warn("Storage access restricted:", err);
-        }
-    }
-
-    /**
-     * Enables the primary Play/Stop button and sets its active visual styling.
-     *
-     * @returns {void}
-     */
-    function enablePlayStopButton() {
-        if (playStopButton) {
-            playStopButton.disabled = false;
-            playStopButton.textContent = "Start Audio";
-            playStopButton.setAttribute("aria-label", "Press to play arpeggio");
-            playStopButton.classList.remove("opacity-50", "cursor-not-allowed", "bg-gray-600");
-            playStopButton.classList.add("bg-blue-600", "hover:bg-blue-700");
-        }
-    }
-
-    /**
-     * Dynamically builds the Quick Start preset cards inside the welcome modal.
-     *
-     * @returns {void}
-     */
-    function buildQuickStartPresetCards() {
-        if (!quickStartPresetsGrid) return;
-        quickStartPresetsGrid.innerHTML = "";
-
-        FACTORY_PRESETS.forEach((preset) => {
-            const card = document.createElement("button");
-            card.type = "button";
-            card.className =
-                "sound-starter-card p-3 focus-visible:outline-none flex flex-col justify-between text-left";
-            card.setAttribute("data-preset-id", preset.id);
-            card.setAttribute(
-                "aria-label",
-                `Start with ${preset.name} preset, ${preset.settings.bpm} BPM`,
-            );
-
-            const accentBar = document.createElement("div");
-            accentBar.className = `sound-starter-accent bg-gradient-to-r ${preset.accentGradient || "from-blue-500 to-indigo-500"} mb-2 rounded-full`;
-
-            const topRow = document.createElement("div");
-            topRow.className = "flex items-center justify-between gap-1 mb-1";
-
-            const emojiSpan = document.createElement("span");
-            emojiSpan.className = "text-2xl shrink-0";
-            emojiSpan.textContent = preset.emoji || "🎵";
-
-            const bpmSpan = document.createElement("span");
-            bpmSpan.className =
-                "text-[11px] font-mono font-medium px-1.5 py-0.5 rounded bg-gray-900/60 text-gray-300 shrink-0";
-            bpmSpan.textContent = `${preset.settings.bpm} BPM`;
-
-            topRow.appendChild(emojiSpan);
-            topRow.appendChild(bpmSpan);
-
-            const title = document.createElement("div");
-            title.className = "text-xs font-semibold text-gray-100 truncate";
-            title.textContent = preset.name;
-
-            card.appendChild(accentBar);
-            card.appendChild(topRow);
-            card.appendChild(title);
-
-            card.addEventListener("click", () => handleQuickStartPresetClick(preset));
-
-            quickStartPresetsGrid.appendChild(card);
-        });
-    }
-
-    /**
-     * Opens the Quick Start onboarding modal dialog and makes the background application content inert.
-     *
-     * @returns {void}
-     */
-    function openQuickStartModal() {
-        if (!quickStartOverlay) return;
-        quickStartOverlay.classList.remove("is-hidden");
-        if (appMain) {
-            appMain.setAttribute("inert", "");
-        }
-        buildQuickStartPresetCards();
-        const firstPresetBtn =
-            quickStartPresetsGrid?.querySelector("button") || quickStartScratchButton;
-        if (firstPresetBtn) {
-            firstPresetBtn.focus();
-        }
-    }
-
-    /**
-     * Closes the Quick Start onboarding modal dialog and restores background interactivity.
-     *
-     * @returns {void}
-     */
-    function closeQuickStartModal() {
-        if (quickStartOverlay) {
-            quickStartOverlay.classList.add("is-hidden");
-        }
-        if (appMain) {
-            appMain.removeAttribute("inert");
-        }
-    }
-
-    /**
-     * Handles selecting a factory preset from the Quick Start onboarding dialog.
-     *
-     * @param {FactoryPreset} preset - The selected factory preset definition.
-     * @returns {Promise<void>}
-     */
-    async function handleQuickStartPresetClick(preset) {
-        closeQuickStartModal();
-        enablePlayStopButton();
-        markVisited();
-        applySettingsWithHistory(mergeSettings(DEFAULT_SETTINGS, preset.settings));
-        if (presetNameInput) {
-            presetNameInput.value = preset.name;
-        }
-        if (savedPresetSelect) {
-            savedPresetSelect.value = preset.id;
-        }
-        setActiveSoundStarterCard(preset.id);
-        try {
-            await startAudio();
-            await startPlayback();
-            showToast(`Started with preset: ${preset.name}`, "success");
-        } catch (err) {
-            console.warn("AudioContext failed to start on quick start click:", err);
-        }
-        scheduleLastSessionSave();
-    }
-
-    /**
-     * Handles clicking "Start from Scratch" or dismissing the Quick Start onboarding dialog.
-     *
-     * @returns {Promise<void>}
-     */
-    async function handleStartFromScratch() {
-        closeQuickStartModal();
-        if (soundStartersDetails) {
-            soundStartersDetails.removeAttribute("open");
-            try {
-                localStorage.setItem("soundStartersOpen", "false");
-            } catch (err) {
-                console.warn("Could not write soundStartersOpen to localStorage:", err);
-            }
-        }
-        enablePlayStopButton();
-        markVisited();
-        try {
-            await startAudio();
-            loadPresetFromUrl();
-        } catch (err) {
-            console.warn("AudioContext failed to start on scratch click:", err);
-        }
-    }
-
-    /**
-     * Handles clicks on the standard start overlay to initialize the AudioContext.
-     *
-     * @returns {Promise<void>}
-     */
-    const handleStartOverlayClick = async () => {
-        if (startOverlay) {
-            startOverlay.classList.add("is-hidden");
-        }
-        enablePlayStopButton();
-        try {
-            await startAudio();
-            loadPresetFromUrl();
-        } catch (err) {
-            console.warn("AudioContext failed to start on overlay click:", err);
-        }
-    };
-
     /**
      * Starts audio playback if not already running.
      * @returns {Promise<void>}
      */
     async function startPlayback() {
         if (!isAudioContextStarted) {
-            if (startOverlay) {
-                startOverlay.classList.add("is-hidden");
-            }
-            closeQuickStartModal();
-            enablePlayStopButton();
-            markVisited();
+            onboardingController.prepareForPlayback();
         }
         await startAudio();
         if (recorderManager && !recorderManager.isRecording) {
@@ -2157,106 +1928,14 @@ function initializeApp() {
         rawAudioContext.addEventListener("statechange", audioContextStateListener);
     }
 
-    // --- Transport: Play / Stop ---
-    playStopButton.addEventListener("click", async () => {
-        if (isPlaying) {
-            stopPlayback();
-        } else {
-            try {
-                await startPlayback();
-            } catch (error) {
-                console.warn("AudioContext failed to start from play button:", error);
-            }
-        }
+    const transportController = createTransportController({
+        dom: { playStopButton, stickyTransportBar },
+        windowRef: window,
+        getIsPlaying: () => isPlaying,
+        onStart: startPlayback,
+        onStop: stopPlayback,
     });
-
-    undoButton?.addEventListener("click", undoSettings);
-    redoButton?.addEventListener("click", redoSettings);
-    historyMenuUndoButton?.addEventListener("click", () => {
-        undoSettings();
-        setHistoryMenuOpen(false);
-        historyMenuButton?.focus();
-    });
-    historyMenuRedoButton?.addEventListener("click", () => {
-        redoSettings();
-        setHistoryMenuOpen(false);
-        historyMenuButton?.focus();
-    });
-    historyMenuButton?.addEventListener("click", () => {
-        const isOpen = historyMenuButton.getAttribute("aria-expanded") === "true";
-        setHistoryMenuOpen(!isOpen);
-    });
-    resetDefaultsButton?.addEventListener("click", openResetDefaultsDialog);
-    resetDefaultsDesktopButton?.addEventListener("click", openResetDefaultsDialog);
-    resetDefaultsCancelButton?.addEventListener("click", closeResetDefaultsDialog);
-    resetDefaultsConfirmButton?.addEventListener("click", resetAllSettings);
-    resetDefaultsOverlay?.addEventListener("click", (event) => {
-        if (event.target === resetDefaultsOverlay) closeResetDefaultsDialog();
-    });
-    resetDefaultsDialog?.addEventListener("keydown", (event) => {
-        if (event.key !== "Tab") return;
-        const focusable = Array.from(
-            resetDefaultsDialog.querySelectorAll("button:not([disabled])"),
-        );
-        const firstElement = focusable[0];
-        const lastElement = focusable[focusable.length - 1];
-        if (!firstElement || !lastElement) return;
-        if (event.shiftKey && document.activeElement === firstElement) {
-            event.preventDefault();
-            lastElement.focus();
-        } else if (!event.shiftKey && document.activeElement === lastElement) {
-            event.preventDefault();
-            firstElement.focus();
-        }
-    });
-
-    document.addEventListener("click", (event) => {
-        const target = /** @type {Element} */ (event.target);
-        if (target.closest("#history-menu, #history-menu-button")) return;
-        setHistoryMenuOpen(false);
-    });
-
-    window.addEventListener(
-        "keydown",
-        (event) => {
-            const resetDialogOpen = resetDefaultsOverlay?.getAttribute("aria-hidden") === "false";
-            if (event.key === "Escape" && resetDialogOpen) {
-                event.preventDefault();
-                closeResetDefaultsDialog();
-                return;
-            }
-
-            const historyMenuOpen = historyMenuButton?.getAttribute("aria-expanded") === "true";
-            if (event.key === "Escape" && historyMenuOpen) {
-                event.preventDefault();
-                setHistoryMenuOpen(false);
-                historyMenuButton?.focus();
-                return;
-            }
-
-            const usesModifier = event.ctrlKey || event.metaKey;
-            const key = event.key.toLowerCase();
-            const isUndo = usesModifier && !event.shiftKey && key === "z";
-            const isRedo = usesModifier && ((event.shiftKey && key === "z") || key === "y");
-            if ((isUndo || isRedo) && event.target === presetNameInput) return;
-            if (isUndo || isRedo) {
-                event.preventDefault();
-                event.stopImmediatePropagation();
-                if (isUndo) undoSettings();
-                else redoSettings();
-                return;
-            }
-
-            if (event.key === "Escape") {
-                const definition = getFocusedResetDefinition(document.activeElement);
-                if (definition) {
-                    event.preventDefault();
-                    resetIndividualSettings(definition);
-                }
-            }
-        },
-        true,
-    );
+    transportController.initialize();
 
     /**
      * Debounced wrapper to update the synth envelope.
@@ -2265,24 +1944,6 @@ function initializeApp() {
     const debouncedUpdateEnvelope = debounce(() => {
         audioEngine?.updateEnvelope();
     }, 16);
-
-    // --- ADSR Listeners ---
-    envAttackSlider.addEventListener("input", () => {
-        envAttackValue.textContent = parseFloat(envAttackSlider.value).toFixed(2);
-        debouncedUpdateEnvelope();
-    });
-    envDecaySlider.addEventListener("input", () => {
-        envDecayValue.textContent = parseFloat(envDecaySlider.value).toFixed(2);
-        debouncedUpdateEnvelope();
-    });
-    envSustainSlider.addEventListener("input", () => {
-        envSustainValue.textContent = parseFloat(envSustainSlider.value).toFixed(2);
-        debouncedUpdateEnvelope();
-    });
-    envReleaseSlider.addEventListener("input", () => {
-        envReleaseValue.textContent = parseFloat(envReleaseSlider.value).toFixed(2);
-        debouncedUpdateEnvelope();
-    });
 
     // --- Randomize Notes ---
     randomizeNotesButton.addEventListener("click", () => {
@@ -2394,14 +2055,6 @@ function initializeApp() {
     }, 16);
 
     /**
-     * Debounced wrapper to create or update pattern at 50ms.
-     * @type {() => void}
-     */
-    const debouncedCreateOrUpdatePattern50 = debounce(() => {
-        createOrUpdatePattern();
-    }, 50);
-
-    /**
      * Debounced wrapper to set filter cutoff frequency.
      * @type {(val: number) => void}
      */
@@ -2433,11 +2086,159 @@ function initializeApp() {
         if (audioEngine) audioEngine.reverb.wet.value = val;
     }, 16);
 
-    postGainSlider.addEventListener("input", () => {
-        const db = parseFloat(postGainSlider.value);
-        debouncedSetPostGain(db);
-        postGainValue.textContent = String(dbToPercent(db));
+    const synthControlsController = createSynthControlsController({
+        dom: {
+            synthTypeSelect,
+            waveformButtons,
+            envAttackSlider,
+            envAttackValue,
+            envDecaySlider,
+            envDecayValue,
+            envSustainSlider,
+            envSustainValue,
+            envReleaseSlider,
+            envReleaseValue,
+            harmonicitySlider,
+            harmonicityValue,
+            modIndexSlider,
+            modIndexValue,
+            dutySlider,
+            dutyValue,
+            monoCutoffSlider,
+            monoCutoffValue,
+            monoOctavesSlider,
+            monoOctavesValue,
+            monoQSlider,
+            monoQValue,
+            duoHarmSlider,
+            duoHarmValue,
+            duoVibratoSlider,
+            duoVibratoValue,
+            pluckDampeningSlider,
+            pluckDampeningValue,
+            pluckResonanceSlider,
+            pluckResonanceValue,
+            pluckNoiseSlider,
+            pluckNoiseValue,
+            membranePitchDecaySlider,
+            membranePitchDecayValue,
+            membraneOctavesSlider,
+            membraneOctavesValue,
+        },
+        onSynthTypeChange: (type) => {
+            audioEngine?.setSynth(type);
+            createOrUpdatePattern();
+        },
+        onWaveformChange: (waveform) => {
+            appState.currentWaveform = waveform;
+            updateWaveformButtons(appState.currentWaveform);
+            audioEngine?.setSynth(synthTypeSelect.value);
+        },
+        onEnvelopeChange: debouncedUpdateEnvelope,
+        onHarmonicityChange: debouncedSetHarmonicity,
+        onModIndexChange: debouncedSetModIndex,
+        onDutyChange: debouncedSetDuty,
+        onMonoCutoffChange: (value) => {
+            if (
+                audioEngine?.activeSynth &&
+                "filterEnvelope" in audioEngine.activeSynth &&
+                audioEngine.activeSynth.filterEnvelope
+            ) {
+                audioEngine.activeSynth.filterEnvelope.baseFrequency = value;
+            }
+        },
+        onMonoOctavesChange: (value) => {
+            if (
+                audioEngine?.activeSynth &&
+                "filterEnvelope" in audioEngine.activeSynth &&
+                audioEngine.activeSynth.filterEnvelope
+            ) {
+                audioEngine.activeSynth.filterEnvelope.octaves = value;
+            }
+        },
+        onMonoQChange: (value) => {
+            if (
+                audioEngine?.activeSynth &&
+                "filter" in audioEngine.activeSynth &&
+                audioEngine.activeSynth.filter
+            ) {
+                audioEngine.activeSynth.filter.Q.value = value;
+            }
+        },
+        onDuoHarmonicityChange: (value) => {
+            if (audioEngine?.activeSynth && "harmonicity" in audioEngine.activeSynth) {
+                audioEngine.activeSynth.harmonicity.value = value;
+            }
+        },
+        onDuoVibratoChange: (value) => {
+            if (audioEngine?.activeSynth && "vibratoAmount" in audioEngine.activeSynth) {
+                audioEngine.activeSynth.vibratoAmount.value = value;
+            }
+        },
+        onPluckDampeningChange: (value) => {
+            if (audioEngine?.activeSynth && "dampening" in audioEngine.activeSynth) {
+                audioEngine.activeSynth.dampening = value;
+            }
+        },
+        onPluckResonanceChange: (value) => {
+            if (audioEngine?.activeSynth && "resonance" in audioEngine.activeSynth) {
+                audioEngine.activeSynth.resonance = value;
+            }
+        },
+        onPluckNoiseChange: (value) => {
+            if (audioEngine?.activeSynth && "attackNoise" in audioEngine.activeSynth) {
+                audioEngine.activeSynth.attackNoise = value;
+            }
+        },
+        onMembranePitchDecayChange: (value) => {
+            if (audioEngine?.activeSynth && "pitchDecay" in audioEngine.activeSynth) {
+                audioEngine.activeSynth.pitchDecay = value;
+            }
+        },
+        onMembraneOctavesChange: (value) => {
+            if (audioEngine?.activeSynth && "octaves" in audioEngine.activeSynth) {
+                audioEngine.activeSynth.octaves = value;
+            }
+        },
     });
+    synthControlsController.initialize();
+
+    const effectsControlsController = createEffectsControlsController({
+        dom: {
+            postGainSlider,
+            postGainValue,
+            filterCutoffSlider,
+            filterCutoffValue,
+            filterResonanceSlider,
+            filterResonanceValue,
+            driveMixSlider,
+            driveMixValue,
+            chorusMixSlider,
+            chorusMixValue,
+            autoPanMixSlider,
+            autoPanMixValue,
+            delayMixSlider,
+            delayMixValue,
+            reverbMixSlider,
+            reverbMixValue,
+        },
+        formatPostGain: dbToPercent,
+        onPostGainChange: debouncedSetPostGain,
+        onFilterCutoffChange: debouncedSetFilterCutoff,
+        onFilterResonanceChange: debouncedSetFilterQ,
+        onDriveMixChange: (value) => {
+            if (audioEngine?.distortion) audioEngine.distortion.wet.value = value;
+        },
+        onChorusMixChange: (value) => {
+            if (audioEngine?.chorus) audioEngine.chorus.wet.value = value;
+        },
+        onAutoPanMixChange: (value) => {
+            if (audioEngine?.autoPanner) audioEngine.autoPanner.wet.value = value;
+        },
+        onDelayMixChange: debouncedSetDelayMix,
+        onReverbMixChange: debouncedSetReverbMix,
+    });
+    effectsControlsController.initialize();
 
     bpmSlider.addEventListener("input", () => {
         bpmValue.textContent = bpmSlider.value;
@@ -2470,301 +2271,6 @@ function initializeApp() {
     swingSlider.addEventListener("input", () => {
         debouncedSetSwing(parseFloat(swingSlider.value));
         swingValue.textContent = parseFloat(swingSlider.value).toFixed(2);
-    });
-
-    notesInput.addEventListener("change", () => {
-        const raw = notesInput.value.trim().split(/\s+/).filter(Boolean);
-        const normalized = normalizeNotesSequence(raw);
-        if (normalized.length > 0) {
-            notesInput.value = normalized.join(" ");
-            currentNotes = normalized;
-        } else {
-            currentNotes = raw.length ? raw : ["C4"];
-        }
-        createOrUpdatePattern();
-    });
-    notesInput.addEventListener("input", () => {
-        currentNotes = notesInput.value.trim().split(/\s+/).filter(Boolean);
-        if (currentNotes.length === 0) currentNotes = ["C4"];
-        updateEstimatedExportDuration();
-    });
-
-    scaleQuantizeToggle.addEventListener("change", () => {
-        if (scaleQuantizeToggle.checked) {
-            if (scaleTypeSelect.value === "chromatic") {
-                scaleTypeSelect.value = lastActiveScaleType || "major";
-            }
-        } else {
-            if (scaleTypeSelect.value !== "chromatic") {
-                lastActiveScaleType = scaleTypeSelect.value;
-            }
-            scaleTypeSelect.value = "chromatic";
-        }
-        updateScaleQuantizeUi();
-        updateScaleQuantizeToggleText();
-        createOrUpdatePattern();
-    });
-
-    scaleTypeSelect.addEventListener("change", () => {
-        if (scaleTypeSelect.value === "chromatic") {
-            scaleQuantizeToggle.checked = false;
-        } else {
-            scaleQuantizeToggle.checked = true;
-            lastActiveScaleType = scaleTypeSelect.value;
-        }
-        updateScaleQuantizeUi();
-        updateScaleQuantizeToggleText();
-        createOrUpdatePattern();
-    });
-
-    scaleRootSelect.addEventListener("change", createOrUpdatePattern);
-
-    intervalSelect.addEventListener("change", createOrUpdatePattern);
-
-    // --- Synth & Effects ---
-    synthTypeSelect.addEventListener("change", () => {
-        audioEngine?.setSynth(synthTypeSelect.value);
-        createOrUpdatePattern();
-    });
-
-    waveformButtons.addEventListener("click", (e) => {
-        const btn = /** @type {Element} */ (e.target).closest("button.waveform-btn");
-        if (!btn) return;
-
-        appState.currentWaveform = btn.getAttribute("data-wave") || "sine";
-        updateWaveformButtons(appState.currentWaveform);
-        audioEngine?.setSynth(synthTypeSelect.value);
-    });
-
-    harmonicitySlider.addEventListener("input", () => {
-        const val = parseFloat(harmonicitySlider.value);
-        debouncedSetHarmonicity(val);
-        harmonicityValue.textContent = val.toFixed(1);
-    });
-
-    modIndexSlider.addEventListener("input", () => {
-        const val = parseFloat(modIndexSlider.value);
-        debouncedSetModIndex(val);
-        modIndexValue.textContent = val.toFixed(1);
-    });
-
-    // --- Duty Cycle ---
-    dutySlider.addEventListener("input", () => {
-        const val = parseFloat(dutySlider.value);
-        dutyValue.textContent = val.toFixed(2);
-        debouncedSetDuty(val);
-    });
-
-    // --- Octave Controls (Native change events & Click delegation) ---
-    octaveShiftButtons.addEventListener("change", (e) => {
-        const target = /** @type {HTMLInputElement} */ (e.target);
-        if (target && target.value !== undefined) {
-            currentOctaveShift = parseInt(target.value, 10) || 0;
-            updateButtonGroup(octaveShiftButtons, currentOctaveShift, "data-shift");
-            createOrUpdatePattern();
-            debouncedRenderStaticLoop();
-        }
-    });
-
-    octaveShiftButtons.addEventListener("click", (e) => {
-        const target = /** @type {Element} */ (e.target).closest("button, label");
-        if (!target) return;
-        const btn = target.tagName === "BUTTON" ? target : target.querySelector("[data-shift]");
-        if (btn) {
-            const shiftVal = btn.getAttribute("data-shift");
-            if (shiftVal !== null) {
-                currentOctaveShift = parseInt(shiftVal, 10);
-                updateButtonGroup(octaveShiftButtons, currentOctaveShift, "data-shift");
-                createOrUpdatePattern();
-                debouncedRenderStaticLoop();
-            }
-        }
-    });
-
-    octaveRangeButtons.addEventListener("change", (e) => {
-        const target = /** @type {HTMLInputElement} */ (e.target);
-        if (target && target.value !== undefined) {
-            currentOctaveRange = parseInt(target.value, 10) || 1;
-            updateButtonGroup(octaveRangeButtons, currentOctaveRange, "data-range");
-            createOrUpdatePattern();
-            debouncedRenderStaticLoop();
-        }
-    });
-
-    octaveRangeButtons.addEventListener("click", (e) => {
-        const target = /** @type {Element} */ (e.target).closest("button, label");
-        if (!target) return;
-        const btn = target.tagName === "BUTTON" ? target : target.querySelector("[data-range]");
-        if (btn) {
-            const rangeVal = btn.getAttribute("data-range");
-            if (rangeVal !== null) {
-                currentOctaveRange = parseInt(rangeVal, 10);
-                updateButtonGroup(octaveRangeButtons, currentOctaveRange, "data-range");
-                createOrUpdatePattern();
-                debouncedRenderStaticLoop();
-            }
-        }
-    });
-
-    // --- Gate ---
-    gateSlider.addEventListener("input", () => {
-        gateValue.textContent = parseFloat(gateSlider.value).toFixed(2);
-        debouncedCreateOrUpdatePattern50();
-    });
-
-    // --- Filter ---
-    filterCutoffSlider.addEventListener("input", () => {
-        const freq = parseFloat(filterCutoffSlider.value);
-        debouncedSetFilterCutoff(freq);
-        filterCutoffValue.textContent = freq.toFixed(0);
-    });
-    filterResonanceSlider.addEventListener("input", () => {
-        const res = parseFloat(filterResonanceSlider.value);
-        debouncedSetFilterQ(res);
-        filterResonanceValue.textContent = res.toFixed(1);
-    });
-
-    // --- MonoSynth Controls ---
-    if (monoCutoffSlider) {
-        monoCutoffSlider.addEventListener("input", () => {
-            const val = parseFloat(monoCutoffSlider.value);
-            if (monoCutoffValue) monoCutoffValue.textContent = val.toFixed(0);
-            if (
-                audioEngine?.activeSynth &&
-                "filterEnvelope" in audioEngine.activeSynth &&
-                audioEngine.activeSynth.filterEnvelope
-            ) {
-                audioEngine.activeSynth.filterEnvelope.baseFrequency = val;
-            }
-        });
-    }
-    if (monoOctavesSlider) {
-        monoOctavesSlider.addEventListener("input", () => {
-            const val = parseFloat(monoOctavesSlider.value);
-            if (monoOctavesValue) monoOctavesValue.textContent = val.toFixed(1);
-            if (
-                audioEngine?.activeSynth &&
-                "filterEnvelope" in audioEngine.activeSynth &&
-                audioEngine.activeSynth.filterEnvelope
-            ) {
-                audioEngine.activeSynth.filterEnvelope.octaves = val;
-            }
-        });
-    }
-    if (monoQSlider) {
-        monoQSlider.addEventListener("input", () => {
-            const val = parseFloat(monoQSlider.value);
-            if (monoQValue) monoQValue.textContent = val.toFixed(1);
-            if (
-                audioEngine?.activeSynth &&
-                "filter" in audioEngine.activeSynth &&
-                audioEngine.activeSynth.filter
-            ) {
-                audioEngine.activeSynth.filter.Q.value = val;
-            }
-        });
-    }
-
-    // --- DuoSynth Controls ---
-    if (duoHarmSlider) {
-        duoHarmSlider.addEventListener("input", () => {
-            const val = parseFloat(duoHarmSlider.value);
-            if (duoHarmValue) duoHarmValue.textContent = val.toFixed(2);
-            if (audioEngine?.activeSynth && "harmonicity" in audioEngine.activeSynth) {
-                audioEngine.activeSynth.harmonicity.value = val;
-            }
-        });
-    }
-    if (duoVibratoSlider) {
-        duoVibratoSlider.addEventListener("input", () => {
-            const val = parseFloat(duoVibratoSlider.value);
-            if (duoVibratoValue) duoVibratoValue.textContent = val.toFixed(2);
-            if (audioEngine?.activeSynth && "vibratoAmount" in audioEngine.activeSynth) {
-                audioEngine.activeSynth.vibratoAmount.value = val;
-            }
-        });
-    }
-
-    // --- PluckSynth Controls ---
-    if (pluckDampeningSlider) {
-        pluckDampeningSlider.addEventListener("input", () => {
-            const val = parseFloat(pluckDampeningSlider.value);
-            if (pluckDampeningValue) pluckDampeningValue.textContent = val.toFixed(0);
-            if (audioEngine?.activeSynth && "dampening" in audioEngine.activeSynth) {
-                audioEngine.activeSynth.dampening = val;
-            }
-        });
-    }
-    if (pluckResonanceSlider) {
-        pluckResonanceSlider.addEventListener("input", () => {
-            const val = parseFloat(pluckResonanceSlider.value);
-            if (pluckResonanceValue) pluckResonanceValue.textContent = val.toFixed(2);
-            if (audioEngine?.activeSynth && "resonance" in audioEngine.activeSynth) {
-                audioEngine.activeSynth.resonance = val;
-            }
-        });
-    }
-    if (pluckNoiseSlider) {
-        pluckNoiseSlider.addEventListener("input", () => {
-            const val = parseFloat(pluckNoiseSlider.value);
-            if (pluckNoiseValue) pluckNoiseValue.textContent = val.toFixed(1);
-            if (audioEngine?.activeSynth && "attackNoise" in audioEngine.activeSynth) {
-                audioEngine.activeSynth.attackNoise = val;
-            }
-        });
-    }
-
-    // --- MembraneSynth Controls ---
-    if (membranePitchDecaySlider) {
-        membranePitchDecaySlider.addEventListener("input", () => {
-            const val = parseFloat(membranePitchDecaySlider.value);
-            if (membranePitchDecayValue) membranePitchDecayValue.textContent = val.toFixed(3);
-            if (audioEngine?.activeSynth && "pitchDecay" in audioEngine.activeSynth) {
-                audioEngine.activeSynth.pitchDecay = val;
-            }
-        });
-    }
-    if (membraneOctavesSlider) {
-        membraneOctavesSlider.addEventListener("input", () => {
-            const val = parseFloat(membraneOctavesSlider.value);
-            if (membraneOctavesValue) membraneOctavesValue.textContent = val.toFixed(1);
-            if (audioEngine?.activeSynth && "octaves" in audioEngine.activeSynth) {
-                audioEngine.activeSynth.octaves = val;
-            }
-        });
-    }
-
-    // --- Effects ---
-    if (driveMixSlider) {
-        driveMixSlider.addEventListener("input", () => {
-            const mix = parseFloat(driveMixSlider.value);
-            if (audioEngine?.distortion) audioEngine.distortion.wet.value = mix;
-            if (driveMixValue) driveMixValue.textContent = mix.toFixed(2);
-        });
-    }
-    if (chorusMixSlider) {
-        chorusMixSlider.addEventListener("input", () => {
-            const mix = parseFloat(chorusMixSlider.value);
-            if (audioEngine?.chorus) audioEngine.chorus.wet.value = mix;
-            if (chorusMixValue) chorusMixValue.textContent = mix.toFixed(2);
-        });
-    }
-    if (autoPanMixSlider) {
-        autoPanMixSlider.addEventListener("input", () => {
-            const mix = parseFloat(autoPanMixSlider.value);
-            if (audioEngine?.autoPanner) audioEngine.autoPanner.wet.value = mix;
-            if (autoPanMixValue) autoPanMixValue.textContent = mix.toFixed(2);
-        });
-    }
-    delayMixSlider.addEventListener("input", () => {
-        const mix = parseFloat(delayMixSlider.value);
-        debouncedSetDelayMix(mix);
-        delayMixValue.textContent = mix.toFixed(2);
-    });
-    reverbMixSlider.addEventListener("input", () => {
-        const mix = parseFloat(reverbMixSlider.value);
-        debouncedSetReverbMix(mix);
-        reverbMixValue.textContent = mix.toFixed(2);
     });
 
     // --- Recording Controls ---
@@ -2850,18 +2356,15 @@ function initializeApp() {
     });
 
     /**
-     * Helper function to handle preset serialization, file downloads, test state updates,
-     * and IndexedDB persistence.
+     * Helper function to handle preset serialization, file downloads, and IndexedDB persistence.
      *
      * @param {'save'|'download'} source - Action source ('save' for browser storage only, 'download' for JSON download).
-     * @returns {Promise<'success'|'download-only-success'|'download-only-fail'|'store-unavailable'|'save-fail'>} Outcome of the save operation.
+     * @returns {Promise<'success'|'download-only-fail'|'save-fail'>} Outcome of the save operation.
      */
     async function performPresetSave(source) {
         const settings = getAllSettings();
         const filename = `${generateFilename(false)}-preset.json`;
         const presetName = presetNameInput?.value.trim() || filename;
-        updateTestState({ lastSaveFinished: false });
-
         if (source === "download") {
             const settingsBlob = new Blob([JSON.stringify(settings, null, 2)], {
                 type: "application/json",
@@ -2869,36 +2372,18 @@ function initializeApp() {
             downloadBlob(settingsBlob, filename);
         }
 
-        if (!window.WebArpPresetStore) {
-            showBrowserStorageRecovery();
-            updateTestState({
-                lastSaveError: "Browser preset storage is unavailable.",
-                lastSaveFinished: true,
-            });
-            return source === "download" ? "download-only-success" : "store-unavailable";
-        }
-
         try {
-            const record = await window.WebArpPresetStore.save(settings, {
+            const record = await presetStore.save(settings, {
                 filename,
                 name: presetName,
                 source,
             });
             hideBrowserStorageRecovery();
             await refreshSavedPresetList(record.id);
-            updateTestState({
-                lastSavedPreset: settings,
-                lastSavedPresetRecord: record,
-                lastSaveFinished: true,
-            });
             return "success";
         } catch (storeError) {
             console.warn("Failed to save preset to browser storage:", storeError);
             showBrowserStorageRecovery();
-            updateTestState({
-                lastSaveError: String(storeError),
-                lastSaveFinished: true,
-            });
             return source === "download" ? "download-only-fail" : "save-fail";
         }
     }
@@ -2926,8 +2411,6 @@ function initializeApp() {
             const result = await performPresetSave("save");
             if (result === "success") {
                 showToast("Preset saved to browser!", "success");
-            } else if (result === "store-unavailable") {
-                showToast("Browser preset storage is unavailable.", "error");
             } else {
                 showToast("Browser save failed.", "error");
             }
@@ -2950,19 +2433,18 @@ function initializeApp() {
                 try {
                     const settings = JSON.parse(fileReaderTarget.result);
                     applySettingsWithHistory(settings);
-                    updateTestState({ lastImportedPreset: settings });
-                    if (window.WebArpPresetStore) {
-                        window.WebArpPresetStore.save(settings, {
+                    const restoredSettings = getAllSettings();
+                    presetStore
+                        .save(restoredSettings, {
                             filename: file.name,
                             name: file.name,
                             source: "import",
                         })
-                            .then((record) => refreshSavedPresetList(record.id))
-                            .catch((er) => {
-                                console.warn("Failed to save imported preset:", er);
-                                showBrowserStorageRecovery();
-                            });
-                    }
+                        .then((record) => refreshSavedPresetList(record.id))
+                        .catch((er) => {
+                            console.warn("Failed to save imported preset:", er);
+                            showBrowserStorageRecovery();
+                        });
                     showToast("Preset loaded!", "success");
                 } catch (err) {
                     console.error("Failed to load preset:", err);
@@ -2977,7 +2459,6 @@ function initializeApp() {
     if (loadSavedPresetButton) {
         loadSavedPresetButton.addEventListener("click", async () => {
             log("Load saved preset button clicked.");
-            updateTestState({ lastLoadFinished: false });
             const selectedId = savedPresetSelect?.value || "";
 
             // Check if selected preset is a Factory Preset
@@ -2986,52 +2467,25 @@ function initializeApp() {
                 applySettingsWithHistory(mergeSettings(DEFAULT_SETTINGS, factoryPreset.settings));
                 if (presetNameInput) presetNameInput.value = factoryPreset.name;
                 setActiveSoundStarterCard(factoryPreset.id);
-                updateTestState({
-                    lastLoadedPreset: factoryPreset.settings,
-                    lastLoadedPresetRecord: factoryPreset,
-                    lastLoadFinished: true,
-                });
                 showToast(`Loaded factory preset: ${factoryPreset.name}`, "success");
                 return;
             }
 
-            if (!window.WebArpPresetStore) {
-                showBrowserStorageRecovery();
-                updateTestState({
-                    lastLoadError: "Browser preset storage is unavailable.",
-                    lastLoadFinished: true,
-                });
-                showToast("Browser preset storage is unavailable.", "error");
-                return;
-            }
             try {
                 const record = selectedId
-                    ? await window.WebArpPresetStore.get(selectedId)
-                    : await window.WebArpPresetStore.loadLatest();
+                    ? await presetStore.get(selectedId)
+                    : await presetStore.loadLatest();
                 if (!record) {
-                    updateTestState({
-                        lastLoadedPreset: null,
-                        lastLoadFinished: true,
-                    });
                     showToast("No saved preset found yet.", "info");
                     return;
                 }
                 applySettingsWithHistory(record.settings || record);
                 if (presetNameInput) presetNameInput.value = record.name || record.filename || "";
                 await refreshSavedPresetList(record.id);
-                updateTestState({
-                    lastLoadedPreset: record.settings || record,
-                    lastLoadedPresetRecord: record,
-                    lastLoadFinished: true,
-                });
                 showToast("Loaded saved preset from browser storage.", "success");
             } catch (error) {
                 console.error("Failed to load saved preset:", error);
                 showBrowserStorageRecovery();
-                updateTestState({
-                    lastLoadError: String(error),
-                    lastLoadFinished: true,
-                });
                 showToast("Failed to load saved preset.", "error");
             }
         });
@@ -3040,40 +2494,21 @@ function initializeApp() {
     if (clearSavedPresetButton) {
         clearSavedPresetButton.addEventListener("click", async () => {
             log("Clear saved presets button clicked.");
-            updateTestState({ lastClearFinished: false });
-            if (!window.WebArpPresetStore) {
-                showBrowserStorageRecovery();
-                updateTestState({
-                    lastClearError: "Browser preset storage is unavailable.",
-                    lastClearFinished: true,
-                });
-                showToast("Browser preset storage is unavailable.", "error");
-                return;
-            }
-
-            const confirmed = window.__WEB_ARP_TEST__?.skipConfirm
-                ? true
-                : confirm(
-                      "Are you sure you want to clear all your saved user presets? This action cannot be undone.",
-                  );
+            const confirmed = confirm(
+                "Are you sure you want to clear all your saved user presets? This action cannot be undone.",
+            );
 
             if (!confirmed) {
-                updateTestState({ lastClearFinished: true });
                 return;
             }
 
             try {
-                await window.WebArpPresetStore.clear();
+                await presetStore.clear();
                 await refreshSavedPresetList();
-                updateTestState({ lastClearFinished: true });
                 showToast("Saved browser presets cleared.", "success");
             } catch (error) {
                 console.error("Failed to clear saved presets:", error);
                 showBrowserStorageRecovery();
-                updateTestState({
-                    lastClearError: String(error),
-                    lastClearFinished: true,
-                });
                 showToast("Failed to clear saved presets.", "error");
             }
         });
@@ -3082,49 +2517,25 @@ function initializeApp() {
     if (deleteSavedPresetButton) {
         deleteSavedPresetButton.addEventListener("click", async () => {
             log("Delete saved preset button clicked.");
-            updateTestState({ lastDeleteFinished: false });
             const selectedId = savedPresetSelect?.value || "";
 
             if (!selectedId) {
-                updateTestState({
-                    lastDeleteError: "No saved preset selected.",
-                    lastDeleteFinished: true,
-                });
                 showToast("No saved preset selected.", "info");
                 return;
             }
 
             if (selectedId.startsWith("factory-")) {
                 showToast("Factory presets cannot be deleted.", "info");
-                updateTestState({ lastDeleteFinished: true });
-                return;
-            }
-
-            if (!window.WebArpPresetStore) {
-                showBrowserStorageRecovery();
-                updateTestState({
-                    lastDeleteError: "Browser preset storage is unavailable.",
-                    lastDeleteFinished: true,
-                });
-                showToast("Browser preset storage is unavailable.", "error");
                 return;
             }
 
             try {
-                await window.WebArpPresetStore.remove(selectedId);
+                await presetStore.remove(selectedId);
                 await refreshSavedPresetList();
-                updateTestState({
-                    lastDeletedPresetId: selectedId,
-                    lastDeleteFinished: true,
-                });
                 showToast("Deleted saved preset.", "success");
             } catch (error) {
                 console.error("Failed to delete saved preset:", error);
                 showBrowserStorageRecovery();
-                updateTestState({
-                    lastDeleteError: String(error),
-                    lastDeleteFinished: true,
-                });
                 showToast("Failed to delete saved preset.", "error");
             }
         });
@@ -3168,10 +2579,6 @@ function initializeApp() {
 
             // Pass buffer and markers to visualizer
             visualizer.updateStaticLoopMap(audioBuffer, markers);
-            updateTestState({
-                lastLoopMapRenderMarkers: markers,
-                loopMapRenderCount: (window.__WEB_ARP_TEST__?.loopMapRenderCount || 0) + 1,
-            });
         } catch (e) {
             console.error("Static loop render failed:", e);
         }
@@ -3187,10 +2594,12 @@ function initializeApp() {
         }
     }, 150);
 
+    patternControlsController.initialize();
+
     // --- Autosave (on any input/change/click) ---
     document.addEventListener("input", (event) => {
         const target = /** @type {Element} */ (event.target);
-        if (target === pwaTestStateField || target === presetNameInput) return;
+        if (target === presetNameInput) return;
         if (target.matches("input, select, textarea")) {
             recordCurrentSettings(true);
             clearActiveSoundStarterCard();
@@ -3209,7 +2618,6 @@ function initializeApp() {
     document.addEventListener("change", (event) => {
         const target = /** @type {Element} */ (event.target);
         if (
-            target === pwaTestStateField ||
             target === presetNameInput ||
             target === savedPresetSelect ||
             target === loadPresetInput
@@ -3246,167 +2654,6 @@ function initializeApp() {
     });
 
     // ==================================================================
-    //    Browser Automation / Test Hooks
-    // ==================================================================
-
-    window.__WEB_ARP_TEST__ = window.__WEB_ARP_TEST__ || {};
-    Object.assign(window.__WEB_ARP_TEST__, {
-        getCurrentSettings: () => getAllSettings(),
-        getAudioRuntimeState: () => ({
-            hasEngine: Boolean(audioEngine),
-            isAudioContextStarted,
-        }),
-        getAudioRuntimeConstructionCount: () => audioRuntimeConstructionCount,
-        getPattern: () => arpPattern,
-        getActiveSynth: () => getAvailableAudioEngine()?.activeSynth || null,
-        getHistoryState: () => settingsHistory.exportState(),
-        undo: undoSettings,
-        redo: redoSettings,
-        resetDefaults: resetAllSettings,
-        getLoopMapState: () => ({
-            renderCount: window.__WEB_ARP_TEST__?.loopMapRenderCount || 0,
-            markers: window.__WEB_ARP_TEST__?.lastLoopMapRenderMarkers || [],
-        }),
-
-        savePreset: async (settings = null, metadata = {}) => {
-            if (!window.WebArpPresetStore)
-                throw new Error("Browser preset storage is unavailable.");
-            const record = await window.WebArpPresetStore.save(
-                settings || getAllSettings(),
-                metadata,
-            );
-            await refreshSavedPresetList(record.id);
-            updateTestState({
-                lastSavedPreset: record.settings,
-                lastSavedPresetRecord: record,
-                lastSaveFinished: true,
-            });
-            return record;
-        },
-
-        listPresets: async () => {
-            if (!window.WebArpPresetStore) return [];
-            const records = await window.WebArpPresetStore.list();
-            updateTestState({ savedPresetCount: records.length });
-            return records;
-        },
-
-        getPreset: async (id) => {
-            if (!window.WebArpPresetStore) return null;
-            return window.WebArpPresetStore.get(id);
-        },
-
-        loadPreset: async (id = "") => {
-            if (!window.WebArpPresetStore)
-                throw new Error("Browser preset storage is unavailable.");
-            const record = id
-                ? await window.WebArpPresetStore.get(id)
-                : await window.WebArpPresetStore.loadLatest();
-            if (!record) {
-                updateTestState({
-                    lastLoadedPreset: null,
-                    lastLoadFinished: true,
-                });
-                return null;
-            }
-            applySettingsWithHistory(record.settings || record);
-            await refreshSavedPresetList(record.id);
-            updateTestState({
-                lastLoadedPreset: record.settings || record,
-                lastLoadedPresetRecord: record,
-                lastLoadFinished: true,
-            });
-            return record;
-        },
-
-        removePreset: async (id) => {
-            if (!window.WebArpPresetStore)
-                throw new Error("Browser preset storage is unavailable.");
-            await window.WebArpPresetStore.remove(id);
-            await refreshSavedPresetList();
-            updateTestState({
-                lastDeletedPresetId: id,
-                lastDeleteFinished: true,
-            });
-        },
-
-        clearPresets: async () => {
-            if (!window.WebArpPresetStore) {
-                updateTestState({
-                    lastClearError: "Browser preset storage is unavailable.",
-                    lastClearFinished: true,
-                });
-                return;
-            }
-            await window.WebArpPresetStore.clear();
-            await refreshSavedPresetList();
-            updateTestState({ lastClearFinished: true });
-        },
-
-        saveLastSession: saveLastSessionNow,
-        restoreLastSession,
-
-        play: async () => {
-            if (!isPlaying) {
-                playStopButton.click();
-                await new Promise((resolve) => setTimeout(resolve, 250));
-            }
-            return isPlaying;
-        },
-
-        stop: async () => {
-            if (isPlaying) {
-                playStopButton.click();
-                await new Promise((resolve) => setTimeout(resolve, 250));
-            }
-            return !isPlaying;
-        },
-
-        exportMidiBlob: (opts = {}) => {
-            const settings = getAllSettings();
-            const sequenceResult = materializePatternSequence(currentNotes, {
-                direction: settings.direction,
-                octaveRange: currentOctaveRange,
-                octaveShift: currentOctaveShift,
-                quantize: {
-                    enabled: settings.scaleQuantize,
-                    root: settings.scaleRoot,
-                    scale: settings.scaleType,
-                },
-            });
-            return createMidiBlob({
-                notes: sequenceResult.notes,
-                bpm: settings.bpm,
-                interval: settings.interval,
-                gateRatio: settings.gateRatio,
-                loopCount: settings.loopCount,
-                ...opts,
-            });
-        },
-
-        getVisualizer: () => visualizer,
-    });
-    Object.defineProperty(window.__WEB_ARP_TEST__, "Tone", {
-        configurable: true,
-        enumerable: true,
-        get: () => Tone,
-    });
-
-    // ==================================================================
-    //    Global Audio Event Listeners
-    // ==================================================================
-
-    window.addEventListener("audioReady", () => {
-        if (SHOW_AUDIO_READY_TOAST) {
-            showToast("Audio is ready!", "success");
-        }
-    });
-
-    window.addEventListener("audioFailed", () => {
-        showToast("Audio failed to start. See console.", "error");
-    });
-
-    // ==================================================================
     //    Initial Setup
     // ==================================================================
 
@@ -3417,62 +2664,10 @@ function initializeApp() {
     defaultSettings = getAllSettings();
     settingsHistory.initialize(defaultSettings);
     registerIndividualResetGestures();
-    updateHistoryControls();
+    historyController.initialize();
     buildSoundStartersStrip();
 
-    if (startOverlay) {
-        startOverlay.addEventListener("click", handleStartOverlayClick);
-    }
-    if (quickStartScratchButton) {
-        quickStartScratchButton.addEventListener("click", handleStartFromScratch);
-    }
-    if (quickStartOverlay) {
-        quickStartOverlay.addEventListener("click", (event) => {
-            if (event.target === quickStartOverlay) {
-                handleStartFromScratch();
-            }
-        });
-    }
-    if (quickStartModal) {
-        quickStartModal.addEventListener("keydown", (event) => {
-            if (event.key !== "Tab") return;
-            const focusable = Array.from(
-                quickStartModal.querySelectorAll("button:not([disabled])"),
-            );
-            if (focusable.length === 0) return;
-            const firstElement = focusable[0];
-            const lastElement = focusable[focusable.length - 1];
-
-            if (event.shiftKey) {
-                if (document.activeElement === firstElement) {
-                    event.preventDefault();
-                    lastElement.focus();
-                }
-            } else {
-                if (document.activeElement === lastElement) {
-                    event.preventDefault();
-                    firstElement.focus();
-                }
-            }
-        });
-    }
-    window.addEventListener("keydown", (event) => {
-        if (
-            event.key === "Escape" &&
-            quickStartOverlay &&
-            !quickStartOverlay.classList.contains("is-hidden")
-        ) {
-            handleStartFromScratch();
-        }
-    });
-
-    if (isFirstVisit()) {
-        openQuickStartModal();
-    } else {
-        if (startOverlay) {
-            startOverlay.classList.remove("is-hidden");
-        }
-    }
+    onboardingController.initialize();
 
     log("Arpeggiator initialized and ready.");
     void refreshSavedPresetList();
@@ -3486,8 +2681,3 @@ if (document.readyState === "loading") {
 } else {
     initializeApp();
 }
-
-// Expose handlers still referenced by inline HTML attributes and external checks.
-window.filterNoteInput = filterNoteInput;
-window.filterNumericInput = filterNumericInput;
-window.startAudio = startAudio;

@@ -429,9 +429,11 @@ export function createVisualizer(context) {
 
                 // Only grab/refresh the audio buffers if the visualizer is NOT paused and we are in a live mode
                 if (!isPaused && (currentMode === "oscilloscope" || currentMode === "fft")) {
-                    const nativeNode =
-                        /** @type {any} */ (analyser)?.analyser ||
-                        /** @type {any} */ (analyser)?._analyser;
+                    const extendedAnalyser = /** @type {Tone.Analyser & {
+                     * analyser?: AnalyserNode,
+                     * _analyser?: AnalyserNode
+                     * }} */ (analyser);
+                    const nativeNode = extendedAnalyser?.analyser || extendedAnalyser?._analyser;
                     if (nativeNode) {
                         if (currentMode === "fft") {
                             if (typeof nativeNode.getFloatFrequencyData === "function") {

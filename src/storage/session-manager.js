@@ -4,17 +4,28 @@
  * @module storage/session-manager
  */
 
+/** @typedef {import("../../types.d.ts").WebArpPresetStore} WebArpPresetStore */
+
+/**
+ * @typedef {object} SessionManager
+ * @property {() => Promise<void>} saveNow
+ * @property {() => void} scheduleSave
+ * @property {() => void} cancelScheduledSave
+ * @property {() => Promise<boolean>} restoreSession
+ * @property {() => boolean} getIsRestoring
+ */
+
 /**
  * Creates a debounced version of a callback function.
  *
- * @template {(...args: any[]) => any} T
+ * @template {(...args: never[]) => unknown} T
  * @param {T} func - Callback function to debounce.
  * @param {number} wait - Delay duration in milliseconds.
  * @returns {T} Debounced wrapper function.
  */
 export function debounce(func, wait) {
     let timeoutId;
-    return /** @type {any} */ (
+    return /** @type {T} */ (
         function (...args) {
             clearTimeout(timeoutId);
             timeoutId = setTimeout(() => {
@@ -28,23 +39,15 @@ export function debounce(func, wait) {
  * Creates a session manager to coordinate auto-saving and restoring workspace state from IndexedDB.
  *
  * @param {object} options - Configuration options for session management.
- * @param {() => any} options.getPresetStore - Accessor for WebArpPresetStore instance.
+ * @param {() => WebArpPresetStore|undefined} options.getPresetStore - Accessor for WebArpPresetStore instance.
  * @param {() => Record<string, unknown>} options.getSettings - Accessor for serialized settings snapshot.
  * @param {() => Record<string, unknown> | null} [options.getHistoryState] - Accessor for undo/redo history state.
  * @param {(settings: Record<string, unknown>, history: Record<string, unknown> | null) => void} options.onRestore - Callback when a previous session is restored.
- * @param {(updates: Record<string, unknown>) => void} [options.updateTestState] - Callback to report test state mirror updates.
  * @param {number} [options.delayMs=2000] - Auto-save debounce delay in milliseconds.
- * @returns {object} Session manager controller.
+ * @returns {SessionManager} Session manager controller.
  */
 export function createSessionManager(options) {
-    const {
-        getPresetStore,
-        getSettings,
-        getHistoryState,
-        onRestore,
-        updateTestState,
-        delayMs = 2000,
-    } = options;
+    const { getPresetStore, getSettings, getHistoryState, onRestore, delayMs = 2000 } = options;
 
     let saveTimer = null;
     let isRestoring = false;
@@ -62,13 +65,7 @@ export function createSessionManager(options) {
         try {
             const settings = getSettings();
             const history = typeof getHistoryState === "function" ? getHistoryState() : null;
-            const record = await store.saveLastSession(settings, history);
-            if (updateTestState && record) {
-                updateTestState({
-                    lastSessionId: record.id,
-                    lastSessionSavedAt: record.savedAt,
-                });
-            }
+            await store.saveLastSession(settings, history);
         } catch (error) {
             console.warn("Failed to persist workspace session:", error);
         }
@@ -110,12 +107,7 @@ export function createSessionManager(options) {
      */
     async function restoreSession() {
         const store = getPresetStore();
-        if (!store) {
-            if (updateTestState) {
-                updateTestState({ lastSessionRestoreFinished: true });
-            }
-            return false;
-        }
+        if (!store) return false;
 
         try {
             const record = await store.loadLastSession();
@@ -123,18 +115,12 @@ export function createSessionManager(options) {
                 isRestoring = true;
                 onRestore(record.settings, record.history || null);
                 isRestoring = false;
-                if (updateTestState) {
-                    updateTestState({ lastSessionRestoreFinished: true });
-                }
                 return true;
             }
         } catch (error) {
             console.warn("Failed to restore workspace session:", error);
         } finally {
             isRestoring = false;
-            if (updateTestState) {
-                updateTestState({ lastSessionRestoreFinished: true });
-            }
         }
         return false;
     }

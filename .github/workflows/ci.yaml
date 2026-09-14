@@ -37,6 +37,9 @@ jobs:
       - name: Check code quality and lints (Biome)
         run: bun run lint
 
+      - name: Check production source types
+        run: bun run typecheck
+
       - name: Run test suite with V8 coverage gates
         run: bun run test:coverage
 

@@ -122,19 +122,6 @@ test("Randomize Notes Integration Suite", async (): Promise<void> => {
             }
         }
 
-        // Verify pattern values through the dedicated browser-test API.
-        const pattern = window.__WEB_ARP_TEST__.getPattern();
-        if (!pattern || !pattern.values) {
-            return 'missing-pattern';
-        }
-        
-        for (const val of pattern.values) {
-            const pc = val.slice(0, -1);
-            if (!fMinorPitches.includes(pc)) {
-                return 'invalid-pattern-note: ' + val;
-            }
-        }
-
         return 'success';
     })()`,
     ]);

@@ -201,15 +201,23 @@ export function createSettingsHistory(options = {}) {
             !rawFuture ||
             !rawPast.every((snapshot) => matchesSettingsSchema(snapshot, fallback)) ||
             !rawFuture.every((snapshot) => matchesSettingsSchema(snapshot, fallback)) ||
-            !snapshotsEqual(state.present, fallback)
+            !snapshotsEqual(/** @type {Record<string, unknown>} */ (state.present), fallback)
         ) {
             initialize(fallback);
             return false;
         }
 
-        past = trimSnapshots(rawPast.map(cloneSnapshot));
-        present = cloneSnapshot(state.present);
-        future = trimSnapshots(rawFuture.map(cloneSnapshot));
+        past = trimSnapshots(
+            rawPast.map((snapshot) =>
+                cloneSnapshot(/** @type {Record<string, unknown>} */ (snapshot)),
+            ),
+        );
+        present = cloneSnapshot(/** @type {Record<string, unknown>} */ (state.present));
+        future = trimSnapshots(
+            rawFuture.map((snapshot) =>
+                cloneSnapshot(/** @type {Record<string, unknown>} */ (snapshot)),
+            ),
+        );
         transactionActive = false;
         return true;
     }

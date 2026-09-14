@@ -48,14 +48,26 @@ test("Preset Sharing and Parameter Restoration Integration Suite", async (): Pro
         if (!shareBtn) {
             return 'missing-button';
         }
-        
-        if (window.__WEB_ARP_TEST__) {
-            window.__WEB_ARP_TEST__.lastSharedUrl = null;
+
+        let lastUrl = '';
+        const clipboard = navigator.clipboard;
+        const originalWriteText = clipboard.writeText;
+        Object.defineProperty(clipboard, 'writeText', {
+            configurable: true,
+            value: async (text) => {
+                lastUrl = text;
+            },
+        });
+
+        try {
+            shareBtn.click();
+            await new Promise((resolve) => setTimeout(resolve, 0));
+        } finally {
+            Object.defineProperty(clipboard, 'writeText', {
+                configurable: true,
+                value: originalWriteText,
+            });
         }
-        
-        shareBtn.click();
-        
-        const lastUrl = window.__WEB_ARP_TEST__?.lastSharedUrl;
         if (!lastUrl) {
             return 'missing-url';
         }
@@ -77,11 +89,7 @@ test("Preset Sharing and Parameter Restoration Integration Suite", async (): Pro
     console.log(`Navigating to: ${customUrl}`);
     await runBrowser(["open", customUrl]);
     await runBrowser(["wait", "--load", "networkidle"]);
-    await runBrowser([
-        "wait",
-        "--fn",
-        "window.__WEB_ARP_TEST__?.lastSessionRestoreFinished === true",
-    ]);
+    await runBrowser(["wait", "--fn", "document.getElementById('bpm')?.value === '195'"]);
 
     console.log("Clicking overlay to initialize AudioContext...");
     await runBrowser(["click", "#start-overlay"]);
@@ -126,11 +134,7 @@ test("Preset Sharing and Parameter Restoration Integration Suite", async (): Pro
     console.log(`Navigating to: ${clampUrl}`);
     await runBrowser(["open", clampUrl]);
     await runBrowser(["wait", "--load", "networkidle"]);
-    await runBrowser([
-        "wait",
-        "--fn",
-        "window.__WEB_ARP_TEST__?.lastSessionRestoreFinished === true",
-    ]);
+    await runBrowser(["wait", "--fn", "document.getElementById('bpm')?.value === '240'"]);
 
     console.log("Clicking overlay to initialize AudioContext...");
     await runBrowser(["click", "#start-overlay"]);

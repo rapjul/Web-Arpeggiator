@@ -176,8 +176,8 @@ export function clampFloat(val, min, max, fallback) {
 
 /**
  * @typedef {Object} PresetSettings
- * @property {string[]} [baseNotes] - Active base notes array.
- * @property {string[]} [notes] - Expanded octave notes array.
+ * @property {readonly string[]} [baseNotes] - Active base notes array.
+ * @property {readonly string[]} [notes] - Expanded octave notes array.
  * @property {number} [bpm] - Beats per minute.
  * @property {number} [swing] - Swing feel ratio.
  * @property {number} [postGain] - Master output gain in dB.
@@ -223,7 +223,7 @@ export function clampFloat(val, min, max, fallback) {
 /**
  * Serializes a full settings snapshot into URL search parameters.
  *
- * @param {PresetSettings|Record<string, any>} settings - Application settings object.
+ * @param {PresetSettings & Record<string, unknown>} settings - Application settings object.
  * @returns {URLSearchParams} Encoded URL search parameters.
  */
 export function serializePresetToUrlParams(settings) {
@@ -292,7 +292,7 @@ export function serializePresetToUrlParams(settings) {
 /**
  * Parses and strictly validates preset search parameters against default or current settings.
  *
- * @template {PresetSettings|Record<string, any>} T
+ * @template {PresetSettings & Record<string, unknown>} T
  * @param {URLSearchParams|string} searchParams - URL search parameters instance or query string.
  * @param {T} currentSettings - Current baseline application settings.
  * @returns {T|null} Updated settings object if any preset keys were recognized, or null otherwise.
@@ -306,7 +306,7 @@ export function parsePresetFromUrlParams(searchParams, currentSettings) {
     const hasRecognizedKey = [...params.keys()].some((k) => PRESET_URL_KEYS.has(k));
     if (!hasRecognizedKey) return null;
 
-    /** @type {T & Record<string, any>} */
+    /** @type {T & PresetSettings} */
     const settings = { ...currentSettings };
 
     if (params.has("notes")) {
@@ -423,8 +423,8 @@ export function parsePresetFromUrlParams(searchParams, currentSettings) {
 /**
  * Compares two settings objects to determine if any configuration parameters differ.
  *
- * @param {PresetSettings|Record<string, any>} a - First settings snapshot.
- * @param {PresetSettings|Record<string, any>} b - Second settings snapshot.
+ * @param {PresetSettings & Record<string, unknown>} a - First settings snapshot.
+ * @param {PresetSettings & Record<string, unknown>} b - Second settings snapshot.
  * @returns {boolean} True if any setting has changed, false otherwise.
  */
 export function hasPresetChanges(a, b) {

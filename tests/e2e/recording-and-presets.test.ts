@@ -58,7 +58,7 @@ test("Audio Recording, Exports, & Preset Management Suite", async (): Promise<vo
     }
     await runBrowser(["wait", "--fn", "document.getElementById('play-stop')?.disabled === false"]);
 
-    // 2a. Verify audio export mode controls and persisted settings.
+    // 2a. Verify audio export mode controls and their visible state.
     console.log("Step 2a: Testing offline audio export modes...");
     const exportModeCheck: string = await runBrowser([
         "eval",
@@ -79,9 +79,8 @@ test("Audio Recording, Exports, & Preset Management Suite", async (): Promise<vo
             tailSeconds.value = '3.5';
             tailSeconds.dispatchEvent(new Event('input', { bubbles: true }));
             tailSeconds.dispatchEvent(new Event('change', { bubbles: true }));
-            const settings = window.__WEB_ARP_TEST__.getCurrentSettings();
             if (tailControl.classList.contains('hidden') || tailSeconds.disabled) return 'tail-state-failed';
-            if (settings.offlineExportMode !== 'tail' || settings.offlineExportTailSeconds !== 3.5) return 'settings-failed';
+            if (!tail.checked || tailSeconds.value !== '3.5') return 'settings-failed';
             if (!modeHelp.textContent.includes('sample-exact for WAV')) return 'missing-wav-guidance';
             return 'success';
         })()`,
@@ -105,7 +104,7 @@ test("Audio Recording, Exports, & Preset Management Suite", async (): Promise<vo
         "!document.getElementById('record-button')?.classList.contains('recording')",
     ]);
 
-    // 3. Verify Preset Saving (IndexedDB & file download hook)
+    // 3. Verify preset saving through the UI and IndexedDB.
     console.log("Step 3: Testing preset saving...");
     await runBrowser([
         "eval",
@@ -117,22 +116,34 @@ test("Audio Recording, Exports, & Preset Management Suite", async (): Promise<vo
         presetNameInput.value = 'My test preset';
         presetNameInput.dispatchEvent(new Event('input'));
 
-        // Reset the lastSaveFinished flag on the test bridge
-        window.__WEB_ARP_TEST__.lastSaveFinished = false;
-
         // Trigger save
         savePresetButton.click();
     })()`,
     ]);
 
-    // Wait for the async IndexedDB save to finish
-    await runBrowser(["wait", "--fn", "window.__WEB_ARP_TEST__.lastSaveFinished === true"]);
+    // Wait for the async save to appear in the visible preset list.
+    await runBrowser([
+        "wait",
+        "--fn",
+        "[...document.getElementById('saved-preset-select').options].some((option) => option.textContent.includes('My test preset'))",
+    ]);
 
     // Assert the preset was indeed saved correctly in IndexedDB
     const checkPresetSaved: string = await runBrowser([
         "eval",
         `(async () => {
-        const records = await window.__WEB_ARP_TEST__.listPresets();
+        const database = await new Promise((resolve, reject) => {
+            const request = indexedDB.open('web-arpeggiator-presets');
+            request.addEventListener('success', () => resolve(request.result));
+            request.addEventListener('error', () => reject(request.error));
+        });
+        const transaction = database.transaction('presetSnapshots', 'readonly');
+        const request = transaction.objectStore('presetSnapshots').getAll();
+        const records = await new Promise((resolve, reject) => {
+            request.addEventListener('success', () => resolve(request.result));
+            request.addEventListener('error', () => reject(request.error));
+        });
+        database.close();
         if (!records.some(r => r.name === 'My test preset')) {
             return 'not-saved';
         }

@@ -21,7 +21,7 @@ export default defineConfig({
             strategies: "injectManifest",
             srcDir: ".",
             filename: "sw.js",
-            injectRegister: false, // Registered manually in js/pwa.js
+            injectRegister: false, // Registered by the app-composed PWA controller.
             manifest: {
                 name: "Web Arpeggiator",
                 short_name: "Arpeggiator",

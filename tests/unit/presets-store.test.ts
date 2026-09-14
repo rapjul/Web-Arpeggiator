@@ -162,15 +162,46 @@ describe("Presets Store Domain Module", () => {
 
     describe("Preset CRUD operations", () => {
         it("saves and retrieves named presets", async () => {
-            const settings = { bpm: 130, notes: ["C4", "G4"] };
+            const settings = { bpm: 130, baseNotes: ["C4", "G4"] };
             const saved = await save(settings, { name: "Test Preset", source: "test" });
 
             expect(saved.id).toBeDefined();
             expect(saved.name).toBe("Test Preset");
-            expect(saved.settings).toEqual(settings);
+            expect(saved.settings).toMatchObject(settings);
 
             const retrieved = await get(saved.id);
             expect(retrieved).toEqual(saved);
+        });
+
+        it("normalizes persisted settings and rejects malformed IndexedDB records", async () => {
+            const saved = await save(
+                {
+                    bpm: Number.NaN,
+                    baseNotes: "D4 F#4 A4",
+                    direction: "unsupported",
+                    filterCutoff: 20000,
+                },
+                { id: "normalized" },
+            );
+
+            expect(saved.settings).toMatchObject({
+                bpm: 120,
+                baseNotes: ["D4", "F#4", "A4"],
+                direction: "up",
+                filterCutoff: 10000,
+            });
+
+            mockStoreData.set("malformed", {
+                id: "malformed",
+                savedAt: 42,
+            } as unknown as StoredPresetRecord);
+            await expect(get("malformed")).resolves.toBeNull();
+
+            mockStoreData.set("missing-settings", {
+                id: "missing-settings",
+                savedAt: "2026-09-14T00:00:00Z",
+            });
+            await expect(get("missing-settings")).resolves.toBeNull();
         });
 
         it("lists saved presets sorted by savedAt in descending order", async () => {
@@ -225,7 +256,7 @@ describe("Presets Store Domain Module", () => {
         });
 
         it("saves and loads the workspace last-session snapshot", async () => {
-            const sessionSettings = { bpm: 150, currentNotes: ["F4", "A4", "C5"] };
+            const sessionSettings = { bpm: 150, baseNotes: ["F4", "A4", "C5"] };
             const history = {
                 past: [{ bpm: 120 }],
                 present: sessionSettings,
@@ -234,7 +265,7 @@ describe("Presets Store Domain Module", () => {
             const record = await saveLastSession(sessionSettings, history);
 
             expect(record.id).toBe("current");
-            expect(record.settings).toEqual(sessionSettings);
+            expect(record.settings).toMatchObject(sessionSettings);
             expect(record.history).toEqual(history);
 
             const loaded = await loadLastSession();

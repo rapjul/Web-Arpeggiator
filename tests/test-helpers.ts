@@ -89,7 +89,7 @@ export function cleanupProcesses(): void {
 
 /**
  * Navigates to the test URL and waits for service worker registration/activation
- * and session state restoration to complete.
+ * and application rendering to complete.
  *
  * @param {string} url - The target application URL to open.
  * @returns {Promise<void>} Resolves when the PWA is initialized and ready.
@@ -104,26 +104,28 @@ export async function waitForPwaReady(url: string): Promise<void> {
     console.log("  [PWA Ready] Waiting for load networkidle...");
     await runBrowser(["wait", "--load", "networkidle"]);
 
-    // Wait for the app state to report service worker registration
-    console.log("  [PWA Ready] Waiting for SW registration state...");
+    // Wait for the browser's public Service Worker API to report registration.
+    console.log("  [PWA Ready] Waiting for SW registration...");
     await runBrowser([
         "wait",
         "--fn",
-        "window.__WEB_ARP_PWA_STATE__?.serviceWorkerRegistered === true",
+        "navigator.serviceWorker?.getRegistration('./').then((registration) => registration !== undefined)",
     ]);
 
     console.log("  [PWA Ready] Waiting for SW controller not null...");
     await runBrowser(["wait", "--fn", "navigator.serviceWorker?.controller !== null"]);
 
-    // Reload to activate the service worker controller and restore last session
+    // Reload to activate the service worker controller and finish application startup.
     console.log("  [PWA Ready] Reloading page...");
     await runBrowser(["reload"]);
 
-    console.log("  [PWA Ready] Waiting for active controller and session restore after reload...");
+    console.log(
+        "  [PWA Ready] Waiting for active controller and application shell after reload...",
+    );
     await runBrowser([
         "wait",
         "--fn",
-        "navigator.serviceWorker?.controller !== null && document.getElementById('notes') !== null && window.__WEB_ARP_TEST__?.lastSessionRestoreFinished === true",
+        "navigator.serviceWorker?.controller !== null && document.getElementById('notes') !== null",
     ]);
     console.log("  [PWA Ready] Done!");
 }
@@ -172,6 +174,94 @@ export async function initializeAudio(): Promise<void> {
 }
 
 /**
+ * Exports the current application pattern as MIDI and returns its Note On pitches.
+ *
+ * This follows the same public download path a user uses, while allowing browser
+ * tests to assert the materialized pattern without reaching into application state.
+ *
+ * @returns {Promise<number[]>} MIDI pitch numbers in exported playback order.
+ */
+export async function exportCurrentPatternMidiNotes(): Promise<number[]> {
+    const result = await runBrowser([
+        "eval",
+        `(async () => {
+            const midiButton = document.getElementById("offline-export-midi-button");
+            if (!midiButton) throw new Error("Missing MIDI export button");
+
+            let capturedBlob = null;
+            const originalCreateObjectURL = URL.createObjectURL;
+            const originalClick = HTMLAnchorElement.prototype.click;
+
+            URL.createObjectURL = function (blob) {
+                capturedBlob = blob;
+                return originalCreateObjectURL.call(URL, blob);
+            };
+            HTMLAnchorElement.prototype.click = function () {};
+
+            try {
+                midiButton.click();
+                await new Promise((resolve) => setTimeout(resolve, 50));
+                if (!(capturedBlob instanceof Blob)) {
+                    throw new Error("MIDI export did not create a Blob");
+                }
+
+                const bytes = new Uint8Array(await capturedBlob.arrayBuffer());
+                const noteOns = [];
+
+                // The app's MIDI encoder emits an explicit Note On status for
+                // each note, so a direct scan avoids reimplementing a parser in
+                // the browser harness while still observing the exported bytes.
+                for (let index = 0; index <= bytes.length - 3; index += 1) {
+                    if (bytes[index] === 0x90 && bytes[index + 2] > 0) {
+                        noteOns.push(bytes[index + 1]);
+                    }
+                }
+
+                return noteOns;
+            } finally {
+                URL.createObjectURL = originalCreateObjectURL;
+                HTMLAnchorElement.prototype.click = originalClick;
+            }
+        })()`,
+    ]);
+
+    const parsed: unknown = JSON.parse(result);
+    if (!Array.isArray(parsed) || !parsed.every((pitch) => typeof pitch === "number")) {
+        throw new Error(`MIDI export returned an invalid note sequence: ${result}`);
+    }
+    return parsed.map((pitch) => Number(pitch));
+}
+
+/**
+ * Waits until the application has completed its first browser-backed session save.
+ *
+ * @returns {Promise<void>} Resolves once the native IndexedDB session record exists.
+ */
+export async function waitForSessionAutosave(): Promise<void> {
+    await runBrowser([
+        "wait",
+        "--fn",
+        `new Promise((resolve, reject) => {
+            const openRequest = indexedDB.open("web-arpeggiator-presets");
+            openRequest.addEventListener("error", () => reject(openRequest.error));
+            openRequest.addEventListener("success", () => {
+                const database = openRequest.result;
+                const transaction = database.transaction("lastSession", "readonly");
+                const sessionRequest = transaction.objectStore("lastSession").get("current");
+                sessionRequest.addEventListener("success", () => {
+                    database.close();
+                    resolve(Boolean(sessionRequest.result?.settings));
+                });
+                sessionRequest.addEventListener("error", () => {
+                    database.close();
+                    reject(sessionRequest.error);
+                });
+            });
+        })`,
+    ]);
+}
+
+/**
  * Deletes the preset and last session IndexedDB database and clears localStorage to ensure test isolation.
  *
  * @returns {Promise<void>}
@@ -210,4 +300,10 @@ export async function resetBrowserState(): Promise<void> {
         })
     `,
     ]);
+
+    // A restore started before the store was cleared can still resolve later and
+    // overwrite test setup. Reloading after the clear starts restoration against
+    // the empty store, so the next assertion begins from the default workspace.
+    await runBrowser(["reload"]);
+    await runBrowser(["wait", "--fn", "document.getElementById('notes')?.value === 'C4 E4 G4'"]);
 }

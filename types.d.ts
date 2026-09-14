@@ -67,9 +67,9 @@ export interface WebArpPresetMetadata {
 /**
  * Stored preset record snapshot in IndexedDB.
  */
-export interface WebArpPresetRecord {
+export interface WebArpPresetRecord extends Record<string, unknown> {
     /** Unique preset identifier */
-    id?: string;
+    id: string;
     /** User-defined display name */
     name?: string;
     /** ISO timestamp when the preset was saved */
@@ -80,6 +80,8 @@ export interface WebArpPresetRecord {
     source?: string;
     /** Serializable settings object */
     settings: Record<string, unknown>;
+    /** Optional persisted undo/redo state for the workspace session. */
+    history?: Record<string, unknown> | null;
 }
 
 /**
@@ -110,7 +112,10 @@ export interface WebArpPresetStore {
     /** Clears all stored presets */
     clear: () => Promise<void>;
     /** Saves current workspace session snapshot */
-    saveLastSession: (settings: Record<string, unknown>) => Promise<WebArpPresetRecord>;
+    saveLastSession: (
+        settings: Record<string, unknown>,
+        history?: Record<string, unknown> | null,
+    ) => Promise<WebArpPresetRecord>;
     /** Loads the last saved workspace session */
     loadLastSession: () => Promise<WebArpPresetRecord | null>;
 }
@@ -143,32 +148,12 @@ export type TonePatternDirection =
     | "randomWalk";
 
 /**
- * Global window type augmentations for Web Arpeggiator.
+ * Global browser type augmentations for Web Arpeggiator.
  */
 declare global {
     interface Window {
-        /** Audio engine controller */
-        audioEngine: unknown;
-        /** Test hooks interface */
-        __WEB_ARP_TEST__: Record<string, unknown>;
-        /** Preset storage persistence layer */
-        WebArpPresetStore?: WebArpPresetStore;
-        /** PWA runtime manager */
-        WebArpPWA?: WebArpPWA;
         /** PWA asset manifest cache list */
         __WEB_ARP_ASSET_MANIFEST__?: WebArpAssetManifest;
-        /** PWA runtime state container */
-        __WEB_ARP_PWA_STATE__?: WebArpPWAState;
-        /** Global PWA state helper */
-        WebArpPWAState?: WebArpPWAState;
-        /** Input filtering handler for note sequences */
-        filterNoteInput: (event: KeyboardEvent) => boolean;
-        /** Input filtering handler for numeric fields */
-        filterNumericInput: (event: KeyboardEvent) => boolean;
-        /** Global audio initialization handler */
-        startAudio: () => Promise<void>;
-        /** Global toast notification handler */
-        showToast: (message: string, type?: string) => void;
         /** LameJS MP3 encoder library instance */
         lamejs: typeof import("@breezystack/lamejs");
     }

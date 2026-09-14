@@ -25,6 +25,8 @@ import {
 } from "@core/export-duration.js";
 import * as Tone from "tone";
 
+/** @typedef {import("../core/settings-contract.js").ArpeggiatorSettings} ArpeggiatorSettings */
+
 /**
  * Creates the audio engine and all Tone.js nodes.
  *
@@ -80,6 +82,7 @@ import * as Tone from "tone";
  * @property {Function} updateEnvelope - Applies ADSR slider values.
  * @property {Function} getSynthConfig - Returns synth config for offline render.
  * @property {Function} createOfflineChain - Recreates offline context graph.
+ * @property {() => void} dispose - Releases live Tone nodes.
  *
  * @returns {AudioEngine} Public API.
  */
@@ -440,8 +443,8 @@ export function createAudioEngine(context) {
      * Recreates and connects the synthesizer and effects chain inside a Tone.Offline context.
      * This ensures the offline render output perfectly matches the live output routing and settings.
      *
-     * @param {object} offlineContext - The Tone.Offline context.
-     * @param {object} settings - Snapshot of the active settings.
+     * @param {{destination: Tone.ToneAudioNode}} offlineContext - The Tone.Offline context.
+     * @param {ArpeggiatorSettings} settings - Normalized active settings snapshot.
      * @returns {object} Reference to the created offline synth and final output node.
      */
     function createOfflineChain(offlineContext, settings) {

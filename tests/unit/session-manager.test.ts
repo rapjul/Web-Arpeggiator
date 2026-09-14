@@ -29,10 +29,25 @@ describe("Session Manager Domain Module", () => {
             expect(spy).toHaveBeenCalledTimes(1);
             expect(spy).toHaveBeenCalledWith("call 3");
         });
+
+        it("preserves a caller's receiver when invoking a debounced method", () => {
+            const counter = {
+                value: 0,
+                increment(amount: number) {
+                    this.value += amount;
+                },
+            };
+            const debouncedIncrement = debounce(counter.increment, 100);
+
+            debouncedIncrement.call(counter, 3);
+            vi.advanceTimersByTime(100);
+
+            expect(counter.value).toBe(3);
+        });
     });
 
     describe("createSessionManager", () => {
-        it("saves session immediately via saveNow and reports test state", async () => {
+        it("saves the current settings and history immediately via saveNow", async () => {
             const savedSettings = {
                 bpm: 140,
                 notes: "C4 E4 G4",
@@ -40,8 +55,6 @@ describe("Session Manager Domain Module", () => {
                 offlineExportTailSeconds: 2,
             };
             const savedHistory = { past: [], present: savedSettings, future: [] };
-            const updatedState: Record<string, unknown> = {};
-
             const mockPresetStore = {
                 saveLastSession: vi.fn().mockResolvedValue({
                     id: "session-123",
@@ -54,7 +67,6 @@ describe("Session Manager Domain Module", () => {
                 getSettings: () => savedSettings,
                 getHistoryState: () => savedHistory,
                 onRestore: vi.fn(),
-                updateTestState: (updates) => Object.assign(updatedState, updates),
             });
 
             await session.saveNow();
@@ -63,8 +75,6 @@ describe("Session Manager Domain Module", () => {
                 savedSettings,
                 savedHistory,
             );
-            expect(updatedState.lastSessionId).toBe("session-123");
-            expect(updatedState.lastSessionSavedAt).toBe("2026-08-29T16:00:00Z");
         });
 
         it("handles saveNow exceptions gracefully without throwing", async () => {
@@ -217,18 +227,15 @@ describe("Session Manager Domain Module", () => {
         });
 
         it("handles missing preset store or errors gracefully", async () => {
-            const updatedState: Record<string, unknown> = {};
             const sessionNoStore = createSessionManager({
                 getPresetStore: () => null,
                 getSettings: () => ({}),
                 onRestore: vi.fn(),
-                updateTestState: (updates) => Object.assign(updatedState, updates),
             });
 
             await sessionNoStore.saveNow();
             const success = await sessionNoStore.restoreSession();
             expect(success).toBe(false);
-            expect(updatedState.lastSessionRestoreFinished).toBe(true);
         });
     });
 });

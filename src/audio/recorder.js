@@ -27,6 +27,8 @@ import { materializePatternSequence } from "@core/pattern-core.js";
 
 const DEFAULT_OFFLINE_SAMPLE_RATE = 44100;
 
+/** @typedef {HTMLElement & HTMLInputElement} RecorderControl */
+
 function getOfflineSampleRate() {
     const sampleRate = Number(Tone.getContext().sampleRate);
     return Number.isFinite(sampleRate) && sampleRate > 0 ? sampleRate : DEFAULT_OFFLINE_SAMPLE_RATE;
@@ -86,7 +88,9 @@ function formatEffectList(effectNames) {
  */
 export function createRecorderManager(context) {
     const { audio, state, actions } = context;
-    const dom = /** @type {any} */ (context.dom);
+    const dom = /** @type {Record<string, RecorderControl>} */ (
+        /** @type {unknown} */ (context.dom)
+    );
 
     // --- Internal recorder state ---
     let recorder = null;

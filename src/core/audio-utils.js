@@ -18,7 +18,7 @@
  * @param {RequestInit} options - Fetch options.
  * @param {number} [maxRetries=5] - Maximum retry attempts.
  * @param {number} [baseDelay=1000] - Base delay in milliseconds.
- * @returns {Promise<any>} Parsed JSON response.
+ * @returns {Promise<unknown>} Parsed JSON response.
  */
 export async function fetchWithBackoff(url, options, maxRetries = 5, baseDelay = 1000) {
     let attempt = 0;
@@ -724,7 +724,7 @@ if (typeof window !== "undefined") {
 /**
  * Encodes an AudioBuffer to an MP3 Blob using LameJS.
  *
- * @param {AudioBuffer} audioBuffer - The AudioBuffer to encode.
+ * @param {AudioBuffer|AudioBufferLike} audioBuffer - The AudioBuffer to encode.
  * @param {object} [exportMetadata] - Offline settings snapshot to embed in ID3.
  * @returns {Promise<Blob>} MP3 audio data.
  */
@@ -777,8 +777,11 @@ export async function audioBufferToMp3Blob(audioBuffer, exportMetadata) {
                 audioBuffer.length,
                 sampleRate,
             );
+            const exportBytes = /** @type {Uint8Array<ArrayBuffer>} */ (
+                addMp3ExportMetadata(gaplessMp3Bytes, exportMetadata)
+            );
             resolve(
-                new Blob([addMp3ExportMetadata(gaplessMp3Bytes, exportMetadata)], {
+                new Blob([exportBytes], {
                     type: "audio/mpeg",
                 }),
             );
@@ -792,7 +795,7 @@ export async function audioBufferToMp3Blob(audioBuffer, exportMetadata) {
 /**
  * Converts an AudioBuffer to a WAV Blob.
  *
- * @param {AudioBuffer} audioBuffer - The AudioBuffer to encode.
+ * @param {AudioBuffer|AudioBufferLike} audioBuffer - The AudioBuffer to encode.
  * @param {object} [exportMetadata] - Offline settings snapshot to embed in RIFF chunks.
  * @returns {Blob} WAV audio data.
  */

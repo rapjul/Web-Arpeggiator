@@ -7,6 +7,11 @@
  * @module storage/presets-store
  */
 
+import { normalizeSettings } from "@core/settings-contract.js";
+
+/** @typedef {import("../../types.d.ts").WebArpPresetMetadata} WebArpPresetMetadata */
+/** @typedef {import("../../types.d.ts").WebArpPresetRecord} WebArpPresetRecord */
+
 export const DB_NAME = "web-arpeggiator-presets";
 export const DB_VERSION = 2;
 export const STORE_NAME = "presetSnapshots";
@@ -52,8 +57,8 @@ function releaseDatabaseOnVersionChange(database, attempt) {
 /**
  * Creates a structured clone of preset settings for safe IndexedDB writes.
  *
- * @param {object} settings - Settings object collected from the app UI.
- * @returns {object} Deep-cloned settings snapshot.
+ * @param {Record<string, unknown>} settings - Settings object collected from the app UI.
+ * @returns {Record<string, unknown>} Deep-cloned settings snapshot.
  */
 export function cloneSettings(settings) {
     if (typeof structuredClone === "function") {
@@ -61,6 +66,53 @@ export function cloneSettings(settings) {
     }
 
     return JSON.parse(JSON.stringify(settings));
+}
+
+/**
+ * Checks whether a persisted value is a non-array object.
+ *
+ * @param {unknown} value - Candidate IndexedDB result.
+ * @returns {value is Record<string, unknown>} Whether the value is a record.
+ */
+function isRecord(value) {
+    return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+/**
+ * Validates IndexedDB data before exposing it to application restoration.
+ *
+ * @param {unknown} value - Candidate preset record read from IndexedDB.
+ * @returns {WebArpPresetRecord|null} A normalized record, or null when structurally invalid.
+ */
+function normalizeStoredPresetRecord(value) {
+    if (
+        !isRecord(value) ||
+        typeof value.id !== "string" ||
+        typeof value.savedAt !== "string" ||
+        !isRecord(value.settings)
+    ) {
+        return null;
+    }
+
+    /** @type {WebArpPresetRecord} */
+    const record = {
+        id: value.id,
+        savedAt: value.savedAt,
+        settings: normalizeSettings(value.settings),
+    };
+
+    const name = value.name;
+    const filename = value.filename;
+    const source = value.source;
+    const history = value.history;
+    if (typeof name === "string") record.name = name;
+    if (typeof filename === "string") record.filename = filename;
+    if (filename === null) record.filename = null;
+    if (typeof source === "string") record.source = source;
+    if (isRecord(history)) record.history = history;
+    if (history === null) record.history = null;
+
+    return record;
 }
 
 /**
@@ -154,12 +206,12 @@ export function openDatabase() {
 /**
  * Saves a named preset snapshot.
  *
- * @param {object} settings - Preset settings to persist.
- * @param {object} [metadata={}] - Optional id, name, filename, and source data.
- * @returns {Promise<object>} Stored preset record.
+ * @param {unknown} settings - Preset settings to persist.
+ * @param {WebArpPresetMetadata} [metadata={}] - Optional id, name, filename, and source data.
+ * @returns {Promise<WebArpPresetRecord>} Stored preset record.
  */
 export async function save(settings, metadata = {}) {
-    const settingsSnapshot = cloneSettings(settings);
+    const settingsSnapshot = cloneSettings(normalizeSettings(settings));
     const now = new Date().toISOString();
     const database = await openDatabase();
     const record = {
@@ -181,7 +233,7 @@ export async function save(settings, metadata = {}) {
  * Loads a preset by id.
  *
  * @param {string} id - Preset record id.
- * @returns {Promise<object|null>} Stored preset record or null.
+ * @returns {Promise<WebArpPresetRecord|null>} Stored preset record or null.
  */
 export async function get(id) {
     const database = await openDatabase();
@@ -189,13 +241,13 @@ export async function get(id) {
     const request = transaction.objectStore(STORE_NAME).get(id);
     const record = await requestToPromise(request);
     await transactionToPromise(transaction);
-    return record || null;
+    return normalizeStoredPresetRecord(record);
 }
 
 /**
  * Loads the most recently saved named preset.
  *
- * @returns {Promise<object|null>} Newest preset record or null.
+ * @returns {Promise<WebArpPresetRecord|null>} Newest preset record or null.
  */
 export async function loadLatest() {
     const database = await openDatabase();
@@ -210,13 +262,13 @@ export async function loadLatest() {
         return null;
     }
 
-    return cursor.value;
+    return normalizeStoredPresetRecord(cursor.value);
 }
 
 /**
  * Lists saved presets newest-first.
  *
- * @returns {Promise<object[]>} Sorted preset records.
+ * @returns {Promise<WebArpPresetRecord[]>} Sorted preset records.
  */
 export async function list() {
     const database = await openDatabase();
@@ -224,7 +276,12 @@ export async function list() {
     const request = transaction.objectStore(STORE_NAME).getAll();
     const records = await requestToPromise(request);
     await transactionToPromise(transaction);
-    return (records || []).sort((a, b) =>
+    const normalizedRecords = Array.isArray(records)
+        ? records
+              .map((record) => normalizeStoredPresetRecord(record))
+              .filter((record) => record !== null)
+        : [];
+    return normalizedRecords.sort((a, b) =>
         String(b.savedAt || "").localeCompare(String(a.savedAt || "")),
     );
 }
@@ -257,18 +314,18 @@ export async function clear() {
 /**
  * Saves the debounced current session snapshot.
  *
- * @param {object} settings - Current app settings.
- * @param {object | null} [history=null] - Optional undo/redo history state.
- * @returns {Promise<object>} Stored last-session record.
+ * @param {unknown} settings - Current app settings.
+ * @param {unknown} [history=null] - Optional undo/redo history state.
+ * @returns {Promise<WebArpPresetRecord>} Stored last-session record.
  */
 export async function saveLastSession(settings, history = null) {
-    const settingsSnapshot = cloneSettings(settings);
+    const settingsSnapshot = cloneSettings(normalizeSettings(settings));
     const database = await openDatabase();
     const record = {
         id: LAST_SESSION_ID,
         savedAt: new Date().toISOString(),
         settings: settingsSnapshot,
-        history: history && typeof history === "object" ? cloneSettings(history) : null,
+        history: isRecord(history) ? cloneSettings(history) : null,
     };
 
     const transaction = database.transaction(LAST_SESSION_STORE_NAME, "readwrite");
@@ -280,7 +337,7 @@ export async function saveLastSession(settings, history = null) {
 /**
  * Loads the current last-session snapshot.
  *
- * @returns {Promise<object|null>} Last-session record or null.
+ * @returns {Promise<WebArpPresetRecord|null>} Last-session record or null.
  */
 export async function loadLastSession() {
     const database = await openDatabase();
@@ -288,20 +345,22 @@ export async function loadLastSession() {
     const request = transaction.objectStore(LAST_SESSION_STORE_NAME).get(LAST_SESSION_ID);
     const record = await requestToPromise(request);
     await transactionToPromise(transaction);
-    return record || null;
+    return normalizeStoredPresetRecord(record);
 }
 
-// Public storage API used by the single-file app and browser tests.
-if (typeof window !== "undefined") {
-    window.WebArpPresetStore = {
-        save,
-        get,
-        loadLatest,
-        list,
-        remove,
-        clear,
-        saveLastSession,
-        loadLastSession,
-        dbName: DB_NAME,
-    };
-}
+/**
+ * Application-facing preset storage API.
+ *
+ * @type {import("../../types.d.ts").WebArpPresetStore}
+ */
+export const presetStore = {
+    save,
+    get,
+    loadLatest,
+    list,
+    remove,
+    clear,
+    saveLastSession,
+    loadLastSession,
+    dbName: DB_NAME,
+};

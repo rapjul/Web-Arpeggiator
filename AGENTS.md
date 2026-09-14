@@ -361,7 +361,16 @@ Web Arpeggiator/
 │   │   └── settings-manager.js # Settings serialization/restoration
 │   ├── ui/                 # DOM controllers and visual rendering
 │   │   ├── a11y-navigation.js # WAI-ARIA arrow-key navigation for button groups
+│   │   ├── effects-controls-controller.js # Post-gain, filter, and effects control wiring
+│   │   ├── history-controller.js # Settings undo, redo, and reset interactions
+│   │   ├── input-filter-controller.js # Notes and export-count keyboard filtering
 │   │   ├── keyboard-controller.js # Virtual keyboard input handling
+│   │   ├── note-step-controller.js # Pattern-step indicator rendering and updates
+│   │   ├── onboarding-controller.js # First-visit and quick-start onboarding flow
+│   │   ├── pattern-controls-controller.js # Notes, scale, octave, interval, and gate controls
+│   │   ├── preset-controller.js # Factory and saved preset list interactions
+│   │   ├── synth-controls-controller.js # Synth selection, envelope, and synth-specific controls
+│   │   ├── transport-controller.js # Playback button and responsive sticky transport UI
 │   │   ├── ui-feedback.js  # Toast alerts and UI status indicators
 │   │   └── visualizer.js   # Canvas waveform rendering, UI update loop, toggle
 │   ├── pwa/                # Service Worker & PWA lifecycle
@@ -413,10 +422,12 @@ All preset-related settings must be:
 
 ### Toast Notifications
 
-Use the global `showToast()` function:
+Create the toast manager in the composition root, then inject its `showToast`
+callback into controllers that need user feedback:
 
 ```javascript
-showToast(message, type);
+const { showToast } = createToastManager({ toastContainer, liveRegion });
+createController({ showToast });
 // type: 'success', 'info', 'error'
 ```
 
