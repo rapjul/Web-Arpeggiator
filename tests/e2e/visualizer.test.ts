@@ -1,5 +1,35 @@
 import { expect, startAudio, test, type Page } from "./fixtures/app";
 
+async function visualizerCanvasFingerprint(page: Page): Promise<string> {
+    return page.locator("#visualizer-plot").evaluate((canvas) => {
+        if (!(canvas instanceof HTMLCanvasElement) || canvas.width === 0 || canvas.height === 0) {
+            return "";
+        }
+        const context = canvas.getContext("2d");
+        if (!context) return "";
+
+        const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+        let paintedPixelCount = 0;
+        let hash = 2166136261;
+        for (let index = 0; index < pixels.length; index += 4) {
+            if (pixels[index + 3] !== 0) paintedPixelCount += 1;
+            hash = Math.imul(hash ^ pixels[index], 16777619);
+            hash = Math.imul(hash ^ pixels[index + 1], 16777619);
+            hash = Math.imul(hash ^ pixels[index + 2], 16777619);
+            hash = Math.imul(hash ^ pixels[index + 3], 16777619);
+        }
+        return paintedPixelCount > 100 ? `${canvas.width}:${canvas.height}:${hash >>> 0}` : "";
+    });
+}
+
+async function expectVisualizerCanvasToRender(page: Page): Promise<void> {
+    await expect.poll(() => visualizerCanvasFingerprint(page)).not.toBe("");
+}
+
+async function visualizerCanvasWidth(page: Page): Promise<number> {
+    return page.locator("#visualizer-plot").evaluate((canvas) => canvas.width);
+}
+
 async function loopMapFingerprint(page: Page): Promise<string> {
     return page.locator("#visualizer-plot").evaluate((canvas) => {
         if (!(canvas instanceof HTMLCanvasElement) || canvas.width === 0 || canvas.height === 0) {
@@ -52,15 +82,21 @@ test("renders every visualizer mode and its public zoom or window controls", asy
         await expect(mode).toHaveValue(visualizerMode);
         await zoom.fill("1");
         await expect(zoom).toHaveValue("1");
+        await expectVisualizerCanvasToRender(page);
+        const oneTimesWidth = await visualizerCanvasWidth(page);
         await zoom.fill("4");
         await expect(zoom).toHaveValue("4");
+        await expect.poll(() => visualizerCanvasWidth(page)).toBeGreaterThan(oneTimesWidth);
+        await expectVisualizerCanvasToRender(page);
     }
 
     await mode.selectOption("oscilloscope");
     await page.locator("#oscilloscope-window").selectOption("250");
     await expect(page.locator("#oscilloscope-window")).toHaveValue("250");
+    await expectVisualizerCanvasToRender(page);
     await page.locator("#oscilloscope-window").selectOption("1000");
     await expect(page.locator("#oscilloscope-window")).toHaveValue("1000");
+    await expectVisualizerCanvasToRender(page);
 });
 
 test("rerenders the Loop Map canvas for every pattern-affecting public control", async ({

@@ -66,6 +66,7 @@ test("presents accessible meter controls and reacts to playback", async ({ pwaPa
     await expect(infoButton).toHaveAttribute("aria-expanded", "false");
 
     await expect.poll(() => meter.getAttribute("aria-valuetext")).toMatch(/dBFS/);
+    await expect(meter).toHaveAttribute("aria-valuenow", /^-?\d+(?:\.\d+)?$/);
     await expect
         .poll(async () => {
             const value = await meter.getAttribute("aria-valuenow");
