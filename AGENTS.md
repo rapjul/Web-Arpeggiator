@@ -530,7 +530,7 @@ See [`docs/adr/0004-strict-type-safety-and-meaningful-behavioral-testing.md`](./
 When modifying the codebase:
 
 1. **Maintain Modular ES Module Architecture**: Keep logic separated into focused modules under the `src/` directory
-2. **Run Tests & Verify Coverage**: Always run `bun run test:coverage` before submitting PRs
+2. **Run Tests & Verify Coverage**: Run `bun run test:coverage` and `bun run test:e2e` before submitting PRs. Vitest owns unit coverage; Playwright owns real-browser behavior.
 3. **Document Decisions in ADRs**: Add new Architectural Decision Records in [`docs/adr/`](./docs/adr/) when introducing significant architectural shifts
 4. **Test Audio Initialization**: Verify autoplay policy compliance
 5. **Validate Presets**: Ensure all parameters save/load correctly
