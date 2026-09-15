@@ -17,7 +17,7 @@
     "test:unit": "vitest run tests/unit",
     "test:coverage": "vitest run --coverage tests/unit",
     "test:watch": "vitest tests/unit",
-    "test:e2e": "playwright test",
+    "test:e2e": "playwright install chromium && playwright test",
     "test": "vitest run tests/unit",
     "test:all": "bun run test:unit && bun run test:e2e",
     "prepare": "simple-git-hooks"
