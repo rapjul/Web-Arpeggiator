@@ -1,25 +1,8 @@
-import { afterAll, beforeAll, expect, test } from "../test-helpers";
-import {
-    cleanupProcesses,
-    closeBrowser,
-    initializeAudio,
-    resetBrowserState,
-    runBrowser,
-    startTestServer,
-    waitForPwaReady,
-} from "../test-helpers";
+import { expect, test } from "./test-helpers";
+import { initializeAudio, resetBrowserState, runBrowser, waitForPwaReady } from "./test-helpers";
 
 const PORT: number = 4183;
 const APP_URL: string = `http://127.0.0.1:${PORT}/index.html`;
-
-beforeAll(async () => {
-    await startTestServer(PORT);
-});
-
-afterAll(async () => {
-    await closeBrowser();
-    cleanupProcesses();
-});
 
 test("MIDI Export & Real-Time Peak Meter Suite", async (): Promise<void> => {
     console.log("Starting MIDI Export & Real-Time Peak Meter Integration Suite...");

@@ -1,18 +1,8 @@
-import { afterAll, beforeAll, expect, test } from "../test-helpers";
-import { cleanupProcesses, closeBrowser, runBrowser, startTestServer } from "../test-helpers";
+import { expect, runBrowser, test } from "./test-helpers";
 
 const PORT = 4191;
 const APP_URL = `http://127.0.0.1:${PORT}/index.html`;
 const AUTOPLAY_WARNING = /AudioContext (was not allowed to start|is "suspended")/i;
-
-beforeAll(async (): Promise<void> => {
-    await startTestServer(PORT);
-});
-
-afterAll(async (): Promise<void> => {
-    await closeBrowser();
-    cleanupProcesses();
-});
 
 test("defers the Tone runtime until the explicit Start Audio action", async (): Promise<void> => {
     await runBrowser(["open", "about:blank"]);

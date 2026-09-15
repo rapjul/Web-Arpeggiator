@@ -1,12 +1,5 @@
-import { afterAll, beforeAll, expect, test } from "../test-helpers";
-import {
-    cleanupProcesses,
-    closeBrowser,
-    resetBrowserState,
-    runBrowser,
-    startTestServer,
-    waitForPwaReady,
-} from "../test-helpers";
+import { expect, test } from "./test-helpers";
+import { resetBrowserState, runBrowser, waitForPwaReady } from "./test-helpers";
 
 /**
  * The port number for the test server instance.
@@ -19,15 +12,6 @@ const PORT: number = 4180;
  * @type {string}
  */
 const APP_URL: string = `http://127.0.0.1:${PORT}/index.html`;
-
-beforeAll(async (): Promise<void> => {
-    await startTestServer(PORT);
-});
-
-afterAll(async (): Promise<void> => {
-    await closeBrowser();
-    cleanupProcesses();
-});
 
 test("Preset Sharing and Parameter Restoration Integration Suite", async (): Promise<void> => {
     console.log("Starting Preset Sharing Integration Suite...");

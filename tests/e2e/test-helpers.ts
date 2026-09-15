@@ -26,8 +26,6 @@ export function test(title: string, body: BrowserTest): void {
 }
 
 export { expect };
-export const beforeAll = playwrightTest.beforeAll;
-export const afterAll = playwrightTest.afterAll;
 
 function requirePage(): Page {
     if (!activePage) throw new Error("Browser commands must run inside a Playwright test.");
@@ -117,13 +115,6 @@ export async function runBrowser(args: BrowserCommand): Promise<string> {
 
     throw new Error(`Unsupported Playwright browser command: ${args.join(" ")}`);
 }
-
-/** @deprecated The preview server is managed by playwright.config.ts. */
-export async function startTestServer(_port: number): Promise<void> {}
-/** @deprecated Playwright owns the page lifecycle. */
-export async function closeBrowser(): Promise<void> {}
-/** @deprecated Playwright owns process cleanup. */
-export function cleanupProcesses(): void {}
 
 export async function waitForPwaReady(url: string): Promise<void> {
     const targetUrl = url.includes("?") ? `${url}&pwa=true` : `${url}?pwa=true`;

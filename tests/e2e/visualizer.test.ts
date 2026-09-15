@@ -1,16 +1,8 @@
-import { afterAll, beforeAll, expect, test } from "../test-helpers";
+import { expect, test } from "./test-helpers";
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import {
-    cleanupProcesses,
-    closeBrowser,
-    initializeAudio,
-    resetBrowserState,
-    runBrowser,
-    startTestServer,
-    waitForPwaReady,
-} from "../test-helpers";
+import { initializeAudio, resetBrowserState, runBrowser, waitForPwaReady } from "./test-helpers";
 
 /**
  * The port number for the test server instance.
@@ -32,16 +24,6 @@ const SNAPSHOTS_DIR: string = join(
     fileURLToPath(new URL(".", import.meta.url)),
     "visualizer-snapshots",
 );
-
-beforeAll(async (): Promise<void> => {
-    await mkdir(SNAPSHOTS_DIR, { recursive: true });
-    await startTestServer(PORT);
-});
-
-afterAll(async (): Promise<void> => {
-    await closeBrowser();
-    cleanupProcesses();
-});
 
 /**
  * Ensures the visualizer accordion details container is open and scrolls it into view.
@@ -158,6 +140,7 @@ async function testVisualizerMode(mode: string): Promise<void> {
 
 test("Canvas Visualizer Suite", async (): Promise<void> => {
     console.log("Starting Visualizer Integration Suite...");
+    await mkdir(SNAPSHOTS_DIR, { recursive: true });
 
     // 1. Wait for PWA page and registration to complete
     console.log("Step 1: Waiting for PWA ready...");

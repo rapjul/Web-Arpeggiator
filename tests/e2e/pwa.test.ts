@@ -1,13 +1,5 @@
-import { afterAll, beforeAll, expect, test } from "../test-helpers";
-import {
-    cleanupProcesses,
-    closeBrowser,
-    initializeAudio,
-    resetBrowserState,
-    runBrowser,
-    startTestServer,
-    waitForPwaReady,
-} from "../test-helpers";
+import { expect, test } from "./test-helpers";
+import { initializeAudio, resetBrowserState, runBrowser, waitForPwaReady } from "./test-helpers";
 
 /**
  * The port number for the test server instance.
@@ -20,15 +12,6 @@ const PORT: number = 4173;
  * @type {string}
  */
 const APP_URL: string = `http://127.0.0.1:${PORT}/index.html`;
-
-beforeAll(async (): Promise<void> => {
-    await startTestServer(PORT);
-});
-
-afterAll(async (): Promise<void> => {
-    await closeBrowser();
-    cleanupProcesses();
-});
 
 test("PWA Shell Integration Suite", async (): Promise<void> => {
     console.log("Starting PWA Shell Integration Suite...");
