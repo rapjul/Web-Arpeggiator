@@ -1,25 +1,8 @@
-import { afterAll, beforeAll, expect, test } from "bun:test";
-import {
-    cleanupProcesses,
-    closeBrowser,
-    initializeAudio,
-    resetBrowserState,
-    runBrowser,
-    startTestServer,
-    waitForPwaReady,
-} from "../test-helpers";
+import { expect, test } from "./test-helpers";
+import { initializeAudio, resetBrowserState, runBrowser, waitForPwaReady } from "./test-helpers";
 
 const PORT: number = 4184;
 const APP_URL: string = `http://127.0.0.1:${PORT}/index.html`;
-
-beforeAll(async () => {
-    await startTestServer(PORT);
-});
-
-afterAll(async () => {
-    await closeBrowser();
-    cleanupProcesses();
-});
 
 test("Preset UI Hierarchy & Visualizer Status Suite", async (): Promise<void> => {
     console.log("Starting Preset UI Hierarchy & Visualizer Status Suite...");

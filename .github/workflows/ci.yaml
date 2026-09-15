@@ -53,6 +53,38 @@ jobs:
           path: coverage/
           retention-days: 7
 
+  browser-e2e:
+    name: Chromium browser tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup Bun environment
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Install Chromium
+        run: bunx playwright install --with-deps chromium
+
+      - name: Run Chromium browser suite
+        run: bun run test:e2e
+
+      - name: Archive Playwright diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+
   publish-coverage-report:
     name: Publish Coverage Report
     needs: test-and-build

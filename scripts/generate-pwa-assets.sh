@@ -14,14 +14,14 @@ if ! command -v rsvg-convert >/dev/null 2>&1; then
     exit 1
 fi
 
-if ! command -v agent-browser >/dev/null 2>&1; then
-    echo "Error: agent-browser is not installed or not in PATH." >&2
+if ! command -v bunx >/dev/null 2>&1; then
+    echo "Error: bunx is not installed or not in PATH." >&2
     exit 1
 fi
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-ICON_DIR="${ROOT_DIR}/images/icons"
-SCREENSHOT_DIR="${ROOT_DIR}/images/screenshots"
+ICON_DIR="${ROOT_DIR}/public/images/icons"
+SCREENSHOT_DIR="${ROOT_DIR}/public/images/screenshots"
 
 # Ensure output directories exist
 mkdir -p "${ICON_DIR}"
@@ -50,27 +50,7 @@ if ! curl -s -I "http://localhost:3000/index.html" >/dev/null; then
     exit 1
 fi
 
-# Open URL
-agent-browser open "http://localhost:3000/index.html"
-agent-browser wait --load networkidle
-
-# Dismiss start-audio overlay so the actual UI is visible
-agent-browser click "#start-overlay"
-agent-browser wait 1000 # Wait for overlay transition to complete
-
-# 1. Desktop Screenshot (Wide)
-echo "Capturing desktop screenshot..."
-agent-browser set viewport 1280 800
-agent-browser wait 500 # Wait for redraw
-agent-browser screenshot "${SCREENSHOT_DIR}/desktop.png"
-
-# 2. Mobile Screenshot (Narrow)
-echo "Capturing mobile screenshot..."
-agent-browser set viewport 375 667
-agent-browser wait 500 # Wait for redraw
-agent-browser screenshot "${SCREENSHOT_DIR}/mobile.png"
-
-# Close the browser
-agent-browser close
+bunx playwright install chromium
+bun "${ROOT_DIR}/scripts/capture-pwa-screenshots.js"
 
 echo "Screenshots captured successfully."

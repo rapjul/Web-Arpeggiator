@@ -1,13 +1,10 @@
-import { afterAll, beforeAll, expect, test } from "bun:test";
+import { expect, test } from "./test-helpers";
 import {
-    cleanupProcesses,
-    closeBrowser,
     exportCurrentPatternMidiNotes,
     initializeAudio,
     runBrowser,
-    startTestServer,
     waitForPwaReady,
-} from "../test-helpers";
+} from "./test-helpers";
 
 /**
  * Port number for chord builder test server.
@@ -20,15 +17,6 @@ const PORT: number = 4196;
  * @type {string}
  */
 const APP_URL: string = `http://127.0.0.1:${PORT}/index.html`;
-
-beforeAll(async (): Promise<void> => {
-    await startTestServer(PORT);
-});
-
-afterAll(async (): Promise<void> => {
-    await closeBrowser();
-    cleanupProcesses();
-});
 
 test("Scale-Aware Chord Builder E2E Suite", async (): Promise<void> => {
     console.log("Starting Scale-Aware Chord Builder Integration Suite...");

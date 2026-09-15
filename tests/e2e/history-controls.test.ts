@@ -1,24 +1,8 @@
-import { afterAll, beforeAll, expect, test } from "bun:test";
-import {
-    cleanupProcesses,
-    closeBrowser,
-    resetBrowserState,
-    runBrowser,
-    startTestServer,
-    waitForPwaReady,
-} from "../test-helpers";
+import { expect, test } from "./test-helpers";
+import { resetBrowserState, runBrowser, waitForPwaReady } from "./test-helpers";
 
 const PORT: number = 4186;
 const APP_URL: string = `http://127.0.0.1:${PORT}/index.html`;
-
-beforeAll(async (): Promise<void> => {
-    await startTestServer(PORT);
-});
-
-afterAll(async (): Promise<void> => {
-    await closeBrowser();
-    cleanupProcesses();
-});
 
 test("History controls restore settings, defaults, and persisted state", async (): Promise<void> => {
     await waitForPwaReady(APP_URL);

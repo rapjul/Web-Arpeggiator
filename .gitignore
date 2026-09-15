@@ -76,6 +76,10 @@ lib-cov
 coverage
 *.lcov
 
+# Playwright diagnostics created only for failed browser runs.
+playwright-report/
+test-results/
+
 # nyc test coverage
 .nyc_output
 

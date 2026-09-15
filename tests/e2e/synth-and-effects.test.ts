@@ -1,14 +1,11 @@
-import { afterAll, beforeAll, expect, test } from "bun:test";
+import { expect, test } from "./test-helpers";
 import {
-    cleanupProcesses,
-    closeBrowser,
     initializeAudio,
     resetBrowserState,
     runBrowser,
-    startTestServer,
     waitForSessionAutosave,
     waitForPwaReady,
-} from "../test-helpers";
+} from "./test-helpers";
 
 /**
  * The port number for the test server instance.
@@ -21,15 +18,6 @@ const PORT: number = 4175;
  * @type {string}
  */
 const APP_URL: string = `http://127.0.0.1:${PORT}/index.html`;
-
-beforeAll(async (): Promise<void> => {
-    await startTestServer(PORT);
-});
-
-afterAll(async (): Promise<void> => {
-    await closeBrowser();
-    cleanupProcesses();
-});
 
 test("Synthesizer & Audio Effects Chain Suite", async (): Promise<void> => {
     console.log("Starting Synthesizer and Effects Integration Suite...");

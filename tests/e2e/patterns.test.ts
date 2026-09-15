@@ -1,15 +1,12 @@
-import { afterAll, beforeAll, expect, test } from "bun:test";
+import { expect, test } from "./test-helpers";
 import { ALLOWED_DIRECTIONS } from "@core/url-preset.js";
 import {
-    cleanupProcesses,
-    closeBrowser,
     exportCurrentPatternMidiNotes,
     initializeAudio,
     resetBrowserState,
     runBrowser,
-    startTestServer,
     waitForPwaReady,
-} from "../test-helpers";
+} from "./test-helpers";
 
 /**
  * The port number for the test server instance.
@@ -42,15 +39,6 @@ const randomizedPatternLengths: Readonly<Record<string, number>> = {
     randomWalk: 3,
     randomWalkDrunk: 16,
 };
-
-beforeAll(async (): Promise<void> => {
-    await startTestServer(PORT);
-});
-
-afterAll(async (): Promise<void> => {
-    await closeBrowser();
-    cleanupProcesses();
-});
 
 test("Arpeggiator Pattern Direction Verification Suite", async (): Promise<void> => {
     console.log("Starting Pattern Direction Integration Suite...");

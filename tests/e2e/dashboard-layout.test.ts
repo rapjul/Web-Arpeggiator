@@ -1,12 +1,5 @@
-import { afterAll, beforeAll, expect, test } from "bun:test";
-import {
-    cleanupProcesses,
-    closeBrowser,
-    initializeAudio,
-    runBrowser,
-    startTestServer,
-    waitForPwaReady,
-} from "../test-helpers";
+import { expect, test } from "./test-helpers";
+import { initializeAudio, runBrowser, waitForPwaReady } from "./test-helpers";
 
 /**
  * Port number for layout test server.
@@ -19,15 +12,6 @@ const PORT: number = 4198;
  * @type {string}
  */
 const APP_URL: string = `http://127.0.0.1:${PORT}/index.html`;
-
-beforeAll(async (): Promise<void> => {
-    await startTestServer(PORT);
-});
-
-afterAll(async (): Promise<void> => {
-    await closeBrowser();
-    cleanupProcesses();
-});
 
 test("Dashboard Layout & Section Order E2E Suite", async (): Promise<void> => {
     console.log("Starting Dashboard Layout & Section Order Integration Suite...");
