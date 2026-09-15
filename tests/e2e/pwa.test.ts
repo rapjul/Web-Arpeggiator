@@ -88,7 +88,7 @@ async function sendServiceWorkerMessage(page: Page, type: string): Promise<void>
     await page.evaluate(async (messageType) => {
         const registration = await navigator.serviceWorker.ready;
         const worker =
-            registration.waiting || registration.active || navigator.serviceWorker.controller;
+            navigator.serviceWorker.controller || registration.active || registration.waiting;
         if (!worker) throw new Error("Missing active service worker.");
 
         await new Promise<void>((resolve, reject) => {
@@ -131,7 +131,7 @@ test("loads a complete PWA shell under an active service worker", async ({ pwaPa
 
     expect(manifest.name).toBeTruthy();
     expect(manifest.start_url).toBeTruthy();
-    expect(manifest.display).toBeTruthy();
+    expect(manifest.display).toBe("standalone");
     expect(manifest.icons).toEqual(expect.any(Array));
     expect(manifest.icons).not.toHaveLength(0);
     await expect

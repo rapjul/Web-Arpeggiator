@@ -17,6 +17,15 @@ test("shows FM controls and preserves configured synthesis and envelope values",
     await expect(page.locator("#modulation-index")).toHaveValue("22.4");
     await expect(page.locator("#env-attack")).toHaveValue("0.45");
     await expect(page.locator("#env-release")).toHaveValue("2.15");
+    await expect
+        .poll(() => readPersistedSession(page))
+        .toMatchObject({
+            synthType: "fmSynth",
+            harmonicity: 5.5,
+            modulationIndex: 22.4,
+            envAttack: 0.45,
+            envRelease: 2.15,
+        });
 });
 
 test("shows the selected synthesis controls and waveform affordances", async ({

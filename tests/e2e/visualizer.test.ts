@@ -70,30 +70,30 @@ test("rerenders the Loop Map canvas for every pattern-affecting public control",
     await openAndEnableVisualizer(page);
     await page.locator("#visualizer-mode").selectOption("loopMap");
 
-    const initialFingerprint = await expectLoopMapRerender(page, "");
+    let fingerprint = await expectLoopMapRerender(page, "");
     await page.locator("#notes").fill("D3 F#3 A3");
     await page.locator("#notes").dispatchEvent("change");
-    await expectLoopMapRerender(page, initialFingerprint);
+    fingerprint = await expectLoopMapRerender(page, fingerprint);
 
-    for (const range of ["1", "3", "5"]) {
+    for (const range of ["3", "5", "1"]) {
         const rangeInput = page.locator(`#octave-range-buttons input[value='${range}']`);
-        if (!(await rangeInput.isChecked())) await rangeInput.check({ force: true });
-        await expect(rangeInput).toBeChecked();
+        await rangeInput.locator("xpath=..").click();
+        fingerprint = await expectLoopMapRerender(page, fingerprint);
     }
     for (const shift of ["-2", "0", "2"]) {
         const shiftInput = page.locator(`#octave-shift-buttons input[value='${shift}']`);
-        if (!(await shiftInput.isChecked())) await shiftInput.check({ force: true });
-        await expect(shiftInput).toBeChecked();
+        await shiftInput.locator("xpath=..").click();
+        fingerprint = await expectLoopMapRerender(page, fingerprint);
     }
 
-    await page.locator("#pattern-buttons input[value='octaveCycle']").check({ force: true });
-    await expect(page.locator("#pattern-buttons input[value='octaveCycle']")).toBeChecked();
-    await page.locator("#scale-quantize-toggle").uncheck();
-    await expect(page.locator("#scale-quantize-toggle")).not.toBeChecked();
-    await page.locator("#scale-quantize-toggle").check();
-    await expect(page.locator("#scale-quantize-toggle")).toBeChecked();
+    await page.locator("#pattern-buttons input[value='octaveCycle']").locator("xpath=..").click();
+    fingerprint = await expectLoopMapRerender(page, fingerprint);
+    await page.locator("#scale-quantize-toggle").click();
+    fingerprint = await expectLoopMapRerender(page, fingerprint);
+    await page.locator("#scale-quantize-toggle").click();
+    fingerprint = await expectLoopMapRerender(page, fingerprint);
     await page.locator("#scale-root").selectOption("G");
-    await expect(page.locator("#scale-root")).toHaveValue("G");
+    fingerprint = await expectLoopMapRerender(page, fingerprint);
     await page.locator("#interval").selectOption("8n");
-    await expect(page.locator("#interval")).toHaveValue("8n");
+    await expectLoopMapRerender(page, fingerprint);
 });

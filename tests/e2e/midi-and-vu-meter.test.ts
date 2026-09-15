@@ -67,7 +67,10 @@ test("presents accessible meter controls and reacts to playback", async ({ pwaPa
 
     await expect.poll(() => meter.getAttribute("aria-valuetext")).toMatch(/dBFS/);
     await expect
-        .poll(async () => Number(await meter.getAttribute("aria-valuenow")))
+        .poll(async () => {
+            const value = await meter.getAttribute("aria-valuenow");
+            return value === null ? Number.NaN : Number(value);
+        })
         .toBeLessThanOrEqual(0);
 
     await page.locator("#play-stop").click();

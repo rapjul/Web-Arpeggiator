@@ -1,4 +1,4 @@
-import { expect, test } from "./fixtures/app";
+import { dismissOnboarding, expect, test } from "./fixtures/app";
 
 const sliderGuidance = [
     ["post-gain", "Master output volume"],
@@ -79,33 +79,58 @@ test("provides guidance for every parameter and pattern direction", async ({ pwa
 test("updates the offline export duration estimate from public pattern controls", async ({
     pwaPage: page,
 }) => {
+    await dismissOnboarding(page);
+
     const notes = page.locator("#notes");
     const bpm = page.locator("#bpm");
     const loopCount = page.locator("#loop-count");
     const duration = page.locator("#offline-export-duration");
+    const selectRadio = async (selector: string): Promise<void> => {
+        await page.locator(selector).locator("xpath=..").click();
+    };
 
     await notes.fill("C4 E4 G4");
     await notes.dispatchEvent("change");
-    await page.locator("input[name='octave-range'][value='1']").check({ force: true });
+    await selectRadio("input[name='octave-range'][value='1']");
     await page.locator("#interval").selectOption("16n");
     await bpm.fill("60");
     await loopCount.fill("3");
-    await expect(duration).toContainText("3 Pattern cycles");
+    await expect(duration).toHaveText(
+        "3 Pattern cycles at ~0.75s each + 2.0s effects tail. Export duration: ~4.3 seconds",
+    );
 
     await notes.fill("C4 E4 G4 B4");
     await notes.dispatchEvent("change");
-    await expect(notes).toHaveValue("C4 E4 G4 B4");
+    await expect(duration).toHaveText(
+        "3 Pattern cycles at ~1.00s each + 2.0s effects tail. Export duration: ~5.0 seconds",
+    );
 
     await notes.fill("C4 E4 G4");
     await notes.dispatchEvent("change");
-    await page.locator("input[name='octave-range'][value='2']").check({ force: true });
-    await page.locator("input[name='pattern-direction'][value='upDown']").check({ force: true });
+    await expect(duration).toHaveText(
+        "3 Pattern cycles at ~0.75s each + 2.0s effects tail. Export duration: ~4.3 seconds",
+    );
+    await selectRadio("input[name='octave-range'][value='2']");
+    await expect(duration).toHaveText(
+        "3 Pattern cycles at ~1.50s each + 2.0s effects tail. Export duration: ~6.5 seconds",
+    );
+    await selectRadio("input[name='pattern-direction'][value='upDown']");
+    await expect(duration).toHaveText(
+        "3 Pattern cycles at ~2.50s each + 2.0s effects tail. Export duration: ~9.5 seconds",
+    );
     await bpm.fill("120");
+    await expect(duration).toHaveText(
+        "3 Pattern cycles at ~1.25s each + 2.0s effects tail. Export duration: ~5.8 seconds",
+    );
     await loopCount.fill("1");
-    await expect(duration).toContainText("1 Pattern cycle");
+    await expect(duration).toHaveText(
+        "1 Pattern cycle at ~1.25s each + 2.0s effects tail. Export duration: ~3.3 seconds",
+    );
 
     await page.locator("#interval").selectOption("8n");
-    await expect(page.locator("#interval")).toHaveValue("8n");
+    await expect(duration).toHaveText(
+        "1 Pattern cycle at ~2.50s each + 2.0s effects tail. Export duration: ~4.5 seconds",
+    );
 
     await loopCount.fill("-1");
     await loopCount.dispatchEvent("change");

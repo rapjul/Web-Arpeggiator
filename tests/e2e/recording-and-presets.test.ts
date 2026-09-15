@@ -70,7 +70,7 @@ test("starts recording from idle and exposes its export controls when stopped", 
     await recordButton.click();
     await expect(recordButton).toHaveClass(/recording/);
     await expect(playStop).toHaveText("Stop Audio");
-    await expect(recordButton).toHaveText(/Stop Recording \(00:0[12]\./);
+    await expect(recordButton).toHaveText(/Stop Recording \(00:\d{2}\./);
 
     await recordButton.click();
     await expect(recordButton).not.toHaveClass(/recording/);

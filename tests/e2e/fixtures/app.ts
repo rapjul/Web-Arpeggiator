@@ -80,14 +80,22 @@ export async function resetAppState(page: Page): Promise<void> {
  */
 export async function dismissOnboarding(page: Page): Promise<void> {
     const quickStartOverlay = page.locator("#quick-start-overlay");
+    const startOverlay = page.locator("#start-overlay");
+    const playStop = page.locator("#play-stop");
+    await expect
+        .poll(async () => {
+            if (await quickStartOverlay.isVisible()) return "quick-start";
+            if (await startOverlay.isVisible()) return "start-overlay";
+            return (await playStop.isEnabled()) ? "ready" : "";
+        })
+        .not.toBe("");
+
     if (await quickStartOverlay.isVisible()) {
         await page.locator("#quick-start-scratch").click();
-    } else {
-        await expect(page.locator("#start-overlay")).toBeVisible();
-        await page.locator("#start-overlay").click();
+    } else if (await startOverlay.isVisible()) {
+        await startOverlay.click();
     }
 
-    const playStop = page.locator("#play-stop");
     await expect(playStop).toBeEnabled();
 }
 
