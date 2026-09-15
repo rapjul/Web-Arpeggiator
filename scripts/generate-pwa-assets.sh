@@ -50,6 +50,7 @@ if ! curl -s -I "http://localhost:3000/index.html" >/dev/null; then
     exit 1
 fi
 
-bun scripts/capture-pwa-screenshots.js
+bunx playwright install chromium
+bun "${ROOT_DIR}/scripts/capture-pwa-screenshots.js"
 
 echo "Screenshots captured successfully."

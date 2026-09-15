@@ -179,8 +179,22 @@ test("PWA Shell Integration Suite", async (): Promise<void> => {
     ]);
     expect(sessionRestored).toBe("true");
 
-    // 10. Test offline app shell rendering
-    console.log("Step 10: Testing offline mode...");
+    // 10. Load the lazy audio modules while online so the service worker can cache them.
+    console.log("Step 10: Loading audio modules while online...");
+    await initializeAudio();
+    await runBrowser(["click", "#play-stop"]);
+    await runBrowser([
+        "wait",
+        "--fn",
+        `Promise.all(
+            [...document.querySelectorAll('link[rel="modulepreload"]')].map(async (link) =>
+                Boolean(await caches.match(link.href)),
+            ),
+        ).then((isCached) => isCached.length > 0 && isCached.every(Boolean))`,
+    ]);
+
+    // 11. Test offline app shell rendering
+    console.log("Step 11: Testing offline mode...");
     await runBrowser(["set", "offline", "on"]);
     await runBrowser(["reload"]);
     await runBrowser(["wait", "--fn", "document.getElementById('notes') !== null"]);
@@ -190,13 +204,13 @@ test("PWA Shell Integration Suite", async (): Promise<void> => {
     ]);
     expect(offlineRendered).toBe("true");
 
-    // 11. Offline audio playback initialize & stop
-    console.log("Step 11: Initializing audio offline...");
+    // 12. Offline audio playback initialize & stop
+    console.log("Step 12: Initializing audio offline...");
     await initializeAudio();
     await runBrowser(["click", "#play-stop"]);
 
-    // 12. Disable offline and verify cache operations through the native Service Worker API.
-    console.log("Step 12: Testing cache control API...");
+    // 13. Disable offline and verify cache operations through the native Service Worker API.
+    console.log("Step 13: Testing cache control API...");
     await runBrowser(["set", "offline", "off"]);
     const cacheResult: string = await runBrowser([
         "eval",

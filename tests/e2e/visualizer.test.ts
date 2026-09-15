@@ -25,6 +25,26 @@ const SNAPSHOTS_DIR: string = join(
     "visualizer-snapshots",
 );
 
+const LOOP_MAP_FINGERPRINT = `(() => {
+    const canvas = document.getElementById('visualizer-plot');
+    if (!(canvas instanceof HTMLCanvasElement)) return '';
+    const context = canvas.getContext('2d');
+    if (!context || canvas.width === 0 || canvas.height === 0) return '';
+    const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+    let hasNoteLabel = false;
+    let hash = 2166136261;
+    for (let index = 0; index < pixels.length; index += 4) {
+        if (pixels[index] === 56 && pixels[index + 1] === 189 && pixels[index + 2] === 248) {
+            hasNoteLabel = true;
+        }
+        hash = Math.imul(hash ^ pixels[index], 16777619);
+        hash = Math.imul(hash ^ pixels[index + 1], 16777619);
+        hash = Math.imul(hash ^ pixels[index + 2], 16777619);
+        hash = Math.imul(hash ^ pixels[index + 3], 16777619);
+    }
+    return hasNoteLabel ? canvas.width + ':' + canvas.height + ':' + (hash >>> 0) : '';
+})()`;
+
 /**
  * Ensures the visualizer accordion details container is open and scrolls it into view.
  *
@@ -55,22 +75,20 @@ async function scrollVisualizerIntoView(): Promise<void> {
  * @returns {Promise<string>} Pixel-based canvas fingerprint.
  */
 async function getLoopMapFingerprint(): Promise<string> {
-    const result = await runBrowser([
-        "eval",
-        `(() => {
-            const canvas = document.getElementById('visualizer-plot');
-            if (!(canvas instanceof HTMLCanvasElement)) return '';
-            const context = canvas.getContext('2d');
-            if (!context || canvas.width === 0 || canvas.height === 0) return '';
-            const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
-            let hash = 2166136261;
-            for (const pixel of pixels) {
-                hash = Math.imul(hash ^ pixel, 16777619);
-            }
-            return canvas.width + ':' + canvas.height + ':' + (hash >>> 0);
-        })()`,
-    ]);
+    await runBrowser(["wait", "--fn", `${LOOP_MAP_FINGERPRINT} !== ''`]);
+    const result = await runBrowser(["eval", LOOP_MAP_FINGERPRINT]);
     return JSON.parse(result);
+}
+
+async function waitForLoopMapRerender(previousFingerprint: string): Promise<string> {
+    await runBrowser([
+        "wait",
+        "--fn",
+        `${LOOP_MAP_FINGERPRINT} !== '' && ${LOOP_MAP_FINGERPRINT} !== ${JSON.stringify(previousFingerprint)}`,
+    ]);
+    const fingerprint = await getLoopMapFingerprint();
+    expect(fingerprint).not.toBe(previousFingerprint);
+    return fingerprint;
 }
 
 /**
@@ -198,17 +216,8 @@ test("Canvas Visualizer Suite", async (): Promise<void> => {
     // 7. Test Loop Map updates on Octave Range & Shift parameter changes
     console.log("Step 7: Testing Loop Map Canvas Updates on Octave Changes...");
     await runBrowser(["select", "#visualizer-mode", "loopMap"]);
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    let previousLoopMapFingerprint = "";
-
-    const expectLoopMapToRerender = async (): Promise<void> => {
-        const fingerprint = await getLoopMapFingerprint();
-        expect(fingerprint).not.toBe("");
-        if (previousLoopMapFingerprint) {
-            expect(fingerprint).not.toBe(previousLoopMapFingerprint);
-        }
-        previousLoopMapFingerprint = fingerprint;
-    };
+    let previousLoopMapFingerprint = await getLoopMapFingerprint();
+    expect(previousLoopMapFingerprint).not.toBe("");
 
     // Test Octave Range variations (1 -> 3 -> 5) through their visible controls.
     for (const rangeVal of ["1", "3", "5"]) {
@@ -223,8 +232,6 @@ test("Canvas Visualizer Suite", async (): Promise<void> => {
             })()`,
         ]);
         expect(rangeResultStr).toBe('"dispatched"');
-        // Allow debounced render to execute
-        await new Promise((resolve) => setTimeout(resolve, 350));
 
         const selectedRange: string = await runBrowser([
             "eval",
@@ -233,7 +240,7 @@ test("Canvas Visualizer Suite", async (): Promise<void> => {
             })()`,
         ]);
         expect(selectedRange).toBe(`"${rangeVal}"`);
-        await expectLoopMapToRerender();
+        previousLoopMapFingerprint = await waitForLoopMapRerender(previousLoopMapFingerprint);
     }
 
     // Reset range to 1 before testing shift
@@ -247,7 +254,7 @@ test("Canvas Visualizer Suite", async (): Promise<void> => {
             }
         })()`,
     ]);
-    await new Promise((resolve) => setTimeout(resolve, 350));
+    previousLoopMapFingerprint = await waitForLoopMapRerender(previousLoopMapFingerprint);
 
     // Test Octave Shift variations (-2 -> 0 -> +2) through their visible controls.
     for (const shiftVal of ["-2", "0", "2"]) {
@@ -262,8 +269,6 @@ test("Canvas Visualizer Suite", async (): Promise<void> => {
             })()`,
         ]);
         expect(shiftResultStr).toBe('"dispatched"');
-        // Allow debounced render to execute
-        await new Promise((resolve) => setTimeout(resolve, 350));
 
         const selectedShift: string = await runBrowser([
             "eval",
@@ -272,7 +277,7 @@ test("Canvas Visualizer Suite", async (): Promise<void> => {
             })()`,
         ]);
         expect(selectedShift).toBe(`"${shiftVal}"`);
-        await expectLoopMapToRerender();
+        previousLoopMapFingerprint = await waitForLoopMapRerender(previousLoopMapFingerprint);
     }
 
     // 8. Test Loop Map updates on Pattern Direction, Notes, and Scale Quantization
@@ -292,7 +297,6 @@ test("Canvas Visualizer Suite", async (): Promise<void> => {
         })()`,
     ]);
     expect(patternChangeStr).toBe('"dispatched"');
-    await new Promise((resolve) => setTimeout(resolve, 350));
 
     const octaveCycleSelection: string = await runBrowser([
         "eval",
@@ -301,7 +305,7 @@ test("Canvas Visualizer Suite", async (): Promise<void> => {
         })()`,
     ]);
     expect(octaveCycleSelection).toBe('"octaveCycle"');
-    await expectLoopMapToRerender();
+    previousLoopMapFingerprint = await waitForLoopMapRerender(previousLoopMapFingerprint);
 
     // 8b. Test Note Input modification
     const notesChangeStr: string = await runBrowser([
@@ -316,7 +320,6 @@ test("Canvas Visualizer Suite", async (): Promise<void> => {
         })()`,
     ]);
     expect(notesChangeStr).toBe('"dispatched"');
-    await new Promise((resolve) => setTimeout(resolve, 350));
 
     const updatedNotes: string = await runBrowser([
         "eval",
@@ -325,7 +328,7 @@ test("Canvas Visualizer Suite", async (): Promise<void> => {
         })()`,
     ]);
     expect(updatedNotes).toBe('"D3 F#3 A3"');
-    await expectLoopMapToRerender();
+    previousLoopMapFingerprint = await waitForLoopMapRerender(previousLoopMapFingerprint);
 
     // 8c. Test Scale Quantization toggle (starts true, toggle to false)
     const quantizeToggleStr: string = await runBrowser([
@@ -339,7 +342,7 @@ test("Canvas Visualizer Suite", async (): Promise<void> => {
         })()`,
     ]);
     expect(quantizeToggleStr).toBe('"dispatched"');
-    await new Promise((resolve) => setTimeout(resolve, 350));
+    previousLoopMapFingerprint = await waitForLoopMapRerender(previousLoopMapFingerprint);
 
     // 8d. Test Scale Root selection
     const rootChangeStr: string = await runBrowser([
@@ -353,7 +356,7 @@ test("Canvas Visualizer Suite", async (): Promise<void> => {
         })()`,
     ]);
     expect(rootChangeStr).toBe('"dispatched"');
-    await new Promise((resolve) => setTimeout(resolve, 350));
+    previousLoopMapFingerprint = await waitForLoopMapRerender(previousLoopMapFingerprint);
 
     // 8e. Test Note Interval dropdown
     const intervalChangeStr: string = await runBrowser([
@@ -367,7 +370,7 @@ test("Canvas Visualizer Suite", async (): Promise<void> => {
         })()`,
     ]);
     expect(intervalChangeStr).toBe('"dispatched"');
-    await new Promise((resolve) => setTimeout(resolve, 350));
+    await waitForLoopMapRerender(previousLoopMapFingerprint);
 
     console.log("Visualizer Integration Suite complete!");
 }, 60000);

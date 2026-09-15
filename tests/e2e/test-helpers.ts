@@ -10,8 +10,9 @@ let consoleMessages: string[] = [];
  * Declares an isolated Playwright browser scenario. The runner is serial, but
  * Playwright still creates a fresh browser context for every test.
  */
-export function test(title: string, body: BrowserTest): void {
+export function test(title: string, body: BrowserTest, timeout?: number): void {
     playwrightTest(title, async ({ page }, testInfo) => {
+        if (timeout !== undefined) testInfo.setTimeout(timeout);
         activePage = page;
         consoleMessages = [];
         page.on("console", (message) => consoleMessages.push(message.text()));

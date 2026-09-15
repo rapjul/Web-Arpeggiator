@@ -11,7 +11,12 @@ const browser = await chromium.launch();
 try {
     const page = await browser.newPage();
     await page.goto(baseUrl, { waitUntil: "networkidle" });
-    await page.locator("#start-overlay").click();
+
+    if (await page.locator("#quick-start-overlay").isVisible()) {
+        await page.locator("#quick-start-scratch").click();
+    } else {
+        await page.locator("#start-overlay").click();
+    }
     await page.locator("#play-stop").waitFor({ state: "visible" });
 
     await page.setViewportSize({ width: 1280, height: 800 });
