@@ -68,6 +68,25 @@ test("exports a real-time WAV recording through the browser download API", async
     await expect(page.locator("#realtime-record-status")).toHaveText("Export complete!");
 });
 
+test("exports a real-time MP3 recording through the browser download API", async ({
+    pwaPage: page,
+}) => {
+    await startAudio(page);
+    await startRecording(page);
+    await waitForRecordedAudio(page);
+    await stopRecording(page);
+
+    await page.locator("#realtime-export-wav").uncheck();
+    const download = await captureDownload(page, () =>
+        page.locator("#realtime-export-button").click(),
+    );
+
+    expect(download.filename).toMatch(/\.mp3$/);
+    expect(download.bytes[0]).toBe(0xff);
+    expect(download.bytes[1] & 0xe0).toBe(0xe0);
+    await expect(page.locator("#realtime-record-status")).toHaveText("Export complete!");
+});
+
 test("renders and downloads a one-cycle offline WAV export", async ({ pwaPage: page }) => {
     await startAudio(page);
 
