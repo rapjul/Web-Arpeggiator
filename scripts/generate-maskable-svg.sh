@@ -11,7 +11,7 @@ set -euo pipefail
 # Define variables for paths
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
-ICON_DIR="${ROOT_DIR}/images/icons"
+ICON_DIR="${ROOT_DIR}/public/images/icons"
 
 SOURCE_SVG="${ICON_DIR}/pwa-icon.svg"
 TARGET_SVG="${ICON_DIR}/pwa-icon-maskable.svg"
