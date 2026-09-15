@@ -220,12 +220,21 @@ export async function resetBrowserState(): Promise<void> {
             request.onsuccess = () => {
                 const database = request.result;
                 try {
-                    const transaction = database.transaction(["presetSnapshots", "lastSession"], "readwrite");
-                    transaction.objectStore("presetSnapshots").clear();
-                    transaction.objectStore("lastSession").clear();
+                    const storeNames = ["presetSnapshots", "lastSession"].filter((storeName) =>
+                        database.objectStoreNames.contains(storeName),
+                    );
+                    if (storeNames.length === 0) {
+                        database.close();
+                        resolve();
+                        return;
+                    }
+
+                    const transaction = database.transaction(storeNames, "readwrite");
+                    for (const storeName of storeNames) transaction.objectStore(storeName).clear();
                     transaction.oncomplete = () => { database.close(); resolve(); };
                     transaction.onerror = () => { database.close(); reject(transaction.error); };
-                } catch { database.close(); resolve(); }
+                    transaction.onabort = () => { database.close(); reject(transaction.error); };
+                } catch (error) { database.close(); reject(error); }
             };
         })`,
     ]);
