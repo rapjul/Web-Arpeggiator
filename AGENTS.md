@@ -494,10 +494,12 @@ The project uses **Vitest** with `@vitest/coverage-v8` to guarantee quality, enf
 ### Automated Coverage Threshold Gates
 
 Configured in [`vitest.config.ts`](./vitest.config.ts) and enforced on every Pull Request in [`.github/workflows/ci.yaml`](./.github/workflows/ci.yaml):
-- **Statements**: $\ge 80\%$
-- **Branches**: $\ge 70\%$
-- **Functions**: $\ge 80\%$
-- **Lines**: $\ge 80\%$
+- **Statements**: $\ge 61\%$
+- **Branches**: $\ge 56\%$
+- **Functions**: $\ge 51\%$
+- **Lines**: $\ge 61\%$
+
+These are a ratcheted baseline while untested composition roots are extracted into smaller units. The long-term target is 80% statements, 70% branches, 80% functions, and 80% lines, raised only when meaningful unit coverage supports each increase. Playwright covers browser behavior but does not contribute to the V8 percentage gate.
 
 ### Mandatory Edge-Case Testing Requirements
 
