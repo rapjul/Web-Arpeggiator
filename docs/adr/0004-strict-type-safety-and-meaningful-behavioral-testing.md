@@ -41,7 +41,7 @@ Chosen standard: **Strict Type Safety and Meaningful Behavioral Testing Policy**
 3. **Meaningful Behavioral Testing Standards**:
    - Tests must assert observable functional outcomes, state transitions, audio routing, mathematical transformations, or defensive error recovery (e.g., audio decode failures, IndexedDB unavailability, network retry exhaustion, corrupted URL presets).
    - Contributors and AI agents must NOT write low-value tests whose sole purpose is to execute both branches of optional DOM element existence checks (`if (dom.someSlider) ...`) via dummy mock toggles.
-   - Quality gates balance thoroughness with test maintainability. `vitest.config.ts` is the source of truth: its current global ratchet is 72% statements, 64% branches, 62% functions, and 73% lines. The long-term target remains 80% statements, 70% branches, 80% functions, and 80% lines, raised only when meaningful unit coverage supports each increase.
+   - Quality gates balance thoroughness with test maintainability. `vitest.config.ts` is the source of truth: its current global ratchet is 75% statements, 65% branches, 65% functions, and 75% lines. The long-term target remains 80% statements, 70% branches, 80% functions, and 80% lines, raised only when meaningful unit coverage supports each increase.
 
 ### Positive Consequences
 

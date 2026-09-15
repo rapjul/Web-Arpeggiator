@@ -194,21 +194,13 @@ Example: With C Major selected, the note "C#4" becomes "D4"
 ## Documentation
 
 - **[AGENTS.md](./AGENTS.md)**: Detailed architecture, development guide, and technical reference
+- **[Development and Testing Guide](./docs/development.md)**: Local setup, commands, test ownership, and browser-test rules
 - **[Pattern Directions Guide](./docs/pattern-directions.md)**: Visual and descriptive guide to all 12 pattern types
 - **[Standard MIDI Specification & Implementation Guide](./docs/midi-specification.md)**: Technical reference for SMF Format 0 binary encoding and external MIDI standards
 
 ## Testing
 
-Vitest owns fast unit tests and V8 coverage. Playwright owns Chromium end-to-end coverage for browser UI, PWA, canvas, download, and media behavior.
-
-```bash
-bun run test:unit
-bun run test:coverage
-bun run test:e2e
-bun run test:all
-```
-
-`bun run test:e2e` installs Chromium when it is missing; Playwright skips the download when the matching browser is already installed. See [ADR 0011](./docs/adr/0011-playwright-browser-testing.md) for the runner boundary and [ADR 0012](./docs/adr/0012-observable-playwright-synchronization-and-artifact-validation.md) for browser-test design constraints.
+See the [Development and Testing Guide](./docs/development.md) for local setup, commands, coverage, and browser-test rules.
 
 ## Browser Support
 
