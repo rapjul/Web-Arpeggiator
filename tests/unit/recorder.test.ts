@@ -245,6 +245,9 @@ describe("Recorder Manager Module", () => {
         mockDom.realtimeExportMp3Check.checked = true;
 
         await manager.exportRealtime();
+        expect(audioBufferToWav).toHaveBeenCalledWith(
+            expect.objectContaining({ sampleRate: 44100 }),
+        );
         expect(mockActions.showToast).toHaveBeenCalledWith("Exported MP3 file!", "success");
     });
 
