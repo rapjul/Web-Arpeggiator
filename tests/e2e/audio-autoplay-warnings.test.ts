@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, expect, test } from "bun:test";
+import { afterAll, beforeAll, expect, test } from "../test-helpers";
 import { cleanupProcesses, closeBrowser, runBrowser, startTestServer } from "../test-helpers";
 
 const PORT = 4191;

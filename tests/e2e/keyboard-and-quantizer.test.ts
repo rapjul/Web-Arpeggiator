@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, expect, test } from "bun:test";
+import { afterAll, beforeAll, expect, test } from "../test-helpers";
 import {
     cleanupProcesses,
     closeBrowser,

@@ -1,6 +1,7 @@
-import { afterAll, beforeAll, expect, test } from "bun:test";
+import { afterAll, beforeAll, expect, test } from "../test-helpers";
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import {
     cleanupProcesses,
     closeBrowser,
@@ -27,7 +28,10 @@ const APP_URL: string = `http://127.0.0.1:${PORT}/index.html`;
  * Directory where visual screenshots will be stored.
  * @type {string}
  */
-const SNAPSHOTS_DIR: string = join(import.meta.dir, "visualizer-snapshots");
+const SNAPSHOTS_DIR: string = join(
+    fileURLToPath(new URL(".", import.meta.url)),
+    "visualizer-snapshots",
+);
 
 beforeAll(async (): Promise<void> => {
     await mkdir(SNAPSHOTS_DIR, { recursive: true });
