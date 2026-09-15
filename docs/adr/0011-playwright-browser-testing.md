@@ -41,5 +41,6 @@ Continuous integration runs the browser suite in a separate Chromium job. Traces
 ## Links
 
 * [Playwright configuration](../../playwright.config.ts)
-* [E2E test helpers](../../tests/e2e/test-helpers.ts)
+* [E2E browser fixtures](../../tests/e2e/fixtures/app.ts)
 * [ADR 0001: Vitest and V8 Coverage Tooling](./0001-vitest-and-v8-coverage-tooling.md)
+* [ADR 0012: Observable Playwright Synchronization and Artifact Validation](./0012-observable-playwright-synchronization-and-artifact-validation.md)
