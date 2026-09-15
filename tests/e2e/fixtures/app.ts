@@ -1,10 +1,15 @@
-import { expect, test as base, type Page } from "@playwright/test";
+import { expect, test as base, type Download, type Page } from "@playwright/test";
 
 const DATABASE_NAME = "web-arpeggiator-presets";
 const STORES_TO_RESET = ["presetSnapshots", "lastSession"];
 
 type AppFixtures = {
     pwaPage: Page;
+};
+
+export type DownloadedFile = {
+    filename: string;
+    bytes: Uint8Array;
 };
 
 /**
@@ -100,8 +105,80 @@ export async function startAudio(page: Page): Promise<void> {
 }
 
 /**
- * Native Playwright fixture for new scenarios. Legacy suites retain their
- * temporary compatibility helper until they are migrated in later slices.
+ * Captures a real browser download and returns its suggested filename and
+ * bytes. Tests use this for export contracts instead of intercepting browser
+ * globals such as URL.createObjectURL or anchor clicks.
+ */
+export async function captureDownload(
+    page: Page,
+    trigger: () => Promise<void>,
+): Promise<DownloadedFile> {
+    const downloadPromise = page.waitForEvent("download");
+    await trigger();
+    const download = await downloadPromise;
+    return {
+        filename: download.suggestedFilename(),
+        bytes: await readDownloadBytes(download),
+    };
+}
+
+export async function downloadCurrentPatternMidi(page: Page): Promise<DownloadedFile> {
+    return captureDownload(page, () => page.locator("#offline-export-midi-button").click());
+}
+
+export async function readPersistedSession(page: Page): Promise<Record<string, unknown> | null> {
+    return page.evaluate(async (databaseName) => {
+        const database = await new Promise<IDBDatabase>((resolve, reject) => {
+            const request = indexedDB.open(databaseName);
+            request.addEventListener("success", () => resolve(request.result));
+            request.addEventListener("error", () => reject(request.error));
+        });
+
+        try {
+            if (!database.objectStoreNames.contains("lastSession")) return null;
+            const transaction = database.transaction("lastSession", "readonly");
+            const record = await new Promise<{ settings?: Record<string, unknown> } | undefined>(
+                (resolve, reject) => {
+                    const request = transaction.objectStore("lastSession").get("current");
+                    request.addEventListener("success", () => resolve(request.result));
+                    request.addEventListener("error", () => reject(request.error));
+                },
+            );
+            return record?.settings ?? null;
+        } finally {
+            database.close();
+        }
+    }, DATABASE_NAME);
+}
+
+export function extractMidiNoteOns(bytes: Uint8Array): number[] {
+    const notes: number[] = [];
+    for (let index = 0; index <= bytes.length - 3; index += 1) {
+        if (bytes[index] === 0x90 && bytes[index + 2] > 0) notes.push(bytes[index + 1]);
+    }
+    return notes;
+}
+
+async function readDownloadBytes(download: Download): Promise<Uint8Array> {
+    const stream = await download.createReadStream();
+    if (!stream) throw new Error(`Unable to read ${download.suggestedFilename()}.`);
+
+    const chunks: Uint8Array[] = [];
+    for await (const chunk of stream) chunks.push(chunk as Uint8Array);
+
+    const size = chunks.reduce((total, chunk) => total + chunk.byteLength, 0);
+    const bytes = new Uint8Array(size);
+    let offset = 0;
+    for (const chunk of chunks) {
+        bytes.set(chunk, offset);
+        offset += chunk.byteLength;
+    }
+    return bytes;
+}
+
+/**
+ * Native Playwright fixture for browser scenarios. Every test receives a
+ * fresh PWA context and starts from its documented defaults.
  */
 export const test = base.extend<AppFixtures>({
     pwaPage: async ({ page }, use) => {

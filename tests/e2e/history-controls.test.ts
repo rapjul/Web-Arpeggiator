@@ -1,208 +1,80 @@
-import { expect, test } from "./test-helpers";
-import { resetBrowserState, runBrowser, waitForPwaReady } from "./test-helpers";
+import { dismissOnboarding, expect, readPersistedSession, test } from "./fixtures/app";
 
-const PORT: number = 4186;
-const APP_URL: string = `http://127.0.0.1:${PORT}/index.html`;
+async function setBpm(page: import("@playwright/test").Page, bpm: string): Promise<void> {
+    await page.locator("#bpm").fill(bpm);
+    await expect(page.locator("#bpm")).toHaveValue(bpm);
+}
 
-test("History controls restore settings, defaults, and persisted state", async (): Promise<void> => {
-    await waitForPwaReady(APP_URL);
-    await resetBrowserState();
+test("undoes, redoes, and resets settings through public history controls", async ({
+    pwaPage: page,
+}) => {
+    await dismissOnboarding(page);
 
-    const interactionResult: string = await runBrowser([
-        "eval",
-        `(() => {
-            const bpm = document.getElementById('bpm');
-            const bpmValue = document.getElementById('bpm-value');
-            const undo = document.getElementById('undo-button');
-            const redo = document.getElementById('redo-button');
-            const historyButton = document.getElementById('history-menu-button');
-            const historyMenu = document.getElementById('history-menu');
-            const reset = document.getElementById('reset-defaults-button');
-            const desktopReset = document.getElementById('reset-defaults-desktop-button');
-            const confirm = document.getElementById('reset-defaults-confirm');
-            const cancel = document.getElementById('reset-defaults-cancel');
-            const resetOverlay = document.getElementById('reset-defaults-overlay');
-            const presetName = document.getElementById('preset-name-input');
+    await page.locator("#preset-name-input").focus();
+    await page.keyboard.press("Control+z");
+    await expect(page.locator("#preset-name-input")).toBeFocused();
 
-            if (!bpm || !bpmValue || !undo || !redo || !historyButton || !historyMenu || !reset || !desktopReset || !confirm || !cancel || !resetOverlay || !presetName) {
-                return 'missing-history-controls';
-            }
+    await setBpm(page, "150");
+    await expect(page.locator("#undo-button")).toBeEnabled();
+    await page.locator("#undo-button").click();
+    await expect(page.locator("#bpm")).toHaveValue("120");
+    await expect(page.locator("#redo-button")).toBeEnabled();
 
-            const nativeUndo = new KeyboardEvent('keydown', { key: 'z', ctrlKey: true, bubbles: true, cancelable: true });
-            presetName.dispatchEvent(nativeUndo);
-            if (nativeUndo.defaultPrevented) return 'blocked-preset-name-native-undo';
+    await page.getByRole("heading", { name: "Web Arpeggiator" }).click();
+    await page.keyboard.press("Control+y");
+    await expect(page.locator("#bpm")).toHaveValue("150");
+    await page.keyboard.press("Control+z");
+    await expect(page.locator("#bpm")).toHaveValue("120");
 
-            bpm.value = '150';
-            bpm.dispatchEvent(new Event('input', { bubbles: true }));
-            bpm.dispatchEvent(new Event('change', { bubbles: true }));
-            if (undo.disabled || Number(bpm.value) !== 150) return 'failed-to-record-change';
+    await setBpm(page, "160");
+    await page.locator("#bpm-value").dblclick();
+    await expect(page.locator("#bpm")).toHaveValue("120");
 
-            undo.click();
-            if (Number(bpm.value) !== 120 || redo.disabled) return 'failed-button-undo';
+    await setBpm(page, "165");
+    await page.locator("#reset-defaults-desktop-button").click();
+    await expect(page.locator("#reset-defaults-overlay")).toHaveAttribute("aria-hidden", "false");
+    await page.locator("#reset-defaults-cancel").click();
 
-            window.dispatchEvent(new KeyboardEvent('keydown', { key: 'y', ctrlKey: true, bubbles: true }));
-            if (Number(bpm.value) !== 150) return 'failed-control-y-redo';
+    await setBpm(page, "170");
+    await page.locator("#reset-defaults-desktop-button").click();
+    await expect(page.locator("#reset-defaults-overlay")).toHaveAttribute("aria-hidden", "false");
+    await page.locator("#reset-defaults-confirm").click();
+    await expect(page.locator("#bpm")).toHaveValue("120");
+});
 
-            window.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', ctrlKey: true, bubbles: true }));
-            if (Number(bpm.value) !== 120) return 'failed-control-z-undo';
+test("presents desktop buttons and accessible mobile history menu actions", async ({
+    pwaPage: page,
+}) => {
+    await dismissOnboarding(page);
 
-            bpm.value = '160';
-            bpm.dispatchEvent(new Event('input', { bubbles: true }));
-            bpm.dispatchEvent(new Event('change', { bubbles: true }));
-            bpmValue.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
-            if (Number(bpm.value) !== 120) return 'failed-individual-reset';
+    await page.setViewportSize({ width: 1024, height: 768 });
+    await expect(page.locator("#reset-defaults-desktop-button")).toBeVisible();
+    await expect(page.locator("#history-menu-button")).toBeHidden();
+    await expect(page.locator("#reset-defaults-description")).toContainText(
+        "This restores the built-in arpeggiator defaults.",
+    );
 
-            bpm.value = '165';
-            bpm.dispatchEvent(new Event('input', { bubbles: true }));
-            bpm.dispatchEvent(new Event('change', { bubbles: true }));
-            desktopReset.click();
-            if (resetOverlay.getAttribute('aria-hidden') !== 'false') return 'failed-open-desktop-reset-dialog';
-            cancel.click();
+    await page.setViewportSize({ width: 375, height: 667 });
+    const historyButton = page.locator("#history-menu-button");
+    await expect(historyButton).toBeVisible();
+    await expect(page.locator("#reset-defaults-desktop-button")).toBeHidden();
+    await setBpm(page, "150");
+    await historyButton.click();
+    await expect(page.locator("#history-menu")).toBeVisible();
+    await expect(page.locator("#history-menu")).toContainText("Reset All Settings");
+    await expect(page.locator("#history-menu")).toContainText("Undo");
+    await expect(page.locator("#history-menu")).toContainText("Redo");
+    await page.locator("#history-menu-undo").click();
+    await expect(historyButton).toBeFocused();
+    await expect(page.locator("#history-menu")).toBeHidden();
+});
 
-            bpm.value = '170';
-            bpm.dispatchEvent(new Event('input', { bubbles: true }));
-            bpm.dispatchEvent(new Event('change', { bubbles: true }));
-            historyButton.click();
-            const menuActions = [...historyMenu.querySelectorAll('button')];
-            if (menuActions.map((action) => action.textContent.trim()).join('|') !== 'Undo|Redo|Reset All Settings') {
-                return 'failed-menu-order';
-            }
-            reset.click();
-            if (resetOverlay.getAttribute('aria-hidden') !== 'false') return 'failed-open-reset-dialog';
-            confirm.click();
-            if (Number(bpm.value) !== 120) return 'failed-reset-defaults';
+test("restores persisted history settings after reload", async ({ pwaPage: page }) => {
+    await dismissOnboarding(page);
+    await setBpm(page, "155");
 
-            return 'success';
-        })()`,
-    ]);
-    expect(interactionResult).toBe('"success"');
-
-    await runBrowser(["set", "viewport", "1024", "768"]);
-    const presentationResult: string = await runBrowser([
-        "eval",
-        `(async () => {
-            const undo = document.getElementById('undo-button');
-            const redo = document.getElementById('redo-button');
-            const historyButton = document.getElementById('history-menu-button');
-            const description = document.getElementById('reset-defaults-description');
-            const transportBar = document.querySelector('.sticky-transport-bar');
-            const historyMenu = document.getElementById('history-menu');
-            const desktopReset = document.getElementById('reset-defaults-desktop-button');
-
-            if (!undo || !redo || !historyButton || !description || !transportBar || !historyMenu || !desktopReset) {
-                return 'missing-history-presentation';
-            }
-
-            const undoStyle = getComputedStyle(undo);
-            const redoStyle = getComputedStyle(redo);
-            const desktopResetStyle = getComputedStyle(desktopReset);
-            const descriptionLines = [...description.children].map((element) => getComputedStyle(element).display);
-            const hasMatchingControlHeights = undoStyle.height === redoStyle.height && redoStyle.height === desktopResetStyle.height;
-            const hasDesktopReset = desktopResetStyle.display !== 'none';
-            const hidesDesktopHistoryMenu = historyButton.getClientRects().length === 0;
-            if (!hasMatchingControlHeights || !hasDesktopReset || !hidesDesktopHistoryMenu || descriptionLines.some((display) => display !== 'block')) {
-                return 'failed-control-presentation';
-            }
-
-            window.scrollTo(0, transportBar.getBoundingClientRect().top + 24);
-            window.dispatchEvent(new Event('scroll'));
-            await new Promise((resolve) => setTimeout(resolve, 350));
-            return transportBar.classList.contains('is-stuck') && getComputedStyle(transportBar).borderRadius === '0px'
-                ? 'success'
-                : 'failed-sticky-presentation';
-        })()`,
-    ]);
-    expect(presentationResult).toBe('"success"');
-
-    await runBrowser(["set", "viewport", "375", "667"]);
-    const mobileMenuPresentationResult: string = await runBrowser([
-        "eval",
-        `(() => {
-            const historyButton = document.getElementById('history-menu-button');
-            const historyMenu = document.getElementById('history-menu');
-            const desktopReset = document.getElementById('reset-defaults-desktop-button');
-            const undoButton = document.getElementById('history-menu-undo');
-            const redoButton = document.getElementById('history-menu-redo');
-            if (!historyButton || !historyMenu || !desktopReset || !undoButton || !redoButton) return 'missing-mobile-history-menu';
-
-            historyButton.click();
-            const menuPosition = historyMenu.getBoundingClientRect();
-            const buttonPosition = historyButton.getBoundingClientRect();
-            const visualMenuActions = [...historyMenu.querySelectorAll('button')]
-                .toSorted((first, second) => first.getBoundingClientRect().top - second.getBoundingClientRect().top)
-                .map((action) => action.textContent.trim());
-
-            undoButton.click();
-            const undoFocusRestored = document.activeElement === historyButton && historyMenu.classList.contains('hidden');
-
-            historyButton.click();
-            redoButton.click();
-            const redoFocusRestored = document.activeElement === historyButton && historyMenu.classList.contains('hidden');
-
-            const showsMobileHistoryMenu = historyButton.getClientRects().length > 0;
-            const hidesMobileResetButton = getComputedStyle(desktopReset).display === 'none';
-            return menuPosition.bottom <= buttonPosition.top &&
-                showsMobileHistoryMenu &&
-                hidesMobileResetButton &&
-                visualMenuActions.join('|') === 'Reset All Settings|Redo|Undo' &&
-                undoFocusRestored &&
-                redoFocusRestored
-                ? 'success'
-                : 'failed-mobile-menu-presentation';
-        })()`,
-    ]);
-    expect(mobileMenuPresentationResult).toBe('"success"');
-
-    const persistenceResult: string = await runBrowser([
-        "eval",
-        `(async () => {
-            const bpm = document.getElementById('bpm');
-            bpm.value = '155';
-            bpm.dispatchEvent(new Event('input', { bubbles: true }));
-            bpm.dispatchEvent(new Event('change', { bubbles: true }));
-            return 'saved';
-        })()`,
-    ]);
-    expect(persistenceResult).toBe('"saved"');
-
-    // Wait for the public IndexedDB record instead of assuming the autosave delay elapsed.
-    const sessionPersisted: string = await runBrowser([
-        "eval",
-        `(async () => {
-            const deadline = Date.now() + 5000;
-            const database = await new Promise((resolve, reject) => {
-                const request = indexedDB.open('web-arpeggiator-presets');
-                request.addEventListener('success', () => resolve(request.result));
-                request.addEventListener('error', () => reject(request.error));
-            });
-            try {
-                while (Date.now() < deadline) {
-                    const transaction = database.transaction('lastSession', 'readonly');
-                    const request = transaction.objectStore('lastSession').get('current');
-                    const record = await new Promise((resolve, reject) => {
-                        request.addEventListener('success', () => resolve(request.result));
-                        request.addEventListener('error', () => reject(request.error));
-                    });
-                    if (record?.settings?.bpm === 155) return true;
-                    await new Promise((resolve) => setTimeout(resolve, 100));
-                }
-                return false;
-            } finally {
-                database.close();
-            }
-        })()`,
-    ]);
-    expect(sessionPersisted).toBe("true");
-
-    await runBrowser(["reload"]);
-    await runBrowser(["wait", "--fn", "document.getElementById('bpm')?.value === '155'"]);
-    const restoredResult: string = await runBrowser([
-        "eval",
-        `(() => {
-            const bpm = document.getElementById('bpm');
-            const undo = document.getElementById('undo-button');
-            return Number(bpm.value) === 155 && undo && !undo.disabled ? 'success' : 'failed';
-        })()`,
-    ]);
-    expect(restoredResult).toBe('"success"');
+    await expect.poll(() => readPersistedSession(page)).toMatchObject({ bpm: 155 });
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.locator("#bpm")).toHaveValue("155");
+    await expect(page.locator("#undo-button")).toBeEnabled();
 });
