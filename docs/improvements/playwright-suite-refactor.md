@@ -29,7 +29,7 @@ Do not add E2E tests just to reach a number. Pure validation, normalization, and
 
 ## Coverage Goal
 
-Playwright does not feed the V8 percentage gate. Its goal is reliable, behavior-focused Chromium coverage with useful diagnostics. The currently enforced Vitest ratchet is 61% statements, 56% branches, 51% functions, and 61% lines. The long-term unit-test target remains 80% statements, 70% branches, 80% functions, and 80% lines, raised gradually when meaningful source-level tests support it.
+Playwright does not feed the V8 percentage gate. Its goal is reliable, behavior-focused Chromium coverage with useful diagnostics. The currently enforced Vitest ratchet is 70% statements, 60% branches, 60% functions, and 70% lines. The long-term unit-test target remains 80% statements, 70% branches, 80% functions, and 80% lines, raised gradually when meaningful source-level tests support it.
 
 ## When to Do It
 

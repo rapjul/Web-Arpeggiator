@@ -5,10 +5,10 @@ import viteConfig from "./vite.config.js";
 // pwa.js. Raise it as controller extraction adds characterization coverage;
 // restore the 80/70/80/80 per-file gate once no composition root is untested.
 const COVERAGE_RATCHET = {
-    statements: 61,
-    branches: 56,
-    functions: 51,
-    lines: 61,
+    statements: 70,
+    branches: 60,
+    functions: 60,
+    lines: 70,
 };
 
 export default mergeConfig(
