@@ -27,10 +27,8 @@ import { generateRandomNotes } from "@core/randomizer.js";
 import {
     DEFAULT_SETTINGS,
     mergeSettings,
-    normalizeSettingsHistory,
     UnsupportedSettingsVersionError,
 } from "@core/settings-contract.js";
-import { createSettingsHistory } from "@core/settings-history.js";
 import {
     hasPresetChanges,
     PRESET_URL_KEYS,
@@ -39,7 +37,7 @@ import {
 } from "@core/url-preset.js";
 import { initializePwa } from "@pwa/pwa.js";
 import { presetStore } from "@storage/presets-store.js";
-import { createSessionManager, debounce } from "@storage/session-manager.js";
+import { debounce } from "@storage/session-manager.js";
 import { createSettingsManager } from "@storage/settings-manager.js";
 import { initializeKeyboardControls } from "@ui/keyboard-controller.js";
 import { createHistoryController } from "@ui/history-controller.js";
@@ -53,6 +51,7 @@ import { createPresetController } from "@ui/preset-controller.js";
 import { createSynthControlsController } from "@ui/synth-controls-controller.js";
 import { createTransportController } from "@ui/transport-controller.js";
 import { createToastManager } from "@ui/ui-feedback.js";
+import { createWorkspaceController } from "@ui/workspace-controller.js";
 import { FACTORY_PRESETS } from "./config/factory-presets.js";
 
 /** @typedef {import("./config/factory-presets.js").FactoryPreset} FactoryPreset */
@@ -698,40 +697,6 @@ function initializeApp() {
         browserStorageRecovery.open = false;
     }
 
-    // ------------------------------------------------------------------
-    // Session Manager — Auto-save and workspace restoration
-    // ------------------------------------------------------------------
-
-    const settingsHistory = createSettingsHistory();
-
-    const sessionManager = createSessionManager({
-        getPresetStore: () => presetStore,
-        getSettings: () => getAllSettings(),
-        getHistoryState: () => settingsHistory.exportState(),
-        onRestore: (settings, persistedHistory) => {
-            const result = loadAllSettings(settings);
-            if (!result.ok) return;
-            let history = null;
-            try {
-                history = normalizeSettingsHistory(persistedHistory, getAllSettings());
-            } catch {
-                history = null;
-            }
-            settingsHistory.restore(history, getAllSettings());
-            if (patternControlsController.getSelectedPatternDirection()) {
-                patternControlsController.setSelectedPatternDirection(
-                    patternControlsController.getSelectedPatternDirection(),
-                );
-            } else {
-                patternControlsController.setSelectedPatternDirection("up");
-            }
-            updateHistoryControls();
-        },
-    });
-
-    const scheduleLastSessionSave = () => sessionManager.scheduleSave();
-    const restoreLastSession = () => sessionManager.restoreSession();
-
     // ==================================================================
     //    Module Initialization
     // ==================================================================
@@ -1263,8 +1228,30 @@ function initializeApp() {
         });
     }
 
-    /** @type {Record<string, unknown> | null} */
-    let defaultSettings = null;
+    const workspaceController = createWorkspaceController({
+        documentRef: document,
+        dom: { presetNameInput, savedPresetSelect, loadPresetInput },
+        getResetDefinitions: () => resetDefinitions,
+        getPresetStore: () => presetStore,
+        getAllSettings,
+        loadAllSettings,
+        getSelectedPatternDirection: patternControlsController.getSelectedPatternDirection,
+        setSelectedPatternDirection: patternControlsController.setSelectedPatternDirection,
+        clearActiveSoundStarterCard,
+        onStaticLoopChange: () => debouncedRenderStaticLoop(),
+        onHistoryChange: () => historyController?.updateControls(),
+        showToast,
+    });
+    const {
+        applySettingsWithHistory,
+        getFocusedResetDefinition,
+        redoSettings,
+        resetAllSettings,
+        resetIndividualSettings,
+        restoreLastSession,
+        scheduleLastSessionSave,
+        undoSettings,
+    } = workspaceController;
 
     const historyController = createHistoryController({
         dom: {
@@ -1284,13 +1271,7 @@ function initializeApp() {
             presetNameInput,
         },
         documentRef: document,
-        getStatus: () => ({
-            canUndo: settingsHistory.canUndo(),
-            canRedo: settingsHistory.canRedo(),
-            isAtDefault:
-                defaultSettings !== null &&
-                JSON.stringify(getAllSettings()) === JSON.stringify(defaultSettings),
-        }),
+        getStatus: workspaceController.getStatus,
         onUndo: undoSettings,
         onRedo: redoSettings,
         onResetDefaults: resetAllSettings,
@@ -1301,91 +1282,6 @@ function initializeApp() {
             return true;
         },
     });
-
-    /**
-     * Updates all history action availability states.
-     *
-     * @returns {void}
-     */
-    function updateHistoryControls() {
-        historyController.updateControls();
-    }
-
-    /**
-     * Applies a history snapshot without recording another entry.
-     *
-     * @param {Record<string, unknown>} settings - Snapshot to apply.
-     * @returns {void}
-     */
-    function applyHistorySnapshot(settings) {
-        loadAllSettings(settings);
-        clearActiveSoundStarterCard();
-        scheduleLastSessionSave();
-        debouncedRenderStaticLoop();
-        updateHistoryControls();
-    }
-
-    /**
-     * Records the current serialized settings after a user-originated edit.
-     *
-     * @param {boolean} [coalesced=false] - Whether this belongs to a continuous input gesture.
-     * @returns {boolean} Whether history changed.
-     */
-    function recordCurrentSettings(coalesced = false) {
-        const changed = coalesced
-            ? settingsHistory.recordCoalesced(getAllSettings())
-            : settingsHistory.record(getAllSettings());
-        if (changed) updateHistoryControls();
-        return changed;
-    }
-
-    /**
-     * Applies a settings replacement and records it as a single history action.
-     *
-     * @param {Record<string, unknown>} settings - Replacement settings.
-     * @returns {{ok: boolean, settings?: import("./core/settings-contract.js").ArpeggiatorSettings, error?: unknown}}
-     */
-    function applySettingsWithHistory(settings, options = {}) {
-        settingsHistory.endTransaction();
-        const result = loadAllSettings(settings, options);
-        if (!result.ok) return result;
-        recordCurrentSettings();
-        clearActiveSoundStarterCard();
-        scheduleLastSessionSave();
-        debouncedRenderStaticLoop();
-        return result;
-    }
-
-    /**
-     * Performs an undo action when history is available.
-     *
-     * @returns {void}
-     */
-    function undoSettings() {
-        const settings = settingsHistory.undo();
-        if (settings) applyHistorySnapshot(settings);
-    }
-
-    /**
-     * Performs a redo action when history is available.
-     *
-     * @returns {void}
-     */
-    function redoSettings() {
-        const settings = settingsHistory.redo();
-        if (settings) applyHistorySnapshot(settings);
-    }
-
-    /**
-     * Resets the entire serialized workspace to its captured defaults.
-     *
-     * @returns {void}
-     */
-    function resetAllSettings() {
-        if (!defaultSettings) return;
-        applySettingsWithHistory(defaultSettings);
-        showToast("Restored default settings. Undo is available.", "info");
-    }
 
     const resetDefinitions = [
         {
@@ -1621,64 +1517,6 @@ function initializeApp() {
             ],
         },
     ];
-
-    /**
-     * Applies the captured defaults for a logical settings group.
-     *
-     * @param {{name: string, keys: string[]}} definition - Resettable settings definition.
-     * @returns {void}
-     */
-    function resetIndividualSettings(definition) {
-        if (!defaultSettings) return;
-        const next = { ...getAllSettings() };
-        definition.keys.forEach((key) => {
-            next[key] = defaultSettings[key];
-        });
-        applySettingsWithHistory(next);
-        showToast(`Reset ${definition.name} to default.`, "info");
-    }
-
-    /**
-     * Wires double-click and keyboard reset gestures without adding permanent controls.
-     *
-     * @returns {void}
-     */
-    function registerIndividualResetGestures() {
-        resetDefinitions.forEach((definition) => {
-            const hint = `Double-click to reset ${definition.name}. Press Escape while focused to reset.`;
-            definition.targets.forEach((selector) => {
-                const target = document.querySelector(selector);
-                if (!target) return;
-                target.setAttribute("title", hint);
-                target.classList.add("resettable-setting-target");
-                target.addEventListener("dblclick", (event) => {
-                    event.preventDefault();
-                    resetIndividualSettings(definition);
-                });
-            });
-            definition.controls.forEach((control) => {
-                if (!control) return;
-                control.setAttribute("aria-description", hint);
-            });
-        });
-    }
-
-    /**
-     * Finds the reset definition associated with the focused element.
-     *
-     * @param {Element | null} element - Focused element.
-     * @returns {{name: string, keys: string[], controls: Element[]} | null} Matching definition.
-     */
-    function getFocusedResetDefinition(element) {
-        if (!element) return null;
-        return (
-            resetDefinitions.find((definition) =>
-                definition.controls.some(
-                    (control) => control === element || control?.contains(element),
-                ),
-            ) || null
-        );
-    }
 
     // ==================================================================
     //    Event Listeners
@@ -2431,63 +2269,6 @@ function initializeApp() {
 
     patternControlsController.initialize();
 
-    // --- Autosave (on any input/change/click) ---
-    document.addEventListener("input", (event) => {
-        const target = /** @type {Element} */ (event.target);
-        if (target === presetNameInput) return;
-        if (target.matches("input, select, textarea")) {
-            recordCurrentSettings(true);
-            clearActiveSoundStarterCard();
-            scheduleLastSessionSave();
-            if (
-                target !== loopCountInput &&
-                target !== offlineExportTailSecondsInput &&
-                !target.matches("input[name='offline-export-mode']")
-            ) {
-                // Exclude export controls from debounced static-loop rendering.
-                debouncedRenderStaticLoop();
-            }
-        }
-    });
-
-    document.addEventListener("change", (event) => {
-        const target = /** @type {Element} */ (event.target);
-        if (
-            target === presetNameInput ||
-            target === savedPresetSelect ||
-            target === loadPresetInput
-        )
-            return;
-        if (target.matches("input, select, textarea")) {
-            settingsHistory.endTransaction();
-            recordCurrentSettings();
-            clearActiveSoundStarterCard();
-            scheduleLastSessionSave();
-            if (
-                target !== loopCountInput &&
-                target !== offlineExportTailSecondsInput &&
-                !target.matches("input[name='offline-export-mode']")
-            ) {
-                // Exclude export controls from debounced static-loop rendering.
-                debouncedRenderStaticLoop();
-            }
-        }
-    });
-
-    document.addEventListener("click", (event) => {
-        const target = /** @type {Element} */ (event.target);
-        if (
-            target?.closest(
-                ".pattern-btn, .waveform-btn, #octave-shift-buttons, #octave-range-buttons",
-            )
-        ) {
-            recordCurrentSettings();
-            clearActiveSoundStarterCard();
-            scheduleLastSessionSave();
-            debouncedRenderStaticLoop();
-        }
-    });
-
     // ==================================================================
     //    Initial Setup
     // ==================================================================
@@ -2496,9 +2277,7 @@ function initializeApp() {
     keyboardToggle.checked = false;
     updateKeyboardControlUi();
 
-    defaultSettings = getAllSettings();
-    settingsHistory.initialize(defaultSettings);
-    registerIndividualResetGestures();
+    workspaceController.initialize(getAllSettings());
     historyController.initialize();
     buildSoundStartersStrip();
 
