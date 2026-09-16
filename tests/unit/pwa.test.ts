@@ -1,53 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { initializePwa } from "@/pwa/pwa.js";
 
-type ServiceWorkerCommand = {
+type PwaDependencies = NonNullable<Parameters<typeof initializePwa>[0]>;
+type ServiceWorkerApiStub = NonNullable<PwaDependencies["serviceWorker"]>;
+type RegistrationStub = Awaited<ReturnType<ServiceWorkerApiStub["register"]>>;
+type WorkerStub = NonNullable<RegistrationStub["active"]>;
+type ServiceWorkerCommand = Parameters<WorkerStub["postMessage"]>[0] & {
     messageId: string;
     type: string;
     [key: string]: unknown;
 };
 
-type WorkerStub = {
-    postMessage: (command: ServiceWorkerCommand) => void;
-};
-
-type RegistrationStub = {
-    active: WorkerStub | null;
-    addEventListener: (type: string, listener: () => void) => void;
-    installing: {
-        addEventListener: (type: string, listener: () => void) => void;
-        state: string;
-    } | null;
-    unregister?: () => Promise<boolean>;
-    update: () => Promise<RegistrationStub>;
-    waiting: WorkerStub | null;
-};
-
-type ServiceWorkerApiStub = {
-    addEventListener: (type: string, listener: (event: MessageEvent) => void) => void;
-    controller: WorkerStub | null;
-    dispatchEvent: (event: Event) => boolean;
-    getRegistration: (scope: string) => Promise<RegistrationStub | undefined>;
-    getRegistrations: () => Promise<RegistrationStub[]>;
-    ready: Promise<RegistrationStub>;
-    register: (url: string, options: { scope: string }) => Promise<RegistrationStub>;
-    removeEventListener: (type: string, listener: (event: MessageEvent) => void) => void;
-};
-
-const serviceWorkerDescriptor = Object.getOwnPropertyDescriptor(navigator, "serviceWorker");
 const readyStateDescriptor = Object.getOwnPropertyDescriptor(document, "readyState");
-
-function setServiceWorker(serviceWorker: ServiceWorkerApiStub | undefined): void {
-    if (serviceWorker) {
-        Object.defineProperty(navigator, "serviceWorker", {
-            configurable: true,
-            value: serviceWorker,
-        });
-        return;
-    }
-
-    Reflect.deleteProperty(navigator, "serviceWorker");
-}
 
 function restoreProperty(
     target: object,
@@ -63,16 +27,14 @@ function restoreProperty(
 }
 
 function createRegistration(overrides: Partial<RegistrationStub> = {}): RegistrationStub {
-    const registration: RegistrationStub = {
+    return {
         active: null,
         addEventListener: vi.fn(),
         installing: null,
-        update: vi.fn(),
+        update: vi.fn().mockResolvedValue(undefined),
         waiting: null,
         ...overrides,
-    };
-    registration.update = overrides.update ?? vi.fn().mockResolvedValue(registration);
-    return registration;
+    } as unknown as RegistrationStub;
 }
 
 function createServiceWorkerApi(
@@ -90,7 +52,7 @@ function createServiceWorkerApi(
         register: vi.fn().mockResolvedValue(registration),
         removeEventListener: (type, listener) => messageTarget.removeEventListener(type, listener),
         ...overrides,
-    };
+    } as unknown as ServiceWorkerApiStub;
 }
 
 function dispatchWorkerResponse(
@@ -111,20 +73,18 @@ describe("PWA controller", () => {
             configurable: true,
             value: "loading",
         });
-        setServiceWorker(undefined);
         window.history.replaceState({}, "", "/?pwa=true");
     });
 
     afterEach(async () => {
         window.dispatchEvent(new Event("load"));
         await Promise.resolve();
-        restoreProperty(navigator, "serviceWorker", serviceWorkerDescriptor);
         restoreProperty(document, "readyState", readyStateDescriptor);
         vi.restoreAllMocks();
     });
 
     it("reports an unsupported browser without attempting registration", async () => {
-        const controller = initializePwa();
+        const controller = initializePwa({ serviceWorker: null });
 
         await expect(controller.registerServiceWorker()).resolves.toBeNull();
         expect(controller.getState()).toMatchObject({
@@ -143,7 +103,7 @@ describe("PWA controller", () => {
             }),
             state: "installing",
         };
-        const waitingWorker: WorkerStub = { postMessage: vi.fn() };
+        const waitingWorker = { postMessage: vi.fn() } as unknown as WorkerStub;
         const registration = createRegistration({
             installing,
             waiting: waitingWorker,
@@ -155,9 +115,7 @@ describe("PWA controller", () => {
             controller: { postMessage: vi.fn() },
         });
         const showToast = vi.fn();
-        setServiceWorker(serviceWorker);
-
-        const controller = initializePwa({ showToast });
+        const controller = initializePwa({ serviceWorker, showToast });
         await expect(controller.registerServiceWorker()).resolves.toBe(registration);
 
         expect(serviceWorker.register).toHaveBeenCalledWith("./sw.js", { scope: "./" });
@@ -182,7 +140,7 @@ describe("PWA controller", () => {
 
     it("exposes filtered cache results and activates the waiting worker", async () => {
         let serviceWorker: ServiceWorkerApiStub;
-        const worker: WorkerStub = {
+        const worker = {
             postMessage: vi.fn((command: ServiceWorkerCommand) => {
                 if (command.type === "listCaches") {
                     dispatchWorkerResponse(serviceWorker, command, {
@@ -200,12 +158,10 @@ describe("PWA controller", () => {
                 }
                 dispatchWorkerResponse(serviceWorker, command, { ok: true });
             }),
-        };
+        } as unknown as WorkerStub;
         const registration = createRegistration({ active: worker, waiting: worker });
         serviceWorker = createServiceWorkerApi(registration);
-        setServiceWorker(serviceWorker);
-
-        const controller = initializePwa();
+        const controller = initializePwa({ serviceWorker });
         await expect(controller.listCaches()).resolves.toEqual(["web-arp-v1"]);
         await expect(controller.clearCaches()).resolves.toEqual(["web-arp-v1"]);
         await expect(controller.activateWaitingWorker()).resolves.toMatchObject({ ok: true });
@@ -216,9 +172,7 @@ describe("PWA controller", () => {
 
     it("returns a skipped result when no worker is waiting", async () => {
         const registration = createRegistration();
-        setServiceWorker(createServiceWorkerApi(registration));
-
-        const controller = initializePwa();
+        const controller = initializePwa({ serviceWorker: createServiceWorkerApi(registration) });
 
         await expect(controller.activateWaitingWorker()).resolves.toEqual({
             ok: true,
@@ -230,19 +184,17 @@ describe("PWA controller", () => {
 
     it("rejects service-worker command failures with the worker error", async () => {
         let serviceWorker: ServiceWorkerApiStub;
-        const worker: WorkerStub = {
+        const worker = {
             postMessage: vi.fn((command: ServiceWorkerCommand) => {
                 dispatchWorkerResponse(serviceWorker, command, {
                     error: "Cache access denied",
                     ok: false,
                 });
             }),
-        };
+        } as unknown as WorkerStub;
         const registration = createRegistration({ active: worker });
         serviceWorker = createServiceWorkerApi(registration);
-        setServiceWorker(serviceWorker);
-
-        const controller = initializePwa();
+        const controller = initializePwa({ serviceWorker });
 
         await expect(controller.listCaches()).rejects.toThrow("Cache access denied");
     });
@@ -250,9 +202,7 @@ describe("PWA controller", () => {
     it("defers registration until the page load event", async () => {
         const registration = createRegistration();
         const serviceWorker = createServiceWorkerApi(registration);
-        setServiceWorker(serviceWorker);
-
-        initializePwa();
+        initializePwa({ serviceWorker });
         expect(serviceWorker.register).not.toHaveBeenCalled();
 
         window.dispatchEvent(new Event("load"));
