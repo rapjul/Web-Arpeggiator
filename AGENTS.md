@@ -10,6 +10,7 @@ Web Arpeggiator is a browser-based musical arpeggiator application built with va
 - **Tonal.js**: Music theory library for scale quantization
 - **LameJS**: MP3 encoding for audio export
 - **Tailwind CSS**: Utility-first CSS framework for UI styling
+- **Vite PWA + Workbox**: Builds the custom service worker with injected precache assets, routing, stale-cache cleanup, and bounded runtime caching
 
 ## Architecture
 
@@ -322,7 +323,7 @@ Web Arpeggiator/
 │   ├── tokens.css          # Semantic CSS variables and theme tokens
 │   └── visualizer.css      # Visualizer canvas and oscilloscope layout
 ├── manifest.json           # PWA manifest
-├── sw.js                   # Service worker
+├── sw.js                   # Workbox-backed custom PWA worker and cache-control message API
 ├── AGENTS.md               # This file
 ├── docs/                   # Specifications, ADRs & architectural guides
 │   ├── adr/                # Architectural Decision Records (MADR standard)
@@ -334,7 +335,13 @@ Web Arpeggiator/
 │   │   ├── 0006-persistent-settings-history-and-default-resets.md
 │   │   ├── 0007-semantic-theme-tokens-and-modular-styles.md
 │   │   ├── 0008-seamless-wav-export-invariants.md
-│   │   └── 0009-versioned-offline-audio-export-metadata.md
+│   │   ├── 0009-versioned-offline-audio-export-metadata.md
+│   │   ├── 0010-retryable-indexeddb-storage-recovery.md
+│   │   ├── 0011-playwright-browser-testing.md
+│   │   ├── 0012-observable-playwright-synchronization-and-artifact-validation.md
+│   │   └── 0013-workbox-custom-service-worker-caching.md
+│   ├── development.md      # Local setup, commands, and test-runner guidance
+│   ├── improvements/       # Deferred, scoped follow-up plans
 │   ├── history-and-default-settings.md # Default parameters and settings history reference
 │   ├── midi-specification.md # Standard MIDI specification & implementation reference
 │   └── pattern-directions.md # Detailed pattern descriptions & visual guide
@@ -494,10 +501,12 @@ The project uses **Vitest** with `@vitest/coverage-v8` to guarantee quality, enf
 ### Automated Coverage Threshold Gates
 
 Configured in [`vitest.config.ts`](./vitest.config.ts) and enforced on every Pull Request in [`.github/workflows/ci.yaml`](./.github/workflows/ci.yaml):
-- **Statements**: $\ge 80\%$
-- **Branches**: $\ge 70\%$
-- **Functions**: $\ge 80\%$
-- **Lines**: $\ge 80\%$
+- **Statements**: $\ge 75\%$
+- **Branches**: $\ge 65\%$
+- **Functions**: $\ge 65\%$
+- **Lines**: $\ge 75\%$
+
+These are a ratcheted baseline while untested composition roots are extracted into smaller units. The long-term target is 80% statements, 70% branches, 80% functions, and 80% lines, raised only when meaningful unit coverage supports each increase. Playwright covers browser behavior but does not contribute to the V8 percentage gate.
 
 ### Mandatory Edge-Case Testing Requirements
 

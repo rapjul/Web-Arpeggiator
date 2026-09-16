@@ -1,155 +1,45 @@
-import { expect, test } from "./test-helpers";
-import { initializeAudio, resetBrowserState, runBrowser, waitForPwaReady } from "./test-helpers";
+import { expect, startAudio, test, type Page } from "./fixtures/app";
 
-/**
- * The port number for the test server instance.
- * @type {number}
- */
-const PORT: number = 4181;
+async function expectArrowNavigation(
+    page: Page,
+    selector: string,
+    forwardKey: "ArrowRight" | "ArrowDown" = "ArrowRight",
+): Promise<void> {
+    const controls = page.locator(selector);
+    const count = await controls.count();
+    expect(count).toBeGreaterThanOrEqual(2);
 
-/**
- * The root URL of the running application.
- * @type {string}
- */
-const APP_URL: string = `http://127.0.0.1:${PORT}/index.html`;
+    await controls.first().focus();
+    await page.keyboard.press(forwardKey);
+    await expect(controls.nth(1)).toBeFocused();
 
-test("UI Keyboard Arrow Accessibility Navigation Suite", async (): Promise<void> => {
-    console.log("Starting Keyboard Accessibility Integration Suite...");
+    await controls.first().focus();
+    await page.keyboard.press("ArrowLeft");
+    await expect(controls.nth(count - 1)).toBeFocused();
 
-    // 1. Wait for PWA page and registration to complete
-    console.log("Step 1: Waiting for PWA ready...");
-    await waitForPwaReady(APP_URL);
+    await controls.nth(count - 1).focus();
+    await page.keyboard.press("ArrowRight");
+    await expect(controls.first()).toBeFocused();
+}
 
-    console.log("Step 1b: Resetting browser state...");
-    await resetBrowserState();
+test("moves between pattern controls with arrow keys and wraps at each end", async ({
+    pwaPage: page,
+}) => {
+    await startAudio(page);
 
-    // 2. Click overlay to trigger audio context resume and unlock controls
-    console.log("Step 2: Initializing audio...");
-    await initializeAudio();
+    await expectArrowNavigation(page, "#pattern-buttons input[type='radio']");
+    const controls = page.locator("#pattern-buttons input[type='radio']");
+    await controls.first().focus();
+    await page.keyboard.press("ArrowDown");
+    await expect(controls.nth(1)).toBeFocused();
+    await page.keyboard.press("ArrowLeft");
+    await expect(controls.first()).toBeFocused();
+});
 
-    // 3. Verify Arrow Navigation in Pattern Buttons Group
-    console.log("Step 3: Testing keyboard arrow navigation in Pattern Buttons group...");
-    const patternA11yResult: string = await runBrowser([
-        "eval",
-        `(async () => {
-        const patternGroup = document.getElementById('pattern-buttons');
-        const buttons = Array.from(patternGroup.querySelectorAll('input[type="radio"], button.pattern-btn'));
+test("moves between waveform and octave controls with arrow keys", async ({ pwaPage: page }) => {
+    await startAudio(page);
 
-        if (buttons.length < 2) {
-            return 'missing-pattern-buttons';
-        }
-
-        // Focus the first button
-        buttons[0].focus();
-        if (document.activeElement !== buttons[0]) {
-            return 'failed-to-focus-first';
-        }
-
-        // Simulate ArrowRight keydown
-        patternGroup.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
-        if (document.activeElement !== buttons[1]) {
-            return 'failed-arrow-right: ' + document.activeElement.outerHTML;
-        }
-
-        // Simulate ArrowDown keydown
-        patternGroup.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
-        if (document.activeElement !== buttons[2]) {
-            return 'failed-arrow-down: ' + document.activeElement.outerHTML;
-        }
-
-        // Simulate ArrowLeft keydown
-        patternGroup.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
-        if (document.activeElement !== buttons[1]) {
-            return 'failed-arrow-left';
-        }
-
-        // Simulate wrap-around by going Left from the first button
-        buttons[0].focus();
-        patternGroup.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
-        if (document.activeElement !== buttons[buttons.length - 1]) {
-            return 'failed-wrap-left';
-        }
-
-        // Go Right from the last button to test wrap-around in opposite direction
-        buttons[buttons.length - 1].focus();
-        patternGroup.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
-        if (document.activeElement !== buttons[0]) {
-            return 'failed-wrap-right';
-        }
-
-        return 'success';
-    })()`,
-    ]);
-    expect(patternA11yResult).toBe('"success"');
-
-    // 4. Verify Arrow Navigation in Waveform Buttons Group
-    console.log("Step 4: Testing keyboard arrow navigation in Waveform Buttons group...");
-    const waveA11yResult: string = await runBrowser([
-        "eval",
-        `(async () => {
-        const waveGroup = document.getElementById('waveform-buttons');
-        const buttons = Array.from(waveGroup.querySelectorAll('button.waveform-btn'));
-
-        if (buttons.length < 2) {
-            return 'missing-waveform-buttons';
-        }
-
-        buttons[0].focus();
-        waveGroup.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
-        if (document.activeElement !== buttons[1]) {
-            return 'failed-wave-arrow-right';
-        }
-
-        return 'success';
-    })()`,
-    ]);
-    expect(waveA11yResult).toBe('"success"');
-
-    // 5. Verify Arrow Navigation in Octave Shift Group
-    console.log("Step 5: Testing keyboard arrow navigation in Octave Shift group...");
-    const shiftA11yResult: string = await runBrowser([
-        "eval",
-        `(async () => {
-        const shiftGroup = document.getElementById('octave-shift-buttons');
-        const buttons = Array.from(shiftGroup.querySelectorAll('input[type="radio"], button.octave-btn'));
-
-        if (buttons.length < 2) {
-            return 'missing-octave-shift-buttons';
-        }
-
-        buttons[0].focus();
-        shiftGroup.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
-        if (document.activeElement !== buttons[1]) {
-            return 'failed-shift-arrow-right';
-        }
-
-        return 'success';
-    })()`,
-    ]);
-    expect(shiftA11yResult).toBe('"success"');
-
-    // 6. Verify Arrow Navigation in Octave Range Group
-    console.log("Step 6: Testing keyboard arrow navigation in Octave Range group...");
-    const rangeA11yResult: string = await runBrowser([
-        "eval",
-        `(async () => {
-        const rangeGroup = document.getElementById('octave-range-buttons');
-        const buttons = Array.from(rangeGroup.querySelectorAll('input[type="radio"], button.octave-btn'));
-
-        if (buttons.length < 2) {
-            return 'missing-octave-range-buttons';
-        }
-
-        buttons[0].focus();
-        rangeGroup.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
-        if (document.activeElement !== buttons[1]) {
-            return 'failed-range-arrow-right';
-        }
-
-        return 'success';
-    })()`,
-    ]);
-    expect(rangeA11yResult).toBe('"success"');
-
-    console.log("Keyboard Accessibility Integration Suite complete!");
-}, 30000);
+    await expectArrowNavigation(page, "#waveform-buttons button.waveform-btn");
+    await expectArrowNavigation(page, "#octave-shift-buttons input[type='radio']");
+    await expectArrowNavigation(page, "#octave-range-buttons input[type='radio']");
+});

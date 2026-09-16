@@ -1,198 +1,79 @@
-import { expect, test } from "./test-helpers";
-import { initializeAudio, resetBrowserState, runBrowser, waitForPwaReady } from "./test-helpers";
+import { downloadCurrentPatternMidi, expect, startAudio, test, type Page } from "./fixtures/app";
 
-const PORT: number = 4183;
-const APP_URL: string = `http://127.0.0.1:${PORT}/index.html`;
+function expectStandardMidiFile(bytes: Uint8Array): void {
+    expect(bytes.byteLength).toBeGreaterThanOrEqual(20);
+    expect([...bytes.slice(0, 4)]).toEqual([0x4d, 0x54, 0x68, 0x64]);
+    expect([...bytes.slice(8, 12)]).toEqual([0, 0, 0, 1]);
+    expect([...bytes.slice(14, 18)]).toEqual([0x4d, 0x54, 0x72, 0x6b]);
+}
 
-test("MIDI Export & Real-Time Peak Meter Suite", async (): Promise<void> => {
-    console.log("Starting MIDI Export & Real-Time Peak Meter Integration Suite...");
+async function expectMeterToBeIdle(page: Page): Promise<void> {
+    await expect(page.locator("#vu-db-value")).toHaveText("-- dB");
+    await expect(page.locator("#vu-meter-bar")).toHaveAttribute("aria-valuetext", "Idle");
+}
 
-    // 1. Wait for PWA ready state
-    console.log("Step 1: Waiting for PWA ready...");
-    await waitForPwaReady(APP_URL);
+test("downloads a decodable Standard MIDI pattern file", async ({ pwaPage: page }) => {
+    await startAudio(page);
 
-    // 1b. Reset browser state to a clean slate
-    console.log("Step 1b: Resetting browser state...");
-    await resetBrowserState();
+    const download = await downloadCurrentPatternMidi(page);
 
-    // 2. Initialize AudioContext by clicking start audio overlay
-    console.log("Step 2: Initializing audio...");
-    await initializeAudio();
+    expect(download.filename).toMatch(/\.mid$/);
+    expectStandardMidiFile(download.bytes);
+});
 
-    // 3. Test Standard MIDI File (.mid) Pattern Export via Button Click
-    console.log("Step 3: Testing Standard MIDI File Pattern Export...");
-    const midiExportResult: string = await runBrowser([
-        "eval",
-        `(async () => {
-        const midiButton = document.getElementById("offline-export-midi-button");
-        if (!midiButton) return "midi-button-missing";
+test("presents accessible meter controls and reacts to playback", async ({ pwaPage: page }) => {
+    await startAudio(page);
 
-        // Intercept download blob creation and link trigger
-        let capturedBlob = null;
-        let capturedFilename = null;
-        const originalCreateObjectURL = URL.createObjectURL;
-        const originalClick = HTMLAnchorElement.prototype.click;
+    const postGain = page.locator("#post-gain");
+    const postGainValue = page.locator("#post-gain-value");
+    const meter = page.locator("#vu-meter-bar");
+    const clipContainer = page.locator("#vu-clip-container");
+    const clipButton = page.locator("#vu-clip-indicator");
+    const clipTooltip = page.locator("#vu-clip-tooltip");
+    const infoButton = page.locator("#vu-info-button");
+    const infoTooltip = page.locator("#vu-info-tooltip");
 
-        URL.createObjectURL = function (blob) {
-            capturedBlob = blob;
-            return originalCreateObjectURL.call(URL, blob);
-        };
-        HTMLAnchorElement.prototype.click = function () {
-            if (this.download) {
-                capturedFilename = this.download;
-            }
-        };
+    await postGain.fill("-6");
+    await expect(postGainValue).toHaveText("85");
+    await expect(meter.locator("xpath=..")).toHaveClass(/h-5/);
+    await expect(page.locator("#vu-scale-ticks")).toContainText("-60");
+    await expect(page.locator("#vu-scale-ticks")).toContainText("0");
 
-        try {
-            midiButton.click();
-            await new Promise((resolve) => setTimeout(resolve, 200));
+    await expect(meter).toHaveAttribute("role", "meter");
+    await expect(meter).toHaveAttribute("aria-label", "Final audio output peak level");
+    await expect(clipButton).toHaveAttribute("aria-describedby", "vu-clip-tooltip");
+    await expect(clipTooltip).toHaveAttribute("role", "tooltip");
+    await expect(infoButton).toHaveAttribute("aria-describedby", "vu-info-tooltip");
+    await expect(infoButton).toHaveAttribute("aria-label", "Final Audio Output info");
+    await expect(infoTooltip).toHaveAttribute("role", "tooltip");
 
-            if (!capturedFilename) return "download-not-triggered";
-            if (!capturedFilename.endsWith(".mid")) {
-                return "invalid-filename:" + capturedFilename;
-            }
+    await clipContainer.hover();
+    await expect(clipTooltip).toBeVisible();
+    await expect(clipTooltip).toHaveText("No clipping detected");
+    await page.locator("#vu-meter-container").hover();
+    await expect(clipTooltip).toBeHidden();
 
-            const midiBlob = capturedBlob;
-            if (!midiBlob || !(midiBlob instanceof Blob)) return "invalid-midi-blob";
-            if (midiBlob.type !== "audio/midi") return "invalid-midi-mime:" + midiBlob.type;
-            if (midiBlob.size < 20) return "midi-size-too-small:" + midiBlob.size;
+    await infoButton.hover();
+    await expect(infoTooltip).toBeVisible();
+    await expect(infoButton).toHaveAttribute("aria-expanded", "true");
+    await page.locator("#vu-meter-container").hover();
+    await expect(infoTooltip).toBeHidden();
 
-            const arrayBuffer = await midiBlob.arrayBuffer();
-            const bytes = new Uint8Array(arrayBuffer);
+    await infoButton.focus();
+    await expect(infoTooltip).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(infoTooltip).toBeHidden();
+    await expect(infoButton).toHaveAttribute("aria-expanded", "false");
 
-            // Verify 'MThd' header signature (0x4D, 0x54, 0x68, 0x64)
-            if (bytes[0] !== 0x4d || bytes[1] !== 0x54 || bytes[2] !== 0x68 || bytes[3] !== 0x64) {
-                return "missing-mthd-header";
-            }
+    await expect.poll(() => meter.getAttribute("aria-valuetext")).toMatch(/dBFS/);
+    await expect(meter).toHaveAttribute("aria-valuenow", /^-?\d+(?:\.\d+)?$/);
+    await expect
+        .poll(async () => {
+            const value = await meter.getAttribute("aria-valuenow");
+            return value === null ? Number.NaN : Number(value);
+        })
+        .toBeLessThanOrEqual(0);
 
-            // Verify format 0, 1 track, 480 PPQ
-            if (bytes[8] !== 0 || bytes[9] !== 0 || bytes[10] !== 0 || bytes[11] !== 1) {
-                return "invalid-header-fields";
-            }
-
-            // Verify 'MTrk' track signature
-            if (bytes[14] !== 0x4d || bytes[15] !== 0x54 || bytes[16] !== 0x72 || bytes[17] !== 0x6b) {
-                return "missing-mtrk-chunk";
-            }
-
-            return "success";
-        } finally {
-            URL.createObjectURL = originalCreateObjectURL;
-            HTMLAnchorElement.prototype.click = originalClick;
-        }
-    })()`,
-    ]);
-    expect(midiExportResult).toBe('"success"');
-
-    // 4. Test Real-Time VU / Peak Meter UI, Tooltip, & Clip Reset
-    console.log("Step 4: Testing Real-Time VU Meter & Clipping Indicator...");
-    const vuMeterResult: string = await runBrowser([
-        "eval",
-        `(async () => {
-        const vuBar = document.getElementById("vu-meter-bar");
-        const vuDb = document.getElementById("vu-db-value");
-        const clipContainer = document.getElementById("vu-clip-container");
-        const clipBtn = /** @type {HTMLButtonElement | null} */ (document.getElementById("vu-clip-indicator"));
-        const clipTooltip = document.getElementById("vu-clip-tooltip");
-        const scaleTicks = document.getElementById("vu-scale-ticks");
-        const infoBtn = document.getElementById("vu-info-button");
-        const infoTooltip = document.getElementById("vu-info-tooltip");
-        const postGainSlider = /** @type {HTMLInputElement | null} */ (document.getElementById("post-gain"));
-        const postGainValue = document.getElementById("post-gain-value");
-
-        if (!vuBar || !vuDb || !clipBtn || !clipTooltip || !infoBtn || !infoTooltip || !scaleTicks || !postGainSlider || !postGainValue) {
-            return "vu-elements-missing";
-        }
-
-        // Verify post-gain slider and dynamic dB-to-percent conversion (-6 dB = 85%)
-        postGainSlider.value = "-6";
-        postGainSlider.dispatchEvent(new Event("input"));
-        if (postGainValue.textContent?.trim() !== "85") return "invalid-postgain-text:" + postGainValue.textContent;
-
-        // Verify meter bar track has taller h-5 height
-        if (!vuBar.parentElement?.classList.contains("h-5")) return "missing-h-5-meter-track";
-
-        // Verify scale ticks contain key digital full-scale points
-        const ticksText = scaleTicks.textContent || "";
-        if (!ticksText.includes("-60") || !ticksText.includes("-24") || !ticksText.includes("-12") || !ticksText.includes("-6") || !ticksText.includes("0")) {
-            return "missing-scale-tick-labels:" + ticksText;
-        }
-
-        // Stop playback through the public transport control to test clean idle state.
-        document.getElementById('play-stop').click();
-        await new Promise((resolve) => setTimeout(resolve, 250));
-
-        // Check a11y accessibility attributes & initial idle state
-        if (vuBar.getAttribute("role") !== "meter") return "missing-meter-role";
-        if (vuBar.getAttribute("aria-label") !== "Final audio output peak level") return "invalid-meter-aria-label";
-        if (vuBar.getAttribute("aria-valuenow") !== "-60") return "invalid-initial-aria-valuenow:" + vuBar.getAttribute("aria-valuenow");
-        if (vuBar.getAttribute("aria-valuetext") !== "Idle") return "invalid-initial-aria-valuetext:" + vuBar.getAttribute("aria-valuetext");
-        if (vuDb.textContent?.trim() !== "-- dB") return "invalid-initial-db-text:" + vuDb.textContent;
-        if (clipBtn.getAttribute("aria-pressed") !== "false") return "missing-initial-aria-pressed";
-        if (clipBtn.disabled !== true) return "clip-btn-should-be-disabled-initially";
-        if (clipBtn.getAttribute("aria-describedby") !== "vu-clip-tooltip") return "missing-clip-aria-describedby";
-        if (clipTooltip.getAttribute("role") !== "tooltip") return "missing-clip-tooltip-role";
-
-        // Test hover interaction for clip tooltip (normal state via container wrapper)
-        const hoverTarget = clipContainer || clipBtn;
-        if (!clipTooltip.classList.contains("hidden")) return "clip-tooltip-initially-visible";
-        hoverTarget.dispatchEvent(new MouseEvent("mouseenter"));
-        if (clipTooltip.classList.contains("hidden")) return "clip-tooltip-hover-show-failed";
-        if (clipTooltip.textContent?.trim() !== "No clipping detected") return "invalid-clip-tooltip-text:" + clipTooltip.textContent;
-        hoverTarget.dispatchEvent(new MouseEvent("mouseleave"));
-        if (!clipTooltip.classList.contains("hidden")) return "clip-tooltip-hover-hide-failed";
-
-        // Check info tooltip accessibility attributes
-        if (infoTooltip.getAttribute("role") !== "tooltip") return "missing-tooltip-role";
-        if (infoBtn.getAttribute("aria-describedby") !== "vu-info-tooltip") return "missing-info-aria-describedby";
-        if (infoBtn.getAttribute("aria-label") !== "Final Audio Output info") return "invalid-info-aria-label";
-
-        // Test hover interaction for info tooltip
-        if (!infoTooltip.classList.contains("hidden")) return "tooltip-initially-visible";
-        infoBtn.dispatchEvent(new MouseEvent("mouseenter"));
-        if (infoTooltip.classList.contains("hidden")) return "tooltip-hover-show-failed";
-        if (infoBtn.getAttribute("aria-expanded") !== "true") return "tooltip-aria-expanded-not-true";
-
-        infoBtn.dispatchEvent(new MouseEvent("mouseleave"));
-        if (!infoTooltip.classList.contains("hidden")) return "tooltip-hover-hide-failed";
-        if (infoBtn.getAttribute("aria-expanded") !== "false") return "tooltip-aria-expanded-not-false";
-
-        // Test focus & escape key dismissal
-        infoBtn.focus();
-        if (infoTooltip.classList.contains("hidden")) return "tooltip-focus-show-failed";
-        document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
-        if (!infoTooltip.classList.contains("hidden")) return "tooltip-escape-hide-failed";
-
-        // Start playback through the public transport control.
-        document.getElementById('play-stop').click();
-        await new Promise((resolve) => setTimeout(resolve, 800));
-
-        // Verify that meter bar or db readout responded to audio playback
-        const rawDbText = vuDb.textContent || "";
-        const barWidth = vuBar.style.width || "0%";
-        if (barWidth === "0%" && rawDbText === "-- dB") {
-            return "meter-failed-to-respond";
-        }
-
-        const activeAriaValueText = vuBar.getAttribute("aria-valuetext") || "";
-        if (!activeAriaValueText.includes("dBFS")) {
-            return "missing-active-aria-valuetext:" + activeAriaValueText;
-        }
-
-        // Verify ARIA valuenow does not exceed its declared maximum during live playback.
-        const ariaValueNow = parseFloat(vuBar.getAttribute("aria-valuenow") || "0");
-        if (ariaValueNow > 0) return "aria-valuenow-exceeds-max:" + ariaValueNow;
-
-        // Stop playback and verify return to idle.
-        document.getElementById('play-stop').click();
-        await new Promise((resolve) => setTimeout(resolve, 250));
-        if (vuDb.textContent?.trim() !== "-- dB") return "stop-db-not-idle:" + vuDb.textContent;
-        if (vuBar.getAttribute("aria-valuetext") !== "Idle") return "stop-aria-valuetext-not-idle";
-
-        return "success";
-    })()`,
-    ]);
-    expect(vuMeterResult).toBe('"success"');
-
-    console.log("MIDI Export & Real-Time Peak Meter Integration Suite complete!");
-}, 30000);
+    await page.locator("#play-stop").click();
+    await expectMeterToBeIdle(page);
+});

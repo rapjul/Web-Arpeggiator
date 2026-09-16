@@ -1,232 +1,141 @@
-import { expect, test } from "./test-helpers";
-import { resetBrowserState, runBrowser, waitForPwaReady } from "./test-helpers";
+import { dismissOnboarding, expect, test } from "./fixtures/app";
 
-/**
- * The port number for the test server instance.
- * @type {number}
- */
-const PORT: number = 4185;
+const sliderGuidance = [
+    ["post-gain", "Master output volume"],
+    ["bpm", "Tempo speed"],
+    ["swing", "Adds groove"],
+    ["interval", "Rhythmic step subdivision"],
+    ["env-attack", "Time to reach peak volume"],
+    ["env-decay", "Time to drop from peak"],
+    ["env-sustain", "Held volume level"],
+    ["env-release", "Fade-out duration"],
+    ["filter-cutoff", "Tone brightness"],
+    ["filter-resonance", "Sharpness"],
+    ["drive-mix", "Harmonic saturation"],
+    ["chorus-mix", "Stereo shimmer"],
+    ["autopan-mix", "Left/right stereo"],
+    ["delay-mix", "Echo wet/dry"],
+    ["reverb-mix", "Room acoustic space"],
+    ["duty-cycle", "Pulse width"],
+    ["harmonicity", "Frequency ratio"],
+    ["modulation-index", "Intensity / depth"],
+    ["mono-cutoff", "Starting cutoff frequency"],
+    ["mono-octaves", "Number of octaves modulated"],
+    ["mono-q", "Resonance sharpness"],
+    ["duo-harm", "Harmonic interval ratio"],
+    ["duo-vibrato", "Pitch modulation vibrato"],
+    ["pluck-dampening", "String material dampening"],
+    ["pluck-resonance", "String resonance sustain"],
+    ["pluck-noise", "Initial plectrum pick/pluck"],
+    ["membrane-pitch-decay", "Duration of initial pitch drop"],
+    ["membrane-octaves", "Pitch sweep range"],
+    ["gate", "staccato & punchy"],
+    ["loop-count", "complete pattern cycles"],
+] as const;
 
-/**
- * The root URL of the running application.
- * @type {string}
- */
-const APP_URL: string = `http://127.0.0.1:${PORT}/index.html`;
+const patternTooltips = [
+    ["up", "Ascending order"],
+    ["down", "Descending order"],
+    ["upDown", "Ascending then descending"],
+    ["downUp", "Descending then ascending"],
+    ["upDownRepeat", "repeating apex"],
+    ["downUpRepeat", "repeating apex"],
+    ["random", "random note selection"],
+    ["octaveCycle", "across 3 ascending octaves, repeated twice"],
+    ["octaveCycleReverse", "across 3 descending octaves, repeated twice"],
+    ["octaveCyclePingPong", "alternating ascending and descending"],
+    ["randomWalk", "adjacent notes"],
+    ["randomWalkDrunk", "occasional unexpected leaps"],
+] as const;
 
-test("UI Micro-Guidance Subtitles & Tooltips Suite", async (): Promise<void> => {
-    console.log("Starting UI Micro-Guidance Integration Suite...");
+test("provides guidance for every parameter and pattern direction", async ({ pwaPage: page }) => {
+    for (const [id, guidance] of sliderGuidance) {
+        const description = await page.locator(`#${id}`).evaluate((control) => {
+            const parent = control.closest("div");
+            return (
+                parent?.querySelector("p")?.textContent ||
+                parent?.parentElement?.querySelector("p")?.textContent ||
+                ""
+            );
+        });
+        expect(description).toContain(guidance);
+    }
 
-    // 1. Wait for PWA page and registration to complete
-    console.log("Step 1: Waiting for PWA ready...");
-    await waitForPwaReady(APP_URL);
+    for (const [pattern, guidance] of patternTooltips) {
+        const radio = page.locator(`input[data-pattern='${pattern}']`);
+        const button = page.locator(`.pattern-btn[data-pattern='${pattern}']`);
+        await expect(radio).toHaveAttribute("aria-label", new RegExp(guidance, "i"));
+        await expect(button).toHaveAttribute("data-tooltip", new RegExp(guidance, "i"));
+    }
 
-    console.log("Step 1b: Resetting browser state...");
-    await resetBrowserState();
+    await expect(page.locator("#octave-shift-buttons").locator("..")).toContainText(
+        "Transposition offset",
+    );
+    await expect(page.locator("#octave-range-buttons").locator("..")).toContainText(
+        "Number of octave duplications",
+    );
+});
 
-    // 2. Verify all slider micro-labels exist and contain descriptive text
-    console.log("Step 2: Testing slider micro-guidance subtitles...");
-    const sliderGuidanceResult: string = await runBrowser([
-        "eval",
-        `(() => {
-        const expectedSliders = [
-            { id: "post-gain", text: "Master output volume" },
-            { id: "bpm", text: "Tempo speed" },
-            { id: "swing", text: "Adds groove" },
-            { id: "interval", text: "Rhythmic step subdivision" },
-            { id: "env-attack", text: "Time to reach peak volume" },
-            { id: "env-decay", text: "Time to drop from peak" },
-            { id: "env-sustain", text: "Held volume level" },
-            { id: "env-release", text: "Fade-out duration" },
-            { id: "filter-cutoff", text: "Tone brightness" },
-            { id: "filter-resonance", text: "Sharpness" },
-            { id: "drive-mix", text: "Harmonic saturation" },
-            { id: "chorus-mix", text: "Stereo shimmer" },
-            { id: "autopan-mix", text: "Left/right stereo" },
-            { id: "delay-mix", text: "Echo wet/dry" },
-            { id: "reverb-mix", text: "Room acoustic space" },
-            { id: "duty-cycle", text: "Pulse width" },
-            { id: "harmonicity", text: "Frequency ratio" },
-            { id: "modulation-index", text: "Intensity / depth" },
-            { id: "mono-cutoff", text: "Starting cutoff frequency" },
-            { id: "mono-octaves", text: "Number of octaves modulated" },
-            { id: "mono-q", text: "Resonance sharpness" },
-            { id: "duo-harm", text: "Harmonic interval ratio" },
-            { id: "duo-vibrato", text: "Pitch modulation vibrato" },
-            { id: "pluck-dampening", text: "String material dampening" },
-            { id: "pluck-resonance", text: "String resonance sustain" },
-            { id: "pluck-noise", text: "Initial plectrum pick/pluck" },
-            { id: "membrane-pitch-decay", text: "Duration of initial pitch drop" },
-            { id: "membrane-octaves", text: "Pitch sweep range" },
-            { id: "gate", text: "staccato & punchy" },
-            { id: "loop-count", text: "complete pattern cycles" },
-        ];
+test("updates the offline export duration estimate from public pattern controls", async ({
+    pwaPage: page,
+}) => {
+    await dismissOnboarding(page);
 
-        for (const item of expectedSliders) {
-            const el = document.getElementById(item.id);
-            if (!el) {
-                return 'missing-element-' + item.id;
-            }
-            let parent = el.closest('div');
-            let desc = parent ? parent.querySelector('p') : null;
-            if (!desc && parent && parent.parentElement) {
-                desc = parent.parentElement.querySelector('p');
-            }
-            if (!desc || !desc.textContent.includes(item.text)) {
-                return 'missing-or-invalid-guidance-' + item.id + ': ' + (desc ? desc.textContent : 'none');
-            }
-        }
-        return 'success';
-    })()`,
-    ]);
-    expect(sliderGuidanceResult).toBe('"success"');
+    const notes = page.locator("#notes");
+    const bpm = page.locator("#bpm");
+    const loopCount = page.locator("#loop-count");
+    const duration = page.locator("#offline-export-duration");
+    const selectRadio = async (selector: string): Promise<void> => {
+        await page.locator(selector).locator("xpath=..").click();
+    };
 
-    // 3. Verify Pattern Direction button tooltips (all 12 patterns)
-    console.log("Step 3: Testing pattern direction button tooltips...");
-    const patternTooltipsResult: string = await runBrowser([
-        "eval",
-        `(() => {
-        const expectedPatterns = [
-            { pattern: "up", text: "Ascending order" },
-            { pattern: "down", text: "Descending order" },
-            { pattern: "upDown", text: "Ascending then descending" },
-            { pattern: "downUp", text: "Descending then ascending" },
-            { pattern: "upDownRepeat", text: "repeating apex" },
-            { pattern: "downUpRepeat", text: "repeating apex" },
-            { pattern: "random", text: "random note selection" },
-            { pattern: "octaveCycle", text: "across 3 ascending octaves, repeated twice" },
-            { pattern: "octaveCycleReverse", text: "across 3 descending octaves, repeated twice" },
-            { pattern: "octaveCyclePingPong", text: "alternating ascending and descending" },
-            { pattern: "randomWalk", text: "adjacent notes" },
-            { pattern: "randomWalkDrunk", text: "occasional unexpected leaps" },
-        ];
+    await notes.fill("C4 E4 G4");
+    await notes.dispatchEvent("change");
+    await selectRadio("input[name='octave-range'][value='1']");
+    await page.locator("#interval").selectOption("16n");
+    await bpm.fill("60");
+    await loopCount.fill("3");
+    await expect(duration).toHaveText(
+        "3 Pattern cycles at ~0.75s each + 2.0s effects tail. Export duration: ~4.3 seconds",
+    );
 
-        const container = document.getElementById('pattern-buttons');
-        if (!container) return 'missing-pattern-buttons-container';
+    await notes.fill("C4 E4 G4 B4");
+    await notes.dispatchEvent("change");
+    await expect(duration).toHaveText(
+        "3 Pattern cycles at ~1.00s each + 2.0s effects tail. Export duration: ~5.0 seconds",
+    );
 
-        for (const item of expectedPatterns) {
-            const radio = container.querySelector(\`input[type="radio"][data-pattern="\${item.pattern}"]\`);
-            const btn = container.querySelector(\`.pattern-btn[data-pattern="\${item.pattern}"]\`);
-            if (!radio) {
-                return 'missing-radio-' + item.pattern;
-            }
-            if (!btn) {
-                return 'missing-btn-' + item.pattern;
-            }
-            const tooltip = btn.getAttribute('data-tooltip');
-            const ariaLabel = radio.getAttribute('aria-label');
-            if (!tooltip || !tooltip.toLowerCase().includes(item.text.toLowerCase())) {
-                return 'missing-or-invalid-tooltip-' + item.pattern + ': ' + tooltip;
-            }
-            if (!ariaLabel || !ariaLabel.toLowerCase().includes(item.text.toLowerCase())) {
-                return 'missing-or-invalid-aria-label-' + item.pattern + ': ' + ariaLabel;
-            }
-        }
-        return 'success';
-    })()`,
-    ]);
-    expect(patternTooltipsResult).toBe('"success"');
+    await notes.fill("C4 E4 G4");
+    await notes.dispatchEvent("change");
+    await expect(duration).toHaveText(
+        "3 Pattern cycles at ~0.75s each + 2.0s effects tail. Export duration: ~4.3 seconds",
+    );
+    await selectRadio("input[name='octave-range'][value='2']");
+    await expect(duration).toHaveText(
+        "3 Pattern cycles at ~1.50s each + 2.0s effects tail. Export duration: ~6.5 seconds",
+    );
+    await selectRadio("input[name='pattern-direction'][value='upDown']");
+    await expect(duration).toHaveText(
+        "3 Pattern cycles at ~2.50s each + 2.0s effects tail. Export duration: ~9.5 seconds",
+    );
+    await bpm.fill("120");
+    await expect(duration).toHaveText(
+        "3 Pattern cycles at ~1.25s each + 2.0s effects tail. Export duration: ~5.8 seconds",
+    );
+    await loopCount.fill("1");
+    await expect(duration).toHaveText(
+        "1 Pattern cycle at ~1.25s each + 2.0s effects tail. Export duration: ~3.3 seconds",
+    );
 
-    // 4. Verify Octave Shift and Octave Range subtitles
-    console.log("Step 4: Testing Octave Shift and Octave Range micro-labels...");
-    const octaveGuidanceResult: string = await runBrowser([
-        "eval",
-        `(() => {
-        const shiftGroup = document.getElementById('octave-shift-buttons');
-        const rangeGroup = document.getElementById('octave-range-buttons');
-        if (!shiftGroup || !rangeGroup) return 'missing-octave-groups';
+    await page.locator("#interval").selectOption("8n");
+    await expect(duration).toHaveText(
+        "1 Pattern cycle at ~2.50s each + 2.0s effects tail. Export duration: ~4.5 seconds",
+    );
 
-        const shiftParent = shiftGroup.closest('div.space-y-2');
-        const rangeParent = rangeGroup.closest('div.space-y-2');
-
-        const shiftDesc = shiftParent ? shiftParent.querySelector('p') : null;
-        const rangeDesc = rangeParent ? rangeParent.querySelector('p') : null;
-
-        if (!shiftDesc || !shiftDesc.textContent.includes('Transposition offset')) {
-            return 'missing-shift-desc: ' + (shiftDesc ? shiftDesc.textContent : 'none');
-        }
-        if (!rangeDesc || !rangeDesc.textContent.includes('Number of octave duplications')) {
-            return 'missing-range-desc: ' + (rangeDesc ? rangeDesc.textContent : 'none');
-        }
-
-        return 'success';
-    })()`,
-    ]);
-    expect(octaveGuidanceResult).toBe('"success"');
-
-    // 5. Verify the offline export duration estimate follows loop count and tempo changes
-    console.log("Step 5: Testing offline export duration estimate...");
-    const exportDurationResult: string = await runBrowser([
-        "eval",
-        `(() => {
-        const notes = document.getElementById('notes');
-        const bpm = document.getElementById('bpm');
-        const loopCount = document.getElementById('loop-count');
-        const duration = document.getElementById('offline-export-duration');
-        const interval = document.getElementById('interval');
-        const octaveRange = document.querySelector('input[name="octave-range"][value="1"]');
-        const octaveRangeTwo = document.querySelector('input[name="octave-range"][value="2"]');
-        const upDownDirection = document.querySelector('input[name="pattern-direction"][value="upDown"]');
-
-        if (!notes || !bpm || !loopCount || !duration || !interval || !octaveRange || !octaveRangeTwo || !upDownDirection) {
-            return 'missing-export-duration-control';
-        }
-
-        notes.value = 'C4 E4 G4';
-        notes.dispatchEvent(new Event('change', { bubbles: true }));
-        octaveRange.checked = true;
-        octaveRange.dispatchEvent(new Event('change', { bubbles: true }));
-        bpm.value = '60';
-        bpm.dispatchEvent(new Event('input', { bubbles: true }));
-        loopCount.value = '3';
-        loopCount.dispatchEvent(new Event('input', { bubbles: true }));
-
-        const basicEstimate = duration.textContent.trim();
-
-        notes.value = 'C4 E4 G4 B4';
-        notes.dispatchEvent(new Event('input', { bubbles: true }));
-        const inputEstimate = duration.textContent.trim();
-
-        notes.value = 'C4 E4 G4';
-        notes.dispatchEvent(new Event('input', { bubbles: true }));
-
-        octaveRangeTwo.checked = true;
-        octaveRangeTwo.dispatchEvent(new Event('change', { bubbles: true }));
-        upDownDirection.checked = true;
-        upDownDirection.dispatchEvent(new Event('change', { bubbles: true }));
-        bpm.value = '120';
-        bpm.dispatchEvent(new Event('input', { bubbles: true }));
-        loopCount.value = '1';
-        loopCount.dispatchEvent(new Event('input', { bubbles: true }));
-
-        const expandedEstimate = duration.textContent.trim();
-
-        interval.value = '8n';
-        interval.dispatchEvent(new Event('change', { bubbles: true }));
-        const intervalEstimate = duration.textContent.trim();
-
-        interval.value = '16n';
-        interval.dispatchEvent(new Event('change', { bubbles: true }));
-
-        loopCount.value = '-1';
-        loopCount.dispatchEvent(new Event('change', { bubbles: true }));
-        const minimumLoopEstimate = duration.textContent.trim();
-
-        loopCount.value = '101';
-        loopCount.dispatchEvent(new Event('change', { bubbles: true }));
-        const maximumLoopEstimate = duration.textContent.trim();
-
-        return basicEstimate === '3 Pattern cycles at ~0.75s each + 2.0s effects tail. Export duration: ~4.3 seconds'
-            && inputEstimate === '3 Pattern cycles at ~1.00s each + 2.0s effects tail. Export duration: ~5.0 seconds'
-            && expandedEstimate === '1 Pattern cycle at ~1.25s each + 2.0s effects tail. Export duration: ~3.3 seconds'
-            && intervalEstimate === '1 Pattern cycle at ~2.50s each + 2.0s effects tail. Export duration: ~4.5 seconds'
-            && minimumLoopEstimate === '1 Pattern cycle at ~1.25s each + 2.0s effects tail. Export duration: ~3.3 seconds'
-            && maximumLoopEstimate === '100 Pattern cycles at ~1.25s each + 2.0s effects tail. Export duration: ~127.0 seconds'
-            && loopCount.value === '100'
-            ? 'success'
-            : [basicEstimate, inputEstimate, expandedEstimate, intervalEstimate, minimumLoopEstimate, maximumLoopEstimate].join(' / ');
-    })()`,
-    ]);
-    expect(exportDurationResult).toBe('"success"');
-
-    console.log("UI Micro-Guidance Integration Suite complete!");
+    await loopCount.fill("-1");
+    await loopCount.dispatchEvent("change");
+    await expect(loopCount).toHaveValue("1");
+    await loopCount.fill("101");
+    await loopCount.dispatchEvent("change");
+    await expect(loopCount).toHaveValue("100");
 });

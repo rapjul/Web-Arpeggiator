@@ -1,129 +1,118 @@
 /* eslint-disable no-restricted-globals */
+import { clientsClaim, setCacheNameDetails } from "workbox-core";
+import {
+    cleanupOutdatedCaches,
+    createHandlerBoundToURL,
+    precacheAndRoute,
+} from "workbox-precaching";
+import { ExpirationPlugin } from "workbox-expiration";
+import { NavigationRoute, registerRoute } from "workbox-routing";
+import { CacheFirst, NetworkFirst } from "workbox-strategies";
+
 /**
  * Service worker for the Web Arpeggiator PWA.
  *
- * It precaches the app shell, handles cache-first/static and network-first/navigation
- * requests, and exposes small message-based utilities for development tests.
+ * Workbox owns generated-asset precaching, stale Workbox precache cleanup, and
+ * request routing. The small message API is retained for the app's cache
+ * controls and browser tests.
  */
-// self.__WB_MANIFEST is injected by Workbox during build
-const precachedEntries = self.__WB_MANIFEST || [];
-const manifest = {
-    cacheVersion:
-        precachedEntries.length > 0
-            ? precachedEntries
-                  .map((e) => e.revision || "")
-                  .join("-")
-                  .slice(0, 16)
-            : "dev",
-    appShell: "./index.html",
-    navigationFallback: "./index.html",
-    assets: precachedEntries.map((entry) => (typeof entry === "string" ? entry : entry.url)),
-};
-
-const CACHE_NAME = `web-arpeggiator-${manifest.cacheVersion || "dev"}`;
 const CACHE_PREFIX = "web-arpeggiator-";
-const FALLBACK_URL = manifest.navigationFallback || manifest.appShell || "./index.html";
-const MUTABLE_PATHS = ["/index.html", "/manifest.json"];
+const LEGACY_CACHE_NAME = /^web-arpeggiator-(?:dev|[a-f0-9-]+)$/;
+const MUTABLE_PATHS = ["/index.html", "/manifest.json", "/manifest.webmanifest"];
+const ONE_DAY_IN_SECONDS = 24 * 60 * 60;
 
-/**
- * Adds each configured URL to the active cache without failing the whole install
- * when one optional or third-party asset is unavailable.
- *
- * @param {Cache} cache - The cache object opened for the active cache version.
- * @param {string[]} urls - URLs to precache during service worker installation.
- * @returns {Promise<void>} Resolves after all cache attempts have settled.
- */
-async function cacheResources(cache, urls) {
-    await Promise.allSettled(
-        urls.map(async (url) => {
-            try {
-                await cache.add(new Request(url, { cache: "reload" }));
-            } catch (error) {
-                console.warn("Failed to cache resource:", url, error);
-            }
+setCacheNameDetails({ prefix: "web-arpeggiator" });
+
+const navigationStrategy = new NetworkFirst({
+    cacheName: `${CACHE_PREFIX}navigation`,
+    plugins: [
+        new ExpirationPlugin({
+            maxEntries: 10,
+            maxAgeSeconds: 7 * ONE_DAY_IN_SECONDS,
+            purgeOnQuotaError: true,
         }),
-    );
-}
-
-/**
- * Serves a request from cache first, then fetches and stores a fresh network copy.
- *
- * @param {Request} request - The GET request to resolve.
- * @returns {Promise<Response>} Cached, network, or error response.
- */
-async function cacheFirst(request) {
-    const cache = await caches.open(CACHE_NAME);
-    const cachedResponse = await cache.match(request);
-    if (cachedResponse) {
-        return cachedResponse;
-    }
-
-    try {
-        const networkResponse = await fetch(request);
-        if (networkResponse && (networkResponse.ok || networkResponse.type === "opaque")) {
-            cache.put(request, networkResponse.clone()).catch(() => {});
-        }
-
-        return networkResponse;
-    } catch {
-        return cachedResponse || Response.error();
-    }
-}
-
-/**
- * Serves a request from network first, falling back to a cached request or app shell.
- *
- * @param {Request} request - The navigation or mutable-asset request to resolve.
- * @param {string} [fallbackUrl=FALLBACK_URL] - Cached app-shell URL to use offline.
- * @returns {Promise<Response>} Network, cached, fallback, or error response.
- */
-async function networkFirst(request, fallbackUrl = FALLBACK_URL) {
-    const cache = await caches.open(CACHE_NAME);
-
-    try {
-        const networkResponse = await fetch(request);
-        if (networkResponse && (networkResponse.ok || networkResponse.type === "opaque")) {
-            cache.put(request, networkResponse.clone()).catch(() => {});
-        }
-
-        return networkResponse;
-    } catch {
-        const cachedResponse = (await cache.match(request)) || (await cache.match(fallbackUrl));
-        if (cachedResponse) {
-            return cachedResponse;
-        }
-
-        return Response.error();
-    }
-}
-
-// Precache the current app shell and static dependencies as soon as the worker installs.
-self.addEventListener("install", (event) => {
-    event.waitUntil(
-        (async () => {
-            const cache = await caches.open(CACHE_NAME);
-            await cacheResources(cache, manifest.assets || []);
-            await self.skipWaiting();
-        })(),
-    );
+        {
+            handlerDidError: async ({ event }) =>
+                createHandlerBoundToURL("./index.html")({ event }),
+        },
+    ],
+});
+const mutableAssetStrategy = new NetworkFirst({
+    cacheName: `${CACHE_PREFIX}mutable`,
+    plugins: [
+        new ExpirationPlugin({
+            maxEntries: 4,
+            maxAgeSeconds: ONE_DAY_IN_SECONDS,
+            purgeOnQuotaError: true,
+        }),
+    ],
+});
+const crossOriginAssetStrategy = new CacheFirst({
+    cacheName: `${CACHE_PREFIX}cross-origin`,
+    plugins: [
+        new ExpirationPlugin({
+            maxEntries: 40,
+            maxAgeSeconds: 30 * ONE_DAY_IN_SECONDS,
+            purgeOnQuotaError: true,
+        }),
+    ],
+});
+const localAssetStrategy = new CacheFirst({
+    cacheName: `${CACHE_PREFIX}runtime`,
+    plugins: [
+        new ExpirationPlugin({
+            maxEntries: 60,
+            maxAgeSeconds: 30 * ONE_DAY_IN_SECONDS,
+            purgeOnQuotaError: true,
+        }),
+    ],
 });
 
-// Claim clients immediately and remove stale Web Arpeggiator cache versions only.
+// Keep the document and manifest fresh when online, while falling back to the
+// Workbox app-shell precache when a navigation is made offline.
+registerRoute(new NavigationRoute(navigationStrategy, { denylist: [/\/sw\.js$/] }));
+registerRoute(
+    ({ request, url }) =>
+        request.method === "GET" &&
+        url.origin === self.location.origin &&
+        MUTABLE_PATHS.some((path) => url.pathname.endsWith(path)),
+    mutableAssetStrategy,
+);
+
+// `self.__WB_MANIFEST` is injected by vite-plugin-pwa during the production build.
+// Register it after the mutable routes so documents and manifests retain their
+// network-first behavior instead of being intercepted by the precache route.
+precacheAndRoute(self.__WB_MANIFEST);
+
+registerRoute(
+    ({ request, url }) => request.method === "GET" && url.origin !== self.location.origin,
+    crossOriginAssetStrategy,
+);
+registerRoute(
+    ({ request, url }) =>
+        request.method === "GET" &&
+        url.origin === self.location.origin &&
+        !url.pathname.endsWith("/sw.js"),
+    localAssetStrategy,
+);
+
+// Preserve the existing immediate-update behavior. Workbox manages the
+// precache lifecycle, and this only deletes caches created by the pre-Workbox
+// worker during the transition.
+self.skipWaiting();
+clientsClaim();
+cleanupOutdatedCaches();
 self.addEventListener("activate", (event) => {
     event.waitUntil(
-        (async () => {
-            const cacheNames = await caches.keys();
-            await Promise.all(
-                cacheNames.map((cacheName) => {
-                    if (cacheName.startsWith(CACHE_PREFIX) && cacheName !== CACHE_NAME) {
-                        return caches.delete(cacheName);
-                    }
-
-                    return Promise.resolve();
-                }),
-            );
-            await self.clients.claim();
-        })(),
+        caches
+            .keys()
+            .then((cacheNames) =>
+                Promise.all(
+                    cacheNames
+                        .filter((cacheName) => LEGACY_CACHE_NAME.test(cacheName))
+                        .map((cacheName) => caches.delete(cacheName)),
+                ),
+            ),
     );
 });
 
@@ -204,40 +193,4 @@ self.addEventListener("message", (event) => {
             }
         })(),
     );
-});
-
-// Route page navigations, CDN dependencies, mutable assets, and static assets.
-self.addEventListener("fetch", (event) => {
-    const { request } = event;
-
-    if (request.method !== "GET") {
-        return;
-    }
-
-    const requestUrl = new URL(request.url);
-
-    // Bypass caching for the service worker itself to avoid update check failures
-    if (requestUrl.pathname.endsWith("/sw.js")) {
-        return;
-    }
-
-    if (request.mode === "navigate") {
-        event.respondWith(networkFirst(request, FALLBACK_URL));
-        return;
-    }
-
-    if (requestUrl.origin !== self.location.origin) {
-        event.respondWith(cacheFirst(request));
-        return;
-    }
-
-    if (
-        MUTABLE_PATHS.some((path) => requestUrl.pathname.endsWith(path)) ||
-        requestUrl.pathname.endsWith("/manifest.json")
-    ) {
-        event.respondWith(networkFirst(request));
-        return;
-    }
-
-    event.respondWith(cacheFirst(request));
 });

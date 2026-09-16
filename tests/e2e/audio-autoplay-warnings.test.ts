@@ -1,34 +1,27 @@
-import { expect, runBrowser, test } from "./test-helpers";
+import { dismissOnboarding, expect, test } from "./fixtures/app";
 
-const PORT = 4191;
-const APP_URL = `http://127.0.0.1:${PORT}/index.html`;
 const AUTOPLAY_WARNING = /AudioContext (was not allowed to start|is "suspended")/i;
 
-test("defers the Tone runtime until the explicit Start Audio action", async (): Promise<void> => {
-    await runBrowser(["open", "about:blank"]);
-    await runBrowser(["console", "--clear"]);
-    await runBrowser(["open", APP_URL]);
-    await runBrowser(["wait", "--load", "networkidle"]);
-    await runBrowser(["wait", "--fn", "document.getElementById('notes') !== null"]);
+test("defers audio initialization until the explicit Start Audio action", async ({ page }) => {
+    const consoleMessages: string[] = [];
+    page.on("console", (message) => consoleMessages.push(message.text()));
 
-    const preActivationConsole = await runBrowser(["console"]);
-    expect(preActivationConsole).not.toMatch(AUTOPLAY_WARNING);
+    await page.goto("/index.html?pwa=true", { waitUntil: "domcontentloaded" });
+    await expect(page.locator("#notes")).toBeVisible();
+    expect(consoleMessages.join("\n")).not.toMatch(AUTOPLAY_WARNING);
 
-    const bridgeState = await runBrowser([
-        "eval",
-        `JSON.stringify({
-            audioEngine: "audioEngine" in window,
-            presetStore: "WebArpPresetStore" in window,
-            pwaController: "WebArpPWA" in window,
-            pwaState: "__WEB_ARP_PWA_STATE__" in window,
-            startAudio: "startAudio" in window,
-            filterNoteInput: "filterNoteInput" in window,
-            filterNumericInput: "filterNumericInput" in window,
-            notesInlineHandler: document.getElementById("notes")?.hasAttribute("onkeydown"),
-            loopCountInlineHandler: document.getElementById("loop-count")?.hasAttribute("onkeydown"),
-        })`,
-    ]);
-    expect(JSON.parse(JSON.parse(bridgeState))).toEqual({
+    const publicTestBridge = await page.evaluate(() => ({
+        audioEngine: "audioEngine" in window,
+        presetStore: "WebArpPresetStore" in window,
+        pwaController: "WebArpPWA" in window,
+        pwaState: "__WEB_ARP_PWA_STATE__" in window,
+        startAudio: "startAudio" in window,
+        filterNoteInput: "filterNoteInput" in window,
+        filterNumericInput: "filterNumericInput" in window,
+        notesInlineHandler: document.getElementById("notes")?.hasAttribute("onkeydown"),
+        loopCountInlineHandler: document.getElementById("loop-count")?.hasAttribute("onkeydown"),
+    }));
+    expect(publicTestBridge).toEqual({
         audioEngine: false,
         presetStore: false,
         pwaController: false,
@@ -40,51 +33,25 @@ test("defers the Tone runtime until the explicit Start Audio action", async (): 
         loopCountInlineHandler: false,
     });
 
-    const overlayId = await runBrowser([
-        "eval",
-        `(() => {
-            const quickStart = document.getElementById('quick-start-overlay');
-            return quickStart && getComputedStyle(quickStart).display !== 'none'
-                ? 'quick-start-scratch'
-                : 'start-overlay';
-        })()`,
-    ]);
-    await runBrowser(["click", `#${JSON.parse(overlayId)}`]);
-    await runBrowser(["wait", "--fn", "document.getElementById('play-stop')?.disabled === false"]);
-
-    await runBrowser(["click", "#play-stop"]);
-    await runBrowser([
-        "wait",
-        "--fn",
-        "document.getElementById('play-stop')?.textContent === 'Stop Audio'",
-    ]);
+    await dismissOnboarding(page);
+    await page.locator("#play-stop").click();
+    await expect(page.locator("#play-stop")).toHaveText("Stop Audio");
 });
 
-test("applies a preset restored before activation after starting audio", async (): Promise<void> => {
-    await runBrowser(["open", "about:blank"]);
-    await runBrowser([
-        "open",
-        `${APP_URL}?bpm=155&synth=fmSynth&wave=sawtooth&cutoff=3700&delay=0.37&reverb=0.42`,
-    ]);
-    await runBrowser([
-        "wait",
-        "--fn",
-        "document.getElementById('synth-type')?.value === 'fmSynth' && document.getElementById('bpm')?.value === '155'",
-    ]);
+test("applies URL preset controls before and after audio activation", async ({ page }) => {
+    await page.goto(
+        "/index.html?pwa=true&bpm=155&synth=fmSynth&wave=sawtooth&cutoff=3700&delay=0.37&reverb=0.42",
+        { waitUntil: "domcontentloaded" },
+    );
 
-    const restoredBeforeActivation = await runBrowser([
-        "eval",
-        "document.getElementById('filter-cutoff')?.value",
-    ]);
-    expect(JSON.parse(restoredBeforeActivation)).toBe("3700");
+    await expect(page.locator("#synth-type")).toHaveValue("fmSynth");
+    await expect(page.locator("#bpm")).toHaveValue("155");
+    await expect(page.locator("#filter-cutoff")).toHaveValue("3700");
 
-    await runBrowser(["click", "#start-overlay"]);
-    await runBrowser(["wait", "--fn", "document.getElementById('play-stop')?.disabled === false"]);
-
-    await runBrowser(["click", "#play-stop"]);
-    await runBrowser([
-        "wait",
-        "--fn",
-        "document.getElementById('play-stop')?.textContent === 'Stop Audio'",
-    ]);
+    await dismissOnboarding(page);
+    await page.locator("#play-stop").click();
+    await expect(page.locator("#play-stop")).toHaveText("Stop Audio");
+    await expect(page.locator("#synth-type")).toHaveValue("fmSynth");
+    await expect(page.locator("#bpm")).toHaveValue("155");
+    await expect(page.locator("#filter-cutoff")).toHaveValue("3700");
 });
