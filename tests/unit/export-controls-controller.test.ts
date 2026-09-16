@@ -5,6 +5,7 @@ import { createExportControlsController } from "@ui/export-controls-controller.j
 const controllers: Array<ReturnType<typeof createExportControlsController>> = [];
 
 function createFixture() {
+    document.body.replaceChildren();
     const loopCountInput = document.createElement("input");
     loopCountInput.value = "2";
     const modeTailInput = document.createElement("input");

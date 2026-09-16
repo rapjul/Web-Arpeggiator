@@ -349,6 +349,7 @@ export function createPatternControlsController(dependencies) {
         patternButtons.addEventListener(
             "click",
             (event) => {
+                if (patternButtons.querySelector("input[name='pattern-direction']")) return;
                 if (!(event.target instanceof Element)) return;
                 const target = event.target.closest(".pattern-btn, button, label");
                 const button = target?.classList.contains("pattern-btn")

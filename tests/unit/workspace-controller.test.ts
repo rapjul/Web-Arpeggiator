@@ -100,11 +100,20 @@ describe("workspace controller", () => {
     });
 
     it("ignores metadata and file-picker changes while preserving reset gestures", () => {
-        const { controller, loadPresetInput, presetNameInput, resetTarget, settings, showToast } =
-            createFixture();
+        const {
+            controller,
+            loadPresetInput,
+            presetNameInput,
+            resetTarget,
+            savedPresetSelect,
+            settings,
+            showToast,
+        } = createFixture();
         const initialStatus = controller.getStatus();
 
         presetNameInput.dispatchEvent(new Event("input", { bubbles: true }));
+        savedPresetSelect.dispatchEvent(new Event("input", { bubbles: true }));
+        loadPresetInput.dispatchEvent(new Event("input", { bubbles: true }));
         loadPresetInput.dispatchEvent(new Event("change", { bubbles: true }));
         expect(controller.getStatus()).toEqual(initialStatus);
 

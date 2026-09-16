@@ -122,6 +122,7 @@ function createFixture() {
         hideStorageRecovery,
         loadPresetInput,
         loadSavedPresetButton,
+        sharePresetButton,
         savedPresetSelect,
         setActiveSoundStarterCard,
         showStorageRecovery,
@@ -152,7 +153,7 @@ describe("preset workflow controller", () => {
         const fixture = createFixture();
         fixture.clipboard.writeText.mockRejectedValueOnce(new Error("clipboard denied"));
         fixture.clipboard.writeText.mockClear();
-        document.querySelector("button")?.click();
+        fixture.sharePresetButton.click();
         await Promise.resolve();
         await Promise.resolve();
         expect(fixture.showToast).toHaveBeenCalledWith(

@@ -285,6 +285,16 @@ describe("pattern controls controller", () => {
         expect(onPatternChange).toHaveBeenCalledOnce();
     });
 
+    test("does not rebuild twice when radio markup handles the click", () => {
+        const { controller, onPatternChange, patternButtons } = createFixture();
+        controller.initialize();
+
+        patternButtons.querySelector<HTMLInputElement>("input[value='down']")?.click();
+
+        expect(onPatternChange).toHaveBeenCalledOnce();
+        expect(controller.getSelectedPatternDirection()).toBe("down");
+    });
+
     test("falls back safely for malformed pattern directions", () => {
         const { controller, patternButtons } = createFixture();
         controller.initialize();

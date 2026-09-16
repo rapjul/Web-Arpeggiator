@@ -41,10 +41,12 @@ export function createTransportController(dependencies) {
             : handler;
     }
     function handleBpmChange() {
+        if (!isInitialized) return;
         const value = Number.parseInt(bpmSlider?.value || "", 10);
         if (Number.isFinite(value)) dependencies.onBpmChange?.(value);
     }
     function handleSwingChange() {
+        if (!isInitialized) return;
         const value = Number.parseFloat(swingSlider?.value || "");
         if (Number.isFinite(value)) dependencies.onSwingChange?.(value);
     }

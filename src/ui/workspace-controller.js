@@ -232,14 +232,18 @@ export function createWorkspaceController(dependencies) {
      */
     function handleInput(event) {
         const target = /** @type {Element|null} */ (event.target);
-        if (!target || target === presetNameInput) return;
+        if (
+            !target ||
+            target === presetNameInput ||
+            target === savedPresetSelect ||
+            target === loadPresetInput
+        )
+            return;
         if (!target.matches("input, select, textarea")) return;
         recordCurrentSettings(true);
         clearActiveSoundStarterCard();
         sessionManager.scheduleSave();
         if (
-            target !== /** @type {Element|null} */ (loadPresetInput) &&
-            target !== /** @type {Element|null} */ (savedPresetSelect) &&
             target.id !== "loop-count" &&
             target.id !== "offline-export-tail-seconds" &&
             !target.matches("input[name='offline-export-mode']")
