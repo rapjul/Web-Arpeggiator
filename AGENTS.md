@@ -10,6 +10,7 @@ Web Arpeggiator is a browser-based musical arpeggiator application built with va
 - **Tonal.js**: Music theory library for scale quantization
 - **LameJS**: MP3 encoding for audio export
 - **Tailwind CSS**: Utility-first CSS framework for UI styling
+- **Vite PWA + Workbox**: Builds the custom service worker with injected precache assets, routing, stale-cache cleanup, and bounded runtime caching
 
 ## Architecture
 
@@ -322,7 +323,7 @@ Web Arpeggiator/
 │   ├── tokens.css          # Semantic CSS variables and theme tokens
 │   └── visualizer.css      # Visualizer canvas and oscilloscope layout
 ├── manifest.json           # PWA manifest
-├── sw.js                   # Service worker
+├── sw.js                   # Workbox-backed custom PWA worker and cache-control message API
 ├── AGENTS.md               # This file
 ├── docs/                   # Specifications, ADRs & architectural guides
 │   ├── adr/                # Architectural Decision Records (MADR standard)
@@ -337,7 +338,8 @@ Web Arpeggiator/
 │   │   ├── 0009-versioned-offline-audio-export-metadata.md
 │   │   ├── 0010-retryable-indexeddb-storage-recovery.md
 │   │   ├── 0011-playwright-browser-testing.md
-│   │   └── 0012-observable-playwright-synchronization-and-artifact-validation.md
+│   │   ├── 0012-observable-playwright-synchronization-and-artifact-validation.md
+│   │   └── 0013-workbox-custom-service-worker-caching.md
 │   ├── development.md      # Local setup, commands, and test-runner guidance
 │   ├── history-and-default-settings.md # Default parameters and settings history reference
 │   ├── midi-specification.md # Standard MIDI specification & implementation reference

@@ -14,6 +14,8 @@ The application separates pure music logic (`src/core/`), Tone.js synthesis and 
 
 UI controllers own their event listeners, DOM value formatting, and listener teardown. Audio graph updates remain application-owned callbacks so user interactions do not communicate through browser globals. The PWA lifecycle and IndexedDB preset API are similarly composed through ES module imports and injected callbacks, which keeps them directly testable without browser-global APIs. The current controller boundaries cover onboarding, history, transport, pattern, synth, filter, effects, and constrained-input controls, plus presets, virtual keyboard input, note-step feedback, accessibility navigation, and the visualizer.
 
+The custom PWA worker uses Vite PWA's `injectManifest` build integration and Workbox for revisioned precaching, request routing, stale-precache cleanup, and bounded runtime caches. The composed PWA controller retains ownership of registration, update UI, and cache-control messages. Documents and manifests are network-first when online, with the precached app shell as the offline navigation fallback.
+
 ## Features
 
 ### 🎹 Synthesis
@@ -190,6 +192,7 @@ Example: With C Major selected, the note "C#4" becomes "D4"
 - **[Tonal.js](https://github.com/tonaljs/tonal)**: Music theory library for scale operations
 - **[LameJS](https://www.npmjs.com/package/lamejs)**: Client-side MP3 encoding
 - **[Tailwind CSS](https://tailwindcss.com/)**: Utility-first CSS styling
+- **[Vite PWA](https://vite-pwa-org.netlify.app/)** and **[Workbox](https://developer.chrome.com/docs/workbox/)**: Custom service-worker build integration, precaching, routing, and runtime-cache management
 
 ## Documentation
 
