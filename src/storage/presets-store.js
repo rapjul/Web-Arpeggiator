@@ -7,7 +7,7 @@
  * @module storage/presets-store
  */
 
-import { normalizeSettings } from "@core/settings-contract.js";
+import { normalizeSettings, UnsupportedSettingsVersionError } from "@core/settings-contract.js";
 
 /** @typedef {import("../../types.d.ts").WebArpPresetMetadata} WebArpPresetMetadata */
 /** @typedef {import("../../types.d.ts").WebArpPresetRecord} WebArpPresetRecord */
@@ -94,17 +94,19 @@ function normalizeStoredPresetRecord(value) {
         return null;
     }
 
-    /** @type {WebArpPresetRecord} */
-    let record;
+    /** @type {Record<string, unknown>} */
+    let settings;
     try {
-        record = {
-            id: value.id,
-            savedAt: value.savedAt,
-            settings: normalizeSettings(value.settings),
-        };
-    } catch {
-        return null;
+        settings = normalizeSettings(value.settings);
+    } catch (error) {
+        if (!(error instanceof UnsupportedSettingsVersionError) || !error.isFutureVersion) {
+            return null;
+        }
+        settings = cloneSettings(value.settings);
     }
+
+    /** @type {WebArpPresetRecord} */
+    const record = { id: value.id, savedAt: value.savedAt, settings };
 
     const name = value.name;
     const filename = value.filename;

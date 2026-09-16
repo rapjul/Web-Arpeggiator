@@ -518,6 +518,8 @@ function initializeApp() {
     let currentWaveform = "sine";
     /** @type {Record<string, unknown>|null} */
     let pendingFuturePreset = null;
+    /** @type {HTMLElement|null} */
+    let futurePresetReturnFocus = null;
     let audioEngine;
     let pendingAudioEngine = null;
     let recorderManager;
@@ -611,7 +613,7 @@ function initializeApp() {
 
     /**
      * Rebuilds the scheduler from the current UI and application state.
-     * @returns {{ok: boolean, settings?: import("./core/settings-contract.js").ArpeggiatorSettings, error?: unknown}}
+     * @returns {void}
      */
     function createOrUpdatePattern() {
         if (!getAvailableAudioEngine()) {
@@ -2445,7 +2447,40 @@ function initializeApp() {
     function closeFuturePresetDialog() {
         pendingFuturePreset = null;
         futurePresetOverlay?.classList.add("hidden");
+        futurePresetOverlay?.classList.remove("flex");
         futurePresetOverlay?.setAttribute("aria-hidden", "true");
+        appMain?.removeAttribute("inert");
+        futurePresetReturnFocus?.focus();
+        futurePresetReturnFocus = null;
+    }
+
+    function openFuturePresetDialog(settings, fileName) {
+        futurePresetReturnFocus = loadPresetButton;
+        pendingFuturePreset = { ...settings, __importFileName: fileName };
+        futurePresetOverlay?.classList.remove("hidden");
+        futurePresetOverlay?.classList.add("flex");
+        futurePresetOverlay?.setAttribute("aria-hidden", "false");
+        appMain?.setAttribute("inert", "");
+        futurePresetConfirmButton?.focus();
+    }
+
+    function trapFuturePresetDialogFocus(event) {
+        if (event.key !== "Tab" || !futurePresetDialog) return;
+        const focusable = Array.from(
+            /** @type {NodeListOf<HTMLButtonElement>} */ (
+                futurePresetDialog.querySelectorAll("button:not([disabled])")
+            ),
+        );
+        const firstElement = focusable[0];
+        const lastElement = focusable[focusable.length - 1];
+        if (!firstElement || !lastElement) return;
+        if (event.shiftKey && document.activeElement === firstElement) {
+            event.preventDefault();
+            lastElement.focus();
+        } else if (!event.shiftKey && document.activeElement === lastElement) {
+            event.preventDefault();
+            firstElement.focus();
+        }
     }
 
     function saveImportedPreset(settings, file) {
@@ -2459,6 +2494,20 @@ function initializeApp() {
     }
 
     futurePresetCancelButton?.addEventListener("click", closeFuturePresetDialog);
+    futurePresetOverlay?.addEventListener("click", (event) => {
+        if (event.target === futurePresetOverlay) closeFuturePresetDialog();
+    });
+    futurePresetDialog?.addEventListener("keydown", trapFuturePresetDialogFocus);
+    window.addEventListener("keydown", (event) => {
+        if (
+            event.key !== "Escape" ||
+            futurePresetOverlay?.getAttribute("aria-hidden") !== "false"
+        ) {
+            return;
+        }
+        event.preventDefault();
+        closeFuturePresetDialog();
+    });
     futurePresetConfirmButton?.addEventListener("click", () => {
         if (!pendingFuturePreset) return;
         const pending = pendingFuturePreset;
@@ -2488,11 +2537,11 @@ function initializeApp() {
                     if (result.ok) {
                         saveImportedPreset(getAllSettings(), file);
                         showToast("Preset loaded!", "success");
-                    } else if (result.error instanceof UnsupportedSettingsVersionError) {
-                        pendingFuturePreset = { ...settings, __importFileName: file.name };
-                        futurePresetOverlay?.classList.remove("hidden");
-                        futurePresetOverlay?.setAttribute("aria-hidden", "false");
-                        futurePresetDialog?.focus();
+                    } else if (
+                        result.error instanceof UnsupportedSettingsVersionError &&
+                        result.error.isFutureVersion
+                    ) {
+                        openFuturePresetDialog(settings, file.name);
                     } else {
                         showToast("Failed to load preset.", "error");
                     }
@@ -2529,7 +2578,11 @@ function initializeApp() {
                     showToast("No saved preset found yet.", "info");
                     return;
                 }
-                applySettingsWithHistory(record.settings || record);
+                const result = applySettingsWithHistory(record.settings || record);
+                if (!result.ok) {
+                    showToast("Saved preset requires a newer version of Web Arpeggiator.", "error");
+                    return;
+                }
                 if (presetNameInput) presetNameInput.value = record.name || record.filename || "";
                 await refreshSavedPresetList(record.id);
                 showToast("Loaded saved preset from browser storage.", "success");

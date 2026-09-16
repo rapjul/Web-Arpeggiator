@@ -243,6 +243,14 @@ describe("settings contract", () => {
         ).toMatchObject({ settingsVersion: 1, bpm: 96, baseNotes: ["A3", "C4"] });
     });
 
+    test("rejects malformed explicit settings versions instead of treating them as legacy", () => {
+        for (const settingsVersion of [0, 1.5, "1", null]) {
+            expect(() => normalizeSettings({ settingsVersion })).toThrow(
+                UnsupportedSettingsVersionError,
+            );
+        }
+    });
+
     test("normalizes every legacy history snapshot before restoration", () => {
         const history = normalizeSettingsHistory({
             past: [{ bpm: 100, baseNotes: ["C4"] }],

@@ -152,13 +152,17 @@ export const SETTINGS_BOUNDS = Object.freeze({
 export const SETTINGS_SCHEMA_VERSION = 1;
 
 export class UnsupportedSettingsVersionError extends Error {
-    /** @param {number} settingsVersion */
+    /** @param {unknown} settingsVersion */
     constructor(settingsVersion) {
         super(
             `Settings version ${settingsVersion} is newer than supported version ${SETTINGS_SCHEMA_VERSION}.`,
         );
         this.name = "UnsupportedSettingsVersionError";
         this.settingsVersion = settingsVersion;
+        this.isFutureVersion =
+            typeof settingsVersion === "number" &&
+            Number.isInteger(settingsVersion) &&
+            settingsVersion > SETTINGS_SCHEMA_VERSION;
     }
 }
 
@@ -290,10 +294,19 @@ function normalizeAllowedValue(value, allowed, fallback) {
 export function normalizeSettings(candidate, fallback = DEFAULT_SETTINGS, options = {}) {
     const source = isSettingsRecord(candidate) ? candidate : {};
     const sourceVersion = source.settingsVersion;
+    const hasExplicitVersion = Object.hasOwn(source, "settingsVersion");
+    if (
+        hasExplicitVersion &&
+        (typeof sourceVersion !== "number" ||
+            !Number.isInteger(sourceVersion) ||
+            sourceVersion < SETTINGS_SCHEMA_VERSION)
+    ) {
+        throw new UnsupportedSettingsVersionError(sourceVersion);
+    }
     if (
         !options.allowFutureVersion &&
+        hasExplicitVersion &&
         typeof sourceVersion === "number" &&
-        Number.isInteger(sourceVersion) &&
         sourceVersion > SETTINGS_SCHEMA_VERSION
     ) {
         throw new UnsupportedSettingsVersionError(sourceVersion);
