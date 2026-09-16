@@ -18,13 +18,7 @@ bun run lint
 bun run typecheck
 ```
 
-## Composition Boundaries
-
-`src/app.js` is intentionally kept as the composition root. It performs DOM lookup, owns shared application state, composes the settings manager, and connects controller callbacks to the live audio graph. It should not accumulate feature-specific event handlers.
-
-UI behavior belongs in focused controllers: `workspace-controller.js` handles history, resets, autosave, and session restoration; `export-controls-controller.js` handles recording and export controls; `preset-workflow-controller.js` handles URL, file, and browser-preset actions; and the existing pattern, synth, transport, effects, onboarding, keyboard, and visualizer controllers handle their respective controls. Audio lifecycle boundaries are `runtime-controller.js` for deferred Tone loading and graph construction, `playback-controller.js` for transport and suspended-context recovery, and `static-loop-renderer.js` for one-cycle preview rendering.
-
-When adding a new interaction, keep DOM references and cross-feature callback wiring in `app.js`, inject platform dependencies into the focused controller, and return a teardown method for every listener-owning controller. Preserve the existing settings-manager, settings-history, session-manager, and export contracts when moving orchestration code.
+For module ownership, composition boundaries, and the deferred `app.js` follow-up, see the [Architecture Guide](./architecture.md). Keep contributor workflow and test-runner guidance in this document.
 
 ## Test Commands
 

@@ -16,16 +16,7 @@ Web Arpeggiator is a browser-based musical arpeggiator application built with va
 
 ### Composition Root and Controller Boundaries
 
-`src/app.js` is the application composition root. It performs DOM lookup, owns the shared application state, composes the settings manager, and wires callbacks between controllers and the live audio graph. Feature behavior should remain in focused modules so those modules can be tested with injected dependencies and can tear down their own listeners.
-
-- `src/ui/workspace-controller.js` coordinates settings history, reset behavior, session restoration, and document autosave.
-- `src/ui/export-controls-controller.js` coordinates recording and export controls, duration readouts, offline modes, and loop-preview requests.
-- `src/ui/preset-workflow-controller.js` coordinates URL sharing, file import, future-version confirmation, and browser-preset persistence actions; `preset-controller.js` remains responsible for preset lists and factory/sound-starter rendering.
-- `src/audio/runtime-controller.js` owns deferred Tone loading, runtime construction, pending settings, and partial-runtime cleanup.
-- `src/audio/playback-controller.js` owns transport start/stop and suspended AudioContext recovery.
-- `src/audio/static-loop-renderer.js` owns one-cycle offline rendering used by the visualizer preview.
-
-Keep DOM querying, shared state contracts, settings-manager composition, and final cross-feature callback wiring in `src/app.js`. Add new control listeners to the relevant controller and expose only the narrow callback needed by the composition root.
+See the [Architecture Guide](./docs/architecture.md) for the detailed module ownership map, runtime flow, source layout, and deferred `app.js` follow-up. For agent work, keep DOM querying, shared state contracts, settings-manager composition, and final cross-feature callback wiring in `src/app.js`; add new control listeners to the relevant focused controller and preserve its teardown boundary.
 
 ### 1. Audio Engine
 
@@ -355,6 +346,7 @@ Web Arpeggiator/
 │   │   ├── 0011-playwright-browser-testing.md
 │   │   ├── 0012-observable-playwright-synchronization-and-artifact-validation.md
 │   │   └── 0013-workbox-custom-service-worker-caching.md
+│   ├── architecture.md     # Module ownership, runtime flow, and deferred boundaries
 │   ├── development.md      # Local setup, commands, and test-runner guidance
 │   ├── improvements/       # Deferred, scoped follow-up plans
 │   ├── history-and-default-settings.md # Default parameters and settings history reference

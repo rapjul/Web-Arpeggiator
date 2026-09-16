@@ -10,9 +10,7 @@ Web Arpeggiator is an interactive music tool that generates flowing musical patt
 
 ## Architecture
 
-The application separates pure music logic (`src/core/`), Tone.js synthesis and scheduling (`src/audio/`), browser persistence (`src/storage/`), and DOM rendering and interaction (`src/ui/`). `src/app.js` is the composition root: it performs DOM lookup, owns shared application state, composes the settings manager, and wires cross-feature callbacks.
-
-Focused controllers own their event listeners, DOM value formatting, and listener teardown. Pattern, synth, transport, effects, onboarding, history, workspace, export, preset workflow, constrained-input, keyboard, note-step, accessibility, and visualizer behavior live in `src/ui/`. Deferred Tone loading and runtime construction live in `src/audio/runtime-controller.js`; playback recovery lives in `src/audio/playback-controller.js`; static loop previews live in `src/audio/static-loop-renderer.js`. The application root retains only the integration callbacks needed to connect those boundaries to the live audio graph and shared state.
+The application separates pure music logic (`src/core/`), Tone.js synthesis and scheduling (`src/audio/`), browser persistence (`src/storage/`), and DOM rendering and interaction (`src/ui/`). `src/app.js` remains the composition root for DOM lookup, shared state, settings composition, and cross-feature callbacks. See the [Architecture Guide](./docs/architecture.md) for the detailed module ownership map, runtime flow, source layout, and deferred follow-up work.
 
 The custom PWA worker uses Vite PWA's `injectManifest` build integration and Workbox for revisioned precaching, request routing, stale-precache cleanup, and bounded runtime caches. Vite PWA generates `manifest.webmanifest` from the manifest configuration in `vite.config.js` during each production build. The composed PWA controller retains ownership of registration, update UI, and cache-control messages. Documents and manifests are network-first when online, with the precached app shell as the offline navigation fallback. Verbose diagnostics and the Audio is ready toast are development-only.
 
@@ -198,7 +196,8 @@ Example: With C Major selected, the note "C#4" becomes "D4"
 
 ## Documentation
 
-- **[AGENTS.md](./AGENTS.md)**: Detailed architecture, development guide, and technical reference
+- **[AGENTS.md](./AGENTS.md)**: AI-agent instructions, architecture rules, and technical reference
+- **[Architecture Guide](./docs/architecture.md)**: Module ownership, runtime flow, and deferred architecture work
 - **[Development and Testing Guide](./docs/development.md)**: Local setup, commands, test ownership, and browser-test rules
 - **[Pattern Directions Guide](./docs/pattern-directions.md)**: Visual and descriptive guide to all 12 pattern types
 - **[Standard MIDI Specification & Implementation Guide](./docs/midi-specification.md)**: Technical reference for SMF Format 0 binary encoding and external MIDI standards
