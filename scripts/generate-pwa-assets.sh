@@ -29,8 +29,7 @@ mkdir -p "${SCREENSHOT_DIR}"
 
 # Generate maskable SVG icon from standard SVG icon
 echo "Generating maskable SVG from standard SVG..."
-# node "${ROOT_DIR}/scripts/generate-maskable-svg.js"
-bash "${ROOT_DIR}/scripts/generate-maskable-svg.sh"
+node "${ROOT_DIR}/scripts/generate-maskable-svg.js"
 
 # Generate PNG icons
 echo "Generating PNG icons..."

@@ -59,10 +59,9 @@ import { FACTORY_PRESETS } from "./config/factory-presets.js";
 /** @typedef {import("./config/factory-presets.js").FactoryPreset} FactoryPreset */
 
 // --- Global Config ---
-// Set to true to show a toast message when audio is ready (for testing)
-const SHOW_AUDIO_READY_TOAST = true;
-// Set to true for verbose console logging
-const DEBUG = true;
+// Keep development diagnostics out of production bundles.
+const SHOW_AUDIO_READY_TOAST = import.meta.env.DEV;
+const DEBUG = import.meta.env.DEV;
 
 // Fix for audio session not working on Mobile Safari if in "Silent Mode"
 // [237322 – webaudio api is muted when the iOS ringer is muted](https://bugs.webkit.org/show_bug.cgi?id=237322)

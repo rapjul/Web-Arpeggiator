@@ -18,7 +18,7 @@ import { CacheFirst, NetworkFirst } from "workbox-strategies";
  */
 const CACHE_PREFIX = "web-arpeggiator-";
 const LEGACY_CACHE_NAME = /^web-arpeggiator-(?:dev|[a-f0-9-]+)$/;
-const MUTABLE_PATHS = ["/index.html", "/manifest.json", "/manifest.webmanifest"];
+const MUTABLE_PATHS = ["/index.html", "/manifest.webmanifest"];
 const ONE_DAY_IN_SECONDS = 24 * 60 * 60;
 
 setCacheNameDetails({ prefix: "web-arpeggiator" });

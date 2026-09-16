@@ -151,6 +151,12 @@ export type TonePatternDirection =
  * Global browser type augmentations for Web Arpeggiator.
  */
 declare global {
+    interface ImportMeta {
+        readonly env: {
+            readonly DEV: boolean;
+        };
+    }
+
     interface Window {
         /** PWA asset manifest cache list */
         __WEB_ARP_ASSET_MANIFEST__?: WebArpAssetManifest;
