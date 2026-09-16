@@ -9,18 +9,10 @@
  */
 import { downloadBlob } from "@core/audio-utils.js";
 import { buildChordString, resolveChordDefinition } from "@core/chord-builder.js";
-import {
-    formatEstimatedExportDuration,
-    normalizeLoopCount,
-    normalizeOfflineExportTailSeconds,
-} from "@core/export-duration.js";
 import { filterNoteInput, filterNumericInput } from "@core/input-filters.js";
 import { dbToPercent } from "@core/meter-utils.js";
-import { exportMidiFile } from "@core/midi-export.js";
 import {
-    calculateNoteMarkers,
     getArpeggioNotes as getArpeggioNotesFromModule,
-    materializePatternSequence,
     normalizeNotesSequence,
 } from "@core/pattern-core.js";
 import { generateRandomNotes } from "@core/randomizer.js";
@@ -41,12 +33,14 @@ import { debounce } from "@storage/session-manager.js";
 import { createSettingsManager } from "@storage/settings-manager.js";
 import { createAudioRuntimeController } from "@audio/runtime-controller.js";
 import { createPlaybackController } from "@audio/playback-controller.js";
+import { createStaticLoopRenderer } from "@audio/static-loop-renderer.js";
 import { initializeKeyboardControls } from "@ui/keyboard-controller.js";
 import { createHistoryController } from "@ui/history-controller.js";
 import { createInputFilterController } from "@ui/input-filter-controller.js";
 import { createNoteStepController } from "@ui/note-step-controller.js";
 import { createOnboardingController } from "@ui/onboarding-controller.js";
 import { createEffectsControlsController } from "@ui/effects-controls-controller.js";
+import { createExportControlsController } from "@ui/export-controls-controller.js";
 import { createFuturePresetDialogController } from "@ui/future-preset-dialog-controller.js";
 import { createPatternControlsController } from "@ui/pattern-controls-controller.js";
 import { createPresetController } from "@ui/preset-controller.js";
@@ -113,6 +107,7 @@ let isAudioContextStarted = false;
 let Tone;
 let audioRuntimeController = null;
 let playbackController = null;
+let exportControlsController = null;
 
 /**
  * Starts the deferred audio runtime from a user-initiated action.
@@ -124,6 +119,21 @@ function startAudio() {
         return Promise.reject(new Error("Audio runtime is not initialized."));
     }
     return audioRuntimeController.startAudio();
+}
+
+/** @returns {void} Delegates the current duration estimate to export controls. */
+function updateEstimatedExportDuration() {
+    exportControlsController?.updateEstimatedExportDuration();
+}
+
+/** @returns {void} Delegates offline-mode presentation to export controls. */
+function updateOfflineExportModeUi() {
+    exportControlsController?.updateOfflineExportModeUi();
+}
+
+/** @returns {void} Requests a debounced loop-map render from export controls. */
+function requestStaticLoopRender() {
+    exportControlsController?.requestStaticLoopRender();
 }
 
 // --- DOMContentLoaded: Main Setup ---
@@ -625,7 +635,7 @@ function initializeApp() {
         },
         onPatternChange: createOrUpdatePattern,
         onEstimatedDurationChange: () => updateEstimatedExportDuration(),
-        onStaticLoopChange: () => debouncedRenderStaticLoop(),
+        onStaticLoopChange: requestStaticLoopRender,
         onNotesSelected: (notes) => {
             notesInput.value = notes.join(" ");
             notesInput.dispatchEvent(new Event("input", { bubbles: true }));
@@ -1044,71 +1054,6 @@ function initializeApp() {
         return `${paddedMinutes}:${paddedSeconds}.${ms}`;
     }
 
-    /**
-     * Returns the currently selected offline audio export mode.
-     *
-     * @returns {"seamless"|"tail"} Selected export mode.
-     */
-    function getSelectedOfflineExportMode() {
-        return Array.from(offlineExportModeInputs).some(
-            (input) => input.checked && input.value === "seamless",
-        )
-            ? "seamless"
-            : "tail";
-    }
-
-    /**
-     * Shows the tail duration only when the tail mode needs it.
-     *
-     * @returns {void}
-     */
-    function updateOfflineExportModeUi() {
-        const isTailMode = getSelectedOfflineExportMode() === "tail";
-        offlineExportTailControl?.classList.toggle("hidden", !isTailMode);
-        if (offlineExportTailSecondsInput) {
-            offlineExportTailSecondsInput.disabled = !isTailMode;
-        }
-    }
-
-    /**
-     * Refreshes the offline export duration estimate using the same materialized
-     * pattern sequence used by offline audio and MIDI exports.
-     *
-     * @returns {void}
-     */
-    function updateEstimatedExportDuration() {
-        if (!offlineExportDuration) return;
-
-        const settings = getAllSettings();
-        const { notes: patternNotes } = materializePatternSequence(
-            settings.baseNotes || settings.notes,
-            {
-                direction: settings.direction,
-                octaveRange: settings.octaveRange,
-                octaveShift: settings.octaveShift,
-                quantize: {
-                    enabled: settings.scaleQuantize,
-                    root: settings.scaleRoot,
-                    scale: settings.scaleType,
-                },
-            },
-        );
-
-        offlineExportDuration.textContent = formatEstimatedExportDuration({
-            loopCount: settings.loopCount,
-            stepsPerLoop: patternNotes.length,
-            interval: settings.interval,
-            bpm: settings.bpm,
-            exportMode: settings.offlineExportMode,
-            tailSeconds: settings.offlineExportTailSeconds,
-            envRelease: settings.envRelease,
-            delayMix: settings.delayMix,
-            reverbMix: settings.reverbMix,
-            chorusMix: settings.chorusMix,
-            autoPanMix: settings.autoPanMix,
-        });
-    }
-
     const workspaceController = createWorkspaceController({
         documentRef: document,
         dom: { presetNameInput, savedPresetSelect, loadPresetInput },
@@ -1119,7 +1064,7 @@ function initializeApp() {
         getSelectedPatternDirection: patternControlsController.getSelectedPatternDirection,
         setSelectedPatternDirection: patternControlsController.setSelectedPatternDirection,
         clearActiveSoundStarterCard,
-        onStaticLoopChange: () => debouncedRenderStaticLoop(),
+        onStaticLoopChange: requestStaticLoopRender,
         onHistoryChange: () => historyController?.updateControls(),
         showToast,
     });
@@ -1753,100 +1698,45 @@ function initializeApp() {
     });
     effectsControlsController.initialize();
 
-    loopCountInput.addEventListener("input", updateEstimatedExportDuration);
-    loopCountInput.addEventListener("change", () => {
-        loopCountInput.value = String(normalizeLoopCount(loopCountInput.value));
-        updateEstimatedExportDuration();
+    const staticLoopRenderer = createStaticLoopRenderer({
+        isAudioContextStarted: () => isAudioContextStarted,
+        getTone: () => Tone,
+        getAudioEngine,
+        getSettings: () => getAllSettings(),
+        updateStaticLoopMap: (buffer, markers) =>
+            getVisualizer()?.updateStaticLoopMap(buffer, markers),
+        logger: console,
     });
-
-    offlineExportModeInputs.forEach((input) => {
-        input.addEventListener("change", () => {
-            if (!input.checked) return;
-            updateOfflineExportModeUi();
-            updateEstimatedExportDuration();
-        });
+    exportControlsController = createExportControlsController({
+        dom: {
+            loopCountInput,
+            offlineExportModeInputs,
+            offlineExportTailControl,
+            offlineExportTailSecondsInput,
+            offlineExportDuration,
+            recordButton,
+            exportButton,
+            offlineExportButton,
+            offlineExportMidiButton,
+            toggleVisualizerButton,
+            visualizerModeSelect,
+        },
+        getSettings: () => getAllSettings(),
+        getCurrentNotes: () => ({
+            notes: currentNotes,
+            octaveRange: currentOctaveRange,
+            octaveShift: currentOctaveShift,
+        }),
+        getRecorderManager,
+        getVisualizer,
+        startAudio,
+        generateFilename,
+        showToast,
+        renderStaticLoop: staticLoopRenderer.render,
+        debounce,
+        logger: console,
     });
-
-    offlineExportTailSecondsInput?.addEventListener("input", updateEstimatedExportDuration);
-    offlineExportTailSecondsInput?.addEventListener("change", () => {
-        offlineExportTailSecondsInput.value = String(
-            normalizeOfflineExportTailSeconds(offlineExportTailSecondsInput.value),
-        );
-        updateEstimatedExportDuration();
-    });
-
-    // --- Recording Controls ---
-    recordButton.addEventListener("click", async () => {
-        try {
-            await startAudio();
-        } catch (error) {
-            console.warn("AudioContext failed to start on record click:", error);
-            return;
-        }
-        await getRecorderManager()?.toggleRecording();
-    });
-
-    exportButton.addEventListener("click", async () => {
-        try {
-            await startAudio();
-        } catch (error) {
-            console.warn("AudioContext failed to start on recording export click:", error);
-            return;
-        }
-        await getRecorderManager()?.exportRealtime();
-    });
-
-    offlineExportButton.addEventListener("click", async () => {
-        try {
-            await startAudio();
-        } catch (error) {
-            console.warn("AudioContext failed to start on offline export click:", error);
-            return;
-        }
-        await getRecorderManager()?.exportOffline();
-    });
-
-    if (offlineExportMidiButton) {
-        offlineExportMidiButton.addEventListener("click", () => {
-            const settings = getAllSettings();
-            const sequenceResult = materializePatternSequence(currentNotes, {
-                direction: settings.direction,
-                octaveRange: currentOctaveRange,
-                octaveShift: currentOctaveShift,
-                quantize: {
-                    enabled: settings.scaleQuantize,
-                    root: settings.scaleRoot,
-                    scale: settings.scaleType,
-                },
-            });
-
-            const filename = `${generateFilename(false)}.mid`;
-            exportMidiFile(
-                {
-                    notes: sequenceResult.notes,
-                    bpm: settings.bpm,
-                    interval: settings.interval,
-                    gateRatio: settings.gateRatio,
-                    loopCount: settings.loopCount,
-                },
-                filename,
-            );
-            showToast("Exported MIDI pattern file!", "success");
-        });
-    }
-
-    // --- Visualizer Toggle ---
-    toggleVisualizerButton.addEventListener("click", () => {
-        getVisualizer()?.toggle();
-    });
-
-    if (visualizerModeSelect) {
-        visualizerModeSelect.addEventListener("change", () => {
-            if (visualizerModeSelect.value === "loopMap") {
-                renderStaticLoop();
-            }
-        });
-    }
+    exportControlsController.initialize();
 
     // ==================================================================
     //    Preset Management
@@ -2065,62 +1955,6 @@ function initializeApp() {
             }
         });
     }
-
-    /**
-     * Renders exactly one cycle of the arpeggio loop offline, calculates the note trigger markers,
-     * and sends the resulting buffer to the visualizer for rendering.
-     *
-     * @returns {Promise<void>}
-     */
-    async function renderStaticLoop() {
-        const audioEngine = getAudioEngine();
-        const visualizer = getVisualizer();
-        if (!isAudioContextStarted || !audioEngine || !visualizer) return;
-
-        const settings = getAllSettings();
-        const markers = calculateNoteMarkers(settings);
-
-        if (!markers || markers.length === 0) return;
-
-        // Render exactly 1 loop duration
-        const noteDuration = Tone.Time(settings.interval).toSeconds();
-        const loopDuration = markers.length * noteDuration;
-
-        try {
-            const audioBuffer = await Tone.Offline(async (offlineContext) => {
-                offlineContext.transport.bpm.value = settings.bpm;
-                offlineContext.transport.swing = settings.swing;
-
-                // Recreate offline chain
-                const { offlineSynth } = audioEngine.createOfflineChain(offlineContext, settings);
-
-                // Schedule note triggers at exact intervals
-                const gateLength = settings.gateRatio * noteDuration;
-                markers.forEach((marker, idx) => {
-                    const triggerTime = idx * noteDuration;
-                    offlineSynth.triggerAttackRelease(marker.note, gateLength, triggerTime);
-                });
-
-                offlineContext.transport.start(0);
-            }, loopDuration);
-
-            // Pass buffer and markers to visualizer
-            visualizer.updateStaticLoopMap(audioBuffer, markers);
-        } catch (e) {
-            console.error("Static loop render failed:", e);
-        }
-    }
-
-    /**
-     * Debounced wrapper to trigger the static loop map background render.
-     * @type {() => void}
-     */
-    const debouncedRenderStaticLoop = debounce(() => {
-        const visualizer = getVisualizer();
-        if (visualizer && visualizer.currentMode === "loopMap") {
-            renderStaticLoop();
-        }
-    }, 150);
 
     patternControlsController.initialize();
 
