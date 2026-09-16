@@ -271,7 +271,9 @@ describe("pattern controls controller", () => {
 
         controller.setSelectedPatternDirection("down");
         expect(controller.getSelectedPatternDirection()).toBe("down");
-        expect(patternButtons.querySelector("input[value='down']")?.checked).toBe(true);
+        expect(patternButtons.querySelector<HTMLInputElement>("input[value='down']")?.checked).toBe(
+            true,
+        );
         expect(
             patternButtons.querySelector("[data-pattern='down']")?.classList.contains("selected"),
         ).toBe(true);
@@ -281,5 +283,14 @@ describe("pattern controls controller", () => {
             ?.dispatchEvent(new Event("change", { bubbles: true }));
         expect(controller.getSelectedPatternDirection()).toBe("up");
         expect(onPatternChange).toHaveBeenCalledOnce();
+    });
+
+    test("falls back safely for malformed pattern directions", () => {
+        const { controller, patternButtons } = createFixture();
+        controller.initialize();
+
+        expect(() => controller.setSelectedPatternDirection('down"]')).not.toThrow();
+        expect(controller.getSelectedPatternDirection()).toBe("up");
+        expect(patternButtons.querySelector("input[value='up']")?.checked).toBe(true);
     });
 });

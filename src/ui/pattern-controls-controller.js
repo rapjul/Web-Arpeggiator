@@ -132,10 +132,13 @@ export function createPatternControlsController(dependencies) {
      * @returns {void}
      */
     function setSelectedPatternDirection(direction = "up") {
+        const directionInputs = /** @type {NodeListOf<HTMLInputElement>} */ (
+            patternButtons.querySelectorAll("input[name='pattern-direction']")
+        );
         const radio = /** @type {HTMLInputElement|null} */ (
-            patternButtons.querySelector(
-                `input[name='pattern-direction'][value="${direction}"], input[name='pattern-direction'][data-pattern="${direction}"]`,
-            )
+            Array.from(directionInputs).find(
+                (input) => input.value === direction || input.dataset.pattern === direction,
+            ) || null
         );
         const fallbackRadio = /** @type {HTMLInputElement|null} */ (
             patternButtons.querySelector("input[name='pattern-direction'][value='up']")
@@ -144,8 +147,9 @@ export function createPatternControlsController(dependencies) {
         else if (fallbackRadio) fallbackRadio.checked = true;
 
         const selectedButton =
-            patternButtons.querySelector(`.pattern-btn[data-pattern="${direction}"]`) ||
-            patternButtons.querySelector('.pattern-btn[data-pattern="up"]');
+            Array.from(patternButtons.querySelectorAll(".pattern-btn")).find(
+                (button) => button.getAttribute("data-pattern") === direction,
+            ) || patternButtons.querySelector('.pattern-btn[data-pattern="up"]');
         patternButtons.querySelectorAll(".pattern-btn, button").forEach((button) => {
             button.classList.toggle("selected", button === selectedButton);
         });

@@ -119,17 +119,18 @@ describe("workspace controller", () => {
         const { controller, loadAllSettings, onHistoryChange, settings, store } = createFixture();
         settings().bpm = 135;
         const history = {
-            past: [{ ...settings, bpm: 120 }],
-            present: { ...settings, bpm: 135 },
+            past: [{ ...settings(), bpm: 120 }],
+            present: { ...settings(), bpm: 135 },
             future: [],
         };
+        const restored = { ...settings(), bpm: 135 };
         store.loadLastSession.mockResolvedValueOnce({
-            settings: { ...settings, bpm: 135 },
+            settings: restored,
             history,
         });
 
         await expect(controller.restoreLastSession()).resolves.toBe(true);
-        expect(loadAllSettings).toHaveBeenCalledWith({ ...settings, bpm: 135 });
+        expect(loadAllSettings).toHaveBeenCalledWith(restored);
         expect(onHistoryChange).toHaveBeenCalled();
         expect(controller.getStatus()).toMatchObject({ canUndo: true });
     });

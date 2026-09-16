@@ -34,26 +34,22 @@ export function createTransportController(dependencies) {
     let pendingStickyUpdateFrame = null;
     /** @type {AbortController | null} */
     let listenerController = null;
-    const debouncedBpmChange =
-        typeof dependencies.debounce === "function"
-            ? dependencies.debounce(() => {
-                  const value = Number.parseInt(bpmSlider?.value || "", 10);
-                  if (Number.isFinite(value)) dependencies.onBpmChange?.(value);
-              }, 16)
-            : () => {
-                  const value = Number.parseInt(bpmSlider?.value || "", 10);
-                  if (Number.isFinite(value)) dependencies.onBpmChange?.(value);
-              };
-    const debouncedSwingChange =
-        typeof dependencies.debounce === "function"
-            ? dependencies.debounce(() => {
-                  const value = Number.parseFloat(swingSlider?.value || "");
-                  if (Number.isFinite(value)) dependencies.onSwingChange?.(value);
-              }, 16)
-            : () => {
-                  const value = Number.parseFloat(swingSlider?.value || "");
-                  if (Number.isFinite(value)) dependencies.onSwingChange?.(value);
-              };
+    /** @param {() => void} handler @returns {() => void} */
+    function schedule(handler) {
+        return typeof dependencies.debounce === "function"
+            ? dependencies.debounce(handler, 16)
+            : handler;
+    }
+    function handleBpmChange() {
+        const value = Number.parseInt(bpmSlider?.value || "", 10);
+        if (Number.isFinite(value)) dependencies.onBpmChange?.(value);
+    }
+    function handleSwingChange() {
+        const value = Number.parseFloat(swingSlider?.value || "");
+        if (Number.isFinite(value)) dependencies.onSwingChange?.(value);
+    }
+    const debouncedBpmChange = schedule(handleBpmChange);
+    const debouncedSwingChange = schedule(handleSwingChange);
 
     /**
      * Applies the square sticky treatment only after the desktop bar reaches

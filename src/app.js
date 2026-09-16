@@ -592,7 +592,7 @@ function initializeApp() {
                 root: scaleRootSelect.value,
                 scale: scaleTypeSelect.value,
             },
-        }) ?? null;
+        });
         // Rebuild the note step indicator pips to match the new note count
         noteStepController.rebuild();
         updateEstimatedExportDuration();
