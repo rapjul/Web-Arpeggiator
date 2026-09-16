@@ -41,7 +41,6 @@ import { initializePwa } from "@pwa/pwa.js";
 import { presetStore } from "@storage/presets-store.js";
 import { createSessionManager, debounce } from "@storage/session-manager.js";
 import { createSettingsManager } from "@storage/settings-manager.js";
-import { setupKeyboardNavigation } from "@ui/a11y-navigation.js";
 import { initializeKeyboardControls } from "@ui/keyboard-controller.js";
 import { createHistoryController } from "@ui/history-controller.js";
 import { createInputFilterController } from "@ui/input-filter-controller.js";
@@ -620,7 +619,7 @@ function initializeApp() {
                 octaveShift: currentOctaveShift,
                 interval: intervalSelect.value,
                 gate: parseFloat(gateSlider.value),
-                direction: getSelectedPatternDirection(),
+                direction: patternControlsController.getSelectedPatternDirection(),
                 quantize: {
                     enabled: scaleQuantizeToggle.checked,
                     root: scaleRootSelect.value,
@@ -637,59 +636,47 @@ function initializeApp() {
         getNotes: () => currentNotes,
     });
 
-    /**
-     * Returns the currently selected pattern direction value.
-     * @returns {string} Direction slug (e.g. 'up', 'down').
-     */
-    function getSelectedPatternDirection() {
-        const checkedRadio = /** @type {HTMLInputElement | null} */ (
-            patternButtons.querySelector("input[name='pattern-direction']:checked")
-        );
-        if (checkedRadio?.value) {
-            return checkedRadio.value;
-        }
-        const selectedPatternButton = patternButtons.querySelector(".pattern-btn.selected");
-        return selectedPatternButton ? selectedPatternButton.getAttribute("data-pattern") : "up";
-    }
-
-    /**
-     * Sets the currently selected pattern direction button or radio input.
-     * @param {string} direction - Direction slug to select.
-     * @returns {void}
-     */
-    function setSelectedPatternDirection(direction) {
-        const nextDirection = direction || "up";
-        const radio = /** @type {HTMLInputElement | null} */ (
-            patternButtons.querySelector(
-                `input[name='pattern-direction'][value="${nextDirection}"]`,
-            ) ||
-                patternButtons.querySelector(
-                    `input[name='pattern-direction'][data-pattern="${nextDirection}"]`,
-                )
-        );
-        if (radio) {
-            radio.checked = true;
-        } else {
-            const fallbackRadio = /** @type {HTMLInputElement | null} */ (
-                patternButtons.querySelector("input[name='pattern-direction'][value='up']")
-            );
-            if (fallbackRadio) {
-                fallbackRadio.checked = true;
-            }
-        }
-        let selectedButton = patternButtons.querySelector(
-            `.pattern-btn[data-pattern="${nextDirection}"]`,
-        );
-        if (!selectedButton) {
-            selectedButton = patternButtons.querySelector('.pattern-btn[data-pattern="up"]');
-        }
-        patternButtons.querySelectorAll(".pattern-btn, button").forEach((b) => {
-            b.classList.remove("selected");
-        });
-        if (selectedButton) {
-            selectedButton.classList.add("selected");
-        }
-    }
+    const patternControlsController = createPatternControlsController({
+        dom: {
+            notesInput,
+            intervalSelect,
+            gateSlider,
+            gateValue,
+            scaleQuantizeToggle,
+            scaleQuantizeToggleStatus,
+            scaleTypeSelect,
+            scaleRootSelect,
+            octaveShiftButtons,
+            octaveRangeButtons,
+            patternButtons,
+            randomizeNotesButton,
+            chordButtons: document.querySelectorAll(".chord-btn"),
+        },
+        normalizeNotes: normalizeNotesSequence,
+        setNotes: (notes) => {
+            currentNotes = notes;
+        },
+        setOctaveShift: (value) => {
+            currentOctaveShift = value;
+        },
+        setOctaveRange: (value) => {
+            currentOctaveRange = value;
+        },
+        onPatternChange: createOrUpdatePattern,
+        onEstimatedDurationChange: () => updateEstimatedExportDuration(),
+        onStaticLoopChange: () => debouncedRenderStaticLoop(),
+        onNotesSelected: (notes) => {
+            notesInput.value = notes.join(" ");
+            notesInput.dispatchEvent(new Event("input", { bubbles: true }));
+            notesInput.dispatchEvent(new Event("change", { bubbles: true }));
+        },
+        onClearActiveSoundStarter: () => clearActiveSoundStarterCard(),
+        showToast: (message, type) => showToast(message, type),
+        generateRandomNotes,
+        buildChordString,
+        resolveChordDefinition,
+        debounce,
+    });
 
     /**
      * Displays non-destructive recovery steps after a browser storage error.
@@ -731,10 +718,12 @@ function initializeApp() {
                 history = null;
             }
             settingsHistory.restore(history, getAllSettings());
-            if (getSelectedPatternDirection()) {
-                setSelectedPatternDirection(getSelectedPatternDirection());
+            if (patternControlsController.getSelectedPatternDirection()) {
+                patternControlsController.setSelectedPatternDirection(
+                    patternControlsController.getSelectedPatternDirection(),
+                );
             } else {
-                setSelectedPatternDirection("up");
+                patternControlsController.setSelectedPatternDirection("up");
             }
             updateHistoryControls();
         },
@@ -889,15 +878,16 @@ function initializeApp() {
         },
         actions: {
             getArpeggioNotes,
-            getSelectedPatternDirection,
-            setSelectedPatternDirection,
-            updateScaleQuantizeUi,
-            updateScaleQuantizeToggleText,
-            updateWaveformButtons,
+            getSelectedPatternDirection: patternControlsController.getSelectedPatternDirection,
+            setSelectedPatternDirection: patternControlsController.setSelectedPatternDirection,
+            updateScaleQuantizeUi: patternControlsController.updateScaleQuantizeUi,
+            updateScaleQuantizeToggleText: patternControlsController.updateScaleQuantizeToggleText,
+            updateWaveformButtons: (waveform) =>
+                synthControlsController?.updateWaveformButtons(waveform),
             setSynth: (type) => getAvailableAudioEngine()?.setSynth(type),
             updateEnvelope: () => getAvailableAudioEngine()?.updateEnvelope(),
             getTransport: () => (getAvailableAudioEngine() ? Tone.getTransport() : null),
-            updateButtonGroup,
+            updateButtonGroup: patternControlsController.updateButtonGroup,
             createOrUpdatePattern,
             updateEstimatedExportDuration,
             updateOfflineExportModeUi,
@@ -1192,46 +1182,6 @@ function initializeApp() {
     // ==================================================================
 
     /**
-     * Reflects a selected numeric setting in a button/radio group.
-     *
-     * @param {HTMLElement} container - Group containing radio inputs and buttons.
-     * @param {number} selectedValue - Numeric value to select.
-     * @param {string} dataAttribute - Attribute that stores button values.
-     * @returns {void}
-     */
-    function updateButtonGroup(container, selectedValue, dataAttribute) {
-        const radio = container.querySelector(
-            `input[type="radio"][${dataAttribute}="${selectedValue}"], input[type="radio"][value="${selectedValue}"]`,
-        );
-        if (radio) /** @type {HTMLInputElement} */ (radio).checked = true;
-        container.querySelectorAll(".octave-btn, button").forEach((button) => {
-            const valueControl = button.matches(`[${dataAttribute}]`)
-                ? button
-                : button.querySelector(`[${dataAttribute}]`);
-            button.classList.toggle(
-                "selected",
-                valueControl !== null &&
-                    Number(valueControl.getAttribute(dataAttribute)) === selectedValue,
-            );
-        });
-    }
-
-    /**
-     * Updates waveform button selection state.
-     * @param {string} selectedWave - The waveform to select (e.g. 'sine').
-     * @returns {void}
-     */
-    function updateWaveformButtons(selectedWave) {
-        waveformButtons.querySelectorAll("button").forEach((btn) => {
-            btn.classList.remove("selected");
-            const btnWave = btn.getAttribute("data-wave");
-            if (btnWave === selectedWave) {
-                btn.classList.add("selected");
-            }
-        });
-    }
-
-    /**
      * Formats seconds to mm:ss.t string.
      * @param {number} seconds - Time in seconds.
      * @returns {string} Formatted time string.
@@ -1436,36 +1386,6 @@ function initializeApp() {
         applySettingsWithHistory(defaultSettings);
         showToast("Restored default settings. Undo is available.", "info");
     }
-
-    const patternControlsController = createPatternControlsController({
-        dom: {
-            notesInput,
-            intervalSelect,
-            gateSlider,
-            gateValue,
-            scaleQuantizeToggle,
-            scaleTypeSelect,
-            scaleRootSelect,
-            octaveShiftButtons,
-            octaveRangeButtons,
-        },
-        normalizeNotes: normalizeNotesSequence,
-        setNotes: (notes) => {
-            currentNotes = notes;
-        },
-        setOctaveShift: (value) => {
-            currentOctaveShift = value;
-        },
-        setOctaveRange: (value) => {
-            currentOctaveRange = value;
-        },
-        onPatternChange: createOrUpdatePattern,
-        onEstimatedDurationChange: updateEstimatedExportDuration,
-        onStaticLoopChange: () => debouncedRenderStaticLoop(),
-        onScaleQuantizeUiChange: updateScaleQuantizeUi,
-        onScaleQuantizeTextChange: updateScaleQuantizeToggleText,
-        debounce,
-    });
 
     const resetDefinitions = [
         {
@@ -1760,72 +1680,9 @@ function initializeApp() {
         );
     }
 
-    /**
-     * Updates the UI for the quantizer (enables/disables visual emphasis without locking dropdowns).
-     * @returns {void}
-     */
-    function updateScaleQuantizeUi() {
-        const isEnabled = scaleQuantizeToggle.checked && scaleTypeSelect.value !== "chromatic";
-        if (isEnabled) {
-            scaleRootSelect.classList.remove("opacity-50");
-            scaleRootSelect.disabled = false;
-        } else {
-            scaleRootSelect.classList.add("opacity-50");
-            scaleRootSelect.disabled = true;
-        }
-        scaleTypeSelect.disabled = false;
-    }
-
-    /**
-     * Updates the quantizer toggle button label text and aria-checked attribute.
-     * @returns {void}
-     */
-    function updateScaleQuantizeToggleText() {
-        const isEnabled = scaleQuantizeToggle.checked && scaleTypeSelect.value !== "chromatic";
-        scaleQuantizeToggle.setAttribute("aria-checked", isEnabled ? "true" : "false");
-        if (isEnabled) {
-            scaleQuantizeToggleStatus.textContent = "Enabled";
-            scaleQuantizeToggleStatus.classList.remove("text-gray-400");
-            scaleQuantizeToggleStatus.classList.add("text-green-400");
-        } else {
-            scaleQuantizeToggleStatus.textContent = "Disabled";
-            scaleQuantizeToggleStatus.classList.remove("text-green-400");
-            scaleQuantizeToggleStatus.classList.add("text-gray-400");
-        }
-    }
-
-    setupKeyboardNavigation(patternButtons, "input[type='radio'], button.pattern-btn");
-    setupKeyboardNavigation(waveformButtons, "button.waveform-btn");
-    setupKeyboardNavigation(octaveShiftButtons, "input[type='radio'], button.octave-btn");
-    setupKeyboardNavigation(octaveRangeButtons, "input[type='radio'], button.octave-btn");
-
     // ==================================================================
     //    Event Listeners
     // ==================================================================
-
-    // --- Pattern Button Selection (Native change & Click delegation) ---
-    patternButtons.addEventListener("change", (e) => {
-        const target = /** @type {HTMLInputElement} */ (e.target);
-        if (target && target.name === "pattern-direction") {
-            setSelectedPatternDirection(target.value);
-            createOrUpdatePattern();
-        }
-    });
-
-    patternButtons.addEventListener("click", (e) => {
-        const target = /** @type {Element} */ (e.target).closest(".pattern-btn, button, label");
-        if (!target) return;
-        const btn = target.classList.contains("pattern-btn")
-            ? target
-            : target.querySelector(".pattern-btn, [data-pattern]");
-        if (btn) {
-            const pattern = btn.getAttribute("data-pattern");
-            if (pattern) {
-                setSelectedPatternDirection(pattern);
-                createOrUpdatePattern();
-            }
-        }
-    });
 
     /**
      * Serializes current settings to URL search parameters, writes the URL to the clipboard,
@@ -1942,15 +1799,6 @@ function initializeApp() {
         rawAudioContext.addEventListener("statechange", audioContextStateListener);
     }
 
-    const transportController = createTransportController({
-        dom: { playStopButton, stickyTransportBar },
-        windowRef: window,
-        getIsPlaying: () => isPlaying,
-        onStart: startPlayback,
-        onStop: stopPlayback,
-    });
-    transportController.initialize();
-
     /**
      * Debounced wrapper to update the synth envelope.
      * @type {() => void}
@@ -1958,53 +1806,6 @@ function initializeApp() {
     const debouncedUpdateEnvelope = debounce(() => {
         audioEngine?.updateEnvelope();
     }, 16);
-
-    // --- Randomize Notes ---
-    randomizeNotesButton.addEventListener("click", () => {
-        const isQuantized = scaleQuantizeToggle.checked && scaleTypeSelect.value !== "chromatic";
-        let root = scaleRootSelect.value;
-        let scaleType = scaleTypeSelect.value;
-
-        // If scale quantization is disabled, pick a random root note without forcing quantization on
-        if (!isQuantized) {
-            const rootOptions = scaleRootSelect.options;
-            root = rootOptions[Math.floor(Math.random() * rootOptions.length)].value;
-            scaleRootSelect.value = root;
-            scaleType = "chromatic";
-        }
-
-        const randomizedNotes = generateRandomNotes(root, scaleType);
-
-        clearActiveSoundStarterCard();
-        // Update the notes input field and trigger change events to refresh Tone.Pattern.
-        notesInput.value = randomizedNotes.join(" ");
-        notesInput.dispatchEvent(new Event("input", { bubbles: true }));
-        notesInput.dispatchEvent(new Event("change", { bubbles: true }));
-
-        const formattedScaleName =
-            scaleType === "chromatic"
-                ? `${root} Mode (Chromatic)`
-                : `${root} ${scaleType.charAt(0).toUpperCase() + scaleType.slice(1)}`;
-        showToast(`Randomized notes using ${formattedScaleName}!`, "success");
-    });
-
-    // --- Chord / Scale Builder Buttons ---
-    const chordButtons = document.querySelectorAll(".chord-btn");
-    chordButtons.forEach((btn) => {
-        btn.addEventListener("click", () => {
-            const chordType = btn.getAttribute("data-chord") || "major";
-            const root = scaleRootSelect?.value || "C";
-            const chordNotesStr = buildChordString(chordType, root);
-            const chordName = resolveChordDefinition(chordType).name;
-
-            clearActiveSoundStarterCard();
-            notesInput.value = chordNotesStr;
-            notesInput.dispatchEvent(new Event("input", { bubbles: true }));
-            notesInput.dispatchEvent(new Event("change", { bubbles: true }));
-
-            showToast(`Loaded ${root} ${chordName} chord!`, "success");
-        });
-    });
 
     // --- Transport & Pattern ---
 
@@ -2014,22 +1815,6 @@ function initializeApp() {
      */
     const debouncedSetPostGain = debounce((/** @type {number} */ db) => {
         if (audioEngine) audioEngine.postGain.volume.value = db;
-    }, 16);
-
-    /**
-     * Debounced wrapper to set BPM.
-     * @type {(val: number) => void}
-     */
-    const debouncedSetBpm = debounce((/** @type {number} */ val) => {
-        if (audioEngine) Tone.getTransport().bpm.value = val;
-    }, 16);
-
-    /**
-     * Debounced wrapper to set swing.
-     * @type {(val: number) => void}
-     */
-    const debouncedSetSwing = debounce((/** @type {number} */ val) => {
-        if (audioEngine) Tone.getTransport().swing = val;
     }, 16);
 
     /**
@@ -2100,6 +1885,30 @@ function initializeApp() {
         if (audioEngine) audioEngine.reverb.wet.value = val;
     }, 16);
 
+    const transportController = createTransportController({
+        dom: {
+            playStopButton,
+            stickyTransportBar,
+            bpmSlider,
+            bpmValue,
+            swingSlider,
+            swingValue,
+        },
+        windowRef: window,
+        getIsPlaying: () => isPlaying,
+        onStart: startPlayback,
+        onStop: stopPlayback,
+        onBpmChange: (value) => {
+            if (audioEngine) Tone.getTransport().bpm.value = value;
+            updateEstimatedExportDuration();
+        },
+        onSwingChange: (value) => {
+            if (audioEngine) Tone.getTransport().swing = value;
+        },
+        debounce,
+    });
+    transportController.initialize();
+
     const synthControlsController = createSynthControlsController({
         dom: {
             synthTypeSelect,
@@ -2145,7 +1954,7 @@ function initializeApp() {
         },
         onWaveformChange: (waveform) => {
             appState.currentWaveform = waveform;
-            updateWaveformButtons(appState.currentWaveform);
+            synthControlsController.updateWaveformButtons(appState.currentWaveform);
             audioEngine?.setSynth(synthTypeSelect.value);
         },
         onEnvelopeChange: debouncedUpdateEnvelope,
@@ -2254,12 +2063,6 @@ function initializeApp() {
     });
     effectsControlsController.initialize();
 
-    bpmSlider.addEventListener("input", () => {
-        bpmValue.textContent = bpmSlider.value;
-        debouncedSetBpm(parseInt(bpmSlider.value, 10));
-        updateEstimatedExportDuration();
-    });
-
     loopCountInput.addEventListener("input", updateEstimatedExportDuration);
     loopCountInput.addEventListener("change", () => {
         loopCountInput.value = String(normalizeLoopCount(loopCountInput.value));
@@ -2280,11 +2083,6 @@ function initializeApp() {
             normalizeOfflineExportTailSeconds(offlineExportTailSecondsInput.value),
         );
         updateEstimatedExportDuration();
-    });
-
-    swingSlider.addEventListener("input", () => {
-        debouncedSetSwing(parseFloat(swingSlider.value));
-        swingValue.textContent = parseFloat(swingSlider.value).toFixed(2);
     });
 
     // --- Recording Controls ---

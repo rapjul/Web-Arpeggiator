@@ -13,12 +13,12 @@ interface PatternControlsFixture {
     normalizeNotes: ReturnType<typeof vi.fn>;
     onEstimatedDurationChange: ReturnType<typeof vi.fn>;
     onPatternChange: ReturnType<typeof vi.fn>;
-    onScaleQuantizeTextChange: ReturnType<typeof vi.fn>;
-    onScaleQuantizeUiChange: ReturnType<typeof vi.fn>;
     onStaticLoopChange: ReturnType<typeof vi.fn>;
+    patternButtons: HTMLDivElement;
     octaveRangeButtons: HTMLDivElement;
     octaveShiftButtons: HTMLDivElement;
     scaleQuantizeToggle: HTMLInputElement;
+    scaleQuantizeToggleStatus: HTMLSpanElement;
     scaleRootSelect: HTMLSelectElement;
     scaleTypeSelect: HTMLSelectElement;
     setNotes: ReturnType<typeof vi.fn>;
@@ -47,6 +47,12 @@ function createFixture(): PatternControlsFixture {
     ].join("");
     const scaleRootSelect = document.createElement("select");
     scaleRootSelect.innerHTML = '<option value="C">C</option><option value="D">D</option>';
+    const scaleQuantizeToggleStatus = document.createElement("span");
+    const patternButtons = document.createElement("div");
+    patternButtons.innerHTML = [
+        '<label class="pattern-btn" data-pattern="up"><input type="radio" name="pattern-direction" value="up"></label>',
+        '<label class="pattern-btn" data-pattern="down"><input type="radio" name="pattern-direction" value="down"></label>',
+    ].join("");
     const octaveShiftButtons = document.createElement("div");
     octaveShiftButtons.innerHTML =
         '<button class="octave-btn" data-shift="-1">-1</button><label class="octave-btn"><input type="radio" data-shift="1" value="1"></label>';
@@ -59,10 +65,12 @@ function createFixture(): PatternControlsFixture {
         gateSlider,
         gateValue,
         scaleQuantizeToggle,
+        scaleQuantizeToggleStatus,
         scaleTypeSelect,
         scaleRootSelect,
         octaveShiftButtons,
         octaveRangeButtons,
+        patternButtons,
     );
 
     const queuedPatternChanges: Array<() => void> = [];
@@ -73,8 +81,6 @@ function createFixture(): PatternControlsFixture {
     const onPatternChange = vi.fn();
     const onEstimatedDurationChange = vi.fn();
     const onStaticLoopChange = vi.fn();
-    const onScaleQuantizeUiChange = vi.fn();
-    const onScaleQuantizeTextChange = vi.fn();
     const debounce: PatternControlsDependencies["debounce"] = (callback) => () => {
         queuedPatternChanges.push(callback);
     };
@@ -85,10 +91,14 @@ function createFixture(): PatternControlsFixture {
             gateSlider,
             gateValue,
             scaleQuantizeToggle,
+            scaleQuantizeToggleStatus,
             scaleTypeSelect,
             scaleRootSelect,
             octaveShiftButtons,
             octaveRangeButtons,
+            patternButtons,
+            randomizeNotesButton: null,
+            chordButtons: document.querySelectorAll(".chord-btn"),
         },
         normalizeNotes,
         setNotes,
@@ -97,8 +107,6 @@ function createFixture(): PatternControlsFixture {
         onPatternChange,
         onEstimatedDurationChange,
         onStaticLoopChange,
-        onScaleQuantizeUiChange,
-        onScaleQuantizeTextChange,
         debounce,
     };
 
@@ -116,12 +124,12 @@ function createFixture(): PatternControlsFixture {
         normalizeNotes,
         onEstimatedDurationChange,
         onPatternChange,
-        onScaleQuantizeTextChange,
-        onScaleQuantizeUiChange,
         onStaticLoopChange,
         octaveRangeButtons,
         octaveShiftButtons,
+        patternButtons,
         scaleQuantizeToggle,
+        scaleQuantizeToggleStatus,
         scaleRootSelect,
         scaleTypeSelect,
         setNotes,
@@ -163,9 +171,8 @@ describe("pattern controls controller", () => {
         const {
             controller,
             onPatternChange,
-            onScaleQuantizeTextChange,
-            onScaleQuantizeUiChange,
             scaleQuantizeToggle,
+            scaleQuantizeToggleStatus,
             scaleRootSelect,
             scaleTypeSelect,
         } = createFixture();
@@ -186,8 +193,8 @@ describe("pattern controls controller", () => {
         scaleRootSelect.value = "D";
         scaleRootSelect.dispatchEvent(new Event("change"));
         expect(onPatternChange).toHaveBeenCalledTimes(4);
-        expect(onScaleQuantizeUiChange).toHaveBeenCalledTimes(3);
-        expect(onScaleQuantizeTextChange).toHaveBeenCalledTimes(3);
+        expect(scaleQuantizeToggleStatus.textContent).toBe("Enabled");
+        expect(scaleRootSelect.disabled).toBe(false);
     });
 
     test("updates octave controls and applies gate changes through the debounce boundary", () => {
@@ -256,5 +263,23 @@ describe("pattern controls controller", () => {
         controller.initialize();
         flushDebouncedPatternChange();
         expect(onPatternChange).not.toHaveBeenCalled();
+    });
+
+    test("selects pattern directions and keeps radio and button state synchronized", () => {
+        const { controller, onPatternChange, patternButtons } = createFixture();
+        controller.initialize();
+
+        controller.setSelectedPatternDirection("down");
+        expect(controller.getSelectedPatternDirection()).toBe("down");
+        expect(patternButtons.querySelector("input[value='down']")?.checked).toBe(true);
+        expect(
+            patternButtons.querySelector("[data-pattern='down']")?.classList.contains("selected"),
+        ).toBe(true);
+
+        patternButtons
+            .querySelector("input[value='up']")
+            ?.dispatchEvent(new Event("change", { bubbles: true }));
+        expect(controller.getSelectedPatternDirection()).toBe("up");
+        expect(onPatternChange).toHaveBeenCalledOnce();
     });
 });

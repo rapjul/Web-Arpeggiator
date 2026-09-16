@@ -10,14 +10,14 @@
  *
  * @param {HTMLElement|null} container - The container element holding the focusable buttons.
  * @param {string} buttonSelector - CSS selector identifying focusable elements in the group.
- * @returns {void}
+ * @returns {() => void} Removes the keyboard listener.
  */
 export function setupKeyboardNavigation(container, buttonSelector) {
     if (!container || typeof container.addEventListener !== "function") {
-        return;
+        return () => {};
     }
 
-    container.addEventListener("keydown", (event) => {
+    const handleKeydown = (event) => {
         const buttons = /** @type {HTMLElement[]} */ (
             Array.from(container.querySelectorAll(buttonSelector))
         );
@@ -59,5 +59,8 @@ export function setupKeyboardNavigation(container, buttonSelector) {
                 nextEl.dispatchEvent(new Event("input", { bubbles: true }));
             }
         }
-    });
+    };
+
+    container.addEventListener("keydown", handleKeydown);
+    return () => container.removeEventListener("keydown", handleKeydown);
 }
