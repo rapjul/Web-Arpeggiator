@@ -2,7 +2,9 @@ import {
     DEFAULT_SETTINGS,
     mergeSettings,
     normalizeSettings,
+    normalizeSettingsHistory,
     SETTINGS_SCHEMA_VERSION,
+    UnsupportedSettingsVersionError,
 } from "@core/settings-contract.js";
 import { describe, expect, test } from "vitest";
 import { FACTORY_PRESETS } from "@/config/factory-presets.js";
@@ -100,7 +102,21 @@ describe("settings contract", () => {
         };
         const settings = normalizeSettings(importedSettings);
 
-        expect(settings).toEqual(importedSettings);
+        expect(settings).toMatchObject({ ...importedSettings, settingsVersion: 1 });
+        expect(settings.notes).toEqual([
+            "D2",
+            "D3",
+            "D4",
+            "D5",
+            "Gb2",
+            "Gb3",
+            "Gb4",
+            "Gb5",
+            "A2",
+            "A3",
+            "A4",
+            "A5",
+        ]);
     });
 
     test("falls back safely when an import has malformed values", () => {
@@ -209,5 +225,36 @@ describe("settings contract", () => {
         expect(settings).toMatchObject(DEFAULT_SETTINGS);
         expect(settings.baseNotes).not.toBe(DEFAULT_SETTINGS.baseNotes);
         expect(DEFAULT_SETTINGS.baseNotes).toEqual(["C4", "E4", "G4"]);
+    });
+
+    test("upgrades unversioned settings and derives expanded notes", () => {
+        const settings = normalizeSettings({ baseNotes: ["D4", "F#4"], octaveRange: 2 });
+
+        expect(settings.settingsVersion).toBe(SETTINGS_SCHEMA_VERSION);
+        expect(settings.notes).toEqual(["D4", "D5", "Gb4", "Gb5"]);
+    });
+
+    test("rejects future settings unless an explicit compatibility override is used", () => {
+        const futurePreset = { settingsVersion: 99, bpm: 96, baseNotes: ["A3", "C4"] };
+
+        expect(() => normalizeSettings(futurePreset)).toThrow(UnsupportedSettingsVersionError);
+        expect(
+            normalizeSettings(futurePreset, DEFAULT_SETTINGS, { allowFutureVersion: true }),
+        ).toMatchObject({ settingsVersion: 1, bpm: 96, baseNotes: ["A3", "C4"] });
+    });
+
+    test("normalizes every legacy history snapshot before restoration", () => {
+        const history = normalizeSettingsHistory({
+            past: [{ bpm: 100, baseNotes: ["C4"] }],
+            present: { bpm: 110, baseNotes: ["D4"] },
+            future: [{ bpm: 120, baseNotes: ["E4"] }],
+        });
+
+        expect(history).toMatchObject({
+            past: [{ settingsVersion: 1, bpm: 100, baseNotes: ["C4"] }],
+            present: { settingsVersion: 1, bpm: 110, baseNotes: ["D4"] },
+            future: [{ settingsVersion: 1, bpm: 120, baseNotes: ["E4"] }],
+        });
+        expect(normalizeSettingsHistory({ past: [], present: null, future: [] })).toBeNull();
     });
 });

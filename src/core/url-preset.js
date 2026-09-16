@@ -12,6 +12,15 @@ import {
     normalizeOfflineExportTailSeconds,
 } from "./export-duration.js";
 import { normalizeNotesSequence } from "./pattern-core.js";
+import {
+    ALLOWED_DIRECTIONS,
+    ALLOWED_INTERVALS,
+    ALLOWED_ROOTS,
+    ALLOWED_SCALES,
+    ALLOWED_SYNTHS,
+    ALLOWED_WAVEFORMS,
+    SETTINGS_BOUNDS,
+} from "./settings-contract.js";
 
 /**
  * Recognized query parameter keys mapped to preset settings.
@@ -57,84 +66,19 @@ export const PRESET_URL_KEYS = Object.freeze(
  * Allowed pattern direction slugs.
  * @type {ReadonlyArray<string>}
  */
-export const ALLOWED_DIRECTIONS = Object.freeze([
-    "up",
-    "down",
-    "upDown",
-    "downUp",
-    "upDownRepeat",
-    "downUpRepeat",
-    "random",
-    "octaveCycle",
-    "octaveCycleReverse",
-    "octaveCyclePingPong",
-    "randomWalk",
-    "randomWalkDrunk",
-]);
+export {
+    ALLOWED_DIRECTIONS,
+    ALLOWED_INTERVALS,
+    ALLOWED_ROOTS,
+    ALLOWED_SCALES,
+    ALLOWED_SYNTHS,
+    ALLOWED_WAVEFORMS,
+};
 
 /**
  * Allowed note intervals.
  * @type {ReadonlyArray<string>}
  */
-export const ALLOWED_INTERVALS = Object.freeze(["64n", "32n", "16n", "8n", "4n", "2n"]);
-
-/**
- * Allowed scale root notes.
- * @type {ReadonlyArray<string>}
- */
-export const ALLOWED_ROOTS = Object.freeze([
-    "C",
-    "C#",
-    "D",
-    "D#",
-    "E",
-    "F",
-    "F#",
-    "G",
-    "G#",
-    "A",
-    "A#",
-    "B",
-]);
-
-/**
- * Allowed scale types.
- * @type {ReadonlyArray<string>}
- */
-export const ALLOWED_SCALES = Object.freeze([
-    "major",
-    "minor",
-    "harmonic minor",
-    "melodic minor",
-    "dorian",
-    "phrygian",
-    "lydian",
-    "mixolydian",
-    "locrian",
-    "blues",
-    "majorPentatonic",
-    "chromatic",
-]);
-
-/**
- * Allowed synth types.
- * @type {ReadonlyArray<string>}
- */
-export const ALLOWED_SYNTHS = Object.freeze([
-    "synth",
-    "fmSynth",
-    "amSynth",
-    "monoSynth",
-    "duoSynth",
-    "pluckSynth",
-    "membraneSynth",
-]);
-
-/**
- * Allowed waveform types.
- * @type {ReadonlyArray<string>}
- */
-export const ALLOWED_WAVEFORMS = Object.freeze(["sine", "square", "sawtooth", "triangle", "pulse"]);
 
 /**
  * Regular expression to validate space-separated note sequences with optional octaves and case-insensitivity (e.g. "C4 E4 G4", "c e g", "C#4 Eb5").
@@ -319,11 +263,16 @@ export function parsePresetFromUrlParams(searchParams, currentSettings) {
         }
     }
 
-    if (params.has("bpm")) settings.bpm = clampInt(params.get("bpm"), 40, 240, settings.bpm);
+    if (params.has("bpm"))
+        settings.bpm = clampInt(params.get("bpm"), ...SETTINGS_BOUNDS.bpm, settings.bpm);
     if (params.has("swing"))
-        settings.swing = clampFloat(params.get("swing"), 0.0, 1.0, settings.swing);
+        settings.swing = clampFloat(params.get("swing"), ...SETTINGS_BOUNDS.swing, settings.swing);
     if (params.has("gain"))
-        settings.postGain = clampFloat(params.get("gain"), -40.0, 0.0, settings.postGain);
+        settings.postGain = clampFloat(
+            params.get("gain"),
+            ...SETTINGS_BOUNDS.postGain,
+            settings.postGain,
+        );
 
     if (params.has("dir")) {
         const dir = params.get("dir");

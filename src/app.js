@@ -24,7 +24,12 @@ import {
     normalizeNotesSequence,
 } from "@core/pattern-core.js";
 import { generateRandomNotes } from "@core/randomizer.js";
-import { DEFAULT_SETTINGS, mergeSettings } from "@core/settings-contract.js";
+import {
+    DEFAULT_SETTINGS,
+    mergeSettings,
+    normalizeSettingsHistory,
+    UnsupportedSettingsVersionError,
+} from "@core/settings-contract.js";
 import { createSettingsHistory } from "@core/settings-history.js";
 import {
     hasPresetChanges,
@@ -235,6 +240,10 @@ function initializeApp() {
     const resetDefaultsConfirmButton = /** @type {HTMLButtonElement | null} */ (
         document.getElementById("reset-defaults-confirm")
     );
+    const futurePresetOverlay = document.getElementById("future-preset-overlay");
+    const futurePresetDialog = document.getElementById("future-preset-dialog");
+    const futurePresetCancelButton = document.getElementById("future-preset-cancel");
+    const futurePresetConfirmButton = document.getElementById("future-preset-confirm");
 
     /**
      * Collapsible accordion wrapper for the Sound Starters strip.
@@ -507,6 +516,8 @@ function initializeApp() {
     let currentOctaveRange = 2;
     let activeNote = null;
     let currentWaveform = "sine";
+    /** @type {Record<string, unknown>|null} */
+    let pendingFuturePreset = null;
     let audioEngine;
     let pendingAudioEngine = null;
     let recorderManager;
@@ -600,7 +611,7 @@ function initializeApp() {
 
     /**
      * Rebuilds the scheduler from the current UI and application state.
-     * @returns {void}
+     * @returns {{ok: boolean, settings?: import("./core/settings-contract.js").ArpeggiatorSettings, error?: unknown}}
      */
     function createOrUpdatePattern() {
         if (!getAvailableAudioEngine()) {
@@ -717,8 +728,15 @@ function initializeApp() {
         getSettings: () => getAllSettings(),
         getHistoryState: () => settingsHistory.exportState(),
         onRestore: (settings, persistedHistory) => {
-            loadAllSettings(settings);
-            settingsHistory.restore(persistedHistory, getAllSettings());
+            const result = loadAllSettings(settings);
+            if (!result.ok) return;
+            let history = null;
+            try {
+                history = normalizeSettingsHistory(persistedHistory, getAllSettings());
+            } catch {
+                history = null;
+            }
+            settingsHistory.restore(history, getAllSettings());
             if (getSelectedPatternDirection()) {
                 setSelectedPatternDirection(getSelectedPatternDirection());
             } else {
@@ -1381,15 +1399,17 @@ function initializeApp() {
      * Applies a settings replacement and records it as a single history action.
      *
      * @param {Record<string, unknown>} settings - Replacement settings.
-     * @returns {void}
+     * @returns {{ok: boolean, settings?: import("./core/settings-contract.js").ArpeggiatorSettings, error?: unknown}}
      */
-    function applySettingsWithHistory(settings) {
+    function applySettingsWithHistory(settings, options = {}) {
         settingsHistory.endTransaction();
-        loadAllSettings(settings);
+        const result = loadAllSettings(settings, options);
+        if (!result.ok) return result;
         recordCurrentSettings();
         clearActiveSoundStarterCard();
         scheduleLastSessionSave();
         debouncedRenderStaticLoop();
+        return result;
     }
 
     /**
@@ -2422,6 +2442,38 @@ function initializeApp() {
         loadPresetInput.click();
     });
 
+    function closeFuturePresetDialog() {
+        pendingFuturePreset = null;
+        futurePresetOverlay?.classList.add("hidden");
+        futurePresetOverlay?.setAttribute("aria-hidden", "true");
+    }
+
+    function saveImportedPreset(settings, file) {
+        presetStore
+            .save(settings, { filename: file.name, name: file.name, source: "import" })
+            .then((record) => refreshSavedPresetList(record.id))
+            .catch((error) => {
+                console.warn("Failed to save imported preset:", error);
+                showBrowserStorageRecovery();
+            });
+    }
+
+    futurePresetCancelButton?.addEventListener("click", closeFuturePresetDialog);
+    futurePresetConfirmButton?.addEventListener("click", () => {
+        if (!pendingFuturePreset) return;
+        const pending = pendingFuturePreset;
+        const result = applySettingsWithHistory(pending, { allowFutureVersion: true });
+        closeFuturePresetDialog();
+        if (result.ok) {
+            const fileName =
+                typeof pending.__importFileName === "string"
+                    ? pending.__importFileName
+                    : "Imported preset";
+            saveImportedPreset(getAllSettings(), { name: fileName });
+            showToast("Loaded compatible settings from newer preset.", "info");
+        }
+    });
+
     loadPresetInput.addEventListener("change", (event) => {
         const target = /** @type {HTMLInputElement} */ (event.target);
         const file = target.files ? target.files[0] : null;
@@ -2432,20 +2484,18 @@ function initializeApp() {
             if (fileReaderTarget && typeof fileReaderTarget.result === "string") {
                 try {
                     const settings = JSON.parse(fileReaderTarget.result);
-                    applySettingsWithHistory(settings);
-                    const restoredSettings = getAllSettings();
-                    presetStore
-                        .save(restoredSettings, {
-                            filename: file.name,
-                            name: file.name,
-                            source: "import",
-                        })
-                        .then((record) => refreshSavedPresetList(record.id))
-                        .catch((er) => {
-                            console.warn("Failed to save imported preset:", er);
-                            showBrowserStorageRecovery();
-                        });
-                    showToast("Preset loaded!", "success");
+                    const result = applySettingsWithHistory(settings);
+                    if (result.ok) {
+                        saveImportedPreset(getAllSettings(), file);
+                        showToast("Preset loaded!", "success");
+                    } else if (result.error instanceof UnsupportedSettingsVersionError) {
+                        pendingFuturePreset = { ...settings, __importFileName: file.name };
+                        futurePresetOverlay?.classList.remove("hidden");
+                        futurePresetOverlay?.setAttribute("aria-hidden", "false");
+                        futurePresetDialog?.focus();
+                    } else {
+                        showToast("Failed to load preset.", "error");
+                    }
                 } catch (err) {
                     console.error("Failed to load preset:", err);
                     showToast("Failed to load preset.", "error");

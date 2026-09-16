@@ -95,11 +95,16 @@ function normalizeStoredPresetRecord(value) {
     }
 
     /** @type {WebArpPresetRecord} */
-    const record = {
-        id: value.id,
-        savedAt: value.savedAt,
-        settings: normalizeSettings(value.settings),
-    };
+    let record;
+    try {
+        record = {
+            id: value.id,
+            savedAt: value.savedAt,
+            settings: normalizeSettings(value.settings),
+        };
+    } catch {
+        return null;
+    }
 
     const name = value.name;
     const filename = value.filename;
