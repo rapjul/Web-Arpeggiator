@@ -3,12 +3,17 @@
   "version": "1.0.0",
   "description": "A browser-based musical arpeggiator application built with JavaScript, Tone.js, Tonal.js, and Tailwind CSS.",
   "type": "module",
+  "packageManager": "bun@1.4.2",
+  "engines": {
+    "bun": "1.4.2"
+  },
   "scripts": {
-    "postinstall": "rm -rf node_modules/.vite",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
     "preview:pwa": "bun run build && bun run preview",
+    "generate:maskable-icon": "node scripts/generate-maskable-svg.js",
+    "generate:pwa-assets": "bash scripts/generate-pwa-assets.sh",
     "format": "bunx biome format --write .",
     "format:check": "bunx biome format .",
     "lint": "bunx biome lint .",

@@ -19,8 +19,8 @@ const __dirname = path.dirname(__filename);
  */
 function main() {
     const rootDir = path.join(__dirname, "..");
-    const sourcePath = path.join(rootDir, "images", "icons", "pwa-icon.svg");
-    const targetPath = path.join(rootDir, "images", "icons", "pwa-icon-maskable.svg");
+    const sourcePath = path.join(rootDir, "public", "images", "icons", "pwa-icon.svg");
+    const targetPath = path.join(rootDir, "public", "images", "icons", "pwa-icon-maskable.svg");
 
     console.log(`Reading source SVG: ${sourcePath}`);
     const sourceText = fs.readFileSync(sourcePath, "utf8");

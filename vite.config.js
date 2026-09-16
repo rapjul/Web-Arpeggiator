@@ -25,7 +25,9 @@ export default defineConfig({
             manifest: {
                 name: "Web Arpeggiator",
                 short_name: "Arpeggiator",
-                description: "A browser-based musical arpeggiator application.",
+                id: "",
+                description:
+                    "Create patterns instantly with this browser-based, offline-capable musical arpeggiator featuring synthesis, effects, recording, and presets.",
                 theme_color: "#0f172a",
                 background_color: "#0f172a",
                 display: "standalone",
@@ -33,6 +35,12 @@ export default defineConfig({
                 scope: "./",
                 start_url: "./index.html",
                 icons: [
+                    {
+                        src: "images/icons/pwa-icon.svg",
+                        sizes: "any",
+                        type: "image/svg+xml",
+                        purpose: "any",
+                    },
                     {
                         src: "images/icons/pwa-icon-192.png",
                         sizes: "192x192",
@@ -60,6 +68,22 @@ export default defineConfig({
                         sizes: "512x512",
                         type: "image/png",
                         purpose: "maskable",
+                    },
+                ],
+                screenshots: [
+                    {
+                        src: "images/screenshots/desktop.png",
+                        sizes: "1280x800",
+                        type: "image/png",
+                        form_factor: "wide",
+                        label: "Desktop View",
+                    },
+                    {
+                        src: "images/screenshots/mobile.png",
+                        sizes: "375x667",
+                        type: "image/png",
+                        form_factor: "narrow",
+                        label: "Mobile View (Portrait)",
                     },
                 ],
             },

@@ -127,6 +127,7 @@ test("loads a complete PWA shell under an active service worker", async ({ pwaPa
             display?: string;
             icons?: unknown[];
             name?: string;
+            screenshots?: unknown[];
             start_url?: string;
         }>;
     });
@@ -136,6 +137,24 @@ test("loads a complete PWA shell under an active service worker", async ({ pwaPa
     expect(manifest.display).toBe("standalone");
     expect(manifest.icons).toEqual(expect.any(Array));
     expect(manifest.icons).not.toHaveLength(0);
+    expect(manifest.icons).toEqual(
+        expect.arrayContaining([
+            expect.objectContaining({
+                sizes: "any",
+                src: "images/icons/pwa-icon.svg",
+                type: "image/svg+xml",
+            }),
+        ]),
+    );
+    expect(manifest.screenshots).toEqual(
+        expect.arrayContaining([
+            expect.objectContaining({
+                form_factor: "wide",
+                src: "images/screenshots/desktop.png",
+                type: "image/png",
+            }),
+        ]),
+    );
     await expect
         .poll(() => pwaPage.evaluate(() => navigator.serviceWorker.controller !== null))
         .toBe(true);
