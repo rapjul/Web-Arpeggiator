@@ -87,6 +87,29 @@ describe("Settings History", () => {
         expect(restored.getCurrent()).toEqual(first);
     });
 
+    it("restores equivalent snapshots regardless of serialized property order", () => {
+        const source = createSettingsHistory();
+        source.initialize({ bpm: 120, baseNotes: ["C4"] });
+        source.record({ bpm: 155, baseNotes: ["C4"] });
+
+        const saved = source.exportState();
+        const reordered = {
+            past: saved.past.map((snapshot) => ({
+                baseNotes: snapshot.baseNotes,
+                bpm: snapshot.bpm,
+            })),
+            present: {
+                baseNotes: saved.present?.baseNotes,
+                bpm: saved.present?.bpm,
+            },
+            future: saved.future,
+        };
+        const restored = createSettingsHistory();
+
+        expect(restored.restore(reordered, { bpm: 155, baseNotes: ["C4"] })).toBe(true);
+        expect(restored.undo()).toEqual({ baseNotes: ["C4"], bpm: 120 });
+    });
+
     it("rejects persisted stacks containing invalid or obsolete snapshots", () => {
         const history = createSettingsHistory();
         const invalidPast = { past: [{}], present: second, future: [] };
