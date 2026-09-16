@@ -1,11 +1,11 @@
 /* eslint-disable no-restricted-globals */
 import { clientsClaim, setCacheNameDetails } from "workbox-core";
 import {
-    addRoute,
     cleanupOutdatedCaches,
     createHandlerBoundToURL,
-    precache,
+    precacheAndRoute,
 } from "workbox-precaching";
+import { ExpirationPlugin } from "workbox-expiration";
 import { NavigationRoute, registerRoute } from "workbox-routing";
 import { CacheFirst, NetworkFirst } from "workbox-strategies";
 
@@ -19,26 +19,54 @@ import { CacheFirst, NetworkFirst } from "workbox-strategies";
 const CACHE_PREFIX = "web-arpeggiator-";
 const LEGACY_CACHE_NAME = /^web-arpeggiator-(?:dev|[a-f0-9-]+)$/;
 const MUTABLE_PATHS = ["/index.html", "/manifest.json", "/manifest.webmanifest"];
+const ONE_DAY_IN_SECONDS = 24 * 60 * 60;
 
 setCacheNameDetails({ prefix: "web-arpeggiator" });
 
-// `self.__WB_MANIFEST` is injected by vite-plugin-pwa during the production build.
-// Register routes below only after adding the entries, so the app-shell fallback
-// can resolve the precached document.
-precache(self.__WB_MANIFEST);
-
-const appShellHandler = createHandlerBoundToURL("./index.html");
 const navigationStrategy = new NetworkFirst({
     cacheName: `${CACHE_PREFIX}navigation`,
     plugins: [
+        new ExpirationPlugin({
+            maxEntries: 10,
+            maxAgeSeconds: 7 * ONE_DAY_IN_SECONDS,
+            purgeOnQuotaError: true,
+        }),
         {
-            handlerDidError: async ({ event }) => appShellHandler({ event }),
+            handlerDidError: async ({ event }) =>
+                createHandlerBoundToURL("./index.html")({ event }),
         },
     ],
 });
-const mutableAssetStrategy = new NetworkFirst({ cacheName: `${CACHE_PREFIX}mutable` });
-const crossOriginAssetStrategy = new CacheFirst({ cacheName: `${CACHE_PREFIX}cross-origin` });
-const localAssetStrategy = new CacheFirst({ cacheName: `${CACHE_PREFIX}runtime` });
+const mutableAssetStrategy = new NetworkFirst({
+    cacheName: `${CACHE_PREFIX}mutable`,
+    plugins: [
+        new ExpirationPlugin({
+            maxEntries: 4,
+            maxAgeSeconds: ONE_DAY_IN_SECONDS,
+            purgeOnQuotaError: true,
+        }),
+    ],
+});
+const crossOriginAssetStrategy = new CacheFirst({
+    cacheName: `${CACHE_PREFIX}cross-origin`,
+    plugins: [
+        new ExpirationPlugin({
+            maxEntries: 40,
+            maxAgeSeconds: 30 * ONE_DAY_IN_SECONDS,
+            purgeOnQuotaError: true,
+        }),
+    ],
+});
+const localAssetStrategy = new CacheFirst({
+    cacheName: `${CACHE_PREFIX}runtime`,
+    plugins: [
+        new ExpirationPlugin({
+            maxEntries: 60,
+            maxAgeSeconds: 30 * ONE_DAY_IN_SECONDS,
+            purgeOnQuotaError: true,
+        }),
+    ],
+});
 
 // Keep the document and manifest fresh when online, while falling back to the
 // Workbox app-shell precache when a navigation is made offline.
@@ -51,9 +79,10 @@ registerRoute(
     mutableAssetStrategy,
 );
 
-// Register the precache after the mutable routes so those resources retain their
+// `self.__WB_MANIFEST` is injected by vite-plugin-pwa during the production build.
+// Register it after the mutable routes so documents and manifests retain their
 // network-first behavior instead of being intercepted by the precache route.
-addRoute();
+precacheAndRoute(self.__WB_MANIFEST);
 
 registerRoute(
     ({ request, url }) => request.method === "GET" && url.origin !== self.location.origin,

@@ -9,6 +9,8 @@ import {
 
 const DATABASE_NAME = "web-arpeggiator-presets";
 const APP_CACHE_PREFIX = "web-arpeggiator-";
+const MUTABLE_CACHE_NAME = `${APP_CACHE_PREFIX}mutable`;
+const MAX_MUTABLE_CACHE_ENTRIES = 4;
 
 async function readSessionNotes(page: Page): Promise<string | null> {
     return page.evaluate(async (databaseName) => {
@@ -196,6 +198,26 @@ test("preloads audio modules online and runs the cached PWA offline", async ({ p
     } finally {
         await pwaPage.context().setOffline(false);
     }
+});
+
+test("bounds mutable PWA cache entries", async ({ pwaPage }) => {
+    const statuses = await pwaPage.evaluate(async (entryCount) => {
+        const results = [];
+        for (let index = 0; index < entryCount; index += 1) {
+            results.push((await fetch(`./manifest.webmanifest?cache-test=${index}`)).status);
+        }
+        return results;
+    }, MAX_MUTABLE_CACHE_ENTRIES + 2);
+
+    expect(statuses).toEqual(Array.from({ length: MAX_MUTABLE_CACHE_ENTRIES + 2 }, () => 200));
+    await expect
+        .poll(() =>
+            pwaPage.evaluate(async (cacheName) => {
+                const cache = await caches.open(cacheName);
+                return (await cache.keys()).length;
+            }, MUTABLE_CACHE_NAME),
+        )
+        .toBeLessThanOrEqual(MAX_MUTABLE_CACHE_ENTRIES);
 });
 
 test("clears PWA caches through the service worker control API", async ({ pwaPage }) => {

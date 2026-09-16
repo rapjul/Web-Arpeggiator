@@ -29,20 +29,20 @@ The project already uses Vite PWA's `injectManifest` strategy, but its custom se
 
 Chosen option: "Use Workbox modules in the existing `injectManifest` worker", because it replaces the duplicated caching machinery while retaining the app-specific controller contracts already covered by Chromium tests.
 
-The worker uses Workbox's `precache`, `addRoute`, `cleanupOutdatedCaches`, `CacheFirst`, `NetworkFirst`, and navigation routing. It configures the `web-arpeggiator-` cache namespace, retains network-first handling for documents and mutable manifest assets, and falls back to the precached app shell offline. The precache route is intentionally registered after those routes so it does not override their freshness policy.
+The worker uses Workbox's `precacheAndRoute`, `cleanupOutdatedCaches`, `CacheFirst`, `NetworkFirst`, `ExpirationPlugin`, and navigation routing. It configures the `web-arpeggiator-` cache namespace, retains network-first handling for documents and mutable manifest assets, and falls back to the precached app shell offline. Runtime caches are bounded by entry count and age, and purge automatically on storage quota errors. The precache route is intentionally registered after those routes so it does not override their freshness policy.
 
 The existing controller remains the only registration and update-UI owner. The worker keeps the `SKIP_WAITING`, `listCaches`, and `clearCaches` message protocol. A narrowly matched activation migration removes cache names emitted by the former versioned worker; Workbox manages ongoing precache cleanup after that transition.
 
 ### Consequences
 
 * Good, because generated assets, runtime routes, and stale precaches now use Workbox's maintained implementations.
-* Good, because existing PWA controller and browser-test contracts continue to protect registration, offline loading, and cache control behavior.
+* Good, because existing PWA controller and browser-test contracts continue to protect registration, offline loading, bounded runtime caching, and cache control behavior.
 * Bad, because the custom worker now has explicit Workbox module dependencies and must retain ordering between mutable routes and the precache route.
 * Neutral, because `virtual:pwa-register` remains a future option once its registration and update lifecycle can preserve the current controller behavior.
 
 ### Confirmation
 
-`tests/e2e/pwa.test.ts` verifies active registration, offline execution after lazy audio-module loading, and cache clearing that leaves an unrelated cache untouched. The production build must inject a precache manifest into `sw.js` successfully.
+`tests/e2e/pwa.test.ts` verifies active registration, offline execution after lazy audio-module loading, bounded mutable-cache entries, and cache clearing that leaves an unrelated cache untouched. The production build must inject a precache manifest into `sw.js` successfully.
 
 ## Pros and Cons of the Options
 
