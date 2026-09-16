@@ -338,6 +338,7 @@ Web Arpeggiator/
 │   │   ├── 0010-retryable-indexeddb-storage-recovery.md
 │   │   ├── 0011-playwright-browser-testing.md
 │   │   └── 0012-observable-playwright-synchronization-and-artifact-validation.md
+│   ├── development.md      # Local setup, commands, and test-runner guidance
 │   ├── history-and-default-settings.md # Default parameters and settings history reference
 │   ├── midi-specification.md # Standard MIDI specification & implementation reference
 │   └── pattern-directions.md # Detailed pattern descriptions & visual guide
@@ -497,10 +498,10 @@ The project uses **Vitest** with `@vitest/coverage-v8` to guarantee quality, enf
 ### Automated Coverage Threshold Gates
 
 Configured in [`vitest.config.ts`](./vitest.config.ts) and enforced on every Pull Request in [`.github/workflows/ci.yaml`](./.github/workflows/ci.yaml):
-- **Statements**: $\ge 72\%$
-- **Branches**: $\ge 64\%$
-- **Functions**: $\ge 62\%$
-- **Lines**: $\ge 73\%$
+- **Statements**: $\ge 75\%$
+- **Branches**: $\ge 65\%$
+- **Functions**: $\ge 65\%$
+- **Lines**: $\ge 75\%$
 
 These are a ratcheted baseline while untested composition roots are extracted into smaller units. The long-term target is 80% statements, 70% branches, 80% functions, and 80% lines, raised only when meaningful unit coverage supports each increase. Playwright covers browser behavior but does not contribute to the V8 percentage gate.
 

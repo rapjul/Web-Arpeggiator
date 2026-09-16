@@ -10,11 +10,11 @@
  * available. Keeping status and actions in this module avoids publishing a
  * production API on `window`.
  *
- * @param {{showToast?: (message: string, type?: 'info'|'success'|'error') => void}} [dependencies={}] UI feedback dependency.
+ * @param {{showToast?: (message: string, type?: 'info'|'success'|'error') => void, serviceWorker?: ServiceWorkerContainer|null}} [dependencies={}] UI and browser-platform dependencies.
  * @returns {import('../../types.d.ts').WebArpPWA} PWA controller API.
  */
 export function initializePwa(dependencies = {}) {
-    const { showToast = () => {} } = dependencies;
+    const { showToast = () => {}, serviceWorker = navigator.serviceWorker } = dependencies;
     /** @type {import('../../types.d.ts').WebArpAssetManifest} */
     const manifest = window.__WEB_ARP_ASSET_MANIFEST__ || {
         cacheVersion: "dev",
@@ -50,7 +50,7 @@ export function initializePwa(dependencies = {}) {
      * @returns {Promise<ServiceWorkerRegistration|null>} Active registration or null.
      */
     async function registerServiceWorker() {
-        if (!("serviceWorker" in navigator)) {
+        if (!serviceWorker) {
             state.serviceWorkerRegistered = false;
             state.serviceWorkerError = "unsupported";
             return null;
@@ -64,7 +64,7 @@ export function initializePwa(dependencies = {}) {
             (location.hostname === "localhost" || location.hostname === "127.0.0.1") && !forcePwa;
         if (isDev) {
             try {
-                const registrations = await navigator.serviceWorker.getRegistrations();
+                const registrations = await serviceWorker.getRegistrations();
                 let unregisteredAny = false;
                 for (const reg of registrations) {
                     await reg.unregister();
@@ -87,7 +87,7 @@ export function initializePwa(dependencies = {}) {
 
         try {
             const swUrl = getServiceWorkerUrl();
-            registration = await navigator.serviceWorker.register(swUrl, {
+            registration = await serviceWorker.register(swUrl, {
                 scope: "./",
             });
             state.serviceWorkerRegistered = true;
@@ -101,10 +101,7 @@ export function initializePwa(dependencies = {}) {
                 }
 
                 installingWorker.addEventListener("statechange", () => {
-                    if (
-                        installingWorker.state === "installed" &&
-                        navigator.serviceWorker.controller
-                    ) {
+                    if (installingWorker.state === "installed" && serviceWorker.controller) {
                         state.hasWaitingWorker = Boolean(registration.waiting);
                         showToast("App cache updated. Reload to use the latest assets.", "info");
                     }
@@ -129,9 +126,9 @@ export function initializePwa(dependencies = {}) {
      */
     async function refreshServiceWorker() {
         if (registration && typeof registration.update === "function") {
-            const updatedRegistration = await registration.update();
-            state.hasWaitingWorker = Boolean(updatedRegistration?.waiting || registration.waiting);
-            return updatedRegistration;
+            await registration.update();
+            state.hasWaitingWorker = Boolean(registration.waiting);
+            return registration;
         }
 
         return registerServiceWorker();
@@ -147,13 +144,11 @@ export function initializePwa(dependencies = {}) {
             return registration;
         }
 
-        if (!("serviceWorker" in navigator)) {
+        if (!serviceWorker) {
             return null;
         }
 
-        registration =
-            (await navigator.serviceWorker.getRegistration("./")) ||
-            (await navigator.serviceWorker.ready);
+        registration = (await serviceWorker.getRegistration("./")) || (await serviceWorker.ready);
         return registration;
     }
 
@@ -166,14 +161,14 @@ export function initializePwa(dependencies = {}) {
      * @returns {Promise<Record<string, unknown>>} Structured response posted back by the service worker.
      */
     async function sendServiceWorkerMessage(type, payload = {}, preferredWorker = null) {
-        if (!("serviceWorker" in navigator)) {
+        if (!serviceWorker) {
             throw new Error("Service workers are not supported.");
         }
 
         const readyRegistration = await getReadyRegistration();
 
         return new Promise((resolve, reject) => {
-            if (!("serviceWorker" in navigator)) {
+            if (!serviceWorker) {
                 reject(new Error("Service workers are not supported."));
                 return;
             }
@@ -182,7 +177,7 @@ export function initializePwa(dependencies = {}) {
                 preferredWorker ||
                 readyRegistration?.waiting ||
                 readyRegistration?.active ||
-                navigator.serviceWorker.controller;
+                serviceWorker.controller;
 
             if (!worker) {
                 reject(new Error("No active service worker is available."));
@@ -192,7 +187,7 @@ export function initializePwa(dependencies = {}) {
             messageCounter += 1;
             const messageId = `web-arp-${Date.now()}-${messageCounter}`;
             const timeoutId = window.setTimeout(() => {
-                navigator.serviceWorker.removeEventListener("message", onMessage);
+                serviceWorker.removeEventListener("message", onMessage);
                 reject(new Error(`Timed out waiting for service worker response: ${type}`));
             }, 5000);
 
@@ -208,7 +203,7 @@ export function initializePwa(dependencies = {}) {
                 }
 
                 window.clearTimeout(timeoutId);
-                navigator.serviceWorker.removeEventListener("message", onMessage);
+                serviceWorker.removeEventListener("message", onMessage);
 
                 if (event.data.ok === false) {
                     reject(new Error(event.data.error || `Service worker message failed: ${type}`));
@@ -218,7 +213,7 @@ export function initializePwa(dependencies = {}) {
                 resolve(event.data);
             }
 
-            navigator.serviceWorker.addEventListener("message", onMessage);
+            serviceWorker.addEventListener("message", onMessage);
             worker.postMessage({ ...payload, type, messageId });
         });
     }
