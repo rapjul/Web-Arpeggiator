@@ -199,6 +199,11 @@ test("preloads audio modules online and runs the cached PWA offline", async ({ p
 });
 
 test("clears PWA caches through the service worker control API", async ({ pwaPage }) => {
+    const unrelatedCache = "unrelated-application-cache";
+    await pwaPage.evaluate(async (cacheName) => {
+        await caches.open(cacheName);
+    }, unrelatedCache);
+
     await expect
         .poll(() => pwaPage.evaluate(() => caches.keys()))
         .toEqual(
@@ -206,6 +211,9 @@ test("clears PWA caches through the service worker control API", async ({ pwaPag
         );
 
     await sendServiceWorkerMessage(pwaPage, "clearCaches");
+    await expect
+        .poll(() => pwaPage.evaluate(() => caches.keys()))
+        .toEqual(expect.arrayContaining([unrelatedCache]));
     await expect
         .poll(() => pwaPage.evaluate(() => caches.keys()))
         .not.toEqual(
