@@ -324,7 +324,7 @@ Web Arpeggiator/
 │   ├── keyboard.css        # Interactive piano keyboard styles
 │   ├── tokens.css          # Semantic CSS variables and theme tokens
 │   └── visualizer.css      # Visualizer canvas and oscilloscope layout
-├── manifest.json           # PWA manifest
+├── vite.config.js          # Vite PWA config; generates manifest.webmanifest at build time
 ├── sw.js                   # Workbox-backed custom PWA worker and cache-control message API
 ├── AGENTS.md               # This file
 ├── docs/                   # Specifications, ADRs & architectural guides
@@ -470,13 +470,7 @@ createController({ showToast });
 
 ## Debugging
 
-Enable verbose logging:
-
-```javascript
-const DEBUG = true; // Set at top of script
-```
-
-All major functions call `log()` which respects the DEBUG flag.
+Verbose diagnostics and the Audio is ready toast are enabled automatically in Vite development mode and are omitted from production builds. `log()` respects that development-mode flag; do not edit application source to enable logging.
 
 ## Known Limitations
 

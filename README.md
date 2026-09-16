@@ -14,7 +14,7 @@ The application separates pure music logic (`src/core/`), Tone.js synthesis and 
 
 UI controllers own their event listeners, DOM value formatting, and listener teardown. Audio graph updates remain application-owned callbacks so user interactions do not communicate through browser globals. The PWA lifecycle and IndexedDB preset API are similarly composed through ES module imports and injected callbacks, which keeps them directly testable without browser-global APIs. The current controller boundaries cover onboarding, history, transport, pattern, synth, filter, effects, and constrained-input controls, plus presets, virtual keyboard input, note-step feedback, accessibility navigation, and the visualizer.
 
-The custom PWA worker uses Vite PWA's `injectManifest` build integration and Workbox for revisioned precaching, request routing, stale-precache cleanup, and bounded runtime caches. The composed PWA controller retains ownership of registration, update UI, and cache-control messages. Documents and manifests are network-first when online, with the precached app shell as the offline navigation fallback.
+The custom PWA worker uses Vite PWA's `injectManifest` build integration and Workbox for revisioned precaching, request routing, stale-precache cleanup, and bounded runtime caches. Vite PWA generates `manifest.webmanifest` from the manifest configuration in `vite.config.js` during each production build. The composed PWA controller retains ownership of registration, update UI, and cache-control messages. Documents and manifests are network-first when online, with the precached app shell as the offline navigation fallback. Verbose diagnostics and the Audio is ready toast are development-only.
 
 ## Features
 

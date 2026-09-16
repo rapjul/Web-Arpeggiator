@@ -115,4 +115,21 @@ describe("PWA Asset Manifest & SVG Integrity", () => {
             }
         }
     });
+
+    it("keeps every PWA manifest icon and screenshot source asset", () => {
+        const expectedAssets = [
+            "icons/pwa-icon.svg",
+            "icons/pwa-icon-192.png",
+            "icons/pwa-icon-512.png",
+            "icons/pwa-icon-maskable.svg",
+            "icons/pwa-icon-maskable-192.png",
+            "icons/pwa-icon-maskable-512.png",
+            "screenshots/desktop.png",
+            "screenshots/mobile.png",
+        ];
+
+        for (const asset of expectedAssets) {
+            expect(fs.existsSync(path.join(root, asset))).toBe(true);
+        }
+    });
 });
