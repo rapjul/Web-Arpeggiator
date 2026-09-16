@@ -141,4 +141,20 @@ describe("audio runtime controller", () => {
         expect(createVisualizer).toHaveBeenCalledTimes(2);
         expect(controller.getAudioEngine()).toBe(engine);
     });
+
+    it("rebuilds the runtime after teardown", async () => {
+        const { controller, createAudioEngine, state } = createFixture();
+        await controller.startAudio();
+
+        controller.destroy();
+
+        expect(controller.getAudioEngine()).toBeUndefined();
+        expect(state.isAudioContextStarted).toBe(false);
+
+        await controller.startAudio();
+
+        expect(createAudioEngine).toHaveBeenCalledTimes(2);
+        expect(controller.getAudioEngine()).toBeDefined();
+        expect(state.isAudioContextStarted).toBe(true);
+    });
 });

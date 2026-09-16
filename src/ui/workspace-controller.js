@@ -224,6 +224,37 @@ export function createWorkspaceController(dependencies) {
     }
 
     /**
+     * Determines whether a document target should be tracked in settings history.
+     *
+     * @param {Element|null} target - Document event target.
+     * @returns {boolean} Whether the target is an editable settings control.
+     */
+    function isTrackedFormTarget(target) {
+        if (!target) return false;
+        if (
+            target === presetNameInput ||
+            target === savedPresetSelect ||
+            target === loadPresetInput
+        )
+            return false;
+        return target.matches("input, select, textarea");
+    }
+
+    /**
+     * Determines whether an editable target should trigger a static-loop refresh.
+     *
+     * @param {Element} target - Editable settings control.
+     * @returns {boolean} Whether the target affects the static loop.
+     */
+    function affectsStaticLoop(target) {
+        return (
+            target.id !== "loop-count" &&
+            target.id !== "offline-export-tail-seconds" &&
+            !target.matches("input[name='offline-export-mode']")
+        );
+    }
+
+    /**
      * Records editable document changes while keeping metadata and export-only
      * controls out of the static-loop redraw path.
      *
@@ -232,24 +263,11 @@ export function createWorkspaceController(dependencies) {
      */
     function handleInput(event) {
         const target = /** @type {Element|null} */ (event.target);
-        if (
-            !target ||
-            target === presetNameInput ||
-            target === savedPresetSelect ||
-            target === loadPresetInput
-        )
-            return;
-        if (!target.matches("input, select, textarea")) return;
+        if (!isTrackedFormTarget(target)) return;
         recordCurrentSettings(true);
         clearActiveSoundStarterCard();
         sessionManager.scheduleSave();
-        if (
-            target.id !== "loop-count" &&
-            target.id !== "offline-export-tail-seconds" &&
-            !target.matches("input[name='offline-export-mode']")
-        ) {
-            onStaticLoopChange();
-        }
+        if (affectsStaticLoop(target)) onStaticLoopChange();
     }
 
     /**
@@ -260,25 +278,12 @@ export function createWorkspaceController(dependencies) {
      */
     function handleChange(event) {
         const target = /** @type {Element|null} */ (event.target);
-        if (
-            !target ||
-            target === presetNameInput ||
-            target === savedPresetSelect ||
-            target === loadPresetInput ||
-            !target.matches("input, select, textarea")
-        )
-            return;
+        if (!isTrackedFormTarget(target)) return;
         settingsHistory.endTransaction();
         recordCurrentSettings();
         clearActiveSoundStarterCard();
         sessionManager.scheduleSave();
-        if (
-            target.id !== "loop-count" &&
-            target.id !== "offline-export-tail-seconds" &&
-            !target.matches("input[name='offline-export-mode']")
-        ) {
-            onStaticLoopChange();
-        }
+        if (affectsStaticLoop(target)) onStaticLoopChange();
     }
 
     /**
@@ -310,7 +315,7 @@ export function createWorkspaceController(dependencies) {
     function initialize(defaults) {
         if (listenerController) return;
         defaultSettings = cloneSettings(defaults);
-        settingsHistory.initialize(defaults);
+        settingsHistory.initialize(defaultSettings);
         listenerController = new AbortController();
         registerIndividualResetGestures();
         const listenerOptions = { signal: listenerController.signal };

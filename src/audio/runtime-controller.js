@@ -301,6 +301,9 @@ export function createAudioRuntimeController(dependencies) {
         visualizer = undefined;
         recorderManager = undefined;
         patternController = undefined;
+        audioRuntimePromise = null;
+        audioStartPromise = null;
+        state.isAudioContextStarted = false;
         onPatternChange(null);
     }
 

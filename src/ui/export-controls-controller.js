@@ -105,7 +105,11 @@ export function createExportControlsController(dependencies) {
             logger.warn?.(warning, error);
             return;
         }
-        await action();
+        try {
+            await action();
+        } catch (error) {
+            logger.warn?.(warning, error);
+        }
     }
 
     function handleMidiExport() {

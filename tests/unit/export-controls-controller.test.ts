@@ -54,6 +54,7 @@ function createFixture() {
     const startAudio = vi.fn(async () => {});
     const renderStaticLoop = vi.fn(async () => {});
     const showToast = vi.fn();
+    const logger = { warn: vi.fn() };
     const controller = createExportControlsController({
         dom: {
             loopCountInput,
@@ -77,7 +78,7 @@ function createFixture() {
         showToast,
         renderStaticLoop,
         debounce: (callback) => callback,
-        logger: { warn: vi.fn() },
+        logger,
     });
     controller.initialize();
     controllers.push(controller);
@@ -86,6 +87,7 @@ function createFixture() {
         controller,
         duration,
         loopCountInput,
+        logger,
         modeSeamlessInput,
         midiButton,
         offlineExportButton,
@@ -157,5 +159,18 @@ describe("export controls controller", () => {
         preview.controller.requestStaticLoopRender();
         expect(preview.renderStaticLoop).toHaveBeenCalledOnce();
         preview.controller.destroy();
+    });
+
+    it("reports export action failures without unhandled rejections", async () => {
+        const { logger, recorder, recordButton } = createFixture();
+        recorder.toggleRecording.mockRejectedValueOnce(new Error("recorder failed"));
+
+        recordButton.click();
+        await vi.waitFor(() => {
+            expect(logger.warn).toHaveBeenCalledWith(
+                "AudioContext failed to start on record click:",
+                expect.any(Error),
+            );
+        });
     });
 });
