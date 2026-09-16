@@ -341,6 +341,7 @@ Web Arpeggiator/
 │   │   ├── 0012-observable-playwright-synchronization-and-artifact-validation.md
 │   │   └── 0013-workbox-custom-service-worker-caching.md
 │   ├── development.md      # Local setup, commands, and test-runner guidance
+│   ├── improvements/       # Deferred, scoped follow-up plans
 │   ├── history-and-default-settings.md # Default parameters and settings history reference
 │   ├── midi-specification.md # Standard MIDI specification & implementation reference
 │   └── pattern-directions.md # Detailed pattern descriptions & visual guide

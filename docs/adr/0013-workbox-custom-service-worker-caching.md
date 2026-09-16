@@ -69,3 +69,4 @@ The existing controller remains the only registration and update-UI owner. The w
 * [Vite PWA `injectManifest` guide](https://vite-pwa-org.netlify.app/guide/inject-manifest)
 * [Vite PWA registration guide](https://vite-pwa-org.netlify.app/guide/register-service-worker)
 * [ADR 0011: Playwright for Browser End-to-End Testing](./0011-playwright-browser-testing.md)
+* [Virtual PWA Registration Follow-up](../improvements/virtual-pwa-registration.md)
