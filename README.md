@@ -158,11 +158,7 @@ Save and load your complete setup:
 2. Select a saved JSON file
 3. All settings restore instantly
 
-Newly saved files include `settingsVersion: 1`. Unversioned files are treated as
-legacy and upgraded automatically. A file from a newer version is not applied by
-default: its import dialog lets the user cancel or explicitly load only compatible
-settings. Browser-saved presets and sessions remain unchanged when they require a
-newer version.
+Newly saved files include `settingsVersion: 1`. Unversioned files are treated as legacy and upgraded automatically. A file from a newer version is not applied by default: its import dialog lets the user cancel or explicitly load only compatible settings. Browser-saved presets and sessions remain unchanged when they require a newer version.
 
 ### Load the Last Saved Browser Preset
 

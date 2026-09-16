@@ -48,6 +48,7 @@ import { createInputFilterController } from "@ui/input-filter-controller.js";
 import { createNoteStepController } from "@ui/note-step-controller.js";
 import { createOnboardingController } from "@ui/onboarding-controller.js";
 import { createEffectsControlsController } from "@ui/effects-controls-controller.js";
+import { createFuturePresetDialogController } from "@ui/future-preset-dialog-controller.js";
 import { createPatternControlsController } from "@ui/pattern-controls-controller.js";
 import { createPresetController } from "@ui/preset-controller.js";
 import { createSynthControlsController } from "@ui/synth-controls-controller.js";
@@ -240,10 +241,6 @@ function initializeApp() {
     const resetDefaultsConfirmButton = /** @type {HTMLButtonElement | null} */ (
         document.getElementById("reset-defaults-confirm")
     );
-    const futurePresetOverlay = document.getElementById("future-preset-overlay");
-    const futurePresetDialog = document.getElementById("future-preset-dialog");
-    const futurePresetCancelButton = document.getElementById("future-preset-cancel");
-    const futurePresetConfirmButton = document.getElementById("future-preset-confirm");
 
     /**
      * Collapsible accordion wrapper for the Sound Starters strip.
@@ -516,10 +513,6 @@ function initializeApp() {
     let currentOctaveRange = 2;
     let activeNote = null;
     let currentWaveform = "sine";
-    /** @type {Record<string, unknown>|null} */
-    let pendingFuturePreset = null;
-    /** @type {HTMLElement|null} */
-    let futurePresetReturnFocus = null;
     let audioEngine;
     let pendingAudioEngine = null;
     let recorderManager;
@@ -2444,45 +2437,6 @@ function initializeApp() {
         loadPresetInput.click();
     });
 
-    function closeFuturePresetDialog() {
-        pendingFuturePreset = null;
-        futurePresetOverlay?.classList.add("hidden");
-        futurePresetOverlay?.classList.remove("flex");
-        futurePresetOverlay?.setAttribute("aria-hidden", "true");
-        appMain?.removeAttribute("inert");
-        futurePresetReturnFocus?.focus();
-        futurePresetReturnFocus = null;
-    }
-
-    function openFuturePresetDialog(settings, fileName) {
-        futurePresetReturnFocus = loadPresetButton;
-        pendingFuturePreset = { ...settings, __importFileName: fileName };
-        futurePresetOverlay?.classList.remove("hidden");
-        futurePresetOverlay?.classList.add("flex");
-        futurePresetOverlay?.setAttribute("aria-hidden", "false");
-        appMain?.setAttribute("inert", "");
-        futurePresetConfirmButton?.focus();
-    }
-
-    function trapFuturePresetDialogFocus(event) {
-        if (event.key !== "Tab" || !futurePresetDialog) return;
-        const focusable = Array.from(
-            /** @type {NodeListOf<HTMLButtonElement>} */ (
-                futurePresetDialog.querySelectorAll("button:not([disabled])")
-            ),
-        );
-        const firstElement = focusable[0];
-        const lastElement = focusable[focusable.length - 1];
-        if (!firstElement || !lastElement) return;
-        if (event.shiftKey && document.activeElement === firstElement) {
-            event.preventDefault();
-            lastElement.focus();
-        } else if (!event.shiftKey && document.activeElement === lastElement) {
-            event.preventDefault();
-            firstElement.focus();
-        }
-    }
-
     function saveImportedPreset(settings, file) {
         presetStore
             .save(settings, { filename: file.name, name: file.name, source: "import" })
@@ -2493,34 +2447,15 @@ function initializeApp() {
             });
     }
 
-    futurePresetCancelButton?.addEventListener("click", closeFuturePresetDialog);
-    futurePresetOverlay?.addEventListener("click", (event) => {
-        if (event.target === futurePresetOverlay) closeFuturePresetDialog();
-    });
-    futurePresetDialog?.addEventListener("keydown", trapFuturePresetDialogFocus);
-    window.addEventListener("keydown", (event) => {
-        if (
-            event.key !== "Escape" ||
-            futurePresetOverlay?.getAttribute("aria-hidden") !== "false"
-        ) {
-            return;
-        }
-        event.preventDefault();
-        closeFuturePresetDialog();
-    });
-    futurePresetConfirmButton?.addEventListener("click", () => {
-        if (!pendingFuturePreset) return;
-        const pending = pendingFuturePreset;
-        const result = applySettingsWithHistory(pending, { allowFutureVersion: true });
-        closeFuturePresetDialog();
-        if (result.ok) {
-            const fileName =
-                typeof pending.__importFileName === "string"
-                    ? pending.__importFileName
-                    : "Imported preset";
-            saveImportedPreset(getAllSettings(), { name: fileName });
-            showToast("Loaded compatible settings from newer preset.", "info");
-        }
+    const futurePresetDialogController = createFuturePresetDialogController({
+        getReturnFocus: () => loadPresetButton,
+        onConfirm: (settings, fileName) => {
+            const result = applySettingsWithHistory(settings, { allowFutureVersion: true });
+            if (result.ok) {
+                saveImportedPreset(getAllSettings(), { name: fileName });
+                showToast("Loaded compatible settings from newer preset.", "info");
+            }
+        },
     });
 
     loadPresetInput.addEventListener("change", (event) => {
@@ -2541,7 +2476,7 @@ function initializeApp() {
                         result.error instanceof UnsupportedSettingsVersionError &&
                         result.error.isFutureVersion
                     ) {
-                        openFuturePresetDialog(settings, file.name);
+                        futurePresetDialogController.open(settings, file.name);
                     } else {
                         showToast("Failed to load preset.", "error");
                     }

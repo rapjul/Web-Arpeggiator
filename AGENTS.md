@@ -169,10 +169,7 @@ JSON-based preset management:
 
 Presets are saved with automatic timestamped filenames.
 
-New settings snapshots include `settingsVersion: 1`. Missing versions are legacy and
-normalize automatically; malformed explicit versions and newer versions are rejected
-by default. A file import from a newer valid version offers an explicit “Load
-Compatible Settings” choice, while browser presets and sessions remain untouched.
+New settings snapshots include `settingsVersion: 1`. Missing versions are legacy and normalize automatically; malformed explicit versions and newer versions are rejected by default. A file import from a newer valid version offers an explicit “Load Compatible Settings” choice, while browser presets and sessions remain untouched.
 
 ### 8. Randomize Notes
 
