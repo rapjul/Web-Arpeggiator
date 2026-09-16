@@ -3,7 +3,7 @@ import {
     normalizeOfflineExportMode,
     normalizeOfflineExportTailSeconds,
 } from "@core/export-duration.js";
-import { normalizeSettings } from "@core/settings-contract.js";
+import { normalizeSettings, SETTINGS_SCHEMA_VERSION } from "@core/settings-contract.js";
 
 /** @typedef {import("../core/settings-contract.js").ArpeggiatorSettings} ArpeggiatorSettings */
 
@@ -68,7 +68,7 @@ import { normalizeSettings } from "@core/settings-contract.js";
  * Builds a settings API bound to the app's live DOM and state.
  *
  * @param {SettingsManagerContext} context - Bound app references.
- * @returns {{getAllSettings: () => ArpeggiatorSettings, loadAllSettings: (settings: unknown) => void, generateFilename: (isRealtime: boolean, settingsSnapshot?: ArpeggiatorSettings, exportType?: "audio"|"general") => string}} Settings helpers.
+ * @returns {{getAllSettings: () => ArpeggiatorSettings, loadAllSettings: (settings: unknown, options?: {allowFutureVersion?: boolean}) => {ok: boolean, settings?: ArpeggiatorSettings, error?: unknown}, generateFilename: (isRealtime: boolean, settingsSnapshot?: ArpeggiatorSettings, exportType?: "audio"|"general") => string}} Settings helpers.
  */
 export function createSettingsManager(context) {
     const state = /** @type {SettingsManagerState} */ (context.state);
@@ -90,6 +90,7 @@ export function createSettingsManager(context) {
         );
 
         return {
+            settingsVersion: SETTINGS_SCHEMA_VERSION,
             // Transport
             bpm: parseInt(dom.bpmSlider.value, 10),
             swing: parseFloat(dom.swingSlider.value),
@@ -159,11 +160,11 @@ export function createSettingsManager(context) {
      * Loads a settings snapshot into the UI and live Tone.js state.
      *
      * @param {unknown} rawSettings - Imported, restored, or in-memory settings to restore.
-     * @returns {void}
+     * @returns {{ok: boolean, settings?: ArpeggiatorSettings, error?: unknown}}
      */
-    function loadAllSettings(rawSettings) {
+    function loadAllSettings(rawSettings, options = {}) {
         try {
-            const settings = normalizeSettings(rawSettings, getAllSettings());
+            const settings = normalizeSettings(rawSettings, getAllSettings(), options);
             dom.bpmSlider.value = String(settings.bpm);
             dom.bpmValue.textContent = String(settings.bpm);
             const transport =
@@ -379,16 +380,24 @@ export function createSettingsManager(context) {
             if (typeof actions.updateEstimatedExportDuration === "function") {
                 actions.updateEstimatedExportDuration();
             }
+            return { ok: true, settings };
         } catch (error) {
             console.error("Failed to parse preset:", error);
-            if (typeof actions.showToast === "function") {
+            if (
+                !error?.name?.includes("UnsupportedSettingsVersion") &&
+                typeof actions.showToast === "function"
+            ) {
                 actions.showToast(
                     "Error loading preset. File may be corrupt or from an older version.",
                     "error",
                 );
-            } else if (typeof alert === "function") {
+            } else if (
+                !error?.name?.includes("UnsupportedSettingsVersion") &&
+                typeof alert === "function"
+            ) {
                 alert("Error loading preset. File may be corrupt or from an older version.");
             }
+            return { ok: false, error };
         }
     }
 

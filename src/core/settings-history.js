@@ -70,12 +70,32 @@ function cloneSnapshot(settings) {
 /**
  * Compares serialized settings snapshots.
  *
- * @param {Record<string, unknown> | null} first - First snapshot.
- * @param {Record<string, unknown> | null} second - Second snapshot.
+ * @param {unknown} first - First snapshot.
+ * @param {unknown} second - Second snapshot.
  * @returns {boolean} Whether the snapshots contain the same serialized settings.
  */
 function snapshotsEqual(first, second) {
-    return JSON.stringify(first) === JSON.stringify(second);
+    if (first === second) return true;
+    if (!first || !second || typeof first !== "object" || typeof second !== "object") {
+        return false;
+    }
+    if (Array.isArray(first) || Array.isArray(second)) {
+        return (
+            Array.isArray(first) &&
+            Array.isArray(second) &&
+            first.length === second.length &&
+            first.every((value, index) => snapshotsEqual(value, second[index]))
+        );
+    }
+
+    const firstKeys = Object.keys(first);
+    const secondKeys = Object.keys(second);
+    return (
+        firstKeys.length === secondKeys.length &&
+        firstKeys.every(
+            (key) => Object.hasOwn(second, key) && snapshotsEqual(first[key], second[key]),
+        )
+    );
 }
 
 /**

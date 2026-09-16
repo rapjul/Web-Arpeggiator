@@ -87,11 +87,37 @@ describe("PWA controller", () => {
         const controller = initializePwa({ serviceWorker: null });
 
         await expect(controller.registerServiceWorker()).resolves.toBeNull();
+        await expect(controller.listCaches()).rejects.toThrow("Service workers are not supported");
         expect(controller.getState()).toMatchObject({
             serviceWorkerError: "unsupported",
             serviceWorkerRegistered: false,
         });
         await expect(controller.refreshServiceWorker()).resolves.toBeNull();
+    });
+
+    it("disables registration in local development and reports registration errors", async () => {
+        window.history.replaceState({}, "", "/");
+        const localRegistration = createRegistration();
+        const localServiceWorker = createServiceWorkerApi(localRegistration);
+        const localController = initializePwa({ serviceWorker: localServiceWorker });
+
+        await expect(localController.registerServiceWorker()).resolves.toBeNull();
+        expect(localServiceWorker.getRegistrations).toHaveBeenCalledTimes(1);
+        expect(localServiceWorker.register).not.toHaveBeenCalled();
+        expect(localController.getState().serviceWorkerError).toBe("disabled-in-development");
+
+        window.history.replaceState({}, "", "/?pwa=true");
+        const registrationError = new Error("registration denied");
+        const brokenServiceWorker = createServiceWorkerApi(createRegistration(), {
+            register: vi.fn().mockRejectedValue(registrationError),
+        });
+        const brokenController = initializePwa({ serviceWorker: brokenServiceWorker });
+
+        await expect(brokenController.registerServiceWorker()).resolves.toBeNull();
+        expect(brokenController.getState()).toMatchObject({
+            serviceWorkerError: "registration denied",
+            serviceWorkerRegistered: false,
+        });
     });
 
     it("registers, refreshes, and reports an installed update", async () => {
@@ -199,6 +225,66 @@ describe("PWA controller", () => {
         await expect(controller.listCaches()).rejects.toThrow("Cache access denied");
     });
 
+    it("ignores replies for another command before handling the matching reply", async () => {
+        let serviceWorker: ServiceWorkerApiStub;
+        const worker = {
+            postMessage: vi.fn((command: ServiceWorkerCommand) => {
+                serviceWorker.dispatchEvent(
+                    new MessageEvent("message", {
+                        data: { caches: ["wrong"], messageId: "another-command", ok: true },
+                    }),
+                );
+                dispatchWorkerResponse(serviceWorker, command, {
+                    caches: ["web-arp-v1"],
+                    ok: true,
+                });
+            }),
+        } as unknown as WorkerStub;
+        const registration = createRegistration({ active: worker });
+        serviceWorker = createServiceWorkerApi(registration);
+        const controller = initializePwa({ serviceWorker });
+
+        await expect(controller.listCaches()).resolves.toEqual(["web-arp-v1"]);
+    });
+
+    it("reports missing workers, malformed cache replies, and command timeouts", async () => {
+        const inactiveRegistration = createRegistration();
+        const inactiveController = initializePwa({
+            serviceWorker: createServiceWorkerApi(inactiveRegistration),
+        });
+        await expect(inactiveController.listCaches()).rejects.toThrow(
+            "No active service worker is available",
+        );
+
+        let serviceWorker: ServiceWorkerApiStub;
+        const malformedWorker = {
+            postMessage: vi.fn((command: ServiceWorkerCommand) => {
+                dispatchWorkerResponse(serviceWorker, command, { caches: "invalid", ok: true });
+            }),
+        } as unknown as WorkerStub;
+        const malformedRegistration = createRegistration({ active: malformedWorker });
+        serviceWorker = createServiceWorkerApi(malformedRegistration);
+        const malformedController = initializePwa({ serviceWorker });
+        await expect(malformedController.listCaches()).resolves.toEqual([]);
+        await expect(malformedController.clearCaches()).resolves.toEqual([]);
+
+        vi.useFakeTimers();
+        try {
+            const silentWorker = { postMessage: vi.fn() } as unknown as WorkerStub;
+            const silentController = initializePwa({
+                serviceWorker: createServiceWorkerApi(createRegistration({ active: silentWorker })),
+            });
+            const pendingCaches = silentController.listCaches();
+            const timedOutCaches = expect(pendingCaches).rejects.toThrow(
+                "Timed out waiting for service worker response",
+            );
+            await vi.advanceTimersByTimeAsync(5000);
+            await timedOutCaches;
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
     it("defers registration until the page load event", async () => {
         const registration = createRegistration();
         const serviceWorker = createServiceWorkerApi(registration);
@@ -207,5 +293,18 @@ describe("PWA controller", () => {
 
         window.dispatchEvent(new Event("load"));
         await vi.waitFor(() => expect(serviceWorker.register).toHaveBeenCalledTimes(1));
+    });
+
+    it("registers immediately after the document has loaded", async () => {
+        Object.defineProperty(document, "readyState", {
+            configurable: true,
+            value: "complete",
+        });
+        const registration = createRegistration();
+        const serviceWorker = createServiceWorkerApi(registration);
+        const controller = initializePwa({ serviceWorker });
+
+        await vi.waitFor(() => expect(serviceWorker.register).toHaveBeenCalledTimes(1));
+        expect(controller.getRegistration()).toBe(registration);
     });
 });

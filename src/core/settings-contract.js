@@ -6,22 +6,104 @@
  */
 
 import {
-    ALLOWED_DIRECTIONS,
-    ALLOWED_INTERVALS,
-    ALLOWED_ROOTS,
-    ALLOWED_SCALES,
-    ALLOWED_SYNTHS,
-    ALLOWED_WAVEFORMS,
-} from "./url-preset.js";
-import {
     normalizeLoopCount,
     normalizeOfflineExportMode,
     normalizeOfflineExportTailSeconds,
 } from "./export-duration.js";
-import { normalizeNotesSequence } from "./pattern-core.js";
+import { getArpeggioNotes, normalizeNotesSequence } from "./pattern-core.js";
+
+/** Canonical select-control values shared by settings and URL persistence. */
+export const ALLOWED_DIRECTIONS = Object.freeze([
+    "up",
+    "down",
+    "upDown",
+    "downUp",
+    "upDownRepeat",
+    "downUpRepeat",
+    "random",
+    "octaveCycle",
+    "octaveCycleReverse",
+    "octaveCyclePingPong",
+    "randomWalk",
+    "randomWalkDrunk",
+]);
+export const ALLOWED_INTERVALS = Object.freeze(["64n", "32n", "16n", "8n", "4n", "2n"]);
+export const ALLOWED_ROOTS = Object.freeze([
+    "C",
+    "C#",
+    "D",
+    "D#",
+    "E",
+    "F",
+    "F#",
+    "G",
+    "G#",
+    "A",
+    "A#",
+    "B",
+]);
+export const ALLOWED_SCALES = Object.freeze([
+    "major",
+    "minor",
+    "harmonic minor",
+    "melodic minor",
+    "dorian",
+    "phrygian",
+    "lydian",
+    "mixolydian",
+    "locrian",
+    "blues",
+    "majorPentatonic",
+    "chromatic",
+]);
+export const ALLOWED_SYNTHS = Object.freeze([
+    "synth",
+    "fmSynth",
+    "amSynth",
+    "monoSynth",
+    "duoSynth",
+    "pluckSynth",
+    "membraneSynth",
+]);
+export const ALLOWED_WAVEFORMS = Object.freeze(["sine", "square", "sawtooth", "triangle", "pulse"]);
+
+/** @type {Readonly<Record<string, readonly [number, number]>>} Numeric control bounds shared by every persistence boundary. */
+export const SETTINGS_BOUNDS = Object.freeze({
+    bpm: [40, 240],
+    swing: [0, 1],
+    postGain: [-40, 0],
+    octaveShift: [-3, 3],
+    octaveRange: [1, 5],
+    harmonicity: [0.5, 10],
+    modulationIndex: [1, 50],
+    dutyCycle: [0.01, 0.99],
+    gateRatio: [0.05, 1],
+    monoCutoff: [20, 10000],
+    monoOctaves: [0, 8],
+    monoQ: [0, 20],
+    duoHarm: [0.5, 10],
+    duoVibrato: [0, 1],
+    pluckDampening: [0, 10000],
+    pluckResonance: [0, 1],
+    pluckNoise: [0, 10],
+    membranePitchDecay: [0, 1],
+    membraneOctaves: [0, 16],
+    envAttack: [0, 2],
+    envDecay: [0, 2],
+    envSustain: [0, 1],
+    envRelease: [0, 5],
+    filterCutoff: [100, 10000],
+    filterResonance: [0, 20],
+    driveMix: [0, 1],
+    chorusMix: [0, 1],
+    autoPanMix: [0, 1],
+    delayMix: [0, 1],
+    reverbMix: [0, 1],
+});
 
 /** @typedef {Record<string, unknown> & {
  *   bpm: number,
+ *   settingsVersion: number,
  *   swing: number,
  *   postGain: number,
  *   baseNotes: readonly string[],
@@ -62,12 +144,27 @@ import { normalizeNotesSequence } from "./pattern-core.js";
  *   loopCount: number,
  *   offlineExportMode: "seamless"|"tail",
  *   offlineExportTailSeconds: number,
- *   notes?: readonly string[]
+ *   notes: readonly string[]
  * }} ArpeggiatorSettings
  */
 
 /** Increment when a persisted settings migration is required. */
 export const SETTINGS_SCHEMA_VERSION = 1;
+
+export class UnsupportedSettingsVersionError extends Error {
+    /** @param {unknown} settingsVersion */
+    constructor(settingsVersion) {
+        super(
+            `Settings version ${settingsVersion} is newer than supported version ${SETTINGS_SCHEMA_VERSION}.`,
+        );
+        this.name = "UnsupportedSettingsVersionError";
+        this.settingsVersion = settingsVersion;
+        this.isFutureVersion =
+            typeof settingsVersion === "number" &&
+            Number.isInteger(settingsVersion) &&
+            settingsVersion > SETTINGS_SCHEMA_VERSION;
+    }
+}
 
 /**
  * Canonical values used when a session begins, settings are reset, or a
@@ -77,6 +174,7 @@ export const SETTINGS_SCHEMA_VERSION = 1;
  * @type {Readonly<ArpeggiatorSettings>}
  */
 export const DEFAULT_SETTINGS = Object.freeze({
+    settingsVersion: SETTINGS_SCHEMA_VERSION,
     bpm: 120,
     swing: 0,
     postGain: -6,
@@ -118,6 +216,7 @@ export const DEFAULT_SETTINGS = Object.freeze({
     loopCount: 4,
     offlineExportMode: "tail",
     offlineExportTailSeconds: 2,
+    notes: Object.freeze(["C4", "C5", "E4", "E5", "G4", "G5"]),
 });
 
 /**
@@ -131,10 +230,18 @@ export const DEFAULT_SETTINGS = Object.freeze({
 export function mergeSettings(defaults, overrides) {
     const baseNotes = overrides.baseNotes ?? defaults.baseNotes;
 
-    return {
+    const merged = {
         ...defaults,
         ...overrides,
+        settingsVersion: SETTINGS_SCHEMA_VERSION,
         baseNotes: [...baseNotes],
+    };
+    return {
+        ...merged,
+        notes: getArpeggioNotes(merged.baseNotes, {
+            octaveRange: merged.octaveRange,
+            octaveShift: merged.octaveShift,
+        }),
     };
 }
 
@@ -184,8 +291,26 @@ function normalizeAllowedValue(value, allowed, fallback) {
  * @param {ArpeggiatorSettings} [fallback=DEFAULT_SETTINGS] - Complete settings used for invalid fields.
  * @returns {ArpeggiatorSettings} A complete, bounded settings snapshot.
  */
-export function normalizeSettings(candidate, fallback = DEFAULT_SETTINGS) {
+export function normalizeSettings(candidate, fallback = DEFAULT_SETTINGS, options = {}) {
     const source = isSettingsRecord(candidate) ? candidate : {};
+    const sourceVersion = source.settingsVersion;
+    const hasExplicitVersion = Object.hasOwn(source, "settingsVersion");
+    if (
+        hasExplicitVersion &&
+        (typeof sourceVersion !== "number" ||
+            !Number.isInteger(sourceVersion) ||
+            sourceVersion < SETTINGS_SCHEMA_VERSION)
+    ) {
+        throw new UnsupportedSettingsVersionError(sourceVersion);
+    }
+    if (
+        !options.allowFutureVersion &&
+        hasExplicitVersion &&
+        typeof sourceVersion === "number" &&
+        sourceVersion > SETTINGS_SCHEMA_VERSION
+    ) {
+        throw new UnsupportedSettingsVersionError(sourceVersion);
+    }
     const sourceNotes = source.baseNotes ?? source.notes;
     const notesInput =
         typeof sourceNotes === "string" ||
@@ -196,15 +321,28 @@ export function normalizeSettings(candidate, fallback = DEFAULT_SETTINGS) {
         typeof notesInput === "string" ? notesInput : [...notesInput],
     );
 
-    return {
-        bpm: normalizeNumber(source.bpm, fallback.bpm, 40, 240),
-        swing: normalizeNumber(source.swing, fallback.swing, 0, 1),
-        postGain: normalizeNumber(source.postGain, fallback.postGain, -40, 0),
+    const settings = {
+        settingsVersion: SETTINGS_SCHEMA_VERSION,
+        bpm: normalizeNumber(source.bpm, fallback.bpm, ...SETTINGS_BOUNDS.bpm),
+        swing: normalizeNumber(source.swing, fallback.swing, ...SETTINGS_BOUNDS.swing),
+        postGain: normalizeNumber(source.postGain, fallback.postGain, ...SETTINGS_BOUNDS.postGain),
         baseNotes: normalizedNotes.length > 0 ? normalizedNotes : [...fallback.baseNotes],
         direction: normalizeAllowedValue(source.direction, ALLOWED_DIRECTIONS, fallback.direction),
         interval: normalizeAllowedValue(source.interval, ALLOWED_INTERVALS, fallback.interval),
-        octaveShift: Math.trunc(normalizeNumber(source.octaveShift, fallback.octaveShift, -3, 3)),
-        octaveRange: Math.trunc(normalizeNumber(source.octaveRange, fallback.octaveRange, 1, 5)),
+        octaveShift: Math.trunc(
+            normalizeNumber(
+                source.octaveShift,
+                fallback.octaveShift,
+                ...SETTINGS_BOUNDS.octaveShift,
+            ),
+        ),
+        octaveRange: Math.trunc(
+            normalizeNumber(
+                source.octaveRange,
+                fallback.octaveRange,
+                ...SETTINGS_BOUNDS.octaveRange,
+            ),
+        ),
         scaleQuantize:
             typeof source.scaleQuantize === "boolean"
                 ? source.scaleQuantize
@@ -213,36 +351,111 @@ export function normalizeSettings(candidate, fallback = DEFAULT_SETTINGS) {
         scaleType: normalizeAllowedValue(source.scaleType, ALLOWED_SCALES, fallback.scaleType),
         synthType: normalizeAllowedValue(source.synthType, ALLOWED_SYNTHS, fallback.synthType),
         waveform: normalizeAllowedValue(source.waveform, ALLOWED_WAVEFORMS, fallback.waveform),
-        harmonicity: normalizeNumber(source.harmonicity, fallback.harmonicity, 0.5, 10),
-        modulationIndex: normalizeNumber(source.modulationIndex, fallback.modulationIndex, 1, 50),
-        dutyCycle: normalizeNumber(source.dutyCycle, fallback.dutyCycle, 0.01, 0.99),
-        gateRatio: normalizeNumber(source.gateRatio, fallback.gateRatio, 0.05, 1),
-        monoCutoff: normalizeNumber(source.monoCutoff, fallback.monoCutoff, 20, 10000),
-        monoOctaves: normalizeNumber(source.monoOctaves, fallback.monoOctaves, 0, 8),
-        monoQ: normalizeNumber(source.monoQ, fallback.monoQ, 0, 20),
-        duoHarm: normalizeNumber(source.duoHarm, fallback.duoHarm, 0.5, 10),
-        duoVibrato: normalizeNumber(source.duoVibrato, fallback.duoVibrato, 0, 1),
-        pluckDampening: normalizeNumber(source.pluckDampening, fallback.pluckDampening, 0, 10000),
-        pluckResonance: normalizeNumber(source.pluckResonance, fallback.pluckResonance, 0, 1),
-        pluckNoise: normalizeNumber(source.pluckNoise, fallback.pluckNoise, 0, 10),
+        harmonicity: normalizeNumber(
+            source.harmonicity,
+            fallback.harmonicity,
+            ...SETTINGS_BOUNDS.harmonicity,
+        ),
+        modulationIndex: normalizeNumber(
+            source.modulationIndex,
+            fallback.modulationIndex,
+            ...SETTINGS_BOUNDS.modulationIndex,
+        ),
+        dutyCycle: normalizeNumber(
+            source.dutyCycle,
+            fallback.dutyCycle,
+            ...SETTINGS_BOUNDS.dutyCycle,
+        ),
+        gateRatio: normalizeNumber(
+            source.gateRatio,
+            fallback.gateRatio,
+            ...SETTINGS_BOUNDS.gateRatio,
+        ),
+        monoCutoff: normalizeNumber(
+            source.monoCutoff,
+            fallback.monoCutoff,
+            ...SETTINGS_BOUNDS.monoCutoff,
+        ),
+        monoOctaves: normalizeNumber(
+            source.monoOctaves,
+            fallback.monoOctaves,
+            ...SETTINGS_BOUNDS.monoOctaves,
+        ),
+        monoQ: normalizeNumber(source.monoQ, fallback.monoQ, ...SETTINGS_BOUNDS.monoQ),
+        duoHarm: normalizeNumber(source.duoHarm, fallback.duoHarm, ...SETTINGS_BOUNDS.duoHarm),
+        duoVibrato: normalizeNumber(
+            source.duoVibrato,
+            fallback.duoVibrato,
+            ...SETTINGS_BOUNDS.duoVibrato,
+        ),
+        pluckDampening: normalizeNumber(
+            source.pluckDampening,
+            fallback.pluckDampening,
+            ...SETTINGS_BOUNDS.pluckDampening,
+        ),
+        pluckResonance: normalizeNumber(
+            source.pluckResonance,
+            fallback.pluckResonance,
+            ...SETTINGS_BOUNDS.pluckResonance,
+        ),
+        pluckNoise: normalizeNumber(
+            source.pluckNoise,
+            fallback.pluckNoise,
+            ...SETTINGS_BOUNDS.pluckNoise,
+        ),
         membranePitchDecay: normalizeNumber(
             source.membranePitchDecay,
             fallback.membranePitchDecay,
-            0,
-            1,
+            ...SETTINGS_BOUNDS.membranePitchDecay,
         ),
-        membraneOctaves: normalizeNumber(source.membraneOctaves, fallback.membraneOctaves, 0, 16),
-        envAttack: normalizeNumber(source.envAttack, fallback.envAttack, 0, 2),
-        envDecay: normalizeNumber(source.envDecay, fallback.envDecay, 0, 2),
-        envSustain: normalizeNumber(source.envSustain, fallback.envSustain, 0, 1),
-        envRelease: normalizeNumber(source.envRelease, fallback.envRelease, 0, 5),
-        filterCutoff: normalizeNumber(source.filterCutoff, fallback.filterCutoff, 100, 10000),
-        filterResonance: normalizeNumber(source.filterResonance, fallback.filterResonance, 0, 20),
-        driveMix: normalizeNumber(source.driveMix, fallback.driveMix, 0, 1),
-        chorusMix: normalizeNumber(source.chorusMix, fallback.chorusMix, 0, 1),
-        autoPanMix: normalizeNumber(source.autoPanMix, fallback.autoPanMix, 0, 1),
-        delayMix: normalizeNumber(source.delayMix, fallback.delayMix, 0, 1),
-        reverbMix: normalizeNumber(source.reverbMix, fallback.reverbMix, 0, 1),
+        membraneOctaves: normalizeNumber(
+            source.membraneOctaves,
+            fallback.membraneOctaves,
+            ...SETTINGS_BOUNDS.membraneOctaves,
+        ),
+        envAttack: normalizeNumber(
+            source.envAttack,
+            fallback.envAttack,
+            ...SETTINGS_BOUNDS.envAttack,
+        ),
+        envDecay: normalizeNumber(source.envDecay, fallback.envDecay, ...SETTINGS_BOUNDS.envDecay),
+        envSustain: normalizeNumber(
+            source.envSustain,
+            fallback.envSustain,
+            ...SETTINGS_BOUNDS.envSustain,
+        ),
+        envRelease: normalizeNumber(
+            source.envRelease,
+            fallback.envRelease,
+            ...SETTINGS_BOUNDS.envRelease,
+        ),
+        filterCutoff: normalizeNumber(
+            source.filterCutoff,
+            fallback.filterCutoff,
+            ...SETTINGS_BOUNDS.filterCutoff,
+        ),
+        filterResonance: normalizeNumber(
+            source.filterResonance,
+            fallback.filterResonance,
+            ...SETTINGS_BOUNDS.filterResonance,
+        ),
+        driveMix: normalizeNumber(source.driveMix, fallback.driveMix, ...SETTINGS_BOUNDS.driveMix),
+        chorusMix: normalizeNumber(
+            source.chorusMix,
+            fallback.chorusMix,
+            ...SETTINGS_BOUNDS.chorusMix,
+        ),
+        autoPanMix: normalizeNumber(
+            source.autoPanMix,
+            fallback.autoPanMix,
+            ...SETTINGS_BOUNDS.autoPanMix,
+        ),
+        delayMix: normalizeNumber(source.delayMix, fallback.delayMix, ...SETTINGS_BOUNDS.delayMix),
+        reverbMix: normalizeNumber(
+            source.reverbMix,
+            fallback.reverbMix,
+            ...SETTINGS_BOUNDS.reverbMix,
+        ),
         loopCount: normalizeLoopCount(source.loopCount ?? fallback.loopCount),
         offlineExportMode: normalizeOfflineExportMode(
             source.offlineExportMode ?? fallback.offlineExportMode,
@@ -250,5 +463,25 @@ export function normalizeSettings(candidate, fallback = DEFAULT_SETTINGS) {
         offlineExportTailSeconds: normalizeOfflineExportTailSeconds(
             source.offlineExportTailSeconds ?? fallback.offlineExportTailSeconds,
         ),
+    };
+    return {
+        ...settings,
+        notes: getArpeggioNotes(settings.baseNotes, {
+            octaveRange: settings.octaveRange,
+            octaveShift: settings.octaveShift,
+        }),
+    };
+}
+
+/** Normalizes every snapshot in a persisted undo/redo history state. */
+export function normalizeSettingsHistory(state, fallback = DEFAULT_SETTINGS) {
+    if (!isSettingsRecord(state) || !Array.isArray(state.past) || !Array.isArray(state.future)) {
+        return null;
+    }
+    if (!isSettingsRecord(state.present)) return null;
+    return {
+        past: state.past.map((snapshot) => normalizeSettings(snapshot, fallback)),
+        present: normalizeSettings(state.present, fallback),
+        future: state.future.map((snapshot) => normalizeSettings(snapshot, fallback)),
     };
 }

@@ -204,6 +204,19 @@ describe("Presets Store Domain Module", () => {
             await expect(get("missing-settings")).resolves.toBeNull();
         });
 
+        it("keeps a future-version record available for an explicit load rejection", async () => {
+            mockStoreData.set("future", {
+                id: "future",
+                savedAt: "2026-09-16T00:00:00Z",
+                settings: { settingsVersion: 2, bpm: 96 },
+            });
+
+            await expect(get("future")).resolves.toMatchObject({
+                id: "future",
+                settings: { settingsVersion: 2, bpm: 96 },
+            });
+        });
+
         it("lists saved presets sorted by savedAt in descending order", async () => {
             await save({ bpm: 100 }, { id: "p1", name: "Preset 1" });
             await save({ bpm: 140 }, { id: "p2", name: "Preset 2" });

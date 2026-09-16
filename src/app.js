@@ -24,7 +24,12 @@ import {
     normalizeNotesSequence,
 } from "@core/pattern-core.js";
 import { generateRandomNotes } from "@core/randomizer.js";
-import { DEFAULT_SETTINGS, mergeSettings } from "@core/settings-contract.js";
+import {
+    DEFAULT_SETTINGS,
+    mergeSettings,
+    normalizeSettingsHistory,
+    UnsupportedSettingsVersionError,
+} from "@core/settings-contract.js";
 import { createSettingsHistory } from "@core/settings-history.js";
 import {
     hasPresetChanges,
@@ -43,6 +48,7 @@ import { createInputFilterController } from "@ui/input-filter-controller.js";
 import { createNoteStepController } from "@ui/note-step-controller.js";
 import { createOnboardingController } from "@ui/onboarding-controller.js";
 import { createEffectsControlsController } from "@ui/effects-controls-controller.js";
+import { createFuturePresetDialogController } from "@ui/future-preset-dialog-controller.js";
 import { createPatternControlsController } from "@ui/pattern-controls-controller.js";
 import { createPresetController } from "@ui/preset-controller.js";
 import { createSynthControlsController } from "@ui/synth-controls-controller.js";
@@ -717,8 +723,15 @@ function initializeApp() {
         getSettings: () => getAllSettings(),
         getHistoryState: () => settingsHistory.exportState(),
         onRestore: (settings, persistedHistory) => {
-            loadAllSettings(settings);
-            settingsHistory.restore(persistedHistory, getAllSettings());
+            const result = loadAllSettings(settings);
+            if (!result.ok) return;
+            let history = null;
+            try {
+                history = normalizeSettingsHistory(persistedHistory, getAllSettings());
+            } catch {
+                history = null;
+            }
+            settingsHistory.restore(history, getAllSettings());
             if (getSelectedPatternDirection()) {
                 setSelectedPatternDirection(getSelectedPatternDirection());
             } else {
@@ -1381,15 +1394,17 @@ function initializeApp() {
      * Applies a settings replacement and records it as a single history action.
      *
      * @param {Record<string, unknown>} settings - Replacement settings.
-     * @returns {void}
+     * @returns {{ok: boolean, settings?: import("./core/settings-contract.js").ArpeggiatorSettings, error?: unknown}}
      */
-    function applySettingsWithHistory(settings) {
+    function applySettingsWithHistory(settings, options = {}) {
         settingsHistory.endTransaction();
-        loadAllSettings(settings);
+        const result = loadAllSettings(settings, options);
+        if (!result.ok) return result;
         recordCurrentSettings();
         clearActiveSoundStarterCard();
         scheduleLastSessionSave();
         debouncedRenderStaticLoop();
+        return result;
     }
 
     /**
@@ -2422,6 +2437,27 @@ function initializeApp() {
         loadPresetInput.click();
     });
 
+    function saveImportedPreset(settings, file) {
+        presetStore
+            .save(settings, { filename: file.name, name: file.name, source: "import" })
+            .then((record) => refreshSavedPresetList(record.id))
+            .catch((error) => {
+                console.warn("Failed to save imported preset:", error);
+                showBrowserStorageRecovery();
+            });
+    }
+
+    const futurePresetDialogController = createFuturePresetDialogController({
+        getReturnFocus: () => loadPresetButton,
+        onConfirm: (settings, fileName) => {
+            const result = applySettingsWithHistory(settings, { allowFutureVersion: true });
+            if (result.ok) {
+                saveImportedPreset(getAllSettings(), { name: fileName });
+                showToast("Loaded compatible settings from newer preset.", "info");
+            }
+        },
+    });
+
     loadPresetInput.addEventListener("change", (event) => {
         const target = /** @type {HTMLInputElement} */ (event.target);
         const file = target.files ? target.files[0] : null;
@@ -2432,20 +2468,18 @@ function initializeApp() {
             if (fileReaderTarget && typeof fileReaderTarget.result === "string") {
                 try {
                     const settings = JSON.parse(fileReaderTarget.result);
-                    applySettingsWithHistory(settings);
-                    const restoredSettings = getAllSettings();
-                    presetStore
-                        .save(restoredSettings, {
-                            filename: file.name,
-                            name: file.name,
-                            source: "import",
-                        })
-                        .then((record) => refreshSavedPresetList(record.id))
-                        .catch((er) => {
-                            console.warn("Failed to save imported preset:", er);
-                            showBrowserStorageRecovery();
-                        });
-                    showToast("Preset loaded!", "success");
+                    const result = applySettingsWithHistory(settings);
+                    if (result.ok) {
+                        saveImportedPreset(getAllSettings(), file);
+                        showToast("Preset loaded!", "success");
+                    } else if (
+                        result.error instanceof UnsupportedSettingsVersionError &&
+                        result.error.isFutureVersion
+                    ) {
+                        futurePresetDialogController.open(settings, file.name);
+                    } else {
+                        showToast("Failed to load preset.", "error");
+                    }
                 } catch (err) {
                     console.error("Failed to load preset:", err);
                     showToast("Failed to load preset.", "error");
@@ -2479,7 +2513,11 @@ function initializeApp() {
                     showToast("No saved preset found yet.", "info");
                     return;
                 }
-                applySettingsWithHistory(record.settings || record);
+                const result = applySettingsWithHistory(record.settings || record);
+                if (!result.ok) {
+                    showToast("Saved preset requires a newer version of Web Arpeggiator.", "error");
+                    return;
+                }
                 if (presetNameInput) presetNameInput.value = record.name || record.filename || "";
                 await refreshSavedPresetList(record.id);
                 showToast("Loaded saved preset from browser storage.", "success");

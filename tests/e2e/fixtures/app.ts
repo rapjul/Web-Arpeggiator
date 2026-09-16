@@ -14,8 +14,8 @@ export type DownloadedFile = {
 
 /**
  * Opens the production-preview PWA and waits until its service worker controls
- * the page. A reload is required before a first-time registration controls the
- * current document.
+ * the reloaded page. A first-time registration cannot control the document
+ * that created it, so control is checked only after that navigation.
  */
 export async function openPwa(page: Page): Promise<void> {
     await page.goto("/index.html?pwa=true", { waitUntil: "domcontentloaded" });
@@ -27,11 +27,10 @@ export async function openPwa(page: Page): Promise<void> {
             }),
         )
         .toBe(true);
+    await page.reload({ waitUntil: "domcontentloaded" });
     await expect
         .poll(() => page.evaluate(() => navigator.serviceWorker?.controller !== null))
         .toBe(true);
-
-    await page.reload({ waitUntil: "domcontentloaded" });
     await expect(page.locator("#notes")).toBeVisible();
 }
 
