@@ -1,213 +1,71 @@
-import { expect, test } from "./test-helpers";
 import {
-    exportCurrentPatternMidiNotes,
-    initializeAudio,
-    resetBrowserState,
-    runBrowser,
-    waitForPwaReady,
-} from "./test-helpers";
+    downloadCurrentPatternMidi,
+    expect,
+    extractMidiNoteOns,
+    startAudio,
+    test,
+} from "./fixtures/app";
 
-/**
- * The port number for the test server instance.
- * @type {number}
- */
-const PORT: number = 4176;
+test("plays, labels, and adds notes through the virtual keyboard", async ({ pwaPage: page }) => {
+    await startAudio(page);
 
-/**
- * The root URL of the running application.
- * @type {string}
- */
-const APP_URL: string = `http://127.0.0.1:${PORT}/index.html`;
+    const c4Key = page.locator(".piano-key[data-note='C4']");
+    const keyboardToggle = page.locator("#keyboard-toggle");
+    await page.locator("#keyboard-details > summary").click();
+    await page.locator("label").filter({ has: keyboardToggle }).click();
+    await expect(keyboardToggle).toBeChecked();
+    await page.getByRole("heading", { name: "Web Arpeggiator" }).click();
+    await page.keyboard.down("z");
+    await expect(c4Key).toHaveClass(/active/);
+    await page.keyboard.up("z");
+    await expect(c4Key).not.toHaveClass(/active/);
+    await expect(c4Key.locator(".key-pitch-label")).toHaveText("C4");
 
-test("Keyboard Controls & Scale Quantizer Suite", async (): Promise<void> => {
-    console.log("Starting Keyboard Controls & Scale Quantizer Integration Suite...");
+    await page.locator("#notes").fill("C4 E4");
+    await page.locator("#notes").dispatchEvent("change");
+    await page.locator("#keyboard-mode-add").click();
+    await page.locator(".piano-key[data-note='G4']").click();
+    await expect(page.locator("#notes")).toHaveValue(/G4/);
+    await page.locator("#keyboard-mode-add").click();
+});
 
-    // 1. Wait for PWA page and registration to complete
-    console.log("Step 1: Waiting for PWA ready...");
-    await waitForPwaReady(APP_URL);
+test("quantizes exported notes to the selected scale", async ({ pwaPage: page }) => {
+    await startAudio(page);
 
-    console.log("Step 1b: Resetting browser state...");
-    await resetBrowserState();
+    await page.locator("input[name='octave-range'][value='1']").check({ force: true });
+    await page.locator("#loop-count").fill("1");
+    await page.locator("#scale-root").selectOption("C");
+    await page.locator("#scale-type").selectOption("major");
+    await page.locator("#scale-quantize-toggle").check();
+    await page.locator("#notes").fill("C4 D4 E4 F4 G#4");
+    await page.locator("#notes").dispatchEvent("change");
 
-    // 2. Initialize Audio playback
-    console.log("Step 2: Initializing audio...");
-    await initializeAudio();
+    await expect(page.locator("#scale-quantize-toggle")).toBeChecked();
+    await expect(page.locator("#notes")).toHaveValue("C4 D4 E4 F4 G#4");
+    const download = await downloadCurrentPatternMidi(page);
+    expect(extractMidiNoteOns(download.bytes)).toEqual([60, 62, 64, 65, 67]);
+});
 
-    // 3. Verify Virtual Keyboard UI Interactions
-    console.log("Step 3: Testing virtual keyboard controls...");
-    const keyboardResult: string = await runBrowser([
-        "eval",
-        `(async () => {
-        const keyboardToggle = document.getElementById('keyboard-toggle');
-        
-        // Enable the keyboard
-        keyboardToggle.checked = true;
-        keyboardToggle.dispatchEvent(new Event('change'));
+test("keeps the scale type and quantization toggle synchronized", async ({ pwaPage: page }) => {
+    await startAudio(page);
 
-        // Trigger keydown on window for key 'z' (maps to C4)
-        const eventDown = new KeyboardEvent('keydown', { key: 'z' });
-        window.dispatchEvent(eventDown);
+    const quantizeToggle = page.locator("#scale-quantize-toggle");
+    const scaleType = page.locator("#scale-type");
+    const status = page.locator("#scale-quantize-toggle-status");
 
-        // Verify key highlight active state
-        const keyEl = document.querySelector('.piano-key[data-note="C4"]');
-        if (!keyEl) {
-            return 'missing-c4-key';
-        }
-        if (!keyEl.classList.contains('active')) {
-            return 'key-not-active';
-        }
+    await scaleType.selectOption("chromatic");
+    await expect(quantizeToggle).not.toBeChecked();
+    await expect(status).toHaveText("Disabled");
+    await expect(scaleType).toBeEnabled();
 
-        // Trigger keyup on window for key 'z'
-        const eventUp = new KeyboardEvent('keyup', { key: 'z' });
-        window.dispatchEvent(eventUp);
+    await scaleType.selectOption("minor");
+    await expect(quantizeToggle).toBeChecked();
+    await expect(status).toHaveText("Enabled");
 
-        // Verify highlight is cleared
-        if (keyEl.classList.contains('active')) {
-            return 'key-remained-active';
-        }
+    await quantizeToggle.uncheck();
+    await expect(scaleType).toHaveValue("chromatic");
+    await expect(scaleType).toBeEnabled();
 
-        // Verify pitch label is rendered
-        const pitchLabelEl = keyEl.querySelector('.key-pitch-label');
-        if (!pitchLabelEl || pitchLabelEl.textContent !== 'C4') {
-            return 'missing-or-invalid-pitch-label';
-        }
-
-        // Test "Add to Pattern" mode
-        const addModeBtn = document.getElementById('keyboard-mode-add');
-        const notesInput = document.getElementById('notes');
-        if (addModeBtn && notesInput) {
-            notesInput.value = 'C4 E4';
-            notesInput.dispatchEvent(new Event('change'));
-
-            // Enable Add to Pattern mode
-            addModeBtn.click();
-
-            // Click piano key for G4
-            const g4Key = document.querySelector('.piano-key[data-note="G4"]');
-            if (g4Key) {
-                g4Key.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
-                g4Key.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
-
-                // Verify notes input was appended
-                if (!notesInput.value.includes('G4')) {
-                    return 'add-to-pattern-failed: notes value is ' + notesInput.value;
-                }
-            }
-
-            // Disable Add to Pattern mode
-            addModeBtn.click();
-        }
-
-        return 'success';
-    })()`,
-    ]);
-    expect(keyboardResult).toBe('"success"');
-
-    // 4. Verify Scale Quantizer snapping behavior
-    console.log("Step 4: Testing scale quantization snapping...");
-    const quantizerResult: string = await runBrowser([
-        "eval",
-        `(async () => {
-        const quantizeToggle = document.getElementById('scale-quantize-toggle');
-        const scaleRoot = document.getElementById('scale-root');
-        const scaleType = document.getElementById('scale-type');
-        const notesInput = document.getElementById('notes');
-        const singleOctave = document.querySelector('input[name="octave-range"][value="1"]');
-        const loopCount = document.getElementById('loop-count');
-
-        // Keep this assertion focused on the five base notes rather than the
-        // app's interleaved multi-octave sequence.
-        if (!singleOctave || !loopCount) {
-            return 'missing-export-setup-control';
-        }
-        singleOctave.checked = true;
-        singleOctave.dispatchEvent(new Event('change', { bubbles: true }));
-        loopCount.value = '1';
-        loopCount.dispatchEvent(new Event('change', { bubbles: true }));
-
-        // Enable scale quantization, set to C Major
-        quantizeToggle.checked = true;
-        quantizeToggle.dispatchEvent(new Event('change'));
-        scaleRoot.value = 'C';
-        scaleRoot.dispatchEvent(new Event('change'));
-        scaleType.value = 'major';
-        scaleType.dispatchEvent(new Event('change'));
-
-        // Set base notes containing G#4 (which is out of C Major scale)
-        notesInput.value = 'C4 D4 E4 F4 G#4';
-        notesInput.dispatchEvent(new Event('change'));
-
-        // Wait for the control change to propagate through the application.
-        await new Promise((resolve) => setTimeout(resolve, 100));
-
-        if (!quantizeToggle.checked || scaleRoot.value !== 'C' || scaleType.value !== 'major') {
-            return 'quantizer-controls-not-applied';
-        }
-        if (notesInput.value !== 'C4 D4 E4 F4 G#4') return 'notes-not-applied';
-
-        return 'success';
-    })()`,
-    ]);
-    expect(quantizerResult).toBe('"success"');
-    expect(await exportCurrentPatternMidiNotes()).toEqual([60, 62, 64, 65, 67]);
-
-    // 5. Verify Scale Quantizer 13-State Dropdown <-> Toggle Synchronization
-    console.log("Step 5: Testing bidirectional scale quantization sync...");
-    const syncResult: string = await runBrowser([
-        "eval",
-        `(async () => {
-        const quantizeToggle = document.getElementById('scale-quantize-toggle');
-        const scaleType = document.getElementById('scale-type');
-        const statusLabel = document.getElementById('scale-quantize-toggle-status');
-
-        // 1. Select 'chromatic' in dropdown -> should uncheck toggle and update status
-        scaleType.value = 'chromatic';
-        scaleType.dispatchEvent(new Event('change'));
-
-        if (quantizeToggle.checked) {
-            return 'sync-failed: toggle remained checked after selecting chromatic';
-        }
-        if (statusLabel.textContent !== 'Disabled') {
-            return 'sync-failed: status not Disabled after chromatic: ' + statusLabel.textContent;
-        }
-        if (scaleType.disabled) {
-            return 'lockout-bug: scaleType select was disabled!';
-        }
-
-        // 2. Select 'minor' in dropdown -> should check toggle and update status
-        scaleType.value = 'minor';
-        scaleType.dispatchEvent(new Event('change'));
-
-        if (!quantizeToggle.checked) {
-            return 'sync-failed: toggle not checked after selecting minor';
-        }
-        if (statusLabel.textContent !== 'Enabled') {
-            return 'sync-failed: status not Enabled after selecting minor: ' + statusLabel.textContent;
-        }
-
-        // 3. Uncheck toggle -> dropdown should change to 'chromatic'
-        quantizeToggle.checked = false;
-        quantizeToggle.dispatchEvent(new Event('change'));
-
-        if (scaleType.value !== 'chromatic') {
-            return 'sync-failed: scaleType did not change to chromatic on toggle off: ' + scaleType.value;
-        }
-        if (scaleType.disabled) {
-            return 'lockout-bug: scaleType select was disabled after toggle off!';
-        }
-
-        // 4. Check toggle -> dropdown should restore 'minor'
-        quantizeToggle.checked = true;
-        quantizeToggle.dispatchEvent(new Event('change'));
-
-        if (scaleType.value !== 'minor') {
-            return 'sync-failed: scaleType did not restore minor on toggle on: ' + scaleType.value;
-        }
-
-        return 'success';
-    })()`,
-    ]);
-    expect(syncResult).toBe('"success"');
-
-    console.log("Keyboard Controls & Scale Quantizer Integration Suite complete!");
-}, 30000);
+    await quantizeToggle.check();
+    await expect(scaleType).toHaveValue("minor");
+});

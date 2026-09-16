@@ -208,7 +208,7 @@ bun run test:e2e
 bun run test:all
 ```
 
-`bun run test:e2e` installs Chromium when it is missing; Playwright skips the download when the matching browser is already installed. See [ADR 0011](./docs/adr/0011-playwright-browser-testing.md) for the runner boundary and test-design constraints.
+`bun run test:e2e` installs Chromium when it is missing; Playwright skips the download when the matching browser is already installed. See [ADR 0011](./docs/adr/0011-playwright-browser-testing.md) for the runner boundary and [ADR 0012](./docs/adr/0012-observable-playwright-synchronization-and-artifact-validation.md) for browser-test design constraints.
 
 ## Browser Support
 

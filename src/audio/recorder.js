@@ -285,11 +285,30 @@ export function createRecorderManager(context) {
         dom.exportButton.textContent = "Exporting...";
 
         const filename = actions.generateFilename(true);
+        let decodedRecording = null;
+        const decodeRecording = async () => {
+            if (!decodedRecording) {
+                decodedRecording = await Tone.getContext().decodeAudioData(
+                    await liveRecordedWavBlob.arrayBuffer(),
+                );
+            }
+            return decodedRecording;
+        };
 
         if (dom.realtimeExportWavCheck.checked) {
             dom.recordStatus.textContent = "Exporting WAV...";
             actions.showToast("Exporting WAV...", "info");
-            downloadBlob(liveRecordedWavBlob, `${filename}.wav`);
+            try {
+                const wavBlob = audioBufferToWav(await decodeRecording());
+                downloadBlob(wavBlob, `${filename}.wav`);
+            } catch (error) {
+                console.error("WAV encoding failed:", error);
+                dom.recordStatus.textContent = "WAV encoding failed. See console.";
+                actions.showToast("WAV encoding failed.", "error");
+                dom.exportButton.disabled = false;
+                dom.exportButton.textContent = "Export Files";
+                return;
+            }
             actions.showToast("Exported WAV file!", "info");
 
             if (dom.realtimeExportMp3Check.checked) {
@@ -301,9 +320,7 @@ export function createRecorderManager(context) {
             dom.recordStatus.textContent = "Encoding MP3... (this may take a moment)";
             actions.showToast("Encoding MP3...", "info");
             try {
-                const audioBuffer = await Tone.getContext().decodeAudioData(
-                    await liveRecordedWavBlob.arrayBuffer(),
-                );
+                const audioBuffer = await decodeRecording();
                 const mp3Blob = await audioBufferToMp3Blob(audioBuffer);
                 downloadBlob(mp3Blob, `${filename}.mp3`);
 

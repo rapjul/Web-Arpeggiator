@@ -27,7 +27,7 @@ Chosen option: **Option 1 (Vitest with `@vitest/coverage-v8`)**, because:
 * Vitest shares the existing `vite.config.js` configuration and path aliases directly via `mergeConfig()`.
 * The V8 coverage provider provides fast AST-level statement, branch, function, and line metrics without requiring source transformation or Babel instrumentation.
 * Vitest natively supports `happy-dom` for fast DOM and Web Audio mocking.
-* Automated threshold gates are configured directly in `./vitest.config.ts` (80% statements, 70% branches, 80% functions, 80% lines).
+* Automated threshold gates are configured directly in `./vitest.config.ts`. The current global ratchet is 72% statements, 64% branches, 62% functions, and 73% lines; the long-term target is 80% statements, 70% branches, 80% functions, and 80% lines when meaningful unit coverage supports each increase.
 
 ### Positive Consequences
 
