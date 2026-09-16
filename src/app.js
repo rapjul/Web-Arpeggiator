@@ -39,6 +39,8 @@ import { initializePwa } from "@pwa/pwa.js";
 import { presetStore } from "@storage/presets-store.js";
 import { debounce } from "@storage/session-manager.js";
 import { createSettingsManager } from "@storage/settings-manager.js";
+import { createAudioRuntimeController } from "@audio/runtime-controller.js";
+import { createPlaybackController } from "@audio/playback-controller.js";
 import { initializeKeyboardControls } from "@ui/keyboard-controller.js";
 import { createHistoryController } from "@ui/history-controller.js";
 import { createInputFilterController } from "@ui/input-filter-controller.js";
@@ -55,6 +57,13 @@ import { createWorkspaceController } from "@ui/workspace-controller.js";
 import { FACTORY_PRESETS } from "./config/factory-presets.js";
 
 /** @typedef {import("./config/factory-presets.js").FactoryPreset} FactoryPreset */
+
+/** @typedef {{value: number}} NumericAudioParam */
+/** @typedef {{oscillator: {width: NumericAudioParam}, harmonicity: NumericAudioParam, modulationIndex: NumericAudioParam, filterEnvelope: {baseFrequency: number, octaves: number}, filter: {Q: NumericAudioParam}, vibratoAmount: NumericAudioParam, dampening: number, resonance: number, attackNoise: number, pitchDecay: number, octaves: number}} ActiveSynthLike */
+/** @typedef {{activeSynth: ActiveSynthLike, currentWaveform: string, setSynth: (type: string) => void, updateEnvelope: () => void, postGain: {volume: NumericAudioParam}, distortion: {wet: NumericAudioParam}, filter: {frequency: NumericAudioParam, Q: NumericAudioParam}, chorus: {wet: NumericAudioParam}, autoPanner: {wet: NumericAudioParam}, delay: {wet: NumericAudioParam}, reverb: {wet: NumericAudioParam}, createOfflineChain: (context: unknown, settings: unknown) => {offlineSynth: {triggerAttackRelease: (note: string, duration: number, time: number) => void}}}} AudioEngineLike */
+/** @typedef {{update: (settings: object) => object|null, getPattern: () => {start: () => void, stop: () => void}|null, dispose: () => void}} PatternControllerLike */
+/** @typedef {{isRecording: boolean, toggleRecording: () => Promise<void>, exportRealtime: () => Promise<void>, exportOffline: () => Promise<void>, initRecorder: () => Promise<void>}} RecorderManagerLike */
+/** @typedef {{currentMode: string, toggle: () => void, startUiLoop: () => void, stopUiLoop: () => void, onManualNoteAttack: () => void, onManualNoteRelease: () => void, updateStaticLoopMap: (buffer: unknown, markers: unknown) => void}} VisualizerLike */
 
 // --- Global Config ---
 // Keep development diagnostics out of production bundles.
@@ -101,83 +110,20 @@ function hasOscillatorWidth(oscillator) {
 
 // --- Application State ---
 let isAudioContextStarted = false;
-let initializeAudioRuntime = null;
-let audioStartPromise = null;
-let audioModulesPromise = null;
-let notifyAudioReady = () => {};
-let notifyAudioFailure = () => {};
 let Tone;
-let createAudioEngine;
-let createPatternController;
-let createRecorderManager;
-let createVisualizer;
+let audioRuntimeController = null;
+let playbackController = null;
 
 /**
- * Loads Tone.js and every module that imports it only from an explicit audio
- * activation. Tone's package entry creates a Transport during module
- * evaluation, so a static import would create Web Audio before a user gesture.
+ * Starts the deferred audio runtime from a user-initiated action.
  *
  * @returns {Promise<void>}
  */
-async function loadAudioModules() {
-    if (!audioModulesPromise) {
-        audioModulesPromise = Promise.all([
-            import("tone"),
-            import("@audio/audio-engine.js"),
-            import("@audio/pattern-generator.js"),
-            import("@audio/recorder.js"),
-            import("@ui/visualizer.js"),
-        ])
-            .then(([tone, audioEngineModule, patternModule, recorderModule, visualizerModule]) => {
-                Tone = tone;
-                ({ createAudioEngine } = audioEngineModule);
-                ({ createPatternController } = patternModule);
-                ({ createRecorderManager } = recorderModule);
-                ({ createVisualizer } = visualizerModule);
-            })
-            .catch((error) => {
-                audioModulesPromise = null;
-                throw error;
-            });
+function startAudio() {
+    if (!audioRuntimeController) {
+        return Promise.reject(new Error("Audio runtime is not initialized."));
     }
-    return audioModulesPromise;
-}
-
-/**
- * Starts the Tone.js AudioContext when the user interacts with the page.
- * @returns {Promise<void>}
- */
-async function startAudio() {
-    if (isAudioContextStarted && Tone?.getContext().state === "running") return;
-
-    if (!audioStartPromise) {
-        audioStartPromise = (async () => {
-            try {
-                // Accessing the context and resuming it must both happen inside the
-                // user-initiated handler that called startAudio.
-                await loadAudioModules();
-                const context = Tone.getContext();
-                if (context.state !== "running") {
-                    await Tone.start();
-                }
-                if (typeof initializeAudioRuntime !== "function") {
-                    throw new Error("Audio runtime is not initialized.");
-                }
-                await initializeAudioRuntime();
-                isAudioContextStarted = true;
-                log("AudioContext resumed successfully.");
-                notifyAudioReady();
-            } catch (err) {
-                console.error("AudioContext failed to start/resume:", err);
-                notifyAudioFailure();
-                throw err;
-            }
-        })().finally(() => {
-            audioStartPromise = null;
-        });
-    }
-
-    return audioStartPromise;
+    return audioRuntimeController.startAudio();
 }
 
 // --- DOMContentLoaded: Main Setup ---
@@ -504,28 +450,45 @@ function initializeApp() {
     // --- State ---
     let isPlaying = false;
     let currentNotes = ["C4", "E4", "G4"];
-    let arpPattern = null;
-    let patternController;
     let currentOctaveShift = 0;
     let currentOctaveRange = 2;
     let activeNote = null;
     let currentWaveform = "sine";
-    let audioEngine;
-    let pendingAudioEngine = null;
-    let recorderManager;
-    let visualizer;
-    let audioRuntimePromise = null;
-    let observedRawAudioContext = null;
-    let audioContextStateListener = null;
 
     /**
      * Returns the engine being assembled, if any, so settings can be applied
      * before the fully constructed runtime is published.
      *
-     * @returns {ReturnType<typeof createAudioEngine>|null|undefined} The available engine.
+     * @returns {AudioEngineLike|null|undefined} The available engine.
      */
     function getAvailableAudioEngine() {
-        return audioEngine || pendingAudioEngine;
+        return /** @type {AudioEngineLike|null|undefined} */ (
+            audioRuntimeController?.getAvailableAudioEngine()
+        );
+    }
+
+    /** @returns {AudioEngineLike|undefined} The published live audio engine. */
+    function getAudioEngine() {
+        return /** @type {AudioEngineLike|undefined} */ (audioRuntimeController?.getAudioEngine());
+    }
+
+    /** @returns {RecorderManagerLike|undefined} The published recorder manager. */
+    function getRecorderManager() {
+        return /** @type {RecorderManagerLike|undefined} */ (
+            audioRuntimeController?.getRecorderManager()
+        );
+    }
+
+    /** @returns {VisualizerLike|undefined} The published visualizer. */
+    function getVisualizer() {
+        return /** @type {VisualizerLike|undefined} */ (audioRuntimeController?.getVisualizer());
+    }
+
+    /** @returns {PatternControllerLike|undefined} The published pattern controller. */
+    function getPatternController() {
+        return /** @type {PatternControllerLike|undefined} */ (
+            audioRuntimeController?.getPatternController()
+        );
     }
 
     // --- App State Object (for injected modules) ---
@@ -611,20 +574,19 @@ function initializeApp() {
             updateEstimatedExportDuration();
             return;
         }
-        arpPattern =
-            patternController?.update({
-                baseNotes: currentNotes,
-                octaveRange: currentOctaveRange,
-                octaveShift: currentOctaveShift,
-                interval: intervalSelect.value,
-                gate: parseFloat(gateSlider.value),
-                direction: patternControlsController.getSelectedPatternDirection(),
-                quantize: {
-                    enabled: scaleQuantizeToggle.checked,
-                    root: scaleRootSelect.value,
-                    scale: scaleTypeSelect.value,
-                },
-            }) ?? null;
+        getPatternController()?.update({
+            baseNotes: currentNotes,
+            octaveRange: currentOctaveRange,
+            octaveShift: currentOctaveShift,
+            interval: intervalSelect.value,
+            gate: parseFloat(gateSlider.value),
+            direction: patternControlsController.getSelectedPatternDirection(),
+            quantize: {
+                enabled: scaleQuantizeToggle.checked,
+                root: scaleRootSelect.value,
+                scale: scaleTypeSelect.value,
+            },
+        }) ?? null;
         // Rebuild the note step indicator pips to match the new note count
         noteStepController.rebuild();
         updateEstimatedExportDuration();
@@ -708,15 +670,6 @@ function initializeApp() {
         logger: log,
     });
     const { showToast } = toastManager;
-
-    notifyAudioReady = () => {
-        if (SHOW_AUDIO_READY_TOAST) {
-            showToast("Audio is ready!", "success");
-        }
-    };
-    notifyAudioFailure = () => {
-        showToast("Audio failed to start. See console.", "error");
-    };
 
     const inputFilterController = createInputFilterController({
         dom: { notesInput, loopCountInput },
@@ -948,11 +901,13 @@ function initializeApp() {
         actions: {
             getCurrentTime: () => Tone?.now() ?? 0,
             onNoteAttack: () => {
+                const visualizer = getVisualizer();
                 if (visualizer && typeof visualizer.onManualNoteAttack === "function") {
                     visualizer.onManualNoteAttack();
                 }
             },
             onNoteRelease: () => {
+                const visualizer = getVisualizer();
                 if (visualizer && typeof visualizer.onManualNoteRelease === "function") {
                     visualizer.onManualNoteRelease();
                 }
@@ -961,186 +916,112 @@ function initializeApp() {
     });
     const { updateKeyboardControlUi } = keyboardControls;
 
-    /**
-     * Creates the real-time Tone graph only after Tone.start() has resumed the
-     * context from an explicit user action.
-     *
-     * @returns {Promise<void>}
-     */
-    initializeAudioRuntime = async () => {
-        if (audioEngine) return;
-        if (!audioRuntimePromise) {
-            audioRuntimePromise = (async () => {
-                let nextAudioEngine;
-                let nextVisualizer;
-                let nextRecorderManager;
+    audioRuntimeController = createAudioRuntimeController({
+        dom: {
+            audioEngine: {
+                advancedSynthParams,
+                harmonicityControl,
+                modIndexControl,
+                carrierLabel,
+                waveformPluckOverlay,
+                dutyControl,
+                basicSynthParams,
+                waveformButtons,
+                monoSynthParams,
+                duoSynthParams,
+                pluckSynthParams,
+                membraneSynthParams,
+                harmonicitySlider,
+                modIndexSlider,
+                monoCutoffSlider,
+                monoOctavesSlider,
+                monoQSlider,
+                duoHarmSlider,
+                duoVibratoSlider,
+                pluckDampeningSlider,
+                pluckResonanceSlider,
+                pluckNoiseSlider,
+                membranePitchDecaySlider,
+                membraneOctavesSlider,
+                envAttackSlider,
+                envDecaySlider,
+                envSustainSlider,
+                envReleaseSlider,
+                driveMixSlider,
+                chorusMixSlider,
+                autoPanMixSlider,
+            },
+            visualizer: {
+                visualizerYAxisCanvas,
+                visualizerViewport,
+                visualizerPlotCanvas,
+                toggleVisualizerButton,
+                visualizerModeSelect,
+                pauseVisualizerButton,
+                visualizerZoomSlider,
+                visualizerZoomValue,
+                oscilloscopeWindowSelect,
+                oscilloscopeWindowContainer,
+                vuMeterBar,
+                vuDbValue,
+                vuClipContainer,
+                vuClipIndicator,
+                vuClipTooltip,
+                vuInfoButton,
+                vuInfoTooltip,
+                envReleaseSlider,
+                recordButton,
+            },
+            recorder: {
+                recordButton,
+                recordStatus,
+                exportControls,
+                realtimeExportWavCheck,
+                realtimeExportMp3Check,
+                exportButton,
+                offlineExportWavCheck,
+                offlineExportMp3Check,
+                offlineExportButton,
+                offlineExportStatus,
+                loopCountInput,
+                envAttackSlider,
+                envDecaySlider,
+                envSustainSlider,
+                envReleaseSlider,
+            },
+        },
+        state: appState,
+        getAllSettings,
+        loadAllSettings,
+        showToast,
+        generateFilename,
+        formatTime,
+        startAudio,
+        startPlayback,
+        onPatternStep: noteStepController.highlight,
+        onPatternChange: () => {},
+        onToneLoaded: (tone) => {
+            Tone = tone;
+        },
+        onAudioReady: () => {
+            if (SHOW_AUDIO_READY_TOAST) showToast("Audio is ready!", "success");
+        },
+        onContextReady: () => playbackController?.observeAudioContextState(),
+        logger: console,
+    });
 
-                try {
-                    nextAudioEngine = createAudioEngine({
-                        dom: {
-                            advancedSynthParams,
-                            harmonicityControl,
-                            modIndexControl,
-                            carrierLabel,
-                            waveformPluckOverlay,
-                            dutyControl,
-                            basicSynthParams,
-                            waveformButtons,
-                            monoSynthParams,
-                            duoSynthParams,
-                            pluckSynthParams,
-                            membraneSynthParams,
-                            harmonicitySlider,
-                            modIndexSlider,
-                            monoCutoffSlider,
-                            monoOctavesSlider,
-                            monoQSlider,
-                            duoHarmSlider,
-                            duoVibratoSlider,
-                            pluckDampeningSlider,
-                            pluckResonanceSlider,
-                            pluckNoiseSlider,
-                            membranePitchDecaySlider,
-                            membraneOctavesSlider,
-                            envAttackSlider,
-                            envDecaySlider,
-                            envSustainSlider,
-                            envReleaseSlider,
-                            driveMixSlider,
-                            chorusMixSlider,
-                            autoPanMixSlider,
-                        },
-                    });
-                    nextAudioEngine.currentWaveform = currentWaveform;
-
-                    nextVisualizer = createVisualizer({
-                        dom: {
-                            visualizerYAxisCanvas,
-                            visualizerViewport,
-                            visualizerPlotCanvas,
-                            toggleVisualizerButton,
-                            visualizerModeSelect,
-                            pauseVisualizerButton,
-                            visualizerZoomSlider,
-                            visualizerZoomValue,
-                            oscilloscopeWindowSelect,
-                            oscilloscopeWindowContainer,
-                            vuMeterBar,
-                            vuDbValue,
-                            vuClipContainer,
-                            vuClipIndicator,
-                            vuClipTooltip,
-                            vuInfoButton,
-                            vuInfoTooltip,
-                            envReleaseSlider,
-                        },
-                        audio: {
-                            analyser: nextAudioEngine.analyser,
-                            meter: nextAudioEngine.meter,
-                            peakAnalyser: nextAudioEngine.peakAnalyser,
-                        },
-                        state: {
-                            get isRecording() {
-                                return recorderManager ? recorderManager.isRecording : false;
-                            },
-                            get recordingStartTime() {
-                                return recorderManager ? recorderManager.recordingStartTime : 0;
-                            },
-                            get isPlaying() {
-                                return isPlaying;
-                            },
-                            get activeNote() {
-                                return activeNote;
-                            },
-                            recordButton,
-                        },
-                        actions: { formatTime },
-                    });
-
-                    nextRecorderManager = createRecorderManager({
-                        audio: {
-                            reverb: nextAudioEngine.reverb,
-                            synths: nextAudioEngine.synths,
-                            createOfflineChain: nextAudioEngine.createOfflineChain,
-                        },
-                        dom: {
-                            recordButton,
-                            recordStatus,
-                            exportControls,
-                            realtimeExportWavCheck,
-                            realtimeExportMp3Check,
-                            exportButton,
-                            offlineExportWavCheck,
-                            offlineExportMp3Check,
-                            offlineExportButton,
-                            offlineExportStatus,
-                            loopCountInput,
-                            envAttackSlider,
-                            envDecaySlider,
-                            envSustainSlider,
-                            envReleaseSlider,
-                        },
-                        state: {
-                            get isAudioContextStarted() {
-                                return isAudioContextStarted;
-                            },
-                            get isPlaying() {
-                                return isPlaying;
-                            },
-                        },
-                        actions: {
-                            showToast,
-                            startUiLoop: nextVisualizer.startUiLoop,
-                            stopUiLoop: nextVisualizer.stopUiLoop,
-                            getAllSettings,
-                            generateFilename,
-                            formatTime,
-                            startAudio,
-                            startPlayback,
-                        },
-                    });
-
-                    // Apply any URL, session, or form state accumulated before audio
-                    // activation before publishing the finished audio runtime.
-                    pendingAudioEngine = nextAudioEngine;
-                    patternController = createPatternController({
-                        getSynth: () => getAvailableAudioEngine()?.activeSynth || null,
-                        getIsPlaying: () => isPlaying,
-                        onPatternChange: (pattern) => {
-                            arpPattern = pattern;
-                        },
-                        onStep: noteStepController.highlight,
-                    });
-                    loadAllSettings(getAllSettings());
-
-                    audioEngine = nextAudioEngine;
-                    visualizer = nextVisualizer;
-                    recorderManager = nextRecorderManager;
-                    pendingAudioEngine = null;
-                    observeAudioContextState();
-                } catch (error) {
-                    nextVisualizer?.destroy();
-                    nextAudioEngine?.dispose();
-                    try {
-                        patternController?.dispose();
-                    } catch (cleanupError) {
-                        console.warn("Failed to dispose a partial arpeggio pattern:", cleanupError);
-                    }
-                    audioEngine = undefined;
-                    pendingAudioEngine = null;
-                    visualizer = undefined;
-                    recorderManager = undefined;
-                    patternController = undefined;
-                    arpPattern = null;
-                    throw error;
-                }
-            })().catch((error) => {
-                audioRuntimePromise = null;
-                throw error;
-            });
-        }
-        return audioRuntimePromise;
-    };
+    playbackController = createPlaybackController({
+        dom: { playStopButton },
+        state: appState,
+        getTone: () => audioRuntimeController?.getTone(),
+        getPattern: () => audioRuntimeController?.getPatternController()?.getPattern(),
+        getRecorderManager,
+        getVisualizer,
+        startAudio,
+        prepareForPlayback: () => onboardingController.prepareForPlayback(),
+        createOrUpdatePattern,
+        clearNoteStep: noteStepController.clear,
+    });
 
     // ==================================================================
     //    Remaining UI Utility Functions
@@ -1573,26 +1454,10 @@ function initializeApp() {
      * @returns {Promise<void>}
      */
     async function startPlayback() {
-        if (!isAudioContextStarted) {
-            onboardingController.prepareForPlayback();
+        if (!playbackController) {
+            throw new Error("Playback controller is not initialized.");
         }
-        await startAudio();
-        if (recorderManager && !recorderManager.isRecording) {
-            await recorderManager.initRecorder();
-        }
-        createOrUpdatePattern();
-        if (!isPlaying) {
-            if (arpPattern) arpPattern.start();
-            Tone.getTransport().start();
-            if (playStopButton) {
-                playStopButton.textContent = "Stop Audio";
-                playStopButton.setAttribute("aria-label", "Press to stop arpeggio");
-                playStopButton.classList.add("bg-yellow-600", "hover:bg-yellow-700");
-                playStopButton.classList.remove("bg-blue-600", "hover:bg-blue-700");
-            }
-            isPlaying = true;
-            if (visualizer) visualizer.startUiLoop();
-        }
+        await playbackController.start();
     }
 
     /**
@@ -1600,41 +1465,7 @@ function initializeApp() {
      * @returns {void}
      */
     function stopPlayback() {
-        if (isPlaying) {
-            Tone.getTransport().stop();
-            if (arpPattern) arpPattern.stop();
-            if (playStopButton) {
-                playStopButton.textContent = "Restart Audio";
-                playStopButton.setAttribute("aria-label", "Press to restart arpeggio");
-                playStopButton.classList.remove("bg-yellow-600", "hover:bg-yellow-700");
-                playStopButton.classList.add("bg-blue-600", "hover:bg-blue-700");
-            }
-            isPlaying = false;
-            if (visualizer) visualizer.stopUiLoop();
-            noteStepController.clear();
-        }
-    }
-
-    /**
-     * Keeps playback controls aligned with the browser AudioContext state.
-     *
-     * @returns {void}
-     */
-    function observeAudioContextState() {
-        const rawAudioContext = Tone.getContext().rawContext;
-        if (observedRawAudioContext === rawAudioContext) return;
-
-        if (observedRawAudioContext && audioContextStateListener) {
-            observedRawAudioContext.removeEventListener("statechange", audioContextStateListener);
-        }
-
-        audioContextStateListener = () => {
-            if (Tone.getContext().state !== "running") {
-                stopPlayback();
-            }
-        };
-        observedRawAudioContext = rawAudioContext;
-        rawAudioContext.addEventListener("statechange", audioContextStateListener);
+        playbackController?.stop();
     }
 
     /**
@@ -1642,7 +1473,7 @@ function initializeApp() {
      * @type {() => void}
      */
     const debouncedUpdateEnvelope = debounce(() => {
-        audioEngine?.updateEnvelope();
+        getAudioEngine()?.updateEnvelope();
     }, 16);
 
     // --- Transport & Pattern ---
@@ -1652,6 +1483,7 @@ function initializeApp() {
      * @type {(db: number) => void}
      */
     const debouncedSetPostGain = debounce((/** @type {number} */ db) => {
+        const audioEngine = getAudioEngine();
         if (audioEngine) audioEngine.postGain.volume.value = db;
     }, 16);
 
@@ -1660,6 +1492,7 @@ function initializeApp() {
      * @type {(val: number) => void}
      */
     const debouncedSetHarmonicity = debounce((/** @type {number} */ val) => {
+        const audioEngine = getAudioEngine();
         if (audioEngine?.activeSynth && "harmonicity" in audioEngine.activeSynth) {
             audioEngine.activeSynth.harmonicity.value = val;
         }
@@ -1670,6 +1503,7 @@ function initializeApp() {
      * @type {(val: number) => void}
      */
     const debouncedSetModIndex = debounce((/** @type {number} */ val) => {
+        const audioEngine = getAudioEngine();
         if (audioEngine?.activeSynth && "modulationIndex" in audioEngine.activeSynth) {
             audioEngine.activeSynth.modulationIndex.value = val;
         }
@@ -1680,6 +1514,7 @@ function initializeApp() {
      * @type {(val: number) => void}
      */
     const debouncedSetDuty = debounce((/** @type {number} */ val) => {
+        const audioEngine = getAudioEngine();
         const synth = audioEngine?.activeSynth;
         if (
             synth &&
@@ -1696,6 +1531,7 @@ function initializeApp() {
      * @type {(val: number) => void}
      */
     const debouncedSetFilterCutoff = debounce((/** @type {number} */ val) => {
+        const audioEngine = getAudioEngine();
         if (audioEngine) audioEngine.filter.frequency.value = val;
     }, 16);
 
@@ -1704,6 +1540,7 @@ function initializeApp() {
      * @type {(val: number) => void}
      */
     const debouncedSetFilterQ = debounce((/** @type {number} */ val) => {
+        const audioEngine = getAudioEngine();
         if (audioEngine) audioEngine.filter.Q.value = val;
     }, 16);
 
@@ -1712,6 +1549,7 @@ function initializeApp() {
      * @type {(val: number) => void}
      */
     const debouncedSetDelayMix = debounce((/** @type {number} */ val) => {
+        const audioEngine = getAudioEngine();
         if (audioEngine) audioEngine.delay.wet.value = val;
     }, 16);
 
@@ -1720,6 +1558,7 @@ function initializeApp() {
      * @type {(val: number) => void}
      */
     const debouncedSetReverbMix = debounce((/** @type {number} */ val) => {
+        const audioEngine = getAudioEngine();
         if (audioEngine) audioEngine.reverb.wet.value = val;
     }, 16);
 
@@ -1737,11 +1576,11 @@ function initializeApp() {
         onStart: startPlayback,
         onStop: stopPlayback,
         onBpmChange: (value) => {
-            if (audioEngine) Tone.getTransport().bpm.value = value;
+            if (getAudioEngine()) Tone.getTransport().bpm.value = value;
             updateEstimatedExportDuration();
         },
         onSwingChange: (value) => {
-            if (audioEngine) Tone.getTransport().swing = value;
+            if (getAudioEngine()) Tone.getTransport().swing = value;
         },
         debounce,
     });
@@ -1787,19 +1626,20 @@ function initializeApp() {
             membraneOctavesValue,
         },
         onSynthTypeChange: (type) => {
-            audioEngine?.setSynth(type);
+            getAudioEngine()?.setSynth(type);
             createOrUpdatePattern();
         },
         onWaveformChange: (waveform) => {
             appState.currentWaveform = waveform;
             synthControlsController.updateWaveformButtons(appState.currentWaveform);
-            audioEngine?.setSynth(synthTypeSelect.value);
+            getAudioEngine()?.setSynth(synthTypeSelect.value);
         },
         onEnvelopeChange: debouncedUpdateEnvelope,
         onHarmonicityChange: debouncedSetHarmonicity,
         onModIndexChange: debouncedSetModIndex,
         onDutyChange: debouncedSetDuty,
         onMonoCutoffChange: (value) => {
+            const audioEngine = getAudioEngine();
             if (
                 audioEngine?.activeSynth &&
                 "filterEnvelope" in audioEngine.activeSynth &&
@@ -1809,6 +1649,7 @@ function initializeApp() {
             }
         },
         onMonoOctavesChange: (value) => {
+            const audioEngine = getAudioEngine();
             if (
                 audioEngine?.activeSynth &&
                 "filterEnvelope" in audioEngine.activeSynth &&
@@ -1818,6 +1659,7 @@ function initializeApp() {
             }
         },
         onMonoQChange: (value) => {
+            const audioEngine = getAudioEngine();
             if (
                 audioEngine?.activeSynth &&
                 "filter" in audioEngine.activeSynth &&
@@ -1827,36 +1669,43 @@ function initializeApp() {
             }
         },
         onDuoHarmonicityChange: (value) => {
+            const audioEngine = getAudioEngine();
             if (audioEngine?.activeSynth && "harmonicity" in audioEngine.activeSynth) {
                 audioEngine.activeSynth.harmonicity.value = value;
             }
         },
         onDuoVibratoChange: (value) => {
+            const audioEngine = getAudioEngine();
             if (audioEngine?.activeSynth && "vibratoAmount" in audioEngine.activeSynth) {
                 audioEngine.activeSynth.vibratoAmount.value = value;
             }
         },
         onPluckDampeningChange: (value) => {
+            const audioEngine = getAudioEngine();
             if (audioEngine?.activeSynth && "dampening" in audioEngine.activeSynth) {
                 audioEngine.activeSynth.dampening = value;
             }
         },
         onPluckResonanceChange: (value) => {
+            const audioEngine = getAudioEngine();
             if (audioEngine?.activeSynth && "resonance" in audioEngine.activeSynth) {
                 audioEngine.activeSynth.resonance = value;
             }
         },
         onPluckNoiseChange: (value) => {
+            const audioEngine = getAudioEngine();
             if (audioEngine?.activeSynth && "attackNoise" in audioEngine.activeSynth) {
                 audioEngine.activeSynth.attackNoise = value;
             }
         },
         onMembranePitchDecayChange: (value) => {
+            const audioEngine = getAudioEngine();
             if (audioEngine?.activeSynth && "pitchDecay" in audioEngine.activeSynth) {
                 audioEngine.activeSynth.pitchDecay = value;
             }
         },
         onMembraneOctavesChange: (value) => {
+            const audioEngine = getAudioEngine();
             if (audioEngine?.activeSynth && "octaves" in audioEngine.activeSynth) {
                 audioEngine.activeSynth.octaves = value;
             }
@@ -1888,12 +1737,15 @@ function initializeApp() {
         onFilterCutoffChange: debouncedSetFilterCutoff,
         onFilterResonanceChange: debouncedSetFilterQ,
         onDriveMixChange: (value) => {
+            const audioEngine = getAudioEngine();
             if (audioEngine?.distortion) audioEngine.distortion.wet.value = value;
         },
         onChorusMixChange: (value) => {
+            const audioEngine = getAudioEngine();
             if (audioEngine?.chorus) audioEngine.chorus.wet.value = value;
         },
         onAutoPanMixChange: (value) => {
+            const audioEngine = getAudioEngine();
             if (audioEngine?.autoPanner) audioEngine.autoPanner.wet.value = value;
         },
         onDelayMixChange: debouncedSetDelayMix,
@@ -1931,7 +1783,7 @@ function initializeApp() {
             console.warn("AudioContext failed to start on record click:", error);
             return;
         }
-        await recorderManager?.toggleRecording();
+        await getRecorderManager()?.toggleRecording();
     });
 
     exportButton.addEventListener("click", async () => {
@@ -1941,7 +1793,7 @@ function initializeApp() {
             console.warn("AudioContext failed to start on recording export click:", error);
             return;
         }
-        await recorderManager?.exportRealtime();
+        await getRecorderManager()?.exportRealtime();
     });
 
     offlineExportButton.addEventListener("click", async () => {
@@ -1951,7 +1803,7 @@ function initializeApp() {
             console.warn("AudioContext failed to start on offline export click:", error);
             return;
         }
-        await recorderManager?.exportOffline();
+        await getRecorderManager()?.exportOffline();
     });
 
     if (offlineExportMidiButton) {
@@ -1985,7 +1837,7 @@ function initializeApp() {
 
     // --- Visualizer Toggle ---
     toggleVisualizerButton.addEventListener("click", () => {
-        visualizer?.toggle();
+        getVisualizer()?.toggle();
     });
 
     if (visualizerModeSelect) {
@@ -2221,6 +2073,8 @@ function initializeApp() {
      * @returns {Promise<void>}
      */
     async function renderStaticLoop() {
+        const audioEngine = getAudioEngine();
+        const visualizer = getVisualizer();
         if (!isAudioContextStarted || !audioEngine || !visualizer) return;
 
         const settings = getAllSettings();
@@ -2262,6 +2116,7 @@ function initializeApp() {
      * @type {() => void}
      */
     const debouncedRenderStaticLoop = debounce(() => {
+        const visualizer = getVisualizer();
         if (visualizer && visualizer.currentMode === "loopMap") {
             renderStaticLoop();
         }
