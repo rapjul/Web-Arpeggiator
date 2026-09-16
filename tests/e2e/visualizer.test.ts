@@ -26,6 +26,16 @@ async function expectVisualizerCanvasToRender(page: Page): Promise<void> {
     await expect.poll(() => visualizerCanvasFingerprint(page)).not.toBe("");
 }
 
+async function expectVisualizerCanvasToRerender(
+    page: Page,
+    previousFingerprint: string,
+): Promise<string> {
+    await expect.poll(() => visualizerCanvasFingerprint(page)).not.toBe(previousFingerprint);
+    const nextFingerprint = await visualizerCanvasFingerprint(page);
+    expect(nextFingerprint).not.toBe("");
+    return nextFingerprint;
+}
+
 async function visualizerCanvasWidth(page: Page): Promise<number> {
     return page.locator("#visualizer-plot").evaluate((canvas) => canvas.width);
 }
@@ -91,12 +101,17 @@ test("renders every visualizer mode and its public zoom or window controls", asy
     }
 
     await mode.selectOption("oscilloscope");
+    const pause = page.locator("#pause-visualizer");
+    await pause.click();
+    await expect(pause).toHaveText("Resume");
+
     await page.locator("#oscilloscope-window").selectOption("250");
     await expect(page.locator("#oscilloscope-window")).toHaveValue("250");
-    await expectVisualizerCanvasToRender(page);
+    let fingerprint = await expectVisualizerCanvasToRerender(page, "");
     await page.locator("#oscilloscope-window").selectOption("1000");
     await expect(page.locator("#oscilloscope-window")).toHaveValue("1000");
-    await expectVisualizerCanvasToRender(page);
+    fingerprint = await expectVisualizerCanvasToRerender(page, fingerprint);
+    expect(fingerprint).not.toBe("");
 });
 
 test("rerenders the Loop Map canvas for every pattern-affecting public control", async ({
