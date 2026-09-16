@@ -7,7 +7,6 @@
  *
  * @module app
  */
-import { downloadBlob } from "@core/audio-utils.js";
 import { buildChordString, resolveChordDefinition } from "@core/chord-builder.js";
 import { filterNoteInput, filterNumericInput } from "@core/input-filters.js";
 import { dbToPercent } from "@core/meter-utils.js";
@@ -16,17 +15,8 @@ import {
     normalizeNotesSequence,
 } from "@core/pattern-core.js";
 import { generateRandomNotes } from "@core/randomizer.js";
-import {
-    DEFAULT_SETTINGS,
-    mergeSettings,
-    UnsupportedSettingsVersionError,
-} from "@core/settings-contract.js";
-import {
-    hasPresetChanges,
-    PRESET_URL_KEYS,
-    parsePresetFromUrlParams,
-    serializePresetToUrlParams,
-} from "@core/url-preset.js";
+import { DEFAULT_SETTINGS, mergeSettings } from "@core/settings-contract.js";
+import { PRESET_URL_KEYS } from "@core/url-preset.js";
 import { initializePwa } from "@pwa/pwa.js";
 import { presetStore } from "@storage/presets-store.js";
 import { debounce } from "@storage/session-manager.js";
@@ -41,9 +31,9 @@ import { createNoteStepController } from "@ui/note-step-controller.js";
 import { createOnboardingController } from "@ui/onboarding-controller.js";
 import { createEffectsControlsController } from "@ui/effects-controls-controller.js";
 import { createExportControlsController } from "@ui/export-controls-controller.js";
-import { createFuturePresetDialogController } from "@ui/future-preset-dialog-controller.js";
 import { createPatternControlsController } from "@ui/pattern-controls-controller.js";
 import { createPresetController } from "@ui/preset-controller.js";
+import { createPresetWorkflowController } from "@ui/preset-workflow-controller.js";
 import { createSynthControlsController } from "@ui/synth-controls-controller.js";
 import { createTransportController } from "@ui/transport-controller.js";
 import { createToastManager } from "@ui/ui-feedback.js";
@@ -108,6 +98,7 @@ let Tone;
 let audioRuntimeController = null;
 let playbackController = null;
 let exportControlsController = null;
+let presetWorkflowController = null;
 
 /**
  * Starts the deferred audio runtime from a user-initiated action.
@@ -134,6 +125,11 @@ function updateOfflineExportModeUi() {
 /** @returns {void} Requests a debounced loop-map render from export controls. */
 function requestStaticLoopRender() {
     exportControlsController?.requestStaticLoopRender();
+}
+
+/** @returns {void} Loads a preset encoded in the current URL. */
+function loadPresetFromUrl() {
+    presetWorkflowController?.loadPresetFromUrl();
 }
 
 // --- DOMContentLoaded: Main Setup ---
@@ -1349,52 +1345,6 @@ function initializeApp() {
     // ==================================================================
 
     /**
-     * Serializes current settings to URL search parameters, writes the URL to the clipboard,
-     * and reports the result to the user.
-     * @returns {void}
-     */
-    function sharePresetAsUrl() {
-        const settings = getAllSettings();
-        const params = serializePresetToUrlParams(settings);
-        const shareUrl = `${window.location.origin}${window.location.pathname}?${params.toString()}`;
-
-        navigator.clipboard
-            .writeText(shareUrl)
-            .then(() => {
-                showToast("Share link copied to clipboard!", "success");
-            })
-            .catch((err) => {
-                console.error("Failed to copy share link:", err);
-                showToast(`Failed to copy link. Generated URL: ${shareUrl}`, "error");
-            });
-    }
-
-    /**
-     * Parses the current URL search parameters, validates each value against strict boundaries,
-     * and loads them into the application via loadAllSettings.
-     *
-     * The toast notification is only shown when at least one recognized preset parameter was
-     * found, validated successfully, AND its value actually differs from the current setting.
-     * @returns {void}
-     */
-    /**
-     * Parses the current URL search parameters, validates each value against strict boundaries,
-     * and loads them into the application via loadAllSettings.
-     *
-     * The toast notification is only shown when at least one recognized preset parameter was
-     * found, validated successfully, AND its value actually differs from the current setting.
-     * @returns {void}
-     */
-    function loadPresetFromUrl() {
-        const current = getAllSettings();
-        const settings = parsePresetFromUrlParams(window.location.search, current);
-        if (!settings || !hasPresetChanges(settings, current)) return;
-
-        applySettingsWithHistory(settings);
-        showToast("Preset loaded from URL link!", "success");
-    }
-
-    /**
      * Starts audio playback if not already running.
      * @returns {Promise<void>}
      */
@@ -1742,219 +1692,36 @@ function initializeApp() {
     //    Preset Management
     // ==================================================================
 
-    sharePresetButton.addEventListener("click", () => {
-        log("Share preset button clicked.");
-        sharePresetAsUrl();
-    });
-
-    /**
-     * Helper function to handle preset serialization, file downloads, and IndexedDB persistence.
-     *
-     * @param {'save'|'download'} source - Action source ('save' for browser storage only, 'download' for JSON download).
-     * @returns {Promise<'success'|'download-only-fail'|'save-fail'>} Outcome of the save operation.
-     */
-    async function performPresetSave(source) {
-        const settings = getAllSettings();
-        const filename = `${generateFilename(false)}-preset.json`;
-        const presetName = presetNameInput?.value.trim() || filename;
-        if (source === "download") {
-            const settingsBlob = new Blob([JSON.stringify(settings, null, 2)], {
-                type: "application/json",
-            });
-            downloadBlob(settingsBlob, filename);
-        }
-
-        try {
-            const record = await presetStore.save(settings, {
-                filename,
-                name: presetName,
-                source,
-            });
-            hideBrowserStorageRecovery();
-            await refreshSavedPresetList(record.id);
-            return "success";
-        } catch (storeError) {
-            console.warn("Failed to save preset to browser storage:", storeError);
-            showBrowserStorageRecovery();
-            return source === "download" ? "download-only-fail" : "save-fail";
-        }
-    }
-
-    savePresetButton.addEventListener("click", async () => {
-        log("Save preset button clicked.");
-        const result = await performPresetSave("download");
-        if (result === "download-only-fail") {
-            showToast("Preset downloaded, but browser save failed.", "info");
-        } else {
-            showToast("Preset saved!", "success");
-        }
-    });
-
-    if (savePresetToBrowserButton) {
-        /**
-         * Event listener for saving the current preset settings to IndexedDB browser storage.
-         *
-         * @param {Event} event - The button click event.
-         * @returns {Promise<void>}
-         */
-        savePresetToBrowserButton.addEventListener("click", async (event) => {
-            event.preventDefault();
-            log("Save to browser preset button clicked.");
-            const result = await performPresetSave("save");
-            if (result === "success") {
-                showToast("Preset saved to browser!", "success");
-            } else {
-                showToast("Browser save failed.", "error");
-            }
-        });
-    }
-
-    loadPresetButton.addEventListener("click", () => {
-        log("Load preset button clicked.");
-        loadPresetInput.click();
-    });
-
-    function saveImportedPreset(settings, file) {
-        presetStore
-            .save(settings, { filename: file.name, name: file.name, source: "import" })
-            .then((record) => refreshSavedPresetList(record.id))
-            .catch((error) => {
-                console.warn("Failed to save imported preset:", error);
-                showBrowserStorageRecovery();
-            });
-    }
-
-    const futurePresetDialogController = createFuturePresetDialogController({
-        getReturnFocus: () => loadPresetButton,
-        onConfirm: (settings, fileName) => {
-            const result = applySettingsWithHistory(settings, { allowFutureVersion: true });
-            if (result.ok) {
-                saveImportedPreset(getAllSettings(), { name: fileName });
-                showToast("Loaded compatible settings from newer preset.", "info");
-            }
+    presetWorkflowController = createPresetWorkflowController({
+        dom: {
+            sharePresetButton,
+            savePresetButton,
+            savePresetToBrowserButton,
+            loadPresetButton,
+            loadPresetInput,
+            loadSavedPresetButton,
+            clearSavedPresetButton,
+            deleteSavedPresetButton,
+            presetNameInput,
+            savedPresetSelect,
         },
+        windowRef: window,
+        navigatorRef: navigator,
+        fileReaderFactory: () => new FileReader(),
+        confirm: (message) => window.confirm(message),
+        factoryPresets: FACTORY_PRESETS,
+        getPresetStore: () => presetStore,
+        getAllSettings,
+        applySettingsWithHistory,
+        generateFilename,
+        refreshSavedPresetList,
+        setActiveSoundStarterCard,
+        showStorageRecovery: showBrowserStorageRecovery,
+        hideStorageRecovery: hideBrowserStorageRecovery,
+        showToast,
+        logger: console,
     });
-
-    loadPresetInput.addEventListener("change", (event) => {
-        const target = /** @type {HTMLInputElement} */ (event.target);
-        const file = target.files ? target.files[0] : null;
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            const fileReaderTarget = /** @type {FileReader} */ (e.target);
-            if (fileReaderTarget && typeof fileReaderTarget.result === "string") {
-                try {
-                    const settings = JSON.parse(fileReaderTarget.result);
-                    const result = applySettingsWithHistory(settings);
-                    if (result.ok) {
-                        saveImportedPreset(getAllSettings(), file);
-                        showToast("Preset loaded!", "success");
-                    } else if (
-                        result.error instanceof UnsupportedSettingsVersionError &&
-                        result.error.isFutureVersion
-                    ) {
-                        futurePresetDialogController.open(settings, file.name);
-                    } else {
-                        showToast("Failed to load preset.", "error");
-                    }
-                } catch (err) {
-                    console.error("Failed to load preset:", err);
-                    showToast("Failed to load preset.", "error");
-                }
-            }
-        };
-        reader.readAsText(file);
-        target.value = "";
-    });
-
-    if (loadSavedPresetButton) {
-        loadSavedPresetButton.addEventListener("click", async () => {
-            log("Load saved preset button clicked.");
-            const selectedId = savedPresetSelect?.value || "";
-
-            // Check if selected preset is a Factory Preset
-            const factoryPreset = FACTORY_PRESETS.find((p) => p.id === selectedId);
-            if (factoryPreset) {
-                applySettingsWithHistory(mergeSettings(DEFAULT_SETTINGS, factoryPreset.settings));
-                if (presetNameInput) presetNameInput.value = factoryPreset.name;
-                setActiveSoundStarterCard(factoryPreset.id);
-                showToast(`Loaded factory preset: ${factoryPreset.name}`, "success");
-                return;
-            }
-
-            try {
-                const record = selectedId
-                    ? await presetStore.get(selectedId)
-                    : await presetStore.loadLatest();
-                if (!record) {
-                    showToast("No saved preset found yet.", "info");
-                    return;
-                }
-                const result = applySettingsWithHistory(record.settings || record);
-                if (!result.ok) {
-                    showToast("Saved preset requires a newer version of Web Arpeggiator.", "error");
-                    return;
-                }
-                if (presetNameInput) presetNameInput.value = record.name || record.filename || "";
-                await refreshSavedPresetList(record.id);
-                showToast("Loaded saved preset from browser storage.", "success");
-            } catch (error) {
-                console.error("Failed to load saved preset:", error);
-                showBrowserStorageRecovery();
-                showToast("Failed to load saved preset.", "error");
-            }
-        });
-    }
-
-    if (clearSavedPresetButton) {
-        clearSavedPresetButton.addEventListener("click", async () => {
-            log("Clear saved presets button clicked.");
-            const confirmed = confirm(
-                "Are you sure you want to clear all your saved user presets? This action cannot be undone.",
-            );
-
-            if (!confirmed) {
-                return;
-            }
-
-            try {
-                await presetStore.clear();
-                await refreshSavedPresetList();
-                showToast("Saved browser presets cleared.", "success");
-            } catch (error) {
-                console.error("Failed to clear saved presets:", error);
-                showBrowserStorageRecovery();
-                showToast("Failed to clear saved presets.", "error");
-            }
-        });
-    }
-
-    if (deleteSavedPresetButton) {
-        deleteSavedPresetButton.addEventListener("click", async () => {
-            log("Delete saved preset button clicked.");
-            const selectedId = savedPresetSelect?.value || "";
-
-            if (!selectedId) {
-                showToast("No saved preset selected.", "info");
-                return;
-            }
-
-            if (selectedId.startsWith("factory-")) {
-                showToast("Factory presets cannot be deleted.", "info");
-                return;
-            }
-
-            try {
-                await presetStore.remove(selectedId);
-                await refreshSavedPresetList();
-                showToast("Deleted saved preset.", "success");
-            } catch (error) {
-                console.error("Failed to delete saved preset:", error);
-                showBrowserStorageRecovery();
-                showToast("Failed to delete saved preset.", "error");
-            }
-        });
-    }
+    presetWorkflowController.initialize();
 
     patternControlsController.initialize();
 
