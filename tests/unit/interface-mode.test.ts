@@ -69,4 +69,35 @@ describe("interface mode", () => {
         expect(controller.getMode()).toBe(INTERFACE_MODE_SIMPLE);
         expect(advancedSection.hidden).toBe(true);
     });
+
+    test("keeps beginner pattern directions visible and groups the rest", () => {
+        const appMain = document.createElement("main");
+        const patternButtons = document.createElement("fieldset");
+        patternButtons.id = "pattern-buttons";
+        patternButtons.innerHTML = ["up", "down", "upDown", "random", "octaveCycle"]
+            .map(
+                (direction, index) =>
+                    `<label><input type="radio" name="pattern-direction" value="${direction}"${index === 0 ? " checked" : ""}></label>`,
+            )
+            .join("");
+        appMain.append(patternButtons);
+        document.body.append(appMain);
+
+        const controller = createInterfaceModeController({
+            dom: { appMain, interfaceModeSelect: null },
+            documentRef: document,
+            storage: localStorage,
+        });
+
+        controller.initialize();
+        expect(patternButtons.querySelectorAll(":scope > label")).toHaveLength(4);
+        expect(patternButtons.querySelectorAll("#pattern-more-buttons > label")).toHaveLength(1);
+        expect(patternButtons.querySelector("#pattern-more-details")?.open).toBe(true);
+
+        controller.setMode(INTERFACE_MODE_SIMPLE);
+        expect(patternButtons.querySelector("#pattern-more-details")?.open).toBe(false);
+
+        controller.setMode(DEFAULT_INTERFACE_MODE);
+        expect(patternButtons.querySelector("#pattern-more-details")?.open).toBe(true);
+    });
 });

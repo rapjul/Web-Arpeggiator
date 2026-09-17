@@ -18,6 +18,13 @@ test("starts a factory sound starter from the first-visit quick start", async ({
         .click();
     await expect(page.locator("#play-stop")).toHaveText("Stop Audio");
     await expect(page.locator("#quick-start-overlay")).toBeHidden();
+    await expect(page.locator("#pattern-buttons > label")).toHaveCount(4);
+    await expect(page.locator("#pattern-more-details")).not.toHaveAttribute("open", "");
+    await page.locator("#pattern-more-details > summary").click();
+    await expect(page.locator("#pattern-more-buttons > label")).toHaveCount(8);
+    await expect(page.locator("#synth-type")).toBeHidden();
+    await page.locator("#synth-details > summary").click();
+    await expect(page.locator("#synth-type")).toBeVisible();
     await expect(page.locator("#notes")).toHaveValue("C4 E4 G4 B4");
     await expect(page.locator("#bpm")).toHaveValue("128");
     await expect(
