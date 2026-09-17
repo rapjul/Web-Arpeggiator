@@ -369,6 +369,14 @@ describe("Audio Engine Model Definitions", () => {
             }
         });
 
+        it("exposes the final monitored signal for recording", () => {
+            const engine = createAudioEngine({ dom: mockDom, actions: mockActions });
+
+            expect(engine.recordingOutput).toBe(engine.limiter);
+            expect(engine.recordingOutput).not.toBe(engine.reverb);
+            expect(engine.recordingOutput).not.toBe(engine.postGain);
+        });
+
         it("updates envelope settings on multi-voice synths like duoSynth", () => {
             const engine = createAudioEngine({ dom: mockDom, actions: mockActions });
             engine.setSynth("duoSynth");

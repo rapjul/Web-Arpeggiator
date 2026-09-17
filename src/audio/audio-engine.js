@@ -75,6 +75,7 @@ import * as Tone from "tone";
  * @property {Tone.Reverb} reverb - Convolution reverb.
  * @property {Tone.Volume} postGain - Post gain node.
  * @property {Tone.Limiter} [limiter] - Master limiter.
+ * @property {Tone.ToneAudioNode} recordingOutput - Final monitored signal after post gain and limiting when available.
  * @property {object} synths - Synthesizer dictionary.
  * @property {string} currentWaveform - Active waveform type (get/set).
  * @property {Tone.Synth|Tone.FMSynth|Tone.AMSynth|Tone.MonoSynth|Tone.DuoSynth|Tone.PluckSynth|Tone.MembraneSynth} activeSynth - Currently selected synth.
@@ -257,6 +258,7 @@ export function createAudioEngine(context) {
         postGain.connect(peakAnalyser);
         postGain.toDestination();
     }
+    const recordingOutput = limiter || postGain;
     reverb.connect(analyser);
 
     /**
@@ -623,6 +625,7 @@ export function createAudioEngine(context) {
         reverb,
         postGain,
         limiter,
+        recordingOutput,
         synths,
         get activeSynth() {
             return activeSynth;
