@@ -53,6 +53,20 @@ test("loads sound starters, clears their active state on an edit, and remembers 
         .toBe("false");
 });
 
+test("can pause and resume the optional creation walkthrough", async ({ pwaPage: page }) => {
+    await page.locator("#quick-start-full").click();
+    await page.locator("#quick-start-scratch").click();
+    await expect(page.locator("#quick-start-overlay")).toBeHidden();
+    await page.locator("#guided-workflow-start").click();
+    await expect(page.locator("#guided-workflow-active")).toBeVisible();
+    await expect(page.locator("#guided-workflow-status")).toContainText("Step 1 of 5");
+
+    await page.locator("#guided-workflow-skip").click();
+    await expect(page.locator("#guided-workflow-start")).toHaveText("Resume walkthrough");
+    await page.locator("#guided-workflow-start").click();
+    await expect(page.locator("#guided-workflow-status")).toContainText("Step 1 of 5");
+});
+
 test("dismisses quick start from scratch or with Escape", async ({ pwaPage: page }) => {
     await page.locator("#quick-start-full").click();
     await page.locator("#quick-start-scratch").click();
