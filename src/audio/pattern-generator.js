@@ -16,7 +16,7 @@ import {
     materializePatternSequence,
     quantizeToScale,
 } from "@core/pattern-core.js";
-import { compileTimeline, ticksToSeconds } from "@core/timeline.js";
+import { compileTimeline, getSwingOffsetTicks, ticksToSeconds } from "@core/timeline.js";
 import * as Tone from "tone";
 
 // Re-export pure domain helpers for backwards compatibility
@@ -95,13 +95,27 @@ export function createPatternController({
             dispose();
             if (timeline.events.length === 0) return null;
 
+            let occurrenceIndex = 0;
             const patternInstance = new Tone.Pattern(
                 (time, note) => {
-                    const event =
-                        timeline.events[patternInstance.index % timeline.stepsPerCycle] ??
-                        timeline.events[0];
-                    const scheduledTime =
-                        time + ticksToSeconds(event.swingOffsetTicks, timeline.bpm);
+                    const stepIndex =
+                        typeof patternInstance.index === "number"
+                            ? patternInstance.index % timeline.stepsPerCycle
+                            : occurrenceIndex % timeline.stepsPerCycle;
+                    const cycleIndex = Math.floor(occurrenceIndex / timeline.stepsPerCycle);
+                    const event = timeline.events[stepIndex] ?? timeline.events[0];
+                    const rawStartTick =
+                        cycleIndex * timeline.cycleDurationTicks + event.rawStartTick;
+                    const nextRawStartTick =
+                        cycleIndex * timeline.cycleDurationTicks +
+                        (event.stepIndex + 1) * timeline.stepDurationTicks;
+                    const swungStartTick = Math.min(
+                        rawStartTick + getSwingOffsetTicks(rawStartTick, timeline.swing),
+                        Math.max(rawStartTick, nextRawStartTick - 1),
+                    );
+                    const swingOffsetTicks = swungStartTick - rawStartTick;
+                    occurrenceIndex += 1;
+                    const scheduledTime = time + ticksToSeconds(swingOffsetTicks, timeline.bpm);
                     const synth = getSynth();
                     if (isTriggerableSynth(synth)) {
                         triggerSynth(
