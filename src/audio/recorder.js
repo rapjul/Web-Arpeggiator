@@ -257,9 +257,9 @@ export function createRecorderManager(context) {
                     if (recorderType === "MediaRecorder") {
                         recorder.stop();
                     } else if (recorderType === "ToneRecorder") {
-                        await recorder.stop();
+                        liveRecordedWavBlob = await recorder.stop();
+                        onRecordingStop();
                     }
-                    onRecordingStop();
                     actions.stopUiLoop();
                     throw error;
                 }

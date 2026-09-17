@@ -8,7 +8,7 @@
  */
 
 /**
- * @typedef {{activeSynth: object|null, analyser: object, meter: object, peakAnalyser: object, reverb: object, synths: object, createOfflineChain: (...args: unknown[]) => object, currentWaveform: string, dispose: () => void}} RuntimeEngine
+ * @typedef {{activeSynth: object|null, analyser: object, meter: object, peakAnalyser: object, reverb: object, recordingOutput: object, synths: object, createOfflineChain: (...args: unknown[]) => object, currentWaveform: string, dispose: () => void}} RuntimeEngine
  * @typedef {{startUiLoop: () => void, stopUiLoop: () => void, destroy: () => void}} RuntimeVisualizer
  * @typedef {{isRecording: boolean, recordingStartTime: number}} RuntimeRecorder
  * @typedef {{isPlaying: boolean, isAudioContextStarted: boolean, activeNote: string|null, currentWaveform: string}} AudioRuntimeState
@@ -166,6 +166,7 @@ export function createAudioRuntimeController(dependencies) {
                     nextRecorderManager = createRecorderManager({
                         audio: {
                             reverb: nextAudioEngine.reverb,
+                            recordingOutput: nextAudioEngine.recordingOutput,
                             synths: nextAudioEngine.synths,
                             createOfflineChain: nextAudioEngine.createOfflineChain,
                         },
