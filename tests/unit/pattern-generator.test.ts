@@ -118,6 +118,7 @@ describe("Pattern controller", () => {
         }) as unknown as MockPatternInstance;
         expect(pattern.isStarted).toBe(true);
 
+        pattern.index = 0;
         pattern.callback(0.25, "G4");
         expect(synth.triggerAttack).toHaveBeenCalledWith("G4", 0.25);
         expect(synth.triggerRelease).toHaveBeenCalledWith(0.34375);

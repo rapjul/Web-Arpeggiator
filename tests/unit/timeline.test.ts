@@ -61,6 +61,29 @@ describe("musical timeline", () => {
         });
     });
 
+    it("reuses a resolved sequence and permits internal warm-up cycles", () => {
+        const source = compileTimeline(
+            { ...baseSettings(), direction: "random" },
+            { cycles: 1, rng: () => 0 },
+        );
+        const render = compileTimeline(
+            { ...baseSettings(), direction: "random" },
+            {
+                cycles: 101,
+                maxCycles: 101,
+                resolvedNotes: source.resolvedNotes,
+                sourceNoteMap: source.sourceNoteMap,
+            },
+        );
+
+        expect(render.resolvedNotes).toEqual(source.resolvedNotes);
+        expect(render.sourceNoteMap).toEqual(source.sourceNoteMap);
+        expect(render.cycles).toBe(101);
+        expect(compileTimeline({ ...baseSettings(), loopCount: 101 }, { cycles: 101 }).cycles).toBe(
+            100,
+        );
+    });
+
     it("resolves every supported direction before scheduling", () => {
         const directions = [
             "up",
@@ -116,6 +139,29 @@ describe("musical timeline", () => {
                 timeline.events[index + 1]?.startTick ?? timeline.musicalDurationTicks;
             expect(event.startTick + event.durationTicks).toBeLessThanOrEqual(nextStart);
         });
+    });
+
+    it("keeps swung events ordered and inside the musical boundary", () => {
+        const timeline = compileTimeline({
+            ...baseSettings(),
+            baseNotes: ["C4", "E4", "G4", "B4"],
+            interval: "32n",
+            swing: 1,
+        });
+
+        expect(
+            timeline.events.every(
+                (event, index) =>
+                    index === 0 || event.startTick >= timeline.events[index - 1].startTick,
+            ),
+        ).toBe(true);
+        expect(timeline.events.at(-1)?.startTick).toBeLessThan(timeline.musicalDurationTicks);
+    });
+
+    it("uses the normalized interval for unsupported input", () => {
+        const timeline = compileTimeline({ ...baseSettings(), interval: "invalid" });
+
+        expect(timeline.interval).toBe("16n");
     });
 
     it("keeps empty patterns empty without inventing a fallback note", () => {

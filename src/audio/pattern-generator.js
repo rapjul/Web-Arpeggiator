@@ -117,7 +117,7 @@ export function createPatternController({
                 timeline.resolvedNotes,
                 "up",
             );
-            patternInstance.interval = settings.interval;
+            patternInstance.interval = timeline.interval;
             pattern = patternInstance;
             onPatternChange(pattern);
             if (getIsPlaying()) pattern.start(0);

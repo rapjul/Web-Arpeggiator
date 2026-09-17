@@ -26,6 +26,7 @@ export const DEFAULT_TIMELINE_GATE = 0.8;
 export const DEFAULT_TIMELINE_VELOCITY = 100;
 export const MIN_TIMELINE_CYCLES = 1;
 export const MAX_TIMELINE_CYCLES = 100;
+const MAX_INTERNAL_TIMELINE_CYCLES = MAX_TIMELINE_CYCLES * 100;
 
 /**
  * @typedef {object} TimelineEvent
@@ -55,6 +56,7 @@ export const MAX_TIMELINE_CYCLES = 100;
  * @property {number} bpm - Normalized tempo.
  * @property {number} swing - Normalized swing amount.
  * @property {number} cycles - Normalized cycle count.
+ * @property {string} interval - Normalized interval identifier.
  */
 
 /**
@@ -193,25 +195,46 @@ function normalizeTimelineSettings(settings) {
  * Compiles a finite, deterministic musical timeline.
  *
  * @param {Record<string, unknown>} [settings={}] - Musical settings snapshot.
- * @param {{cycles?: unknown, rng?: () => number}} [range={}] - Requested render range and random source.
+ * @param {{cycles?: unknown, maxCycles?: unknown, rng?: () => number, resolvedNotes?: unknown, sourceNoteMap?: unknown}} [range={}] - Requested render range and random source.
  * @returns {CompiledTimeline} Immutable-by-convention compiled timeline data.
  */
 export function compileTimeline(settings = {}, range = {}) {
     const sourceSettings = settings && typeof settings === "object" ? settings : {};
     const normalized = normalizeTimelineSettings(sourceSettings);
+    const maxCycles = normalizeInteger(
+        range.maxCycles,
+        MAX_TIMELINE_CYCLES,
+        MAX_TIMELINE_CYCLES,
+        MAX_INTERNAL_TIMELINE_CYCLES,
+    );
     const cycles = normalizeInteger(
         range.cycles ?? sourceSettings.loopCount,
         MIN_TIMELINE_CYCLES,
         MIN_TIMELINE_CYCLES,
-        MAX_TIMELINE_CYCLES,
+        maxCycles,
     );
-    const sequence = materializePatternSequence(normalized.baseNotes, {
-        direction: normalized.direction,
-        octaveRange: normalized.octaveRange,
-        octaveShift: normalized.octaveShift,
-        quantize: normalized.quantize,
-        rng: typeof range.rng === "function" ? range.rng : Math.random,
-    });
+    const resolvedNotes = Array.isArray(range.resolvedNotes)
+        ? range.resolvedNotes.filter((note) => typeof note === "string")
+        : null;
+    const sequence = resolvedNotes
+        ? {
+              notes: resolvedNotes,
+              map: resolvedNotes.map((_, index) =>
+                  normalizeInteger(
+                      Array.isArray(range.sourceNoteMap) ? range.sourceNoteMap[index] : index,
+                      index,
+                      0,
+                      Number.MAX_SAFE_INTEGER,
+                  ),
+              ),
+          }
+        : materializePatternSequence(normalized.baseNotes, {
+              direction: normalized.direction,
+              octaveRange: normalized.octaveRange,
+              octaveShift: normalized.octaveShift,
+              quantize: normalized.quantize,
+              rng: typeof range.rng === "function" ? range.rng : Math.random,
+          });
     const stepDurationTicks = getIntervalTicks(normalized.interval);
     const stepsPerCycle = sequence.notes.length;
     const cycleDurationTicks = stepsPerCycle * stepDurationTicks;
@@ -224,10 +247,18 @@ export function compileTimeline(settings = {}, range = {}) {
         for (let stepIndex = 0; stepIndex < stepsPerCycle; stepIndex += 1) {
             const sourceStepIndex = stepIndex;
             const rawStartTick = cycleIndex * cycleDurationTicks + stepIndex * stepDurationTicks;
-            const swingOffsetTicks = getSwingOffsetTicks(rawStartTick, normalized.swing);
+            const requestedStartTick =
+                rawStartTick + getSwingOffsetTicks(rawStartTick, normalized.swing);
+            const nextRawStartTick =
+                cycleIndex * cycleDurationTicks + (stepIndex + 1) * stepDurationTicks;
+            const startTick = Math.min(
+                requestedStartTick,
+                Math.max(rawStartTick, nextRawStartTick - 1),
+            );
+            const swingOffsetTicks = startTick - rawStartTick;
             rawEvents.push({
                 pitch: sequence.notes[sourceStepIndex],
-                startTick: rawStartTick + swingOffsetTicks,
+                startTick,
                 durationTicks: nominalDurationTicks,
                 nominalDurationTicks,
                 velocity: normalized.velocity,
@@ -262,5 +293,8 @@ export function compileTimeline(settings = {}, range = {}) {
         bpm: normalized.bpm,
         swing: normalized.swing,
         cycles,
+        interval: Object.hasOwn(INTERVAL_TICKS, normalized.interval)
+            ? normalized.interval
+            : DEFAULT_TIMELINE_INTERVAL,
     };
 }
