@@ -48,6 +48,7 @@ The custom PWA worker uses Vite PWA's `injectManifest` build integration and Wor
 - **Randomize Notes**: Generate musically coherent, scale-quantized note sequences with a single click
 - **Chord Starters**: Insert major, minor, seventh, sus4, power, or pentatonic chord notes from the selected root
 - **Simple or Full Controls**: Start with beginner-friendly musical controls and switch to the complete instrument interface whenever you need it
+- **Optional Quick Guide**: Follow a resumable five-step walkthrough for sound, notes, rhythm, tone, and export
 
 ### 📱 PWA Support
 

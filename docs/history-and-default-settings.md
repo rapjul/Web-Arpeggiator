@@ -90,4 +90,4 @@ The slider, text field, and select control themselves do not reset on double-cli
 
 ## State Outside History
 
-History deliberately excludes transient or non-serialized UI state: playback, recording, visualizer state, virtual keyboard state and mode, the separately persisted interface-mode preference, selected preset name, storage-management controls, and audio recordings or exports.
+History deliberately excludes transient or non-serialized UI state: playback, recording, visualizer state, virtual keyboard state and mode, the separately persisted interface-mode preference and walkthrough progress, selected preset name, storage-management controls, and audio recordings or exports.
