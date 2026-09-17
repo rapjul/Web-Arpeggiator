@@ -407,6 +407,7 @@ export function createRecorderManager(context) {
             interval: settings.interval,
             bpm: settings.bpm,
             exportMode: settings.offlineExportMode,
+            tailMode: settings.offlineExportTailMode,
             tailSeconds: settings.offlineExportTailSeconds,
             envRelease: settings.envRelease,
             delayMix: settings.delayMix,

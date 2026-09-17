@@ -2449,6 +2449,25 @@
                     <div id="offline-export-tail-control">
                         <div class="flex items-center gap-4">
                             <label
+                                for="offline-export-tail-mode"
+                                class="text-sm font-medium whitespace-nowrap"
+                            >
+                                Effects tail strategy:
+                            </label>
+                            <select
+                                id="offline-export-tail-mode"
+                                class="p-2 bg-gray-800 border border-gray-600 rounded-md text-gray-100"
+                            >
+                                <option value="auto" selected>Auto (recommended)</option>
+                                <option value="custom">Custom</option>
+                            </select>
+                        </div>
+                        <p class="text-[11px] text-gray-400 mt-1">
+                            Auto estimates the envelope release and active delay, reverb, and chorus
+                            decay, capped at 10 seconds. Custom uses the duration below.
+                        </p>
+                        <div class="flex items-center gap-4">
+                            <label
                                 for="offline-export-tail-seconds"
                                 class="text-sm font-medium whitespace-nowrap"
                             >
@@ -2467,7 +2486,8 @@
                             <span class="text-sm text-gray-400">seconds</span>
                         </div>
                         <p class="text-[11px] text-gray-400 mt-1">
-                            Appended after the final pattern cycle when Include effects tail is selected.
+                            Appended after the final pattern cycle when Include effects tail is selected
+                            and Custom is active.
                         </p>
                     </div>
                     <div class="flex justify-center gap-6">

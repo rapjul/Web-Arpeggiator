@@ -54,7 +54,7 @@ The custom PWA worker uses Vite PWA's `injectManifest` build integration and Wor
 ### 📊 Recording & Export
 
 - **Real-Time Recording**: Capture your live performance with parameter changes
-- **Offline Audio Modes**: Export seamless WAV loops or include an effects tail after 1-100 pattern cycles
+- **Offline Audio Modes**: Export seamless WAV loops or include an automatically estimated or custom effects tail after 1-100 pattern cycles
 - **Multi-Format Audio Export**: Simultaneous WAV (lossless 16-bit) and MP3 (compressed 128kbps) export via format checkboxes
 - **Dedicated MIDI Export**: Export pure binary Standard MIDI Files (`.mid`, SMF Format 0) with a single click
 - **Timestamped Files**: Automatic timestamp naming for all exports
@@ -128,7 +128,7 @@ For detailed pattern descriptions, see [Pattern Directions Guide](./docs/pattern
 
 - Select **Seamless loop (WAV)** for audio cropped to the exact requested musical duration. The renderer warms the synth and enabled effects before the exported cycle boundary, then preserves the cropped PCM samples unchanged.
 - Seamless loop checks active Chorus and Auto-pan against the selected Pattern cycles. If their LFO phase cannot return to its starting point, change the cycle count, disable the effect, or use **Include effects tail**.
-- Select **Include effects tail** to retain a conventional cold start and append 0–10 seconds of delay and reverb decay after the selected pattern cycles. It defaults to 2 seconds for compatibility with existing presets.
+- Select **Include effects tail** to retain a conventional cold start. **Auto (recommended)** estimates the envelope release and active delay, reverb, and chorus decay, capped at 10 seconds. **Custom** appends the chosen 0–10 second duration. Legacy settings without a tail strategy continue to use the previous explicit 2-second tail.
 - MP3 can be exported from either mode for listening and sharing. It includes gapless delay/padding metadata for compatible players, but only WAV has the sample-exact seamless-loop guarantee.
 - Both modes render offline without real-time variations and support 1-100 pattern cycles.
 - Offline WAV and MP3 files embed a versioned full settings snapshot, the exact materialized note sequence, and render timing. See [audio export metadata](./docs/audio-export-metadata.md) for the recovery format.

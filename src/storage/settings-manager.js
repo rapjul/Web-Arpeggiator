@@ -1,6 +1,7 @@
 import {
     normalizeLoopCount,
     normalizeOfflineExportMode,
+    normalizeOfflineExportTailMode,
     normalizeOfflineExportTailSeconds,
 } from "@core/export-duration.js";
 import { normalizeSettings, SETTINGS_SCHEMA_VERSION } from "@core/settings-contract.js";
@@ -149,6 +150,10 @@ export function createSettingsManager(context) {
             loopCount: normalizeLoopCount(dom.loopCountInput.value),
             offlineExportMode: normalizeOfflineExportMode(
                 Array.from(dom.offlineExportModeInputs || []).find((input) => input.checked)?.value,
+            ),
+            offlineExportTailMode: normalizeOfflineExportTailMode(
+                dom.offlineExportTailModeSelect?.value,
+                "custom",
             ),
             offlineExportTailSeconds: normalizeOfflineExportTailSeconds(
                 dom.offlineExportTailSecondsInput?.value,
@@ -370,6 +375,12 @@ export function createSettingsManager(context) {
             if (dom.offlineExportTailSecondsInput) {
                 dom.offlineExportTailSecondsInput.value = String(
                     normalizeOfflineExportTailSeconds(settings.offlineExportTailSeconds),
+                );
+            }
+            if (dom.offlineExportTailModeSelect) {
+                dom.offlineExportTailModeSelect.value = normalizeOfflineExportTailMode(
+                    settings.offlineExportTailMode,
+                    "custom",
                 );
             }
             if (typeof actions.updateOfflineExportModeUi === "function") {

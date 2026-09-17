@@ -6,7 +6,9 @@ import { describe, expect, it } from "vitest";
 import {
     calculateSeamlessRenderFrameWindow,
     calculateOfflineExportDuration,
+    calculateRecommendedTailSeconds,
     DEFAULT_OFFLINE_EXPORT_MODE,
+    DEFAULT_OFFLINE_EXPORT_TAIL_MODE,
     DEFAULT_OFFLINE_EXPORT_TAIL_SECONDS,
     formatEstimatedExportDuration,
     getSeamlessModulationCompatibility,
@@ -16,9 +18,12 @@ import {
     MIN_LOOP_COUNT,
     MIN_OFFLINE_EXPORT_TAIL_SECONDS,
     normalizeOfflineExportMode,
+    normalizeOfflineExportTailMode,
     normalizeOfflineExportTailSeconds,
     OFFLINE_EXPORT_MODE_SEAMLESS,
     OFFLINE_EXPORT_MODE_TAIL,
+    OFFLINE_EXPORT_TAIL_MODE_AUTO,
+    OFFLINE_EXPORT_TAIL_MODE_CUSTOM,
     normalizeLoopCount,
     OFFLINE_RENDER_TAIL_SECONDS,
 } from "@core/export-duration.js";
@@ -50,6 +55,14 @@ describe("Export Duration", () => {
             OFFLINE_EXPORT_MODE_SEAMLESS,
         );
         expect(normalizeOfflineExportMode("unexpected")).toBe(OFFLINE_EXPORT_MODE_TAIL);
+        expect(DEFAULT_OFFLINE_EXPORT_TAIL_MODE).toBe(OFFLINE_EXPORT_TAIL_MODE_AUTO);
+        expect(normalizeOfflineExportTailMode(OFFLINE_EXPORT_TAIL_MODE_CUSTOM)).toBe(
+            OFFLINE_EXPORT_TAIL_MODE_CUSTOM,
+        );
+        expect(normalizeOfflineExportTailMode("unexpected")).toBe(OFFLINE_EXPORT_TAIL_MODE_AUTO);
+        expect(normalizeOfflineExportTailMode(undefined, OFFLINE_EXPORT_TAIL_MODE_CUSTOM)).toBe(
+            OFFLINE_EXPORT_TAIL_MODE_CUSTOM,
+        );
         expect(normalizeOfflineExportTailSeconds(undefined)).toBe(
             DEFAULT_OFFLINE_EXPORT_TAIL_SECONDS,
         );
@@ -77,6 +90,51 @@ describe("Export Duration", () => {
             exportDuration: 3.5,
             preRollDuration: 0,
             renderDuration: 3.5,
+        });
+    });
+
+    it("recommends a tail from decaying effects without treating auto-pan as decay", () => {
+        const recommended = calculateRecommendedTailSeconds({
+            bpm: 120,
+            envRelease: 1,
+            delayMix: 0.5,
+            reverbMix: 0.5,
+            chorusMix: 0.5,
+            autoPanMix: 1,
+        });
+
+        expect(recommended).toBeGreaterThan(4.9);
+        expect(recommended).toBeLessThan(5.1);
+        expect(
+            calculateRecommendedTailSeconds({
+                bpm: 120,
+                envRelease: 1,
+                delayMix: 0.5,
+                reverbMix: 0.5,
+                chorusMix: 0.5,
+                autoPanMix: 0,
+            }),
+        ).toBe(recommended);
+    });
+
+    it("caps an automatic recommendation at the supported ten-second tail", () => {
+        expect(
+            calculateOfflineExportDuration({
+                loopCount: 1,
+                stepsPerLoop: 1,
+                interval: "16n",
+                bpm: 120,
+                exportMode: OFFLINE_EXPORT_MODE_TAIL,
+                tailMode: OFFLINE_EXPORT_TAIL_MODE_AUTO,
+                envRelease: 12,
+                delayMix: 0,
+                reverbMix: 0,
+                chorusMix: 0,
+            }),
+        ).toMatchObject({
+            tailDuration: MAX_OFFLINE_EXPORT_TAIL_SECONDS,
+            tailWasCapped: true,
+            tailMode: OFFLINE_EXPORT_TAIL_MODE_AUTO,
         });
     });
 
@@ -245,5 +303,16 @@ describe("Export Duration", () => {
         ).toBe(
             "1 Pattern cycle at ~0.38s each. Seamless WAV duration: ~0.4 seconds. Includes an internal 0.4s effects warm-up. Chorus is not phase-aligned across the selected Pattern cycles. Disable it, adjust Pattern cycles, or use Include effects tail.",
         );
+        expect(
+            formatEstimatedExportDuration({
+                loopCount: 1,
+                stepsPerLoop: 1,
+                interval: "16n",
+                bpm: 120,
+                exportMode: OFFLINE_EXPORT_MODE_TAIL,
+                tailMode: OFFLINE_EXPORT_TAIL_MODE_AUTO,
+                envRelease: 12,
+            }),
+        ).toContain("Auto effects tail: 10.0s");
     });
 });

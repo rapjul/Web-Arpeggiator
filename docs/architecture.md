@@ -61,7 +61,7 @@ When recording begins while transport is stopped, the recorder starts before pla
 - Pattern, synth, transport, effects, onboarding, keyboard, visualizer, note-step, and accessibility controllers own their respective controls.
 - `dom-references.js` builds the complete injected DOM reference registry and resolves reset targets for the composition root.
 - `workspace-controller.js` coordinates settings history, resets, autosave, and session restoration.
-- `export-controls-controller.js` coordinates recording/export controls, duration readouts, offline modes, and loop-preview requests.
+- `export-controls-controller.js` coordinates recording/export controls, automatic or custom effects-tail duration readouts, offline modes, and loop-preview requests.
 - `preset-controller.js` renders factory and saved preset lists and sound-starter cards.
 - `preset-workflow-controller.js` coordinates URL sharing, file import, future-version confirmation, and browser-preset persistence actions.
 
