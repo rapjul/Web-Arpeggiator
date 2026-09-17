@@ -23,6 +23,8 @@ import { setupKeyboardNavigation } from "@ui/a11y-navigation.js";
  * @property {(root: string, scale: string) => string[]} [generateRandomNotes]
  * @property {(chordType: string, root: string) => string} [buildChordString]
  * @property {(chordType: string) => {name: string}} [resolveChordDefinition]
+ * @property {(request: object, scale: object) => {hasConflict: boolean, chordName: string, root: string, requestedNotes: string[], adaptedNotes: string[], changedPitches: Array<{requested: string, adapted: string}>}} [resolveChordConflict]
+ * @property {(details: object) => void} [openChordConflict]
  * @property {(callback: () => void, wait: number) => () => void} debounce
  */
 
@@ -31,7 +33,7 @@ import { setupKeyboardNavigation } from "@ui/a11y-navigation.js";
  * state.
  *
  * @param {PatternControlsControllerDependencies} dependencies - Injected UI and app behavior.
- * @returns {{initialize: () => void, destroy: () => void, getSelectedPatternDirection: () => string, setSelectedPatternDirection: (direction?: string) => void, updateScaleQuantizeUi: () => void, updateScaleQuantizeToggleText: () => void, updateButtonGroup: (container: HTMLElement, selectedValue: number, dataAttribute: string) => void}}
+ * @returns {{initialize: () => void, destroy: () => void, getSelectedPatternDirection: () => string, setSelectedPatternDirection: (direction?: string) => void, updateScaleQuantizeUi: () => void, updateScaleQuantizeToggleText: () => void, setScaleQuantizationEnabled: (enabled: boolean) => void, updateButtonGroup: (container: HTMLElement, selectedValue: number, dataAttribute: string) => void}}
  */
 export function createPatternControlsController(dependencies) {
     const {
@@ -50,6 +52,8 @@ export function createPatternControlsController(dependencies) {
         generateRandomNotes,
         buildChordString,
         resolveChordDefinition,
+        resolveChordConflict,
+        openChordConflict,
         debounce,
     } = dependencies;
     const {
@@ -216,6 +220,28 @@ export function createPatternControlsController(dependencies) {
         scaleQuantizeToggleStatus.classList.toggle("text-gray-400", !isEnabled);
     }
 
+    /**
+     * Updates scale snapping without creating a separate pattern transaction.
+     * The following accepted note edit creates the single history entry.
+     *
+     * @param {boolean} enabled - Whether scale snapping should remain active.
+     * @returns {void}
+     */
+    function setScaleQuantizationEnabled(enabled) {
+        if (enabled) {
+            if (scaleTypeSelect.value === "chromatic") {
+                scaleTypeSelect.value = lastActiveScaleType;
+            }
+            scaleQuantizeToggle.checked = true;
+        } else {
+            if (scaleTypeSelect.value !== "chromatic") lastActiveScaleType = scaleTypeSelect.value;
+            scaleQuantizeToggle.checked = false;
+            scaleTypeSelect.value = "chromatic";
+        }
+        updateScaleQuantizeUi();
+        updateScaleQuantizeToggleText();
+    }
+
     /** Wires random-note and chord-starter actions through injected callbacks. */
     function initializePatternActions(options) {
         randomizeNotesButton?.addEventListener(
@@ -252,11 +278,42 @@ export function createPatternControlsController(dependencies) {
                     if (!buildChordString || !resolveChordDefinition || !onNotesSelected) return;
                     const chordType = button.getAttribute("data-chord") || "major";
                     const root = scaleRootSelect.value || "C";
-                    onClearActiveSoundStarter?.();
-                    onNotesSelected(buildChordString(chordType, root).split(" "));
-                    showToast?.(
+                    const requestedNotes = buildChordString(chordType, root).split(" ");
+                    const conflict = resolveChordConflict?.(
+                        { chordType, root, notes: requestedNotes },
+                        {
+                            enabled: scaleQuantizeToggle.checked,
+                            root: scaleRootSelect.value,
+                            scale: scaleTypeSelect.value,
+                        },
+                    );
+                    const applyChord = (notes, message) => {
+                        onClearActiveSoundStarter?.();
+                        onNotesSelected(notes);
+                        showToast?.(message, "success");
+                    };
+                    if (conflict?.hasConflict && openChordConflict) {
+                        openChordConflict({
+                            ...conflict,
+                            onKeep: () => {
+                                setScaleQuantizationEnabled(false);
+                                applyChord(
+                                    conflict.requestedNotes,
+                                    `Loaded ${root} ${resolveChordDefinition(chordType).name} chord; scale snapping is off.`,
+                                );
+                            },
+                            onAdapt: () =>
+                                applyChord(
+                                    conflict.adaptedNotes,
+                                    `Loaded an adapted ${root} ${resolveChordDefinition(chordType).name} chord.`,
+                                ),
+                            onCancel: () => {},
+                        });
+                        return;
+                    }
+                    applyChord(
+                        requestedNotes,
                         `Loaded ${root} ${resolveChordDefinition(chordType).name} chord!`,
-                        "success",
                     );
                 },
                 options,
@@ -309,15 +366,7 @@ export function createPatternControlsController(dependencies) {
         scaleQuantizeToggle.addEventListener(
             "change",
             () => {
-                if (scaleQuantizeToggle.checked && scaleTypeSelect.value === "chromatic")
-                    scaleTypeSelect.value = lastActiveScaleType;
-                if (!scaleQuantizeToggle.checked) {
-                    if (scaleTypeSelect.value !== "chromatic")
-                        lastActiveScaleType = scaleTypeSelect.value;
-                    scaleTypeSelect.value = "chromatic";
-                }
-                updateScaleQuantizeUi();
-                updateScaleQuantizeToggleText();
+                setScaleQuantizationEnabled(scaleQuantizeToggle.checked);
                 onPatternChange();
             },
             options,
@@ -404,6 +453,7 @@ export function createPatternControlsController(dependencies) {
         setSelectedPatternDirection,
         updateScaleQuantizeUi,
         updateScaleQuantizeToggleText,
+        setScaleQuantizationEnabled,
         updateButtonGroup,
     };
 }

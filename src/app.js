@@ -8,6 +8,7 @@
  * @module app
  */
 import { buildChordString, resolveChordDefinition } from "@core/chord-builder.js";
+import { resolveChordConflict } from "@core/chord-conflict.js";
 import { filterNoteInput, filterNumericInput } from "@core/input-filters.js";
 import { dbToPercent } from "@core/meter-utils.js";
 import {
@@ -32,6 +33,7 @@ import { createOnboardingController } from "@ui/onboarding-controller.js";
 import { createEffectsControlsController } from "@ui/effects-controls-controller.js";
 import { createExportControlsController } from "@ui/export-controls-controller.js";
 import { createPatternControlsController } from "@ui/pattern-controls-controller.js";
+import { createChordConflictDialogController } from "@ui/chord-conflict-dialog-controller.js";
 import { createPresetController } from "@ui/preset-controller.js";
 import { createPresetWorkflowController } from "@ui/preset-workflow-controller.js";
 import { createSynthControlsController } from "@ui/synth-controls-controller.js";
@@ -304,6 +306,14 @@ function initializeApp() {
         quickStartPresetsGrid,
         quickStartScratchButton,
         startOverlay,
+        chordConflictOverlay,
+        chordConflictDialog,
+        chordConflictRequestedNotes,
+        chordConflictAdaptedNotes,
+        chordConflictChangedPitches,
+        chordConflictKeepButton,
+        chordConflictAdaptButton,
+        chordConflictCancelButton,
         chordButtons,
         resolveResetTargets,
     } = createDomReferences(document);
@@ -399,6 +409,20 @@ function initializeApp() {
         getNotes: () => appState.currentNotes,
     });
 
+    const chordConflictDialogController = createChordConflictDialogController({
+        documentRef: document,
+        dom: {
+            overlay: chordConflictOverlay,
+            dialog: chordConflictDialog,
+            requestedNotes: chordConflictRequestedNotes,
+            adaptedNotes: chordConflictAdaptedNotes,
+            changedPitches: chordConflictChangedPitches,
+            keepButton: chordConflictKeepButton,
+            adaptButton: chordConflictAdaptButton,
+            cancelButton: chordConflictCancelButton,
+        },
+    });
+
     const patternControlsController = createPatternControlsController({
         dom: {
             notesInput,
@@ -448,6 +472,8 @@ function initializeApp() {
         generateRandomNotes,
         buildChordString,
         resolveChordDefinition,
+        resolveChordConflict,
+        openChordConflict: chordConflictDialogController.open,
         debounce,
     });
 
