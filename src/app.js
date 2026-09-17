@@ -39,6 +39,7 @@ import { createTransportController } from "@ui/transport-controller.js";
 import { createToastManager } from "@ui/ui-feedback.js";
 import { createWorkspaceController } from "@ui/workspace-controller.js";
 import { createDomReferences } from "@ui/dom-references.js";
+import { createApplicationState } from "@/state/application-state.js";
 import { FACTORY_PRESETS } from "./config/factory-presets.js";
 
 /** @typedef {import("./config/factory-presets.js").FactoryPreset} FactoryPreset */
@@ -94,7 +95,6 @@ function hasOscillatorWidth(oscillator) {
 }
 
 // --- Application State ---
-let isAudioContextStarted = false;
 let Tone;
 let audioRuntimeController = null;
 let playbackController = null;
@@ -306,14 +306,6 @@ function initializeApp() {
         resolveResetTargets,
     } = createDomReferences(document);
 
-    // --- State ---
-    let isPlaying = false;
-    let currentNotes = ["C4", "E4", "G4"];
-    let currentOctaveShift = 0;
-    let currentOctaveRange = 2;
-    let activeNote = null;
-    let currentWaveform = "sine";
-
     /**
      * Returns the engine being assembled, if any, so settings can be applied
      * before the fully constructed runtime is published.
@@ -351,61 +343,7 @@ function initializeApp() {
     }
 
     // --- App State Object (for injected modules) ---
-    const appState = {
-        get isPlaying() {
-            return isPlaying;
-        },
-        set isPlaying(value) {
-            isPlaying = value;
-        },
-        get currentNotes() {
-            return currentNotes;
-        },
-        set currentNotes(value) {
-            currentNotes = value;
-        },
-        get currentOctaveShift() {
-            return currentOctaveShift;
-        },
-        set currentOctaveShift(value) {
-            currentOctaveShift = value;
-        },
-        get currentOctaveRange() {
-            return currentOctaveRange;
-        },
-        set currentOctaveRange(value) {
-            currentOctaveRange = value;
-        },
-        get activeSynth() {
-            return getAvailableAudioEngine()?.activeSynth || null;
-        },
-        set activeSynth(_value) {
-            // activeSynth is owned by audio-engine; this is a no-op passthrough
-        },
-        get currentWaveform() {
-            const availableAudioEngine = getAvailableAudioEngine();
-            return availableAudioEngine ? availableAudioEngine.currentWaveform : currentWaveform;
-        },
-        set currentWaveform(value) {
-            currentWaveform = value;
-            const availableAudioEngine = getAvailableAudioEngine();
-            if (availableAudioEngine) {
-                availableAudioEngine.currentWaveform = value;
-            }
-        },
-        get activeNote() {
-            return activeNote;
-        },
-        set activeNote(value) {
-            activeNote = value;
-        },
-        get isAudioContextStarted() {
-            return isAudioContextStarted;
-        },
-        set isAudioContextStarted(value) {
-            isAudioContextStarted = value;
-        },
-    };
+    const appState = createApplicationState({ getAvailableAudioEngine });
 
     // --- Pattern Helpers ---
 
@@ -434,9 +372,9 @@ function initializeApp() {
             return;
         }
         getPatternController()?.update({
-            baseNotes: currentNotes,
-            octaveRange: currentOctaveRange,
-            octaveShift: currentOctaveShift,
+            baseNotes: appState.currentNotes,
+            octaveRange: appState.currentOctaveRange,
+            octaveShift: appState.currentOctaveShift,
             interval: intervalSelect.value,
             gate: parseFloat(gateSlider.value),
             direction: patternControlsController.getSelectedPatternDirection(),
@@ -453,7 +391,7 @@ function initializeApp() {
 
     const noteStepController = createNoteStepController({
         container: noteStepIndicator,
-        getNotes: () => currentNotes,
+        getNotes: () => appState.currentNotes,
     });
 
     const patternControlsController = createPatternControlsController({
@@ -474,13 +412,13 @@ function initializeApp() {
         },
         normalizeNotes: normalizeNotesSequence,
         setNotes: (notes) => {
-            currentNotes = notes;
+            appState.currentNotes = notes;
         },
         setOctaveShift: (value) => {
-            currentOctaveShift = value;
+            appState.currentOctaveShift = value;
         },
         setOctaveRange: (value) => {
-            currentOctaveRange = value;
+            appState.currentOctaveRange = value;
         },
         onPatternChange: createOrUpdatePattern,
         onEstimatedDurationChange: () => updateEstimatedExportDuration(),
@@ -559,7 +497,7 @@ function initializeApp() {
             if (savedPresetSelect) {
                 savedPresetSelect.value = preset.id;
             }
-            if (!isPlaying) {
+            if (!appState.isPlaying) {
                 try {
                     await startPlayback();
                 } catch (error) {
@@ -1321,7 +1259,7 @@ function initializeApp() {
             swingValue,
         },
         windowRef: window,
-        getIsPlaying: () => isPlaying,
+        getIsPlaying: () => appState.isPlaying,
         onStart: startPlayback,
         onStop: stopPlayback,
         onBpmChange: (value) => {
@@ -1503,7 +1441,7 @@ function initializeApp() {
     effectsControlsController.initialize();
 
     const staticLoopRenderer = createStaticLoopRenderer({
-        isAudioContextStarted: () => isAudioContextStarted,
+        isAudioContextStarted: () => appState.isAudioContextStarted,
         getTone: () => Tone,
         getAudioEngine,
         getSettings: () => getAllSettings(),
@@ -1527,9 +1465,9 @@ function initializeApp() {
         },
         getSettings: () => getAllSettings(),
         getCurrentNotes: () => ({
-            notes: currentNotes,
-            octaveRange: currentOctaveRange,
-            octaveShift: currentOctaveShift,
+            notes: appState.currentNotes,
+            octaveRange: appState.currentOctaveRange,
+            octaveShift: appState.currentOctaveShift,
         }),
         getRecorderManager,
         getVisualizer,
