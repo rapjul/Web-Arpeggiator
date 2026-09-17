@@ -13,17 +13,19 @@ import { exportMidiFile } from "@core/midi-export.js";
 import { compileTimeline } from "@core/timeline.js";
 
 /** @typedef {import("@core/settings-contract.js").ArpeggiatorSettings} ArpeggiatorSettings */
+/** @typedef {import("@core/timeline.js").CompiledTimeline} CompiledTimeline */
 
 /**
  * Creates the export controls controller.
  *
- * @param {{dom: {loopCountInput: HTMLInputElement, offlineExportModeInputs: NodeListOf<HTMLInputElement>, offlineExportTailControl: HTMLElement|null, offlineExportTailSecondsInput: HTMLInputElement|null, offlineExportDuration: HTMLElement|null, recordButton: HTMLElement, exportButton: HTMLElement, offlineExportButton: HTMLElement, offlineExportMidiButton: HTMLElement|null, toggleVisualizerButton: HTMLElement, visualizerModeSelect: HTMLSelectElement|null}, getSettings: () => ArpeggiatorSettings, getCurrentNotes: () => {notes: string[], octaveRange: number, octaveShift: number}, getRecorderManager: () => {toggleRecording: () => Promise<void>, exportRealtime: () => Promise<void>, exportOffline: () => Promise<void>}|undefined, getVisualizer: () => {currentMode: string, toggle: () => void}|undefined, startAudio: () => Promise<void>, generateFilename: (isRealtime: boolean) => string, showToast: (message: string, type?: string) => void, renderStaticLoop: () => Promise<void>, debounce: (callback: () => void, wait: number) => () => void, logger?: {error?: (...args: unknown[]) => void, warn?: (...args: unknown[]) => void}}} dependencies - Injected export behavior.
+ * @param {{dom: {loopCountInput: HTMLInputElement, offlineExportModeInputs: NodeListOf<HTMLInputElement>, offlineExportTailControl: HTMLElement|null, offlineExportTailSecondsInput: HTMLInputElement|null, offlineExportDuration: HTMLElement|null, recordButton: HTMLElement, exportButton: HTMLElement, offlineExportButton: HTMLElement, offlineExportMidiButton: HTMLElement|null, toggleVisualizerButton: HTMLElement, visualizerModeSelect: HTMLSelectElement|null}, getSettings: () => ArpeggiatorSettings, getTimeline?: () => CompiledTimeline|null, getCurrentNotes: () => {notes: string[], octaveRange: number, octaveShift: number}, getRecorderManager: () => {toggleRecording: () => Promise<void>, exportRealtime: () => Promise<void>, exportOffline: () => Promise<void>}|undefined, getVisualizer: () => {currentMode: string, toggle: () => void}|undefined, startAudio: () => Promise<void>, generateFilename: (isRealtime: boolean) => string, showToast: (message: string, type?: string) => void, renderStaticLoop: () => Promise<void>, debounce: (callback: () => void, wait: number) => () => void, logger?: {error?: (...args: unknown[]) => void, warn?: (...args: unknown[]) => void}}} dependencies - Injected export behavior.
  * @returns {{initialize: () => void, destroy: () => void, updateEstimatedExportDuration: () => void, updateOfflineExportModeUi: () => void, requestStaticLoopRender: () => void}} Export controls API.
  */
 export function createExportControlsController(dependencies) {
     const {
         dom,
         getSettings,
+        getTimeline,
         getRecorderManager,
         getVisualizer,
         startAudio,
@@ -69,7 +71,7 @@ export function createExportControlsController(dependencies) {
     function updateEstimatedExportDuration() {
         if (!offlineExportDuration) return;
         const settings = getSettings();
-        const timeline = compileTimeline(settings, { cycles: 1 });
+        const timeline = getTimeline?.() ?? compileTimeline(settings, { cycles: 1 });
         offlineExportDuration.textContent = formatEstimatedExportDuration({
             loopCount: settings.loopCount,
             stepsPerLoop: timeline.stepsPerCycle,
@@ -102,7 +104,14 @@ export function createExportControlsController(dependencies) {
     function handleMidiExport() {
         try {
             const settings = getSettings();
-            const timeline = compileTimeline(settings, { cycles: settings.loopCount });
+            const currentTimeline = getTimeline?.();
+            const timeline = currentTimeline
+                ? compileTimeline(settings, {
+                      cycles: settings.loopCount,
+                      resolvedNotes: currentTimeline.resolvedNotes,
+                      sourceNoteMap: currentTimeline.sourceNoteMap,
+                  })
+                : compileTimeline(settings, { cycles: settings.loopCount });
             exportMidiFile({ timeline }, `${generateFilename(false)}.mid`);
             showToast("Exported MIDI pattern file!", "success");
         } catch (error) {

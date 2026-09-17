@@ -49,7 +49,7 @@ export {
  * injected, keeping this scheduler independent of DOM and window globals.
  *
  * @param {{getSynth: () => unknown, getIsPlaying: () => boolean, onPatternChange?: (pattern: object|null) => void, onStep?: (index: number) => void, logger?: Pick<Console, "error">}} context - Runtime callbacks.
- * @returns {{update: (settings: PatternSettings) => object|null, getPattern: () => object|null, dispose: () => void}} Pattern controller API.
+ * @returns {{update: (settings: PatternSettings) => object|null, getPattern: () => object|null, getTimeline: () => import("@core/timeline.js").CompiledTimeline|null, dispose: () => void}} Pattern controller API.
  */
 export function createPatternController({
     getSynth,
@@ -60,6 +60,8 @@ export function createPatternController({
 }) {
     /** @type {Tone.Pattern<string>|null} */
     let pattern = null;
+    /** @type {import("@core/timeline.js").CompiledTimeline|null} */
+    let currentTimeline = null;
 
     function dispose() {
         if (pattern) {
@@ -68,6 +70,7 @@ export function createPatternController({
             } catch {}
         }
         pattern = null;
+        currentTimeline = null;
         onPatternChange(null);
     }
 
@@ -94,6 +97,7 @@ export function createPatternController({
 
             dispose();
             if (timeline.events.length === 0) return null;
+            currentTimeline = timeline;
 
             let occurrenceIndex = 0;
             const patternInstance = new Tone.Pattern(
@@ -142,7 +146,12 @@ export function createPatternController({
         }
     }
 
-    return { update, getPattern: () => pattern, dispose };
+    return {
+        update,
+        getPattern: () => pattern,
+        getTimeline: () => currentTimeline,
+        dispose,
+    };
 }
 
 /**

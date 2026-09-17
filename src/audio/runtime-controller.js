@@ -187,6 +187,7 @@ export function createAudioRuntimeController(dependencies) {
                             formatTime,
                             startAudio: startAudioAction,
                             startPlayback,
+                            getTimeline: () => nextPatternController?.getTimeline?.() ?? null,
                         },
                     });
 
