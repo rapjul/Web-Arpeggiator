@@ -19,7 +19,7 @@ The application exposes many controls even though a first-time user mainly needs
 
 The first-visit Quick Start modal asks users to choose **Simple controls** or **Full controls** before showing factory sound starters or Start from Scratch. Returning visitors default to Full controls when no preference has been saved. The Interface selector remains visible at the top of the application and persists changes in `localStorage` under `webArpInterfaceMode`.
 
-Simple controls retain Sound Starters, Transport, Pattern, Scale Quantization, Offline Audio Export, and Preset Management. The controller hides the octave, keyboard, synthesis, envelope, filter, effects, visualizer, and real-time recording sections by setting both `hidden` and `aria-hidden`; switching back to Full restores them. The selected mode is not part of `ArpeggiatorSettings`, so changing it does not create a musical history entry or modify a preset.
+Simple controls retain Sound Starters, Transport, Pattern, Scale Quantization, Offline Audio Export, and Preset Management. Volume, Tempo, Pattern, Note length, Stay in key, and Key use plain primary labels. The controller hides the octave, keyboard, visualizer, and real-time recording sections while putting additional pattern directions, synthesis, envelope, filter, and effects controls behind expandable sections; switching back to Full restores direct access. The selected mode is not part of `ArpeggiatorSettings`, so changing it does not create a musical history entry or modify a preset.
 
 Incoming URL presets continue to bypass the first-visit choice and load their musical values unchanged. An Escape dismissal without an explicit mode choice falls back to the Full presentation.
 
