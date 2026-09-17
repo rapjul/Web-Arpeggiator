@@ -36,6 +36,12 @@ The root retains the integration callbacks needed to connect focused modules to 
 
 Live playback adapts that timeline to `Tone.Pattern` so the existing transport lifecycle remains intact. Static previews and offline audio schedule the compiled events directly. MIDI converts the same absolute starts and ends into delta-time events. These consumers keep Tone transport swing disabled when the timeline has already applied swing, preventing double timing offsets.
 
+### Recording Signal Path
+
+The live signal path ends at `reverb → postGain → limiter → destination`. The recorder connects to the limiter output after post-gain, using post-gain as the fallback when limiter construction is unavailable. This keeps monitoring and recording aligned for master-volume changes and limiter protection.
+
+When recording begins while transport is stopped, the recorder starts before playback is requested so the first scheduled event is captured. Browser media is retained as the source blob, decoded once into an `AudioBuffer`, and converted to actual PCM WAV and/or MP3 data from that shared decoded buffer. Decode and conversion failures leave the source available for a later retry.
+
 ### Storage
 
 `src/storage/` owns persistence contracts and storage adapters:

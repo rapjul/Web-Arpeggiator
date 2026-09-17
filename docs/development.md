@@ -29,6 +29,18 @@ bun run test:e2e
 bun run test:all
 ```
 
+Before opening a pull request, run the complete validation set:
+
+```bash
+bun run test:unit
+bun run test:coverage
+bun run typecheck
+bun run lint
+bun run format:check
+bun run build
+bun run test:e2e
+```
+
 `test:e2e` installs the Playwright Chromium build when it is missing. When the matching browser is already installed, Playwright reuses it without downloading again.
 
 Vitest owns unit tests and V8 coverage. Playwright owns Chromium browser behavior, including UI interactions, PWA lifecycle, canvas, downloaded files, and generated-audio recording. The current Vitest coverage ratchet is configured in [`vitest.config.ts`](../vitest.config.ts); its long-term target is 80% statements, 70% branches, 80% functions, and 80% lines.
