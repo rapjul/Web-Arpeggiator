@@ -9,6 +9,7 @@ let lastOfflineRenderDuration = 0;
 let lastOfflineTransportStopAt: number | null = null;
 let lastSeamlessStartFrame = 0;
 let lastSeamlessFrameCount = 0;
+let recorderLifecycle: string[] = [];
 
 vi.mock("@core/audio-utils.js", () => ({
     audioBufferToMp3Blob: vi.fn(async () => new Blob(["MP3"], { type: "audio/mp3" })),
@@ -57,9 +58,11 @@ vi.mock("tone", async () => {
             }
             start() {
                 this.state = "started";
+                recorderLifecycle.push("recording-start");
             }
             async stop() {
                 this.state = "stopped";
+                recorderLifecycle.push("recording-stop");
                 return new Blob([new Uint8Array(2000)], { type: "audio/wav" });
             }
             dispose() {}
@@ -121,6 +124,7 @@ describe("Recorder Manager Module", () => {
         lastOfflineTransportStopAt = null;
         lastSeamlessStartFrame = 0;
         lastSeamlessFrameCount = 0;
+        recorderLifecycle = [];
         vi.clearAllMocks();
         const createEl = (tag = "div") => document.createElement(tag);
         mockDom = {
@@ -145,6 +149,9 @@ describe("Recorder Manager Module", () => {
             reverb: {
                 connect: vi.fn(),
             } as unknown as RecorderAudio["reverb"],
+            recordingOutput: {
+                connect: vi.fn(),
+            } as unknown as RecorderAudio["recordingOutput"],
             synths: {} as unknown as RecorderAudio["synths"],
             createOfflineChain: vi.fn(() => ({
                 offlineSynth: {
@@ -177,7 +184,9 @@ describe("Recorder Manager Module", () => {
             generateFilename: vi.fn((prefix: string) => `arp-${prefix}`),
             formatTime: vi.fn((sec: number) => `${sec}s`),
             startAudio: vi.fn(),
-            startPlayback: vi.fn(),
+            startPlayback: vi.fn(async () => {
+                recorderLifecycle.push("playback-start");
+            }),
         };
     });
 
@@ -194,7 +203,7 @@ describe("Recorder Manager Module", () => {
         });
 
         await manager.initRecorder();
-        expect(mockAudio.reverb.connect).toHaveBeenCalled();
+        expect(mockAudio.recordingOutput.connect).toHaveBeenCalled();
         expect(mockDom.recordStatus.textContent).toContain("Ready to record");
     });
 
@@ -238,6 +247,7 @@ describe("Recorder Manager Module", () => {
         expect(audioBufferToWav).toHaveBeenCalledWith(
             expect.objectContaining({ sampleRate: 44100 }),
         );
+        expect(mockContext.decodeAudioData).toHaveBeenCalledTimes(1);
         expect(mockActions.showToast).toHaveBeenCalledWith("Exported MP3 file!", "success");
     });
 
@@ -572,6 +582,7 @@ describe("Recorder Manager Module", () => {
         vi.spyOn(Tone.getContext(), "decodeAudioData").mockRejectedValueOnce(
             new Error("Decode failed"),
         );
+        manager.setRecorderBlob(testBlob);
         await manager.exportRealtime();
         expect(mockActions.showToast).toHaveBeenCalledWith("MP3 encoding failed.", "error");
     });
@@ -590,6 +601,7 @@ describe("Recorder Manager Module", () => {
         await manager.toggleRecording();
         expect(mockActions.startAudio).toHaveBeenCalled();
         expect(mockActions.startPlayback).toHaveBeenCalled();
+        expect(recorderLifecycle.slice(0, 2)).toEqual(["recording-start", "playback-start"]);
         expect(manager.isRecording).toBe(true);
 
         // Stop recording
