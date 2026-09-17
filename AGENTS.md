@@ -193,16 +193,14 @@ Application state created by `src/state/application-state.js`:
 
 ```javascript
 {
-  isPlaying: boolean,          // Transport running
-  isRecording: boolean,        // Recording active
-  currentNotes: string[],      // Base note sequence
-  currentWaveform: string,     // Active waveform type
-  activeSynth: ToneSynth,      // Currently selected synth
-  currentOctaveShift: number,  // -3 to +3
-  currentOctaveRange: number,  // 1 to 5
-  isVisualizerOn: boolean,     // Visualizer enabled
-  activeNote: string|null,     // Currently playing keyboard note
-  liveRecordedWavBlob: Blob    // Recorded audio data
+  isPlaying: boolean,                 // Transport running
+  currentNotes: string[],             // Base note sequence
+  currentWaveform: string,            // Active waveform type
+  activeSynth: ToneSynth|null,         // Currently selected synth
+  currentOctaveShift: number,         // -3 to +3
+  currentOctaveRange: number,         // 1 to 5
+  activeNote: string|null,             // Currently playing keyboard note
+  isAudioContextStarted: boolean      // Audio runtime activation state
 }
 ```
 
