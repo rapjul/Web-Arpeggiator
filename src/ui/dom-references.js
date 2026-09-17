@@ -70,6 +70,21 @@ export function createDomReferences(documentRef) {
             getById("sound-starters-details")
         ),
         soundStartersGrid: getById("sound-starters-grid"),
+        guidedWorkflowSection: getById("guided-workflow-section"),
+        guidedWorkflowStartButton: /** @type {HTMLButtonElement | null} */ (
+            getById("guided-workflow-start")
+        ),
+        guidedWorkflowActivePanel: getById("guided-workflow-active"),
+        guidedWorkflowSteps: /** @type {HTMLOListElement | null} */ (
+            getById("guided-workflow-steps")
+        ),
+        guidedWorkflowStatus: getById("guided-workflow-status"),
+        guidedWorkflowSkipButton: /** @type {HTMLButtonElement | null} */ (
+            getById("guided-workflow-skip")
+        ),
+        guidedWorkflowRestartButton: /** @type {HTMLButtonElement | null} */ (
+            getById("guided-workflow-restart")
+        ),
         bpmSlider: /** @type {HTMLInputElement} */ (getById("bpm")),
         bpmValue: getById("bpm-value"),
         postGainSlider: /** @type {HTMLInputElement} */ (getById("post-gain")),
