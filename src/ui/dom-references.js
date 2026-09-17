@@ -167,6 +167,9 @@ export function createDomReferences(documentRef) {
             queryAll("input[name='offline-export-mode']")
         ),
         offlineExportTailControl: getById("offline-export-tail-control"),
+        offlineExportTailModeSelect: /** @type {HTMLSelectElement | null} */ (
+            getById("offline-export-tail-mode")
+        ),
         offlineExportTailSecondsInput: /** @type {HTMLInputElement | null} */ (
             getById("offline-export-tail-seconds")
         ),

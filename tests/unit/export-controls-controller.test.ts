@@ -21,6 +21,10 @@ function createFixture() {
     modeSeamlessInput.name = "offline-export-mode";
     modeSeamlessInput.value = "seamless";
     const tailControl = document.createElement("div");
+    const tailModeSelect = document.createElement("select");
+    tailModeSelect.innerHTML =
+        '<option value="auto">Auto (recommended)</option><option value="custom">Custom</option>';
+    tailModeSelect.value = "auto";
     const tailSecondsInput = document.createElement("input");
     tailSecondsInput.value = "2";
     const duration = document.createElement("output");
@@ -37,6 +41,7 @@ function createFixture() {
         modeTailInput,
         modeSeamlessInput,
         tailControl,
+        tailModeSelect,
         tailSecondsInput,
         duration,
         recordButton,
@@ -63,6 +68,7 @@ function createFixture() {
             loopCountInput,
             offlineExportModeInputs: document.querySelectorAll("input[name='offline-export-mode']"),
             offlineExportTailControl: tailControl,
+            offlineExportTailModeSelect: tailModeSelect,
             offlineExportTailSecondsInput: tailSecondsInput,
             offlineExportDuration: duration,
             recordButton,
@@ -92,6 +98,7 @@ function createFixture() {
         loopCountInput,
         logger,
         modeSeamlessInput,
+        modeTailInput,
         midiButton,
         offlineExportButton,
         recorder,
@@ -101,6 +108,7 @@ function createFixture() {
         showToast,
         startAudio,
         tailControl,
+        tailModeSelect,
         tailSecondsInput,
         toggleVisualizerButton,
         visualizer,
@@ -121,8 +129,10 @@ describe("export controls controller", () => {
             controller,
             duration,
             loopCountInput,
+            modeTailInput,
             modeSeamlessInput,
             tailControl,
+            tailModeSelect,
             tailSecondsInput,
         } = createFixture();
 
@@ -131,6 +141,15 @@ describe("export controls controller", () => {
         modeSeamlessInput.dispatchEvent(new Event("change", { bubbles: true }));
         expect(tailControl.classList.contains("hidden")).toBe(true);
         expect(tailSecondsInput.disabled).toBe(true);
+
+        modeSeamlessInput.checked = false;
+        modeTailInput.checked = true;
+        modeTailInput.dispatchEvent(new Event("change", { bubbles: true }));
+        expect(tailModeSelect.disabled).toBe(false);
+        expect(tailSecondsInput.disabled).toBe(true);
+        tailModeSelect.value = "custom";
+        tailModeSelect.dispatchEvent(new Event("change", { bubbles: true }));
+        expect(tailSecondsInput.disabled).toBe(false);
 
         loopCountInput.value = "999";
         loopCountInput.dispatchEvent(new Event("change", { bubbles: true }));
@@ -146,6 +165,7 @@ describe("export controls controller", () => {
             loopCount: 1,
             octaveRange: 1,
             offlineExportMode: "tail",
+            offlineExportTailMode: "custom",
             offlineExportTailSeconds: 0,
         });
 

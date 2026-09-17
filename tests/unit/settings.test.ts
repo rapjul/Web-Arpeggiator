@@ -58,6 +58,11 @@ describe("Settings Manager Domain Module", () => {
             reverbMixSlider: Object.assign(createEl("input"), { value: "0.4" }),
             loopCountInput: Object.assign(createEl("input"), { value: "4" }),
             offlineExportModeInputs: [seamlessExportMode, tailExportMode],
+            offlineExportTailModeSelect: Object.assign(createEl("select"), {
+                innerHTML:
+                    "<option value='auto'>Auto</option><option value='custom'>Custom</option>",
+                value: "auto",
+            }),
             offlineExportTailSecondsInput: Object.assign(createEl("input"), { value: "2" }),
             monoCutoffSlider: Object.assign(createEl("input"), { value: "2500" }),
             monoOctavesSlider: Object.assign(createEl("input"), { value: "3.5" }),
@@ -164,6 +169,7 @@ describe("Settings Manager Domain Module", () => {
         expect(settings.waveform).toBe("sawtooth");
         expect(settings.loopCount).toBe(4);
         expect(settings.offlineExportMode).toBe("tail");
+        expect(settings.offlineExportTailMode).toBe("auto");
         expect(settings.offlineExportTailSeconds).toBe(2);
         expect(settings.monoCutoff).toBe(2500);
         expect(settings.driveMix).toBe(0.15);
@@ -333,15 +339,18 @@ describe("Settings Manager Domain Module", () => {
         expect(mockActions.updateEnvelope).toHaveBeenCalled();
         expect(mockActions.updateEstimatedExportDuration).toHaveBeenCalled();
         expect(mockDom.offlineExportModeInputs[1].checked).toBe(true);
+        expect(mockDom.offlineExportTailModeSelect.value).toBe("custom");
         expect(mockDom.offlineExportTailSecondsInput.value).toBe("2");
 
         manager.loadAllSettings({
             ...manager.getAllSettings(),
             offlineExportMode: "seamless",
+            offlineExportTailMode: "auto",
             offlineExportTailSeconds: 3.5,
         });
         expect(mockDom.offlineExportModeInputs[0].checked).toBe(true);
         expect(mockDom.offlineExportModeInputs[1].checked).toBe(false);
+        expect(mockDom.offlineExportTailModeSelect.value).toBe("auto");
         expect(mockDom.offlineExportTailSecondsInput.value).toBe("3.5");
         expect(mockActions.updateOfflineExportModeUi).toHaveBeenCalled();
     });
