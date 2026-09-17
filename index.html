@@ -45,22 +45,55 @@
                 <p class="text-sm text-gray-500 mb-6">
                     No music experience needed.
                 </p>
-                <h3 class="text-sm font-semibold text-gray-200 mb-3 text-left">
-                    Pick a sound to start with
-                </h3>
-                <div
-                    id="quick-start-presets-grid"
-                    class="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-5"
-                >
-                    <!-- Populated dynamically from FACTORY_PRESETS in js/app.js -->
+                <div id="quick-start-mode-choice" class="space-y-4 text-left">
+                    <h3 class="text-sm font-semibold text-gray-200">
+                        Choose your starting view
+                    </h3>
+                    <p class="text-sm text-gray-400">
+                        Simple controls keep the important musical choices close by. Full controls
+                        show every synthesis, effect, and visualization option.
+                    </p>
+                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <button
+                            id="quick-start-simple"
+                            type="button"
+                            class="rounded-lg border border-blue-500 bg-blue-600/20 p-4 text-left transition-all hover:bg-blue-600/40"
+                        >
+                            <span class="block font-semibold text-blue-200">Simple controls</span>
+                            <span class="mt-1 block text-xs text-gray-400">
+                                Sound, notes, key, tempo, pattern, and export.
+                            </span>
+                        </button>
+                        <button
+                            id="quick-start-full"
+                            type="button"
+                            class="rounded-lg border border-gray-600 bg-gray-700 p-4 text-left transition-all hover:bg-gray-600"
+                        >
+                            <span class="block font-semibold text-gray-100">Full controls</span>
+                            <span class="mt-1 block text-xs text-gray-400">
+                                Every control for detailed sound design and visualization.
+                            </span>
+                        </button>
+                    </div>
                 </div>
-                <button
-                    id="quick-start-scratch"
-                    type="button"
-                    class="w-full text-lg font-bold py-3 px-6 bg-blue-600 hover:bg-blue-700 rounded-lg shadow-lg transition-all"
-                >
-                    ▶ Start from Scratch
-                </button>
+                <div id="quick-start-mode-content" class="is-hidden" aria-hidden="true">
+                    <h3 class="text-sm font-semibold text-gray-200 mb-3 text-left">
+                        Pick a sound to start with
+                    </h3>
+                    <div
+                        id="quick-start-presets-grid"
+                        class="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-5"
+                    >
+                        <!-- Populated dynamically from FACTORY_PRESETS in js/app.js -->
+                    </div>
+                    <button
+                        id="quick-start-scratch"
+                        type="button"
+                        class="w-full text-lg font-bold py-3 px-6 bg-blue-600 hover:bg-blue-700 rounded-lg shadow-lg transition-all"
+                    >
+                        ▶ Start from Scratch
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -236,6 +269,26 @@
                 Web Arpeggiator
             </h1>
 
+            <div
+                id="interface-mode-controls"
+                class="col-span-full flex flex-wrap items-center justify-end gap-2"
+            >
+                <label for="interface-mode" class="text-xs font-semibold text-gray-300">
+                    Interface:
+                </label>
+                <select
+                    id="interface-mode"
+                    aria-describedby="interface-mode-help"
+                    class="p-1.5 text-sm bg-gray-800 border border-gray-600 rounded-md text-gray-100"
+                >
+                    <option value="simple">Simple controls</option>
+                    <option value="full" selected>Full controls</option>
+                </select>
+                <span id="interface-mode-help" class="sr-only">
+                    Choose between beginner-friendly controls and the full instrument interface.
+                </span>
+            </div>
+
             <!-- Visually hidden screen reader announcements live region -->
             <div id="sr-announcements" role="status" aria-live="polite" class="sr-only"></div>
 
@@ -375,7 +428,7 @@
                         </p>
                         <input type="range" id="bpm" min="40" max="240" value="120" step="1" />
                     </div>
-                    <div>
+                    <div data-interface-advanced="true">
                         <label for="swing" class="block text-sm font-medium mb-1">
                             Swing:
                             <span id="swing-value">0.00</span>
@@ -1246,6 +1299,7 @@
             <section
                 class="md:col-span-3 col-span-full bg-gray-700 p-4 rounded-lg shadow-inner"
                 aria-labelledby="octave-title"
+                data-interface-advanced="true"
             >
                 <h2 id="octave-title" class="text-xl font-semibold mb-3 text-blue-300">Octave</h2>
                 <div class="space-y-4">
@@ -1413,6 +1467,7 @@
             <section
                 class="bg-gray-700 p-4 rounded-lg shadow-inner col-span-full"
                 aria-labelledby="keyboard-title"
+                data-interface-advanced="true"
             >
                 <details id="keyboard-details" class="card-details">
                     <summary>
@@ -1469,6 +1524,7 @@
             <section
                 class="md:col-span-3 col-span-full bg-gray-700 p-4 rounded-lg shadow-inner"
                 aria-labelledby="synth-title"
+                data-interface-advanced="true"
             >
                 <h2 id="synth-title" class="text-xl font-semibold mb-3 text-blue-300">Synth</h2>
                 <div class="space-y-4">
@@ -1978,6 +2034,7 @@
             <section
                 class="md:col-span-3 col-span-full bg-gray-700 p-4 rounded-lg shadow-inner"
                 aria-labelledby="envelope-title"
+                data-interface-advanced="true"
             >
                 <h2 id="envelope-title" class="text-xl font-semibold mb-3 text-blue-300">
                     Envelope (ADSR)
@@ -2072,6 +2129,7 @@
             <section
                 class="md:col-span-2 col-span-full bg-gray-700 p-4 rounded-lg shadow-inner"
                 aria-labelledby="filter-title"
+                data-interface-advanced="true"
             >
                 <h2 id="filter-title" class="text-xl font-semibold mb-3 text-blue-300">Filter</h2>
                 <div class="space-y-4">
@@ -2122,6 +2180,7 @@
             <section
                 class="md:col-span-2 col-span-full bg-gray-700 p-4 rounded-lg shadow-inner"
                 aria-labelledby="effects-title"
+                data-interface-advanced="true"
             >
                 <h2 id="effects-title" class="text-xl font-semibold mb-3 text-blue-300">Effects</h2>
                 <div class="space-y-4">
@@ -2226,7 +2285,7 @@
                     </summary>
                     <div class="mt-4">
                         <!-- START Visualizer -->
-                        <div class="space-y-4">
+                        <div class="space-y-4" data-interface-advanced="true">
                             <div class="flex flex-wrap items-center justify-between gap-3">
                                 <div class="flex items-center gap-2">
                                     <button
@@ -2351,6 +2410,7 @@
             <section
                 class="bg-gray-700 p-4 rounded-lg shadow-inner md:col-span-3 col-span-full"
                 aria-labelledby="realtime-recording-title"
+                data-interface-advanced="true"
             >
                 <h2 id="realtime-recording-title" class="text-xl font-semibold mb-3 text-blue-300">
                     Real-time Recording

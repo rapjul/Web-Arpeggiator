@@ -8,10 +8,12 @@
  * @module onboarding-controller
  */
 
+import { normalizeInterfaceMode } from "@core/interface-mode.js";
+
 /** @typedef {import("../config/factory-presets.js").FactoryPreset} FactoryPreset */
 
 /** @typedef {object} OnboardingControllerDependencies
- * @property {{startOverlay?: HTMLElement|null, quickStartOverlay?: HTMLElement|null, quickStartModal?: HTMLElement|null, quickStartPresetsGrid?: HTMLElement|null, quickStartScratchButton?: HTMLButtonElement|null, appMain?: HTMLElement|null, playStopButton?: HTMLButtonElement|null, soundStartersDetails?: HTMLDetailsElement|null}} dom
+ * @property {{startOverlay?: HTMLElement|null, quickStartOverlay?: HTMLElement|null, quickStartModal?: HTMLElement|null, quickStartModeChoice?: HTMLElement|null, quickStartModeContent?: HTMLElement|null, quickStartSimpleButton?: HTMLButtonElement|null, quickStartFullButton?: HTMLButtonElement|null, quickStartPresetsGrid?: HTMLElement|null, quickStartScratchButton?: HTMLButtonElement|null, appMain?: HTMLElement|null, playStopButton?: HTMLButtonElement|null, soundStartersDetails?: HTMLDetailsElement|null}} dom
  * @property {Document} documentRef
  * @property {Pick<Storage, "getItem"|"setItem">} storage
  * @property {() => string} getLocationSearch
@@ -20,6 +22,7 @@
  * @property {(preset: FactoryPreset) => Promise<void>|void} onPresetSelected
  * @property {() => Promise<void>|void} onStartFromScratch
  * @property {() => Promise<void>|void} onStartOverlay
+ * @property {(mode: "simple"|"full") => void} [onInterfaceModeSelected]
  * @property {{warn: (...args: unknown[]) => void}} [logger]
  */
 
@@ -44,12 +47,17 @@ export function createOnboardingController(dependencies) {
         onPresetSelected,
         onStartFromScratch,
         onStartOverlay,
+        onInterfaceModeSelected,
         logger = console,
     } = dependencies;
     const {
         appMain,
         playStopButton,
         quickStartModal,
+        quickStartModeChoice,
+        quickStartModeContent,
+        quickStartSimpleButton,
+        quickStartFullButton,
         quickStartOverlay,
         quickStartPresetsGrid,
         quickStartScratchButton,
@@ -159,6 +167,36 @@ export function createOnboardingController(dependencies) {
         if (!quickStartOverlay) return;
         quickStartOverlay.classList.remove("is-hidden");
         appMain?.setAttribute("inert", "");
+        if (quickStartModeChoice && quickStartModeContent) {
+            quickStartModeChoice.hidden = false;
+            quickStartModeChoice.setAttribute("aria-hidden", "false");
+            quickStartModeContent.hidden = true;
+            quickStartModeContent.classList.add("is-hidden");
+            quickStartModeContent.setAttribute("aria-hidden", "true");
+            (quickStartSimpleButton || quickStartFullButton)?.focus();
+            return;
+        }
+        buildQuickStartPresetCards();
+        const firstPresetButton = quickStartPresetsGrid?.querySelector("button");
+        (firstPresetButton || quickStartScratchButton)?.focus();
+    }
+
+    /**
+     * Applies the first-visit interface choice before showing sound starters.
+     *
+     * @param {unknown} mode - Selected interface mode.
+     * @returns {void}
+     */
+    function handleInterfaceModeSelected(mode) {
+        const normalizedMode = normalizeInterfaceMode(mode);
+        onInterfaceModeSelected?.(normalizedMode);
+        if (quickStartModeChoice && quickStartModeContent) {
+            quickStartModeChoice.hidden = true;
+            quickStartModeChoice.setAttribute("aria-hidden", "true");
+            quickStartModeContent.hidden = false;
+            quickStartModeContent.classList.remove("is-hidden");
+            quickStartModeContent.setAttribute("aria-hidden", "false");
+        }
         buildQuickStartPresetCards();
         const firstPresetButton = quickStartPresetsGrid?.querySelector("button");
         (firstPresetButton || quickStartScratchButton)?.focus();
@@ -282,6 +320,12 @@ export function createOnboardingController(dependencies) {
         });
         quickStartScratchButton?.addEventListener("click", () => {
             void handleStartFromScratch();
+        });
+        quickStartSimpleButton?.addEventListener("click", () => {
+            handleInterfaceModeSelected("simple");
+        });
+        quickStartFullButton?.addEventListener("click", () => {
+            handleInterfaceModeSelected("full");
         });
         quickStartOverlay?.addEventListener("click", (event) => {
             if (event.target === quickStartOverlay) {

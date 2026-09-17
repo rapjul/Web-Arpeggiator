@@ -58,6 +58,7 @@ describe("createDomReferences", () => {
         expect(dom.exportControls).toBe(
             isolatedDocument.getElementById("realtime-export-controls"),
         );
+        expect(dom.interfaceModeSelect).toBeNull();
         expect(dom.chordButtons).toHaveLength(1);
         expect(dom.offlineExportModeInputs).toHaveLength(1);
         expect(dom.resolveResetTargets(["label[for='bpm']", "#bpm-value", "#missing"])).toEqual([
