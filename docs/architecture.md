@@ -59,6 +59,7 @@ When recording begins while transport is stopped, the recorder starts before pla
 `src/ui/` contains DOM controllers and visual rendering:
 
 - Pattern, synth, transport, effects, onboarding, keyboard, visualizer, note-step, and accessibility controllers own their respective controls.
+- `interface-mode-controller.js` persists the Simple/Full presentation choice separately from musical settings and hides advanced presentation sections without changing project state.
 - `dom-references.js` builds the complete injected DOM reference registry and resolves reset targets for the composition root.
 - `workspace-controller.js` coordinates settings history, resets, autosave, and session restoration.
 - `export-controls-controller.js` coordinates recording/export controls, automatic or custom effects-tail duration readouts, offline modes, and loop-preview requests.
