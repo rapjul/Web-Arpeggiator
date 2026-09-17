@@ -11,11 +11,12 @@
  * @typedef {{activeSynth: object|null, analyser: object, meter: object, peakAnalyser: object, reverb: object, synths: object, createOfflineChain: (...args: unknown[]) => object, currentWaveform: string, dispose: () => void}} RuntimeEngine
  * @typedef {{startUiLoop: () => void, stopUiLoop: () => void, destroy: () => void}} RuntimeVisualizer
  * @typedef {{isRecording: boolean, recordingStartTime: number}} RuntimeRecorder
+ * @typedef {{isPlaying: boolean, isAudioContextStarted: boolean, activeNote: string|null, currentWaveform: string}} AudioRuntimeState
  * @typedef {[object, {createAudioEngine: (...args: unknown[]) => RuntimeEngine}, {createPatternController: (...args: unknown[]) => object}, {createRecorderManager: (...args: unknown[]) => RuntimeRecorder}, {createVisualizer: (...args: unknown[]) => RuntimeVisualizer}]} AudioModules
  *
  * @typedef {object} AudioRuntimeDependencies
  * @property {{audioEngine: Record<string, unknown>, visualizer: Record<string, unknown> & {recordButton?: HTMLElement|null}, recorder: Record<string, unknown>}} dom - Runtime DOM references.
- * @property {{isPlaying: boolean, isAudioContextStarted: boolean, activeNote: string|null, currentWaveform: string}} state - Shared runtime state.
+ * @property {AudioRuntimeState} state - Shared runtime state fields used by the runtime.
  * @property {() => Record<string, unknown>} getAllSettings - Reads serialized settings.
  * @property {(settings: unknown, options?: {allowFutureVersion?: boolean}) => {ok: boolean}} loadAllSettings - Applies pending settings.
  * @property {(message: string, type?: string) => void} showToast - Runtime feedback callback.

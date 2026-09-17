@@ -10,7 +10,7 @@ Web Arpeggiator is an interactive music tool that generates flowing musical patt
 
 ## Architecture
 
-The application separates pure music logic (`src/core/`), Tone.js synthesis and scheduling (`src/audio/`), browser persistence (`src/storage/`), and DOM rendering and interaction (`src/ui/`). `src/app.js` remains the composition root for DOM lookup, shared state, settings composition, and cross-feature callbacks. See the [Architecture Guide](./docs/architecture.md) for the detailed module ownership map, runtime flow, source layout, and deferred follow-up work.
+The application separates pure music logic (`src/core/`), Tone.js synthesis and scheduling (`src/audio/`), browser persistence (`src/storage/`), DOM rendering and interaction (`src/ui/`), and shared application state (`src/state/`). `src/app.js` remains the composition root for factory composition, settings wiring, and cross-feature callbacks. See the [Architecture Guide](./docs/architecture.md) for the detailed module ownership map, runtime flow, and source layout.
 
 The custom PWA worker uses Vite PWA's `injectManifest` build integration and Workbox for revisioned precaching, request routing, stale-precache cleanup, and bounded runtime caches. Vite PWA generates `manifest.webmanifest` from the manifest configuration in `vite.config.js` during each production build. The composed PWA controller retains ownership of registration, update UI, and cache-control messages. Documents and manifests are network-first when online, with the precached app shell as the offline navigation fallback. Verbose diagnostics and the Audio is ready toast are development-only.
 

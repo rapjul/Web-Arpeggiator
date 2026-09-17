@@ -16,7 +16,7 @@ Web Arpeggiator is a browser-based musical arpeggiator application built with va
 
 ### Composition Root and Controller Boundaries
 
-See the [Architecture Guide](./docs/architecture.md) for the detailed module ownership map, runtime flow, source layout, and deferred `app.js` follow-up. For agent work, keep DOM querying, shared state contracts, settings-manager composition, and final cross-feature callback wiring in `src/app.js`; add new control listeners to the relevant focused controller and preserve its teardown boundary.
+See the [Architecture Guide](./docs/architecture.md) for the detailed module ownership map, runtime flow, and source layout. For agent work, use `src/ui/dom-references.js` for initialization-time DOM lookup and `src/state/application-state.js` for shared mutable state; keep settings-manager composition and final cross-feature callback wiring in `src/app.js`. Add new control listeners to the relevant focused controller and preserve its teardown boundary.
 
 ### 1. Audio Engine
 
@@ -189,20 +189,18 @@ Scale-aware chord buttons insert major, minor, seventh, sus4, power, or pentaton
 
 ## State Management
 
-Global application state:
+Application state created by `src/state/application-state.js`:
 
 ```javascript
 {
-  isPlaying: boolean,          // Transport running
-  isRecording: boolean,        // Recording active
-  currentNotes: string[],      // Base note sequence
-  currentWaveform: string,     // Active waveform type
-  activeSynth: ToneSynth,      // Currently selected synth
-  currentOctaveShift: number,  // -3 to +3
-  currentOctaveRange: number,  // 1 to 5
-  isVisualizerOn: boolean,     // Visualizer enabled
-  activeNote: string|null,     // Currently playing keyboard note
-  liveRecordedWavBlob: Blob    // Recorded audio data
+  isPlaying: boolean,                 // Transport running
+  currentNotes: string[],             // Base note sequence
+  currentWaveform: string,            // Active waveform type
+  activeSynth: ToneSynth|null,         // Currently selected synth
+  currentOctaveShift: number,         // -3 to +3
+  currentOctaveRange: number,         // 1 to 5
+  activeNote: string|null,             // Currently playing keyboard note
+  isAudioContextStarted: boolean      // Audio runtime activation state
 }
 ```
 
@@ -376,8 +374,11 @@ Web Arpeggiator/
 │   │   ├── presets-store.js# IndexedDB preset persistence
 │   │   ├── session-manager.js # Workspace auto-save and restoration lifecycle
 │   │   └── settings-manager.js # Settings serialization/restoration
+│   ├── state/              # Shared application state factories
+│   │   └── application-state.js # Mutable state and audio-engine proxies
 │   ├── ui/                 # DOM controllers and visual rendering
 │   │   ├── a11y-navigation.js # WAI-ARIA arrow-key navigation for button groups
+│   │   ├── dom-references.js # Injected application DOM reference registry
 │   │   ├── effects-controls-controller.js # Post-gain, filter, and effects control wiring
 │   │   ├── history-controller.js # Settings undo, redo, and reset interactions
 │   │   ├── input-filter-controller.js # Notes and export-count keyboard filtering

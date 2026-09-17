@@ -1,10 +1,10 @@
 # Web Arpeggiator Architecture
 
-This document is the authoritative map of the application’s module boundaries. The project separates pure music logic, Tone.js audio behavior, browser persistence, DOM controllers, and PWA lifecycle code while keeping composition in `src/app.js`.
+This document is the authoritative map of the application’s module boundaries. The project separates pure music logic, Tone.js audio behavior, browser persistence, DOM controllers, application state, and PWA lifecycle code while keeping cross-feature composition in `src/app.js`.
 
 ## Composition Root
 
-`src/app.js` is the composition root. It performs DOM lookup, owns shared application state, composes the settings manager, and wires callbacks between controllers and the live audio graph. It should not accumulate feature-specific event handlers or platform-specific workflows.
+`src/app.js` is the composition root. It creates the injected DOM reference registry and application-state factory, composes the settings manager, and wires callbacks between controllers and the live audio graph. It should not accumulate feature-specific event handlers, DOM lookup details, or platform-specific workflows.
 
 The root retains the integration callbacks needed to connect focused modules to shared state and live audio. Controllers receive platform dependencies through their factory arguments, own their listeners and UI formatting, and expose teardown methods.
 
@@ -37,11 +37,16 @@ The root retains the integration callbacks needed to connect focused modules to 
 - `session-manager.js` coordinates workspace autosave and restoration.
 - `presets-store.js` provides IndexedDB browser-preset CRUD and recovery behavior.
 
+### Application State
+
+`src/state/application-state.js` creates isolated shared state for the composition root and injected controllers. It owns transport, pattern, keyboard, waveform fallback, and AudioContext state while preserving the audio-engine proxy for active synth and waveform access.
+
 ### UI
 
 `src/ui/` contains DOM controllers and visual rendering:
 
 - Pattern, synth, transport, effects, onboarding, keyboard, visualizer, note-step, and accessibility controllers own their respective controls.
+- `dom-references.js` builds the complete injected DOM reference registry and resolves reset targets for the composition root.
 - `workspace-controller.js` coordinates settings history, resets, autosave, and session restoration.
 - `export-controls-controller.js` coordinates recording/export controls, duration readouts, offline modes, and loop-preview requests.
 - `preset-controller.js` renders factory and saved preset lists and sound-starter cards.
@@ -76,11 +81,12 @@ src/
 ├── core/       # Pure algorithms and serializable contracts.
 ├── audio/      # Tone.js engine, scheduling, recording, and audio lifecycle.
 ├── storage/    # Settings, session, and browser-preset persistence.
-├── ui/         # DOM controllers and visual rendering.
+├── ui/         # DOM controllers, reference registry, and visual rendering.
+├── state/      # Isolated application state factory.
 ├── pwa/        # Service-worker registration lifecycle.
-└── app.js      # DOM, state, settings, and callback composition root.
+└── app.js      # Settings and cross-feature callback composition root.
 ```
 
-## Deferred Follow-up
+## Composition Boundary
 
-The composition root is intentionally the remaining integration boundary. A future focused PR may extract a DOM-reference factory/registry and an application-state factory from `src/app.js`. That work should preserve the current injected callbacks, settings-manager contract, and controller ownership boundaries.
+The composition root remains intentionally responsible for controller construction, settings-manager composition, and cross-feature callback wiring. DOM references and mutable application state are supplied by focused factories; future changes should preserve those injected contracts and controller ownership boundaries.
