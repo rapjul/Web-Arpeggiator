@@ -450,7 +450,12 @@ export function createRecorderManager(context) {
                 bpm: settings.bpm,
                 swing: settings.swing,
             },
-            { cycles: renderCycles },
+            {
+                cycles: renderCycles,
+                maxCycles: renderCycles,
+                resolvedNotes: baseTimeline.resolvedNotes,
+                sourceNoteMap: baseTimeline.sourceNoteMap,
+            },
         );
 
         dom.offlineExportStatus.textContent = isSeamlessExport
