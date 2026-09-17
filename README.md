@@ -47,6 +47,7 @@ The custom PWA worker uses Vite PWA's `injectManifest` build integration and Wor
 - **Preset System**: Save and load complete configurations, with optional browser persistence for offline use
 - **Randomize Notes**: Generate musically coherent, scale-quantized note sequences with a single click
 - **Chord Starters**: Insert major, minor, seventh, sus4, power, or pentatonic chord notes from the selected root
+- **Simple or Full Controls**: Start with beginner-friendly musical controls and switch to the complete instrument interface whenever you need it
 
 ### 📱 PWA Support
 
@@ -72,10 +73,13 @@ The custom PWA worker uses Vite PWA's `injectManifest` build integration and Wor
 ### Quick Start
 
 1. **Open the app**: Double-click `index.html` or open it in your browser
-2. **Initialize audio**: Click "Start Audio" (required for browser autoplay policy)
-3. **Enter notes**: Type notes in the "Notes" field (e.g., `C4 E4 G4`)
-4. **Play**: Click the play button to start the arpeggiator
-5. **Adjust**: Change BPM, pattern direction, synth type, and effects in real-time
+2. **Choose a view**: Select Simple controls for the essential musical workflow, or Full controls for sound design and visualization
+3. **Initialize audio**: Click "Start Audio" (required for browser autoplay policy)
+4. **Enter notes**: Type notes in the "Notes" field (e.g., `C4 E4 G4`)
+5. **Play**: Click the play button to start the arpeggiator
+6. **Adjust**: Change BPM, pattern direction, synth type, and effects in real-time
+
+The Interface selector remains available at the top of the app. Your choice is remembered in this browser and changes presentation only; it never changes the musical settings in a preset or session.
 
 ### Basic Workflow
 
