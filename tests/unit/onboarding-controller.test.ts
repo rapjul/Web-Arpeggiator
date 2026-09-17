@@ -4,6 +4,7 @@ import { FACTORY_PRESETS } from "@/config/factory-presets.js";
 
 interface FixtureOptions {
     search?: string;
+    withModeChoice?: boolean;
     storage?: Pick<Storage, "getItem" | "setItem">;
     logger?: { warn: ReturnType<typeof vi.fn> };
     factoryPresets?: typeof FACTORY_PRESETS;
@@ -13,19 +14,27 @@ interface FixtureOptions {
     onPresetSelected?: ReturnType<typeof vi.fn>;
     onStartFromScratch?: ReturnType<typeof vi.fn>;
     onStartOverlay?: ReturnType<typeof vi.fn>;
+    onInterfaceModeSelected?: ReturnType<typeof vi.fn>;
 }
 
 /**
  * Builds a complete onboarding DOM fixture and injected dependencies.
  *
  * @param {string | FixtureOptions} [searchOrOptions=""] - URL search text or fixture options.
+ * @param {boolean} [legacyWithModeChoice=false] - Optional mode choice flag when search is string.
  * @returns {object} Fixture DOM elements, spies, and controller instance.
  */
-function createFixture(searchOrOptions: string | FixtureOptions = "") {
+function createFixture(
+    searchOrOptions: string | FixtureOptions = "",
+    legacyWithModeChoice = false,
+) {
     const options: FixtureOptions =
-        typeof searchOrOptions === "string" ? { search: searchOrOptions } : searchOrOptions;
+        typeof searchOrOptions === "string"
+            ? { search: searchOrOptions, withModeChoice: legacyWithModeChoice }
+            : searchOrOptions;
     const {
         search = "",
+        withModeChoice = false,
         storage = localStorage,
         logger = { warn: vi.fn() },
         factoryPresets = FACTORY_PRESETS,
@@ -35,6 +44,7 @@ function createFixture(searchOrOptions: string | FixtureOptions = "") {
         onPresetSelected = vi.fn(),
         onStartFromScratch = vi.fn(),
         onStartOverlay = vi.fn(),
+        onInterfaceModeSelected = vi.fn(),
     } = options;
 
     const appMain = document.createElement("main");
@@ -48,14 +58,33 @@ function createFixture(searchOrOptions: string | FixtureOptions = "") {
     const quickStartOverlay = hasOverlay ? document.createElement("div") : null;
     quickStartOverlay?.classList.add("is-hidden");
     const quickStartModal = document.createElement("div");
+    const quickStartModeChoice = withModeChoice ? document.createElement("div") : null;
+    const quickStartModeContent = withModeChoice ? document.createElement("div") : null;
+    const quickStartSimpleButton = withModeChoice ? document.createElement("button") : null;
+    const quickStartFullButton = withModeChoice ? document.createElement("button") : null;
     const quickStartPresetsGrid = hasPresetsGrid ? document.createElement("div") : null;
     const quickStartScratchButton = document.createElement("button");
     const soundStartersDetails = document.createElement("details");
     soundStartersDetails.open = true;
-    if (quickStartPresetsGrid) {
-        quickStartModal.append(quickStartPresetsGrid);
+    if (
+        quickStartModeChoice &&
+        quickStartModeContent &&
+        quickStartSimpleButton &&
+        quickStartFullButton
+    ) {
+        quickStartModeChoice.append(quickStartSimpleButton, quickStartFullButton);
+        quickStartModeContent.hidden = true;
+        if (quickStartPresetsGrid) {
+            quickStartModeContent.append(quickStartPresetsGrid);
+        }
+        quickStartModeContent.append(quickStartScratchButton);
+        quickStartModal.append(quickStartModeChoice, quickStartModeContent);
+    } else {
+        if (quickStartPresetsGrid) {
+            quickStartModal.append(quickStartPresetsGrid);
+        }
+        quickStartModal.append(quickStartScratchButton);
     }
-    quickStartModal.append(quickStartScratchButton);
     quickStartOverlay?.appendChild(quickStartModal);
     document.body.append(
         appMain,
@@ -70,6 +99,10 @@ function createFixture(searchOrOptions: string | FixtureOptions = "") {
             appMain,
             playStopButton,
             quickStartModal,
+            quickStartModeChoice,
+            quickStartModeContent,
+            quickStartSimpleButton,
+            quickStartFullButton,
             quickStartOverlay,
             quickStartPresetsGrid,
             quickStartScratchButton,
@@ -84,6 +117,7 @@ function createFixture(searchOrOptions: string | FixtureOptions = "") {
         onPresetSelected,
         onStartFromScratch,
         onStartOverlay,
+        onInterfaceModeSelected,
         logger,
     });
 
@@ -94,6 +128,7 @@ function createFixture(searchOrOptions: string | FixtureOptions = "") {
         onPresetSelected,
         onStartFromScratch,
         onStartOverlay,
+        onInterfaceModeSelected,
         playStopButton,
         quickStartModal,
         quickStartOverlay,
@@ -101,6 +136,10 @@ function createFixture(searchOrOptions: string | FixtureOptions = "") {
         quickStartScratchButton,
         soundStartersDetails,
         startOverlay,
+        quickStartModeChoice,
+        quickStartModeContent,
+        quickStartSimpleButton,
+        quickStartFullButton,
     };
 }
 
@@ -137,6 +176,32 @@ describe("onboarding controller", () => {
             new KeyboardEvent("keydown", { bubbles: true, key: "Tab", shiftKey: true }),
         );
         expect(document.activeElement).toBe(quickStartScratchButton);
+    });
+
+    test("requires a first-visit interface choice before showing sound starters", () => {
+        const {
+            controller,
+            onInterfaceModeSelected,
+            quickStartModeChoice,
+            quickStartModeContent,
+            quickStartPresetsGrid,
+            quickStartSimpleButton,
+        } = createFixture("", true);
+
+        controller.initialize();
+
+        expect(quickStartModeChoice?.hidden).toBe(false);
+        expect(quickStartModeContent?.hidden).toBe(true);
+        expect(quickStartPresetsGrid.querySelectorAll(".sound-starter-card")).toHaveLength(0);
+
+        quickStartSimpleButton?.click();
+
+        expect(onInterfaceModeSelected).toHaveBeenCalledWith("simple");
+        expect(quickStartModeChoice?.hidden).toBe(true);
+        expect(quickStartModeContent?.hidden).toBe(false);
+        expect(quickStartPresetsGrid.querySelectorAll(".sound-starter-card")).toHaveLength(
+            FACTORY_PRESETS.length,
+        );
     });
 
     test("applies a quick-start preset through its injected callback", async () => {
