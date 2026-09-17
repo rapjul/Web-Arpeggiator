@@ -25,10 +25,9 @@ Playback, previews, offline audio, and MIDI exports share the 480-PPQ musical ti
 The audio signal chain follows this path:
 
 ```
-Synths → Distortion → Filter → Chorus → Auto-pan → Delay → Reverb
-                                                       ├→ Analyzer (visualizer)
-                                                       └→ Post gain → Limiter → Destination (speakers)
-                                                                            └→ Recorder (capture)
+Synths → Distortion → Filter → Chorus → Auto-pan → Delay → Reverb ─┬→ Analyzer (visualizer)
+                                                                     └→ Post gain → Limiter ─┬→ Destination (speakers)
+                                                                                            └→ Recorder (capture)
 ```
 
 #### Synthesizers
