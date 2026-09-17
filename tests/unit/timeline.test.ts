@@ -1,0 +1,129 @@
+import { describe, expect, it } from "vitest";
+import {
+    compileTimeline,
+    getIntervalTicks,
+    getSwingOffsetTicks,
+    TICKS_PER_BEAT,
+    ticksToSeconds,
+} from "@core/timeline.js";
+
+const baseSettings = () => ({
+    baseNotes: ["C4", "E4", "G4"],
+    direction: "up",
+    octaveRange: 1,
+    octaveShift: 0,
+    interval: "16n",
+    gateRatio: 0.8,
+    bpm: 120,
+    swing: 0,
+    scaleQuantize: false,
+    scaleRoot: "C",
+    scaleType: "major",
+});
+
+describe("musical timeline", () => {
+    it("uses the shared 480-PPQ interval and second conversions", () => {
+        expect(getIntervalTicks("16n")).toBe(120);
+        expect(getIntervalTicks("unsupported")).toBe(120);
+        expect(ticksToSeconds(TICKS_PER_BEAT, 120)).toBe(0.5);
+    });
+
+    it("matches Tone's default 8th-note swing shape at integer ticks", () => {
+        expect(getSwingOffsetTicks(0, 1)).toBe(0);
+        expect(getSwingOffsetTicks(240, 1)).toBe(160);
+        expect(getSwingOffsetTicks(120, 0.5)).toBe(57);
+        expect(getSwingOffsetTicks(120, 0)).toBe(0);
+    });
+
+    it("compiles resolved notes, source identity, gate, and trailing musical duration", () => {
+        const timeline = compileTimeline(baseSettings(), { cycles: 2 });
+
+        expect(timeline.stepsPerCycle).toBe(3);
+        expect(timeline.stepDurationTicks).toBe(120);
+        expect(timeline.cycleDurationTicks).toBe(360);
+        expect(timeline.musicalDurationTicks).toBe(720);
+        expect(timeline.resolvedNotes).toEqual(["C4", "E4", "G4"]);
+        expect(timeline.events).toHaveLength(6);
+        expect(timeline.events[0]).toMatchObject({
+            pitch: "C4",
+            startTick: 0,
+            durationTicks: 96,
+            sourceNoteIndex: 0,
+            sourceStepIndex: 0,
+            cycleIndex: 0,
+            stepIndex: 0,
+        });
+        expect(timeline.events[3]).toMatchObject({
+            pitch: "C4",
+            startTick: 360,
+            cycleIndex: 1,
+            stepIndex: 0,
+        });
+    });
+
+    it("resolves every supported direction before scheduling", () => {
+        const directions = [
+            "up",
+            "down",
+            "upDown",
+            "downUp",
+            "upDownRepeat",
+            "downUpRepeat",
+            "random",
+            "octaveCycle",
+            "octaveCycleReverse",
+            "octaveCyclePingPong",
+            "randomWalk",
+            "randomWalkDrunk",
+        ];
+
+        for (const direction of directions) {
+            const timeline = compileTimeline(
+                { ...baseSettings(), direction },
+                { cycles: 1, rng: () => 0.25 },
+            );
+            expect(timeline.events.length).toBeGreaterThan(0);
+            expect(timeline.events.map((event) => event.pitch)).toEqual(timeline.resolvedNotes);
+        }
+    });
+
+    it("applies octave expansion and scale quantization before timing", () => {
+        const timeline = compileTimeline({
+            ...baseSettings(),
+            baseNotes: ["D#4"],
+            octaveRange: 2,
+            octaveShift: 1,
+            scaleQuantize: true,
+            scaleRoot: "C",
+            scaleType: "major",
+        });
+
+        expect(timeline.resolvedNotes).toEqual(["D5", "D6"]);
+        expect(timeline.events.map((event) => event.sourceNoteIndex)).toEqual([0, 0]);
+    });
+
+    it("bounds a swung gate before the next event can release a newer note", () => {
+        const timeline = compileTimeline({
+            ...baseSettings(),
+            baseNotes: ["C4", "E4", "G4", "B4"],
+            interval: "16n",
+            gateRatio: 1,
+            swing: 1,
+        });
+
+        timeline.events.forEach((event, index) => {
+            const nextStart =
+                timeline.events[index + 1]?.startTick ?? timeline.musicalDurationTicks;
+            expect(event.startTick + event.durationTicks).toBeLessThanOrEqual(nextStart);
+        });
+    });
+
+    it("keeps empty patterns empty without inventing a fallback note", () => {
+        const timeline = compileTimeline({ ...baseSettings(), baseNotes: [] }, { cycles: 4 });
+
+        expect(timeline.events).toEqual([]);
+        expect(timeline.stepsPerCycle).toBe(0);
+        expect(timeline.cycleDurationTicks).toBe(0);
+        expect(timeline.musicalDurationTicks).toBe(0);
+    });
+});
