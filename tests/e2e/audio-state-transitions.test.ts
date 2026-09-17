@@ -92,6 +92,7 @@ test("renders and downloads a one-cycle offline WAV export", async ({ pwaPage: p
 
     await page.locator("#offline-export-mp3").uncheck();
     await page.locator("#loop-count").fill("1");
+    await page.locator("#offline-export-tail-mode").selectOption("custom");
     await page.locator("#offline-export-tail-seconds").fill("0");
 
     const download = await captureDownload(page, () =>

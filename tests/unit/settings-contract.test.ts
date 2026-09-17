@@ -22,6 +22,7 @@ describe("settings contract", () => {
             waveform: "sine",
             octaveRange: 2,
             offlineExportMode: "tail",
+            offlineExportTailMode: "auto",
         });
     });
 
@@ -98,6 +99,7 @@ describe("settings contract", () => {
             reverbMix: 0.5,
             loopCount: 8,
             offlineExportMode: "seamless",
+            offlineExportTailMode: "custom",
             offlineExportTailSeconds: 4,
         };
         const settings = normalizeSettings(importedSettings);
