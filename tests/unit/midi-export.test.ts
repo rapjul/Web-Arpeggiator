@@ -8,6 +8,49 @@ import {
     uint16ToBytes,
     uint32ToBytes,
 } from "@core/midi-export.js";
+import { compileTimeline } from "@core/timeline.js";
+
+function readVariableLengthQuantity(bytes: Uint8Array, start: number) {
+    let value = 0;
+    let index = start;
+    do {
+        value = (value << 7) | (bytes[index] & 0x7f);
+    } while (bytes[index++] & 0x80);
+    return { value, nextIndex: index };
+}
+
+function readNoteEvents(bytes: Uint8Array) {
+    const trackLength = (bytes[18] << 24) | (bytes[19] << 16) | (bytes[20] << 8) | bytes[21];
+    const events = [];
+    let index = 22;
+    let absoluteTick = 0;
+    const end = index + trackLength;
+
+    while (index < end) {
+        const delta = readVariableLengthQuantity(bytes, index);
+        absoluteTick += delta.value;
+        index = delta.nextIndex;
+        const status = bytes[index++];
+
+        if (status === 0xff) {
+            index += 1;
+            const metaLength = readVariableLengthQuantity(bytes, index);
+            index = metaLength.nextIndex + metaLength.value;
+            continue;
+        }
+
+        if (status === 0x90 || status === 0x80) {
+            events.push({
+                type: status === 0x90 ? "on" : "off",
+                tick: absoluteTick,
+                note: bytes[index],
+            });
+            index += 2;
+        }
+    }
+
+    return events;
+}
 
 describe("MIDI Export Domain Module", () => {
     test("noteNameToMidiNumber accurately converts scientific pitch notation to standard MIDI numbers", () => {
@@ -214,5 +257,37 @@ describe("MIDI Export Domain Module", () => {
             expect(bytes instanceof Uint8Array).toBe(true);
             expect(bytes.length).toBeGreaterThan(25);
         });
+    });
+
+    test("serializes the shared timeline's absolute note timing", () => {
+        const timeline = compileTimeline(
+            {
+                baseNotes: ["C4", "E4"],
+                direction: "up",
+                interval: "8n",
+                gateRatio: 0.5,
+                bpm: 120,
+                swing: 0,
+            },
+            { cycles: 2 },
+        );
+        const bytes = createMidiFileBytes({ timeline });
+        const actual = readNoteEvents(bytes);
+        const expected = timeline.events
+            .flatMap((event) => [
+                { type: "on", tick: event.startTick, note: noteNameToMidiNumber(event.pitch) },
+                {
+                    type: "off",
+                    tick: event.startTick + event.durationTicks,
+                    note: noteNameToMidiNumber(event.pitch),
+                },
+            ])
+            .sort((left, right) => {
+                const tickDelta = left.tick - right.tick;
+                if (tickDelta !== 0) return tickDelta;
+                return (left.type === "off" ? 0 : 1) - (right.type === "off" ? 0 : 1);
+            });
+
+        expect(actual).toEqual(expected);
     });
 });
