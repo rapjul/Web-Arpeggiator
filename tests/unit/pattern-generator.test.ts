@@ -114,11 +114,11 @@ describe("Pattern controller", () => {
 
         const pattern = controller.update({
             ...baseSettings(),
-            direction: "down",
+            direction: "up",
         }) as unknown as MockPatternInstance;
         expect(pattern.isStarted).toBe(true);
 
-        pattern.index = 0;
+        pattern.index = 2;
         pattern.callback(0.25, "G4");
         expect(synth.triggerAttack).toHaveBeenCalledWith("G4", 0.25);
         expect(synth.triggerRelease).toHaveBeenCalledWith(0.34375);
