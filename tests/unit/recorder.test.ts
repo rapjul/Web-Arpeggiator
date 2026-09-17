@@ -64,18 +64,6 @@ vi.mock("tone", async () => {
             }
             dispose() {}
         },
-        Pattern: class MockPattern {
-            interval = "16n";
-            constructor(
-                _callback: (time: number, note: string) => void,
-                values: string[],
-                _pattern: string,
-            ) {
-                lastOfflinePatternValues = values;
-            }
-            start() {}
-            dispose() {}
-        },
         getContext: () => mockContext,
         now: () => 1.0,
         Time: (_t: string) => ({
@@ -160,7 +148,9 @@ describe("Recorder Manager Module", () => {
             synths: {} as unknown as RecorderAudio["synths"],
             createOfflineChain: vi.fn(() => ({
                 offlineSynth: {
-                    triggerAttack: vi.fn(),
+                    triggerAttack: vi.fn((note: string) => {
+                        lastOfflinePatternValues.push(note);
+                    }),
                     triggerRelease: vi.fn(),
                 } as unknown as ReturnType<RecorderAudio["createOfflineChain"]>["offlineSynth"],
             })),

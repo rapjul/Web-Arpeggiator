@@ -16,6 +16,7 @@ import {
     materializePatternSequence,
     quantizeToScale,
 } from "@core/pattern-core.js";
+import { compileTimeline, ticksToSeconds } from "@core/timeline.js";
 import * as Tone from "tone";
 
 // Re-export pure domain helpers for backwards compatibility
@@ -39,14 +40,16 @@ export {
  * @property {number} gate
  * @property {string} direction
  * @property {{enabled: boolean, root: string, scale: string}} quantize
+ * @property {number} [bpm]
+ * @property {number} [swing]
  */
 
 /**
- * Builds and owns the active Tone.Pattern. Every application dependency is
+ * Builds and owns the active timeline-backed Tone.Pattern. Every application dependency is
  * injected, keeping this scheduler independent of DOM and window globals.
  *
- * @param {{getSynth: () => unknown, getIsPlaying: () => boolean, onPatternChange?: (pattern: Tone.Pattern<string>|null) => void, onStep?: (index: number) => void, logger?: Pick<Console, "error">}} context - Runtime callbacks.
- * @returns {{update: (settings: PatternSettings) => Tone.Pattern<string>|null, getPattern: () => Tone.Pattern<string>|null, dispose: () => void}} Pattern controller API.
+ * @param {{getSynth: () => unknown, getIsPlaying: () => boolean, onPatternChange?: (pattern: object|null) => void, onStep?: (index: number) => void, logger?: Pick<Console, "error">}} context - Runtime callbacks.
+ * @returns {{update: (settings: PatternSettings) => object|null, getPattern: () => object|null, dispose: () => void}} Pattern controller API.
  */
 export function createPatternController({
     getSynth,
@@ -57,8 +60,6 @@ export function createPatternController({
 }) {
     /** @type {Tone.Pattern<string>|null} */
     let pattern = null;
-    /** @type {number[]} */
-    let stepToBaseIndexMap = [];
 
     function dispose() {
         if (pattern) {
@@ -72,51 +73,51 @@ export function createPatternController({
 
     /**
      * @param {PatternSettings} settings - Materialized settings snapshot.
-     * @returns {Tone.Pattern<string>|null} The new pattern, or null for no notes.
+     * @returns {object|null} The new timeline-backed pattern, or null for no notes.
      */
     function update(settings) {
         try {
-            const {
-                finalNotes,
-                stepToBaseIndexMap: computedMap,
-                finalDirection,
-            } = buildPatternSequence(settings.baseNotes, {
-                direction: settings.direction,
-                octaveRange: settings.octaveRange,
-                octaveShift: settings.octaveShift,
-                quantize: settings.quantize,
-            });
+            const timeline = compileTimeline(
+                {
+                    baseNotes: settings.baseNotes,
+                    direction: settings.direction,
+                    octaveRange: settings.octaveRange,
+                    octaveShift: settings.octaveShift,
+                    quantize: settings.quantize,
+                    interval: settings.interval,
+                    gateRatio: settings.gate,
+                    bpm: settings.bpm,
+                    swing: settings.swing,
+                },
+                { cycles: 1 },
+            );
 
             dispose();
-            stepToBaseIndexMap = computedMap;
-            if (finalNotes.length === 0) return null;
-
-            /** @type {string|number} */
-            let patternInterval = settings.interval;
-            let durationSeconds = 0.1;
-            try {
-                durationSeconds = Tone.Time(patternInterval).toSeconds() * settings.gate;
-            } catch {
-                patternInterval = 0.1;
-                durationSeconds = 0.1 * settings.gate;
-            }
+            if (timeline.events.length === 0) return null;
 
             const patternInstance = new Tone.Pattern(
                 (time, note) => {
+                    const event =
+                        timeline.events[patternInstance.index % timeline.stepsPerCycle] ??
+                        timeline.events[0];
+                    const scheduledTime =
+                        time + ticksToSeconds(event.swingOffsetTicks, timeline.bpm);
                     const synth = getSynth();
                     if (isTriggerableSynth(synth)) {
-                        triggerSynth(synth, note, time, durationSeconds);
+                        triggerSynth(
+                            synth,
+                            note,
+                            scheduledTime,
+                            ticksToSeconds(event.durationTicks, timeline.bpm),
+                        );
                     }
 
-                    const patternIndex = patternInstance.index;
-                    const pipIndex = stepToBaseIndexMap[patternIndex] ?? 0;
-                    Tone.Draw.schedule(() => onStep(pipIndex), time);
+                    Tone.Draw.schedule(() => onStep(event.sourceNoteIndex), scheduledTime);
                 },
-                finalNotes,
-                finalDirection,
+                timeline.resolvedNotes,
+                "up",
             );
-
-            patternInstance.interval = patternInterval;
+            patternInstance.interval = settings.interval;
             pattern = patternInstance;
             onPatternChange(pattern);
             if (getIsPlaying()) pattern.start(0);

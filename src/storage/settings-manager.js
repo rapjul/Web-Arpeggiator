@@ -175,7 +175,7 @@ export function createSettingsManager(context) {
             dom.swingSlider.value = String(settings.swing);
             dom.swingValue.textContent = settings.swing.toFixed(2);
             if (transport) {
-                transport.swing = settings.swing;
+                transport.swing = 0;
             }
 
             // Restore post gain

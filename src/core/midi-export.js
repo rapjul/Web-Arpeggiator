@@ -1,4 +1,5 @@
 import { downloadBlob } from "./audio-utils.js";
+import { compileTimeline, TICKS_PER_BEAT } from "./timeline.js";
 
 /**
  * Standard MIDI File (.mid) Format 0 Binary Encoder and Pattern Export Utility.
@@ -14,7 +15,7 @@ import { downloadBlob } from "./audio-utils.js";
  * Standard ticks per quarter note (PPQ / division) resolution.
  * @type {number}
  */
-export const TICKS_PER_BEAT = 480;
+export { TICKS_PER_BEAT };
 
 /**
  * Mapping of interval duration strings to beat multiplier ratios.
@@ -122,39 +123,30 @@ export function uint16ToBytes(value) {
  * @param {number} [options.gateRatio=0.8] - Note gate duration ratio (0.05 to 1.0).
  * @param {number} [options.loopCount=1] - Number of times to loop the pattern in the export.
  * @param {number} [options.velocity=100] - Note-On MIDI velocity (1–127).
+ * @param {number} [options.swing=0] - Swing amount from 0 through 1.
+ * @param {import("./timeline.js").CompiledTimeline} [options.timeline] - Precompiled shared event timeline.
  * @returns {Uint8Array} Standard MIDI File binary data.
  */
 export function createMidiFileBytes(options = {}) {
-    const {
-        notes = ["C4", "E4", "G4"],
-        bpm = 120,
-        interval = "16n",
-        gateRatio = 0.8,
-        loopCount = 1,
-        velocity = 100,
-    } = options || {};
-
-    const parsedBpm = Number(bpm);
-    const safeBpm = Number.isFinite(parsedBpm) ? Math.max(20, Math.min(300, parsedBpm)) : 120;
-
-    const parsedGate = Number(gateRatio);
-    const safeGate = Number.isFinite(parsedGate) ? Math.max(0.05, Math.min(1.0, parsedGate)) : 0.8;
-
-    const parsedLoops = Math.trunc(Number(loopCount));
-    const safeLoops = Number.isFinite(parsedLoops) ? Math.max(1, Math.min(100, parsedLoops)) : 1;
-
-    const parsedVelocity = Math.trunc(Number(velocity));
-    const safeVelocity = Number.isFinite(parsedVelocity)
-        ? Math.max(1, Math.min(127, parsedVelocity))
-        : 100;
-
-    const beatMultiplier = INTERVAL_BEAT_MULTIPLIERS[interval] ?? 0.25;
-    const stepDurationTicks = Math.round(TICKS_PER_BEAT * beatMultiplier);
-    const noteDurationTicks = Math.max(1, Math.round(stepDurationTicks * safeGate));
-    const restDurationTicks = Math.max(0, stepDurationTicks - noteDurationTicks);
+    const sourceOptions = options && typeof options === "object" ? options : {};
+    const timeline =
+        sourceOptions.timeline && Array.isArray(sourceOptions.timeline.events)
+            ? sourceOptions.timeline
+            : compileTimeline(
+                  {
+                      baseNotes: sourceOptions.notes ?? ["C4", "E4", "G4"],
+                      direction: "up",
+                      interval: sourceOptions.interval,
+                      gateRatio: sourceOptions.gateRatio,
+                      bpm: sourceOptions.bpm,
+                      swing: sourceOptions.swing,
+                      velocity: sourceOptions.velocity,
+                  },
+                  { cycles: sourceOptions.loopCount },
+              );
 
     // Microseconds per quarter note for Set Tempo meta event (60,000,000 / BPM)
-    const microSecondsPerBeat = Math.round(60000000 / safeBpm);
+    const microSecondsPerBeat = Math.round(60000000 / timeline.bpm);
 
     const trackEvents = [];
 
@@ -183,35 +175,41 @@ export function createMidiFileBytes(options = {}) {
         microSecondsPerBeat & 0xff,
     );
 
-    // 3. Note Events for each loop iteration
-    const validNotes = Array.isArray(notes) && notes.length > 0 ? notes : ["C4"];
+    // 3. Note Events from the shared absolute-tick timeline.
+    const midiEvents = [];
+    timeline.events.forEach((event) => {
+        const noteNum = noteNameToMidiNumber(event.pitch);
+        const noteOnTick = Math.max(0, Math.trunc(event.startTick));
+        const noteOffTick = noteOnTick + Math.max(1, Math.trunc(event.durationTicks));
+        midiEvents.push({
+            tick: noteOnTick,
+            order: 1,
+            bytes: [0x90, noteNum, event.velocity],
+        });
+        midiEvents.push({
+            tick: noteOffTick,
+            order: 0,
+            bytes: [0x80, noteNum, 0x40],
+        });
+    });
+    midiEvents.sort((left, right) => left.tick - right.tick || left.order - right.order);
 
-    for (let loop = 0; loop < safeLoops; loop++) {
-        for (let i = 0; i < validNotes.length; i++) {
-            const noteNum = noteNameToMidiNumber(validNotes[i]);
-
-            // Note On (Channel 0): delta-time = 0 (on first note) or previous rest
-            const onDeltaTime = loop === 0 && i === 0 ? 0 : restDurationTicks;
-            trackEvents.push(
-                ...encodeVariableLengthQuantity(onDeltaTime),
-                0x90, // Note On, Channel 0
-                noteNum,
-                safeVelocity,
-            );
-
-            // Note Off (Channel 0): delta-time = note duration ticks
-            trackEvents.push(
-                ...encodeVariableLengthQuantity(noteDurationTicks),
-                0x80, // Note Off, Channel 0
-                noteNum,
-                0x40, // standard release velocity
-            );
-        }
-    }
+    let cursorTick = 0;
+    midiEvents.forEach((event) => {
+        trackEvents.push(
+            ...encodeVariableLengthQuantity(Math.max(0, event.tick - cursorTick)),
+            ...event.bytes,
+        );
+        cursorTick = event.tick;
+    });
 
     // 4. Meta Event: End of Track (00 FF 2F 00)
-    // Add remaining rest of the last note before end of track
-    trackEvents.push(...encodeVariableLengthQuantity(restDurationTicks), 0xff, 0x2f, 0x00);
+    trackEvents.push(
+        ...encodeVariableLengthQuantity(Math.max(0, timeline.musicalDurationTicks - cursorTick)),
+        0xff,
+        0x2f,
+        0x00,
+    );
 
     // Assemble MIDI Chunks
     const headerChunk = [
