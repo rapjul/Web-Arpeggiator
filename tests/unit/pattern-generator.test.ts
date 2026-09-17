@@ -125,6 +125,33 @@ describe("Pattern controller", () => {
         expect(onStep).toHaveBeenCalledWith(2);
     });
 
+    it("recomputes swing from the absolute pattern occurrence", () => {
+        const synth = { triggerAttack: vi.fn(), triggerRelease: vi.fn() };
+        const controller = createPatternController({
+            getSynth: () => synth,
+            getIsPlaying: () => false,
+        });
+        const pattern = controller.update({
+            ...baseSettings(),
+            swing: 1,
+        }) as unknown as MockPatternInstance;
+
+        pattern.index = 0;
+        pattern.callback(0, "C4");
+        pattern.index = 1;
+        pattern.callback(0, "E4");
+        pattern.index = 2;
+        pattern.callback(0, "G4");
+        pattern.index = 0;
+        pattern.callback(1, "C4");
+
+        expect(synth.triggerAttack).toHaveBeenNthCalledWith(
+            4,
+            "C4",
+            expect.closeTo(1 + (113 / 480) * 0.5),
+        );
+    });
+
     it("uses triggerAttackRelease and falls back to immediate scheduling after a scheduling error", () => {
         const synth = {
             triggerAttack: vi.fn((_note: string, time?: number) => {
