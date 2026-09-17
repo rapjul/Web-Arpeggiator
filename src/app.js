@@ -38,6 +38,7 @@ import { createSynthControlsController } from "@ui/synth-controls-controller.js"
 import { createTransportController } from "@ui/transport-controller.js";
 import { createToastManager } from "@ui/ui-feedback.js";
 import { createWorkspaceController } from "@ui/workspace-controller.js";
+import { createDomReferences } from "@ui/dom-references.js";
 import { FACTORY_PRESETS } from "./config/factory-presets.js";
 
 /** @typedef {import("./config/factory-presets.js").FactoryPreset} FactoryPreset */
@@ -146,312 +147,164 @@ function initializeApp() {
     }
     window.scrollTo(0, 0);
 
-    // --- DOM Elements ---
-    /**
-     * Primary application container element.
-     * @type {HTMLElement | null}
-     */
-    const appMain = document.getElementById("app-main");
-    const stickyTransportBar = /** @type {HTMLElement | null} */ (
-        document.querySelector(".sticky-transport-bar")
-    );
-
-    const playStopButton = /** @type {HTMLButtonElement | null} */ (
-        document.getElementById("play-stop")
-    );
-    const undoButton = /** @type {HTMLButtonElement | null} */ (
-        document.getElementById("undo-button")
-    );
-    const redoButton = /** @type {HTMLButtonElement | null} */ (
-        document.getElementById("redo-button")
-    );
-    const historyMenuButton = /** @type {HTMLButtonElement | null} */ (
-        document.getElementById("history-menu-button")
-    );
-    const historyMenu = document.getElementById("history-menu");
-    const historyMenuUndoButton = /** @type {HTMLButtonElement | null} */ (
-        document.getElementById("history-menu-undo")
-    );
-    const historyMenuRedoButton = /** @type {HTMLButtonElement | null} */ (
-        document.getElementById("history-menu-redo")
-    );
-    const resetDefaultsButton = /** @type {HTMLButtonElement | null} */ (
-        document.getElementById("reset-defaults-button")
-    );
-    const resetDefaultsDesktopButton = /** @type {HTMLButtonElement | null} */ (
-        document.getElementById("reset-defaults-desktop-button")
-    );
-
-    const resetDefaultsOverlay = document.getElementById("reset-defaults-overlay");
-    const resetDefaultsDialog = document.getElementById("reset-defaults-dialog");
-    const resetDefaultsCancelButton = /** @type {HTMLButtonElement | null} */ (
-        document.getElementById("reset-defaults-cancel")
-    );
-    const resetDefaultsConfirmButton = /** @type {HTMLButtonElement | null} */ (
-        document.getElementById("reset-defaults-confirm")
-    );
-
-    /**
-     * Collapsible accordion wrapper for the Sound Starters strip.
-     * @type {HTMLDetailsElement | null}
-     */
-    const soundStartersDetails = /** @type {HTMLDetailsElement | null} */ (
-        document.getElementById("sound-starters-details")
-    );
-
-    /**
-     * Grid container where Sound Starter preset cards are injected.
-     * @type {HTMLElement | null}
-     */
-    const soundStartersGrid = document.getElementById("sound-starters-grid");
-
-    const bpmSlider = /** @type {HTMLInputElement} */ (document.getElementById("bpm"));
-    const bpmValue = document.getElementById("bpm-value");
-    const postGainSlider = /** @type {HTMLInputElement} */ (document.getElementById("post-gain"));
-    const postGainValue = document.getElementById("post-gain-value");
-    const swingSlider = /** @type {HTMLInputElement} */ (document.getElementById("swing"));
-    const swingValue = document.getElementById("swing-value");
-    const notesInput = /** @type {HTMLInputElement} */ (document.getElementById("notes"));
-    const intervalSelect = /** @type {HTMLSelectElement} */ (document.getElementById("interval"));
-
-    // Synth Card Elements
-    const synthTypeSelect = /** @type {HTMLSelectElement} */ (
-        document.getElementById("synth-type")
-    );
-
-    // Waveform Elements
-    const waveformButtons = document.getElementById("waveform-buttons");
-    const carrierLabel = document.getElementById("carrier-label");
-    const waveformPluckOverlay = document.getElementById("waveform-pluck-overlay");
-
-    // Pattern Buttons
-    const patternButtons = document.getElementById("pattern-buttons");
-
-    // Basic Synth Params
-    const basicSynthParams = document.getElementById("basic-synth-params");
-    const dutyControl = document.getElementById("duty-control");
-    const dutySlider = /** @type {HTMLInputElement} */ (document.getElementById("duty-cycle"));
-    const dutyValue = document.getElementById("duty-value");
-
-    // Advanced Synth Params
-    const advancedSynthParams = document.getElementById("advanced-synth-params");
-    const harmonicityControl = document.getElementById("harmonicity-control");
-    const modIndexControl = document.getElementById("mod-index-control");
-    const harmonicitySlider = /** @type {HTMLInputElement} */ (
-        document.getElementById("harmonicity")
-    );
-    const harmonicityValue = document.getElementById("harmonicity-value");
-    const modIndexSlider = /** @type {HTMLInputElement} */ (
-        document.getElementById("modulation-index")
-    );
-    const modIndexValue = document.getElementById("modulation-index-value");
-
-    // MonoSynth Params
-    const monoSynthParams = document.getElementById("mono-synth-params");
-    const monoCutoffSlider = /** @type {HTMLInputElement} */ (
-        document.getElementById("mono-cutoff")
-    );
-    const monoCutoffValue = document.getElementById("mono-cutoff-value");
-    const monoOctavesSlider = /** @type {HTMLInputElement} */ (
-        document.getElementById("mono-octaves")
-    );
-    const monoOctavesValue = document.getElementById("mono-octaves-value");
-    const monoQSlider = /** @type {HTMLInputElement} */ (document.getElementById("mono-q"));
-    const monoQValue = document.getElementById("mono-q-value");
-
-    // DuoSynth Params
-    const duoSynthParams = document.getElementById("duo-synth-params");
-    const duoHarmSlider = /** @type {HTMLInputElement} */ (document.getElementById("duo-harm"));
-    const duoHarmValue = document.getElementById("duo-harm-value");
-    const duoVibratoSlider = /** @type {HTMLInputElement} */ (
-        document.getElementById("duo-vibrato")
-    );
-    const duoVibratoValue = document.getElementById("duo-vibrato-value");
-
-    // PluckSynth Params
-    const pluckSynthParams = document.getElementById("pluck-synth-params");
-    const pluckDampeningSlider = /** @type {HTMLInputElement} */ (
-        document.getElementById("pluck-dampening")
-    );
-    const pluckDampeningValue = document.getElementById("pluck-dampening-value");
-    const pluckResonanceSlider = /** @type {HTMLInputElement} */ (
-        document.getElementById("pluck-resonance")
-    );
-    const pluckResonanceValue = document.getElementById("pluck-resonance-value");
-    const pluckNoiseSlider = /** @type {HTMLInputElement} */ (
-        document.getElementById("pluck-noise")
-    );
-    const pluckNoiseValue = document.getElementById("pluck-noise-value");
-
-    // MembraneSynth Params
-    const membraneSynthParams = document.getElementById("membrane-synth-params");
-    const membranePitchDecaySlider = /** @type {HTMLInputElement} */ (
-        document.getElementById("membrane-pitch-decay")
-    );
-    const membranePitchDecayValue = document.getElementById("membrane-pitch-decay-value");
-    const membraneOctavesSlider = /** @type {HTMLInputElement} */ (
-        document.getElementById("membrane-octaves")
-    );
-    const membraneOctavesValue = document.getElementById("membrane-octaves-value");
-
-    // Gate Parameter
-    const gateSlider = /** @type {HTMLInputElement} */ (document.getElementById("gate"));
-    const gateValue = document.getElementById("gate-value");
-
-    // ADSR Envelope Controls
-    const envAttackSlider = /** @type {HTMLInputElement} */ (document.getElementById("env-attack"));
-    const envDecaySlider = /** @type {HTMLInputElement} */ (document.getElementById("env-decay"));
-    const envSustainSlider = /** @type {HTMLInputElement} */ (
-        document.getElementById("env-sustain")
-    );
-    const envReleaseSlider = /** @type {HTMLInputElement} */ (
-        document.getElementById("env-release")
-    );
-    const envAttackValue = document.getElementById("env-attack-value");
-    const envDecayValue = document.getElementById("env-decay-value");
-    const envSustainValue = document.getElementById("env-sustain-value");
-    const envReleaseValue = document.getElementById("env-release-value");
-
-    // Keyboard Controls
-    const keyboardVisual = document.getElementById("keyboard-visual");
-    const keyboardToggle = /** @type {HTMLInputElement} */ (
-        document.getElementById("keyboard-toggle")
-    );
-    const keyboardToggleStatus = document.getElementById("keyboard-toggle-status");
-    const keyboardDescription = document.getElementById("keyboard-description");
-
-    // Octave card
-    const octaveShiftButtons = document.getElementById("octave-shift-buttons");
-    const octaveRangeButtons = document.getElementById("octave-range-buttons");
-
-    // Scale Quantizer card
-    const scaleQuantizeToggle = /** @type {HTMLInputElement} */ (
-        document.getElementById("scale-quantize-toggle")
-    );
-    const scaleQuantizeToggleStatus = document.getElementById("scale-quantize-toggle-status");
-    const scaleRootSelect = /** @type {HTMLSelectElement} */ (
-        document.getElementById("scale-root")
-    );
-    const scaleTypeSelect = /** @type {HTMLSelectElement} */ (
-        document.getElementById("scale-type")
-    );
-
-    // Filter card
-    const filterCutoffSlider = /** @type {HTMLInputElement} */ (
-        document.getElementById("filter-cutoff")
-    );
-    const filterCutoffValue = document.getElementById("filter-cutoff-value");
-    const filterResonanceSlider = /** @type {HTMLInputElement} */ (
-        document.getElementById("filter-resonance")
-    );
-    const filterResonanceValue = document.getElementById("filter-resonance-value");
-
-    // Effects card
-    const driveMixSlider = /** @type {HTMLInputElement} */ (document.getElementById("drive-mix"));
-    const driveMixValue = document.getElementById("drive-mix-value");
-    const chorusMixSlider = /** @type {HTMLInputElement} */ (document.getElementById("chorus-mix"));
-    const chorusMixValue = document.getElementById("chorus-mix-value");
-    const autoPanMixSlider = /** @type {HTMLInputElement} */ (
-        document.getElementById("autopan-mix")
-    );
-    const autoPanMixValue = document.getElementById("autopan-mix-value");
-    const delayMixSlider = /** @type {HTMLInputElement} */ (document.getElementById("delay-mix"));
-    const delayMixValue = document.getElementById("delay-mix-value");
-    const reverbMixSlider = /** @type {HTMLInputElement} */ (document.getElementById("reverb-mix"));
-    const reverbMixValue = document.getElementById("reverb-mix-value");
-
-    // Randomize Notes Button
-    const randomizeNotesButton = document.getElementById("randomize-notes");
-
-    // Note Step Indicator
-    const noteStepIndicator = document.getElementById("note-step-indicator");
-
-    // Real-time Recording card
-    const recordButton = document.getElementById("record-button");
-    const recordStatus =
-        document.getElementById("record-status") ||
-        document.getElementById("realtime-record-status");
-    const exportControls =
-        document.getElementById("export-controls") ||
-        document.getElementById("realtime-export-controls");
-    const realtimeExportWavCheck = document.getElementById("realtime-export-wav");
-    const realtimeExportMp3Check = document.getElementById("realtime-export-mp3");
-    const exportButton = document.getElementById("realtime-export-button");
-
-    // Offline Export card
-    const loopCountInput = /** @type {HTMLInputElement} */ (document.getElementById("loop-count"));
-    const offlineExportModeInputs = /** @type {NodeListOf<HTMLInputElement>} */ (
-        document.querySelectorAll("input[name='offline-export-mode']")
-    );
-    const offlineExportTailControl = document.getElementById("offline-export-tail-control");
-    const offlineExportTailSecondsInput = /** @type {HTMLInputElement | null} */ (
-        document.getElementById("offline-export-tail-seconds")
-    );
-    const offlineExportDuration = document.getElementById("offline-export-duration");
-    const offlineExportWavCheck = document.getElementById("offline-export-wav");
-    const offlineExportMp3Check = document.getElementById("offline-export-mp3");
-    const offlineExportButton = document.getElementById("offline-export-button");
-    const offlineExportMidiButton = document.getElementById("offline-export-midi-button");
-    const offlineExportStatus = document.getElementById("offline-export-status");
-
-    // Output Peak / VU Meter
-    const vuMeterBar = document.getElementById("vu-meter-bar");
-    const vuDbValue = document.getElementById("vu-db-value");
-    const vuClipContainer = document.getElementById("vu-clip-container");
-    const vuClipIndicator = /** @type {HTMLButtonElement | null} */ (
-        document.getElementById("vu-clip-indicator")
-    );
-    const vuClipTooltip = document.getElementById("vu-clip-tooltip");
-    const vuInfoButton = document.getElementById("vu-info-button");
-    const vuInfoTooltip = document.getElementById("vu-info-tooltip");
-
-    // Utility card
-    const visualizerYAxisCanvas = /** @type {HTMLCanvasElement | null} */ (
-        document.getElementById("visualizer-yaxis")
-    );
-    const visualizerViewport = document.getElementById("visualizer-viewport");
-    const visualizerPlotCanvas = /** @type {HTMLCanvasElement | null} */ (
-        document.getElementById("visualizer-plot")
-    );
-    const toggleVisualizerButton = document.getElementById("toggle-visualizer");
-    const visualizerModeSelect = /** @type {HTMLSelectElement | null} */ (
-        document.getElementById("visualizer-mode")
-    );
-    const pauseVisualizerButton = /** @type {HTMLButtonElement | null} */ (
-        document.getElementById("pause-visualizer")
-    );
-    const visualizerZoomSlider = /** @type {HTMLInputElement | null} */ (
-        document.getElementById("visualizer-zoom")
-    );
-    const visualizerZoomValue = document.getElementById("visualizer-zoom-value");
-    const oscilloscopeWindowSelect = /** @type {HTMLSelectElement | null} */ (
-        document.getElementById("oscilloscope-window")
-    );
-    const oscilloscopeWindowContainer = document.getElementById("oscilloscope-window-container");
-
-    // Preset Management card
-    const presetNameInput = /** @type {HTMLInputElement | null} */ (
-        document.getElementById("preset-name-input")
-    );
-    const savedPresetSelect = /** @type {HTMLSelectElement | null} */ (
-        document.getElementById("saved-preset-select")
-    );
-    const savePresetButton = document.getElementById("save-preset-button");
-    const savePresetToBrowserButton = document.getElementById("save-preset-to-browser-button");
-    const sharePresetButton = document.getElementById("share-preset-button");
-    const loadPresetButton = document.getElementById("load-preset-button");
-    const loadSavedPresetButton = document.getElementById("load-saved-preset-button");
-    const clearSavedPresetButton = document.getElementById("clear-saved-preset-button");
-    const deleteSavedPresetButton = document.getElementById("delete-saved-preset-button");
-    const browserStorageRecovery = /** @type {HTMLDetailsElement | null} */ (
-        document.getElementById("browser-storage-recovery")
-    );
-    const loadPresetInput = /** @type {HTMLInputElement | null} */ (
-        document.getElementById("load-preset-input")
-    );
-
-    // Toast
-    const toastContainer = document.getElementById("toast-container");
+    // --- DOM References ---
+    const {
+        documentRef,
+        appMain,
+        stickyTransportBar,
+        playStopButton,
+        undoButton,
+        redoButton,
+        historyMenuButton,
+        historyMenu,
+        historyMenuUndoButton,
+        historyMenuRedoButton,
+        resetDefaultsButton,
+        resetDefaultsDesktopButton,
+        resetDefaultsOverlay,
+        resetDefaultsDialog,
+        resetDefaultsCancelButton,
+        resetDefaultsConfirmButton,
+        soundStartersDetails,
+        soundStartersGrid,
+        bpmSlider,
+        bpmValue,
+        postGainSlider,
+        postGainValue,
+        swingSlider,
+        swingValue,
+        notesInput,
+        intervalSelect,
+        synthTypeSelect,
+        waveformButtons,
+        carrierLabel,
+        waveformPluckOverlay,
+        patternButtons,
+        basicSynthParams,
+        dutyControl,
+        dutySlider,
+        dutyValue,
+        advancedSynthParams,
+        harmonicityControl,
+        modIndexControl,
+        harmonicitySlider,
+        harmonicityValue,
+        modIndexSlider,
+        modIndexValue,
+        monoSynthParams,
+        monoCutoffSlider,
+        monoCutoffValue,
+        monoOctavesSlider,
+        monoOctavesValue,
+        monoQSlider,
+        monoQValue,
+        duoSynthParams,
+        duoHarmSlider,
+        duoHarmValue,
+        duoVibratoSlider,
+        duoVibratoValue,
+        pluckSynthParams,
+        pluckDampeningSlider,
+        pluckDampeningValue,
+        pluckResonanceSlider,
+        pluckResonanceValue,
+        pluckNoiseSlider,
+        pluckNoiseValue,
+        membraneSynthParams,
+        membranePitchDecaySlider,
+        membranePitchDecayValue,
+        membraneOctavesSlider,
+        membraneOctavesValue,
+        gateSlider,
+        gateValue,
+        envAttackSlider,
+        envDecaySlider,
+        envSustainSlider,
+        envReleaseSlider,
+        envAttackValue,
+        envDecayValue,
+        envSustainValue,
+        envReleaseValue,
+        keyboardVisual,
+        keyboardToggle,
+        keyboardToggleStatus,
+        keyboardDescription,
+        octaveShiftButtons,
+        octaveRangeButtons,
+        scaleQuantizeToggle,
+        scaleQuantizeToggleStatus,
+        scaleRootSelect,
+        scaleTypeSelect,
+        filterCutoffSlider,
+        filterCutoffValue,
+        filterResonanceSlider,
+        filterResonanceValue,
+        driveMixSlider,
+        driveMixValue,
+        chorusMixSlider,
+        chorusMixValue,
+        autoPanMixSlider,
+        autoPanMixValue,
+        delayMixSlider,
+        delayMixValue,
+        reverbMixSlider,
+        reverbMixValue,
+        randomizeNotesButton,
+        noteStepIndicator,
+        recordButton,
+        recordStatus,
+        exportControls,
+        realtimeExportWavCheck,
+        realtimeExportMp3Check,
+        exportButton,
+        loopCountInput,
+        offlineExportModeInputs,
+        offlineExportTailControl,
+        offlineExportTailSecondsInput,
+        offlineExportDuration,
+        offlineExportWavCheck,
+        offlineExportMp3Check,
+        offlineExportButton,
+        offlineExportMidiButton,
+        offlineExportStatus,
+        vuMeterBar,
+        vuDbValue,
+        vuClipContainer,
+        vuClipIndicator,
+        vuClipTooltip,
+        vuInfoButton,
+        vuInfoTooltip,
+        visualizerYAxisCanvas,
+        visualizerViewport,
+        visualizerPlotCanvas,
+        toggleVisualizerButton,
+        visualizerModeSelect,
+        pauseVisualizerButton,
+        visualizerZoomSlider,
+        visualizerZoomValue,
+        oscilloscopeWindowSelect,
+        oscilloscopeWindowContainer,
+        presetNameInput,
+        savedPresetSelect,
+        savePresetButton,
+        savePresetToBrowserButton,
+        sharePresetButton,
+        loadPresetButton,
+        loadSavedPresetButton,
+        clearSavedPresetButton,
+        deleteSavedPresetButton,
+        browserStorageRecovery,
+        loadPresetInput,
+        toastContainer,
+        liveRegion,
+        quickStartModal,
+        quickStartOverlay,
+        quickStartPresetsGrid,
+        quickStartScratchButton,
+        startOverlay,
+        chordButtons,
+        resolveResetTargets,
+    } = createDomReferences(document);
 
     // --- State ---
     let isPlaying = false;
@@ -617,7 +470,7 @@ function initializeApp() {
             octaveRangeButtons,
             patternButtons,
             randomizeNotesButton,
-            chordButtons: document.querySelectorAll(".chord-btn"),
+            chordButtons,
         },
         normalizeNotes: normalizeNotesSequence,
         setNotes: (notes) => {
@@ -672,7 +525,7 @@ function initializeApp() {
     // 0. Toast Manager — UI notifications and live region announcements
     const toastManager = createToastManager({
         toastContainer,
-        liveRegion: document.getElementById("sr-announcements"),
+        liveRegion,
         logger: log,
     });
     const { showToast } = toastManager;
@@ -692,7 +545,7 @@ function initializeApp() {
             soundStartersGrid,
             soundStartersDetails,
         },
-        documentRef: document,
+        documentRef,
         storage: {
             getItem: (key) => window.localStorage.getItem(key),
             setItem: (key, value) => window.localStorage.setItem(key, value),
@@ -848,16 +701,14 @@ function initializeApp() {
         dom: {
             appMain,
             playStopButton,
-            quickStartModal: document.getElementById("quick-start-modal"),
-            quickStartOverlay: document.getElementById("quick-start-overlay"),
-            quickStartPresetsGrid: document.getElementById("quick-start-presets-grid"),
-            quickStartScratchButton: /** @type {HTMLButtonElement | null} */ (
-                document.getElementById("quick-start-scratch")
-            ),
+            quickStartModal,
+            quickStartOverlay,
+            quickStartPresetsGrid,
+            quickStartScratchButton,
             soundStartersDetails,
-            startOverlay: document.getElementById("start-overlay"),
+            startOverlay,
         },
-        documentRef: document,
+        documentRef,
         storage: {
             getItem: (key) => window.localStorage.getItem(key),
             setItem: (key, value) => window.localStorage.setItem(key, value),
@@ -1051,7 +902,7 @@ function initializeApp() {
     }
 
     const workspaceController = createWorkspaceController({
-        documentRef: document,
+        documentRef,
         dom: { presetNameInput, savedPresetSelect, loadPresetInput },
         getResetDefinitions: () => resetDefinitions,
         getPresetStore: () => presetStore,
@@ -1092,13 +943,13 @@ function initializeApp() {
             resetDefaultsConfirmButton,
             presetNameInput,
         },
-        documentRef: document,
+        documentRef,
         getStatus: workspaceController.getStatus,
         onUndo: undoSettings,
         onRedo: redoSettings,
         onResetDefaults: resetAllSettings,
         onEscapeReset: () => {
-            const definition = getFocusedResetDefinition(document.activeElement);
+            const definition = getFocusedResetDefinition(documentRef.activeElement);
             if (!definition) return false;
             resetIndividualSettings(definition);
             return true;
@@ -1340,10 +1191,7 @@ function initializeApp() {
         },
     ].map((definition) => ({
         ...definition,
-        targets: definition.targets.flatMap((selector) => {
-            const target = document.querySelector(selector);
-            return target ? [target] : [];
-        }),
+        targets: resolveResetTargets(definition.targets),
     }));
 
     // ==================================================================
