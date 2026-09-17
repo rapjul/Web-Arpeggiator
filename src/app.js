@@ -7,56 +7,47 @@
  *
  * @module app
  */
-import { downloadBlob } from "@core/audio-utils.js";
 import { buildChordString, resolveChordDefinition } from "@core/chord-builder.js";
-import {
-    formatEstimatedExportDuration,
-    normalizeLoopCount,
-    normalizeOfflineExportTailSeconds,
-} from "@core/export-duration.js";
 import { filterNoteInput, filterNumericInput } from "@core/input-filters.js";
 import { dbToPercent } from "@core/meter-utils.js";
-import { exportMidiFile } from "@core/midi-export.js";
 import {
-    calculateNoteMarkers,
     getArpeggioNotes as getArpeggioNotesFromModule,
-    materializePatternSequence,
     normalizeNotesSequence,
 } from "@core/pattern-core.js";
 import { generateRandomNotes } from "@core/randomizer.js";
-import {
-    DEFAULT_SETTINGS,
-    mergeSettings,
-    normalizeSettingsHistory,
-    UnsupportedSettingsVersionError,
-} from "@core/settings-contract.js";
-import { createSettingsHistory } from "@core/settings-history.js";
-import {
-    hasPresetChanges,
-    PRESET_URL_KEYS,
-    parsePresetFromUrlParams,
-    serializePresetToUrlParams,
-} from "@core/url-preset.js";
+import { DEFAULT_SETTINGS, mergeSettings } from "@core/settings-contract.js";
+import { PRESET_URL_KEYS } from "@core/url-preset.js";
 import { initializePwa } from "@pwa/pwa.js";
 import { presetStore } from "@storage/presets-store.js";
-import { createSessionManager, debounce } from "@storage/session-manager.js";
+import { debounce } from "@storage/session-manager.js";
 import { createSettingsManager } from "@storage/settings-manager.js";
-import { setupKeyboardNavigation } from "@ui/a11y-navigation.js";
+import { createAudioRuntimeController } from "@audio/runtime-controller.js";
+import { createPlaybackController } from "@audio/playback-controller.js";
+import { createStaticLoopRenderer } from "@audio/static-loop-renderer.js";
 import { initializeKeyboardControls } from "@ui/keyboard-controller.js";
 import { createHistoryController } from "@ui/history-controller.js";
 import { createInputFilterController } from "@ui/input-filter-controller.js";
 import { createNoteStepController } from "@ui/note-step-controller.js";
 import { createOnboardingController } from "@ui/onboarding-controller.js";
 import { createEffectsControlsController } from "@ui/effects-controls-controller.js";
-import { createFuturePresetDialogController } from "@ui/future-preset-dialog-controller.js";
+import { createExportControlsController } from "@ui/export-controls-controller.js";
 import { createPatternControlsController } from "@ui/pattern-controls-controller.js";
 import { createPresetController } from "@ui/preset-controller.js";
+import { createPresetWorkflowController } from "@ui/preset-workflow-controller.js";
 import { createSynthControlsController } from "@ui/synth-controls-controller.js";
 import { createTransportController } from "@ui/transport-controller.js";
 import { createToastManager } from "@ui/ui-feedback.js";
+import { createWorkspaceController } from "@ui/workspace-controller.js";
 import { FACTORY_PRESETS } from "./config/factory-presets.js";
 
 /** @typedef {import("./config/factory-presets.js").FactoryPreset} FactoryPreset */
+
+/** @typedef {{value: number}} NumericAudioParam */
+/** @typedef {{oscillator: {width: NumericAudioParam}, harmonicity: NumericAudioParam, modulationIndex: NumericAudioParam, filterEnvelope: {baseFrequency: number, octaves: number}, filter: {Q: NumericAudioParam}, vibratoAmount: NumericAudioParam, dampening: number, resonance: number, attackNoise: number, pitchDecay: number, octaves: number}} ActiveSynthLike */
+/** @typedef {{activeSynth: ActiveSynthLike, currentWaveform: string, setSynth: (type: string) => void, updateEnvelope: () => void, postGain: {volume: NumericAudioParam}, distortion: {wet: NumericAudioParam}, filter: {frequency: NumericAudioParam, Q: NumericAudioParam}, chorus: {wet: NumericAudioParam}, autoPanner: {wet: NumericAudioParam}, delay: {wet: NumericAudioParam}, reverb: {wet: NumericAudioParam}, createOfflineChain: (context: unknown, settings: unknown) => {offlineSynth: {triggerAttackRelease: (note: string, duration: number, time: number) => void}}}} AudioEngineLike */
+/** @typedef {{update: (settings: object) => object|null, getPattern: () => {start: () => void, stop: () => void}|null, dispose: () => void}} PatternControllerLike */
+/** @typedef {{isRecording: boolean, toggleRecording: () => Promise<void>, exportRealtime: () => Promise<void>, exportOffline: () => Promise<void>, initRecorder: () => Promise<void>}} RecorderManagerLike */
+/** @typedef {{currentMode: string, toggle: () => void, startUiLoop: () => void, stopUiLoop: () => void, onManualNoteAttack: () => void, onManualNoteRelease: () => void, updateStaticLoopMap: (buffer: unknown, markers: unknown) => void}} VisualizerLike */
 
 // --- Global Config ---
 // Keep development diagnostics out of production bundles.
@@ -103,83 +94,42 @@ function hasOscillatorWidth(oscillator) {
 
 // --- Application State ---
 let isAudioContextStarted = false;
-let initializeAudioRuntime = null;
-let audioStartPromise = null;
-let audioModulesPromise = null;
-let notifyAudioReady = () => {};
-let notifyAudioFailure = () => {};
 let Tone;
-let createAudioEngine;
-let createPatternController;
-let createRecorderManager;
-let createVisualizer;
+let audioRuntimeController = null;
+let playbackController = null;
+let exportControlsController = null;
+let presetWorkflowController = null;
 
 /**
- * Loads Tone.js and every module that imports it only from an explicit audio
- * activation. Tone's package entry creates a Transport during module
- * evaluation, so a static import would create Web Audio before a user gesture.
+ * Starts the deferred audio runtime from a user-initiated action.
  *
  * @returns {Promise<void>}
  */
-async function loadAudioModules() {
-    if (!audioModulesPromise) {
-        audioModulesPromise = Promise.all([
-            import("tone"),
-            import("@audio/audio-engine.js"),
-            import("@audio/pattern-generator.js"),
-            import("@audio/recorder.js"),
-            import("@ui/visualizer.js"),
-        ])
-            .then(([tone, audioEngineModule, patternModule, recorderModule, visualizerModule]) => {
-                Tone = tone;
-                ({ createAudioEngine } = audioEngineModule);
-                ({ createPatternController } = patternModule);
-                ({ createRecorderManager } = recorderModule);
-                ({ createVisualizer } = visualizerModule);
-            })
-            .catch((error) => {
-                audioModulesPromise = null;
-                throw error;
-            });
+function startAudio() {
+    if (!audioRuntimeController) {
+        return Promise.reject(new Error("Audio runtime is not initialized."));
     }
-    return audioModulesPromise;
+    return audioRuntimeController.startAudio();
 }
 
-/**
- * Starts the Tone.js AudioContext when the user interacts with the page.
- * @returns {Promise<void>}
- */
-async function startAudio() {
-    if (isAudioContextStarted && Tone?.getContext().state === "running") return;
+/** @returns {void} Delegates the current duration estimate to export controls. */
+function updateEstimatedExportDuration() {
+    exportControlsController?.updateEstimatedExportDuration();
+}
 
-    if (!audioStartPromise) {
-        audioStartPromise = (async () => {
-            try {
-                // Accessing the context and resuming it must both happen inside the
-                // user-initiated handler that called startAudio.
-                await loadAudioModules();
-                const context = Tone.getContext();
-                if (context.state !== "running") {
-                    await Tone.start();
-                }
-                if (typeof initializeAudioRuntime !== "function") {
-                    throw new Error("Audio runtime is not initialized.");
-                }
-                await initializeAudioRuntime();
-                isAudioContextStarted = true;
-                log("AudioContext resumed successfully.");
-                notifyAudioReady();
-            } catch (err) {
-                console.error("AudioContext failed to start/resume:", err);
-                notifyAudioFailure();
-                throw err;
-            }
-        })().finally(() => {
-            audioStartPromise = null;
-        });
-    }
+/** @returns {void} Delegates offline-mode presentation to export controls. */
+function updateOfflineExportModeUi() {
+    exportControlsController?.updateOfflineExportModeUi();
+}
 
-    return audioStartPromise;
+/** @returns {void} Requests a debounced loop-map render from export controls. */
+function requestStaticLoopRender() {
+    exportControlsController?.requestStaticLoopRender();
+}
+
+/** @returns {void} Loads a preset encoded in the current URL. */
+function loadPresetFromUrl() {
+    presetWorkflowController?.loadPresetFromUrl();
 }
 
 // --- DOMContentLoaded: Main Setup ---
@@ -506,28 +456,45 @@ function initializeApp() {
     // --- State ---
     let isPlaying = false;
     let currentNotes = ["C4", "E4", "G4"];
-    let arpPattern = null;
-    let patternController;
     let currentOctaveShift = 0;
     let currentOctaveRange = 2;
     let activeNote = null;
     let currentWaveform = "sine";
-    let audioEngine;
-    let pendingAudioEngine = null;
-    let recorderManager;
-    let visualizer;
-    let audioRuntimePromise = null;
-    let observedRawAudioContext = null;
-    let audioContextStateListener = null;
 
     /**
      * Returns the engine being assembled, if any, so settings can be applied
      * before the fully constructed runtime is published.
      *
-     * @returns {ReturnType<typeof createAudioEngine>|null|undefined} The available engine.
+     * @returns {AudioEngineLike|null|undefined} The available engine.
      */
     function getAvailableAudioEngine() {
-        return audioEngine || pendingAudioEngine;
+        return /** @type {AudioEngineLike|null|undefined} */ (
+            audioRuntimeController?.getAvailableAudioEngine()
+        );
+    }
+
+    /** @returns {AudioEngineLike|undefined} The published live audio engine. */
+    function getAudioEngine() {
+        return /** @type {AudioEngineLike|undefined} */ (audioRuntimeController?.getAudioEngine());
+    }
+
+    /** @returns {RecorderManagerLike|undefined} The published recorder manager. */
+    function getRecorderManager() {
+        return /** @type {RecorderManagerLike|undefined} */ (
+            audioRuntimeController?.getRecorderManager()
+        );
+    }
+
+    /** @returns {VisualizerLike|undefined} The published visualizer. */
+    function getVisualizer() {
+        return /** @type {VisualizerLike|undefined} */ (audioRuntimeController?.getVisualizer());
+    }
+
+    /** @returns {PatternControllerLike|undefined} The published pattern controller. */
+    function getPatternController() {
+        return /** @type {PatternControllerLike|undefined} */ (
+            audioRuntimeController?.getPatternController()
+        );
     }
 
     // --- App State Object (for injected modules) ---
@@ -613,20 +580,19 @@ function initializeApp() {
             updateEstimatedExportDuration();
             return;
         }
-        arpPattern =
-            patternController?.update({
-                baseNotes: currentNotes,
-                octaveRange: currentOctaveRange,
-                octaveShift: currentOctaveShift,
-                interval: intervalSelect.value,
-                gate: parseFloat(gateSlider.value),
-                direction: getSelectedPatternDirection(),
-                quantize: {
-                    enabled: scaleQuantizeToggle.checked,
-                    root: scaleRootSelect.value,
-                    scale: scaleTypeSelect.value,
-                },
-            }) ?? null;
+        getPatternController()?.update({
+            baseNotes: currentNotes,
+            octaveRange: currentOctaveRange,
+            octaveShift: currentOctaveShift,
+            interval: intervalSelect.value,
+            gate: parseFloat(gateSlider.value),
+            direction: patternControlsController.getSelectedPatternDirection(),
+            quantize: {
+                enabled: scaleQuantizeToggle.checked,
+                root: scaleRootSelect.value,
+                scale: scaleTypeSelect.value,
+            },
+        });
         // Rebuild the note step indicator pips to match the new note count
         noteStepController.rebuild();
         updateEstimatedExportDuration();
@@ -637,59 +603,47 @@ function initializeApp() {
         getNotes: () => currentNotes,
     });
 
-    /**
-     * Returns the currently selected pattern direction value.
-     * @returns {string} Direction slug (e.g. 'up', 'down').
-     */
-    function getSelectedPatternDirection() {
-        const checkedRadio = /** @type {HTMLInputElement | null} */ (
-            patternButtons.querySelector("input[name='pattern-direction']:checked")
-        );
-        if (checkedRadio?.value) {
-            return checkedRadio.value;
-        }
-        const selectedPatternButton = patternButtons.querySelector(".pattern-btn.selected");
-        return selectedPatternButton ? selectedPatternButton.getAttribute("data-pattern") : "up";
-    }
-
-    /**
-     * Sets the currently selected pattern direction button or radio input.
-     * @param {string} direction - Direction slug to select.
-     * @returns {void}
-     */
-    function setSelectedPatternDirection(direction) {
-        const nextDirection = direction || "up";
-        const radio = /** @type {HTMLInputElement | null} */ (
-            patternButtons.querySelector(
-                `input[name='pattern-direction'][value="${nextDirection}"]`,
-            ) ||
-                patternButtons.querySelector(
-                    `input[name='pattern-direction'][data-pattern="${nextDirection}"]`,
-                )
-        );
-        if (radio) {
-            radio.checked = true;
-        } else {
-            const fallbackRadio = /** @type {HTMLInputElement | null} */ (
-                patternButtons.querySelector("input[name='pattern-direction'][value='up']")
-            );
-            if (fallbackRadio) {
-                fallbackRadio.checked = true;
-            }
-        }
-        let selectedButton = patternButtons.querySelector(
-            `.pattern-btn[data-pattern="${nextDirection}"]`,
-        );
-        if (!selectedButton) {
-            selectedButton = patternButtons.querySelector('.pattern-btn[data-pattern="up"]');
-        }
-        patternButtons.querySelectorAll(".pattern-btn, button").forEach((b) => {
-            b.classList.remove("selected");
-        });
-        if (selectedButton) {
-            selectedButton.classList.add("selected");
-        }
-    }
+    const patternControlsController = createPatternControlsController({
+        dom: {
+            notesInput,
+            intervalSelect,
+            gateSlider,
+            gateValue,
+            scaleQuantizeToggle,
+            scaleQuantizeToggleStatus,
+            scaleTypeSelect,
+            scaleRootSelect,
+            octaveShiftButtons,
+            octaveRangeButtons,
+            patternButtons,
+            randomizeNotesButton,
+            chordButtons: document.querySelectorAll(".chord-btn"),
+        },
+        normalizeNotes: normalizeNotesSequence,
+        setNotes: (notes) => {
+            currentNotes = notes;
+        },
+        setOctaveShift: (value) => {
+            currentOctaveShift = value;
+        },
+        setOctaveRange: (value) => {
+            currentOctaveRange = value;
+        },
+        onPatternChange: createOrUpdatePattern,
+        onEstimatedDurationChange: () => updateEstimatedExportDuration(),
+        onStaticLoopChange: requestStaticLoopRender,
+        onNotesSelected: (notes) => {
+            notesInput.value = notes.join(" ");
+            notesInput.dispatchEvent(new Event("input", { bubbles: true }));
+            notesInput.dispatchEvent(new Event("change", { bubbles: true }));
+        },
+        onClearActiveSoundStarter: () => clearActiveSoundStarterCard(),
+        showToast: (message, type) => showToast(message, type),
+        generateRandomNotes,
+        buildChordString,
+        resolveChordDefinition,
+        debounce,
+    });
 
     /**
      * Displays non-destructive recovery steps after a browser storage error.
@@ -711,38 +665,6 @@ function initializeApp() {
         browserStorageRecovery.open = false;
     }
 
-    // ------------------------------------------------------------------
-    // Session Manager — Auto-save and workspace restoration
-    // ------------------------------------------------------------------
-
-    const settingsHistory = createSettingsHistory();
-
-    const sessionManager = createSessionManager({
-        getPresetStore: () => presetStore,
-        getSettings: () => getAllSettings(),
-        getHistoryState: () => settingsHistory.exportState(),
-        onRestore: (settings, persistedHistory) => {
-            const result = loadAllSettings(settings);
-            if (!result.ok) return;
-            let history = null;
-            try {
-                history = normalizeSettingsHistory(persistedHistory, getAllSettings());
-            } catch {
-                history = null;
-            }
-            settingsHistory.restore(history, getAllSettings());
-            if (getSelectedPatternDirection()) {
-                setSelectedPatternDirection(getSelectedPatternDirection());
-            } else {
-                setSelectedPatternDirection("up");
-            }
-            updateHistoryControls();
-        },
-    });
-
-    const scheduleLastSessionSave = () => sessionManager.scheduleSave();
-    const restoreLastSession = () => sessionManager.restoreSession();
-
     // ==================================================================
     //    Module Initialization
     // ==================================================================
@@ -754,15 +676,6 @@ function initializeApp() {
         logger: log,
     });
     const { showToast } = toastManager;
-
-    notifyAudioReady = () => {
-        if (SHOW_AUDIO_READY_TOAST) {
-            showToast("Audio is ready!", "success");
-        }
-    };
-    notifyAudioFailure = () => {
-        showToast("Audio failed to start. See console.", "error");
-    };
 
     const inputFilterController = createInputFilterController({
         dom: { notesInput, loopCountInput },
@@ -889,15 +802,16 @@ function initializeApp() {
         },
         actions: {
             getArpeggioNotes,
-            getSelectedPatternDirection,
-            setSelectedPatternDirection,
-            updateScaleQuantizeUi,
-            updateScaleQuantizeToggleText,
-            updateWaveformButtons,
+            getSelectedPatternDirection: patternControlsController.getSelectedPatternDirection,
+            setSelectedPatternDirection: patternControlsController.setSelectedPatternDirection,
+            updateScaleQuantizeUi: patternControlsController.updateScaleQuantizeUi,
+            updateScaleQuantizeToggleText: patternControlsController.updateScaleQuantizeToggleText,
+            updateWaveformButtons: (waveform) =>
+                synthControlsController?.updateWaveformButtons(waveform),
             setSynth: (type) => getAvailableAudioEngine()?.setSynth(type),
             updateEnvelope: () => getAvailableAudioEngine()?.updateEnvelope(),
             getTransport: () => (getAvailableAudioEngine() ? Tone.getTransport() : null),
-            updateButtonGroup,
+            updateButtonGroup: patternControlsController.updateButtonGroup,
             createOrUpdatePattern,
             updateEstimatedExportDuration,
             updateOfflineExportModeUi,
@@ -993,11 +907,13 @@ function initializeApp() {
         actions: {
             getCurrentTime: () => Tone?.now() ?? 0,
             onNoteAttack: () => {
+                const visualizer = getVisualizer();
                 if (visualizer && typeof visualizer.onManualNoteAttack === "function") {
                     visualizer.onManualNoteAttack();
                 }
             },
             onNoteRelease: () => {
+                const visualizer = getVisualizer();
                 if (visualizer && typeof visualizer.onManualNoteRelease === "function") {
                     visualizer.onManualNoteRelease();
                 }
@@ -1006,230 +922,116 @@ function initializeApp() {
     });
     const { updateKeyboardControlUi } = keyboardControls;
 
-    /**
-     * Creates the real-time Tone graph only after Tone.start() has resumed the
-     * context from an explicit user action.
-     *
-     * @returns {Promise<void>}
-     */
-    initializeAudioRuntime = async () => {
-        if (audioEngine) return;
-        if (!audioRuntimePromise) {
-            audioRuntimePromise = (async () => {
-                let nextAudioEngine;
-                let nextVisualizer;
-                let nextRecorderManager;
+    audioRuntimeController = createAudioRuntimeController({
+        dom: {
+            audioEngine: {
+                advancedSynthParams,
+                harmonicityControl,
+                modIndexControl,
+                carrierLabel,
+                waveformPluckOverlay,
+                dutyControl,
+                basicSynthParams,
+                waveformButtons,
+                monoSynthParams,
+                duoSynthParams,
+                pluckSynthParams,
+                membraneSynthParams,
+                harmonicitySlider,
+                modIndexSlider,
+                monoCutoffSlider,
+                monoOctavesSlider,
+                monoQSlider,
+                duoHarmSlider,
+                duoVibratoSlider,
+                pluckDampeningSlider,
+                pluckResonanceSlider,
+                pluckNoiseSlider,
+                membranePitchDecaySlider,
+                membraneOctavesSlider,
+                envAttackSlider,
+                envDecaySlider,
+                envSustainSlider,
+                envReleaseSlider,
+                driveMixSlider,
+                chorusMixSlider,
+                autoPanMixSlider,
+            },
+            visualizer: {
+                visualizerYAxisCanvas,
+                visualizerViewport,
+                visualizerPlotCanvas,
+                toggleVisualizerButton,
+                visualizerModeSelect,
+                pauseVisualizerButton,
+                visualizerZoomSlider,
+                visualizerZoomValue,
+                oscilloscopeWindowSelect,
+                oscilloscopeWindowContainer,
+                vuMeterBar,
+                vuDbValue,
+                vuClipContainer,
+                vuClipIndicator,
+                vuClipTooltip,
+                vuInfoButton,
+                vuInfoTooltip,
+                envReleaseSlider,
+                recordButton,
+            },
+            recorder: {
+                recordButton,
+                recordStatus,
+                exportControls,
+                realtimeExportWavCheck,
+                realtimeExportMp3Check,
+                exportButton,
+                offlineExportWavCheck,
+                offlineExportMp3Check,
+                offlineExportButton,
+                offlineExportStatus,
+                loopCountInput,
+                envAttackSlider,
+                envDecaySlider,
+                envSustainSlider,
+                envReleaseSlider,
+            },
+        },
+        state: appState,
+        getAllSettings,
+        loadAllSettings,
+        showToast,
+        generateFilename,
+        formatTime,
+        startAudio,
+        startPlayback,
+        onPatternStep: noteStepController.highlight,
+        onPatternChange: () => {},
+        onToneLoaded: (tone) => {
+            Tone = tone;
+        },
+        onAudioReady: () => {
+            if (SHOW_AUDIO_READY_TOAST) showToast("Audio is ready!", "success");
+        },
+        onContextReady: () => playbackController?.observeAudioContextState(),
+        logger: console,
+    });
 
-                try {
-                    nextAudioEngine = createAudioEngine({
-                        dom: {
-                            advancedSynthParams,
-                            harmonicityControl,
-                            modIndexControl,
-                            carrierLabel,
-                            waveformPluckOverlay,
-                            dutyControl,
-                            basicSynthParams,
-                            waveformButtons,
-                            monoSynthParams,
-                            duoSynthParams,
-                            pluckSynthParams,
-                            membraneSynthParams,
-                            harmonicitySlider,
-                            modIndexSlider,
-                            monoCutoffSlider,
-                            monoOctavesSlider,
-                            monoQSlider,
-                            duoHarmSlider,
-                            duoVibratoSlider,
-                            pluckDampeningSlider,
-                            pluckResonanceSlider,
-                            pluckNoiseSlider,
-                            membranePitchDecaySlider,
-                            membraneOctavesSlider,
-                            envAttackSlider,
-                            envDecaySlider,
-                            envSustainSlider,
-                            envReleaseSlider,
-                            driveMixSlider,
-                            chorusMixSlider,
-                            autoPanMixSlider,
-                        },
-                    });
-                    nextAudioEngine.currentWaveform = currentWaveform;
-
-                    nextVisualizer = createVisualizer({
-                        dom: {
-                            visualizerYAxisCanvas,
-                            visualizerViewport,
-                            visualizerPlotCanvas,
-                            toggleVisualizerButton,
-                            visualizerModeSelect,
-                            pauseVisualizerButton,
-                            visualizerZoomSlider,
-                            visualizerZoomValue,
-                            oscilloscopeWindowSelect,
-                            oscilloscopeWindowContainer,
-                            vuMeterBar,
-                            vuDbValue,
-                            vuClipContainer,
-                            vuClipIndicator,
-                            vuClipTooltip,
-                            vuInfoButton,
-                            vuInfoTooltip,
-                            envReleaseSlider,
-                        },
-                        audio: {
-                            analyser: nextAudioEngine.analyser,
-                            meter: nextAudioEngine.meter,
-                            peakAnalyser: nextAudioEngine.peakAnalyser,
-                        },
-                        state: {
-                            get isRecording() {
-                                return recorderManager ? recorderManager.isRecording : false;
-                            },
-                            get recordingStartTime() {
-                                return recorderManager ? recorderManager.recordingStartTime : 0;
-                            },
-                            get isPlaying() {
-                                return isPlaying;
-                            },
-                            get activeNote() {
-                                return activeNote;
-                            },
-                            recordButton,
-                        },
-                        actions: { formatTime },
-                    });
-
-                    nextRecorderManager = createRecorderManager({
-                        audio: {
-                            reverb: nextAudioEngine.reverb,
-                            synths: nextAudioEngine.synths,
-                            createOfflineChain: nextAudioEngine.createOfflineChain,
-                        },
-                        dom: {
-                            recordButton,
-                            recordStatus,
-                            exportControls,
-                            realtimeExportWavCheck,
-                            realtimeExportMp3Check,
-                            exportButton,
-                            offlineExportWavCheck,
-                            offlineExportMp3Check,
-                            offlineExportButton,
-                            offlineExportStatus,
-                            loopCountInput,
-                            envAttackSlider,
-                            envDecaySlider,
-                            envSustainSlider,
-                            envReleaseSlider,
-                        },
-                        state: {
-                            get isAudioContextStarted() {
-                                return isAudioContextStarted;
-                            },
-                            get isPlaying() {
-                                return isPlaying;
-                            },
-                        },
-                        actions: {
-                            showToast,
-                            startUiLoop: nextVisualizer.startUiLoop,
-                            stopUiLoop: nextVisualizer.stopUiLoop,
-                            getAllSettings,
-                            generateFilename,
-                            formatTime,
-                            startAudio,
-                            startPlayback,
-                        },
-                    });
-
-                    // Apply any URL, session, or form state accumulated before audio
-                    // activation before publishing the finished audio runtime.
-                    pendingAudioEngine = nextAudioEngine;
-                    patternController = createPatternController({
-                        getSynth: () => getAvailableAudioEngine()?.activeSynth || null,
-                        getIsPlaying: () => isPlaying,
-                        onPatternChange: (pattern) => {
-                            arpPattern = pattern;
-                        },
-                        onStep: noteStepController.highlight,
-                    });
-                    loadAllSettings(getAllSettings());
-
-                    audioEngine = nextAudioEngine;
-                    visualizer = nextVisualizer;
-                    recorderManager = nextRecorderManager;
-                    pendingAudioEngine = null;
-                    observeAudioContextState();
-                } catch (error) {
-                    nextVisualizer?.destroy();
-                    nextAudioEngine?.dispose();
-                    try {
-                        patternController?.dispose();
-                    } catch (cleanupError) {
-                        console.warn("Failed to dispose a partial arpeggio pattern:", cleanupError);
-                    }
-                    audioEngine = undefined;
-                    pendingAudioEngine = null;
-                    visualizer = undefined;
-                    recorderManager = undefined;
-                    patternController = undefined;
-                    arpPattern = null;
-                    throw error;
-                }
-            })().catch((error) => {
-                audioRuntimePromise = null;
-                throw error;
-            });
-        }
-        return audioRuntimePromise;
-    };
+    playbackController = createPlaybackController({
+        dom: { playStopButton },
+        state: appState,
+        getTone: () => audioRuntimeController?.getTone(),
+        getPattern: () => audioRuntimeController?.getPatternController()?.getPattern(),
+        getRecorderManager,
+        getVisualizer,
+        startAudio,
+        prepareForPlayback: () => onboardingController.prepareForPlayback(),
+        createOrUpdatePattern,
+        clearNoteStep: noteStepController.clear,
+    });
 
     // ==================================================================
     //    Remaining UI Utility Functions
     // ==================================================================
-
-    /**
-     * Reflects a selected numeric setting in a button/radio group.
-     *
-     * @param {HTMLElement} container - Group containing radio inputs and buttons.
-     * @param {number} selectedValue - Numeric value to select.
-     * @param {string} dataAttribute - Attribute that stores button values.
-     * @returns {void}
-     */
-    function updateButtonGroup(container, selectedValue, dataAttribute) {
-        const radio = container.querySelector(
-            `input[type="radio"][${dataAttribute}="${selectedValue}"], input[type="radio"][value="${selectedValue}"]`,
-        );
-        if (radio) /** @type {HTMLInputElement} */ (radio).checked = true;
-        container.querySelectorAll(".octave-btn, button").forEach((button) => {
-            const valueControl = button.matches(`[${dataAttribute}]`)
-                ? button
-                : button.querySelector(`[${dataAttribute}]`);
-            button.classList.toggle(
-                "selected",
-                valueControl !== null &&
-                    Number(valueControl.getAttribute(dataAttribute)) === selectedValue,
-            );
-        });
-    }
-
-    /**
-     * Updates waveform button selection state.
-     * @param {string} selectedWave - The waveform to select (e.g. 'sine').
-     * @returns {void}
-     */
-    function updateWaveformButtons(selectedWave) {
-        waveformButtons.querySelectorAll("button").forEach((btn) => {
-            btn.classList.remove("selected");
-            const btnWave = btn.getAttribute("data-wave");
-            if (btnWave === selectedWave) {
-                btn.classList.add("selected");
-            }
-        });
-    }
 
     /**
      * Formats seconds to mm:ss.t string.
@@ -1248,73 +1050,30 @@ function initializeApp() {
         return `${paddedMinutes}:${paddedSeconds}.${ms}`;
     }
 
-    /**
-     * Returns the currently selected offline audio export mode.
-     *
-     * @returns {"seamless"|"tail"} Selected export mode.
-     */
-    function getSelectedOfflineExportMode() {
-        return Array.from(offlineExportModeInputs).some(
-            (input) => input.checked && input.value === "seamless",
-        )
-            ? "seamless"
-            : "tail";
-    }
-
-    /**
-     * Shows the tail duration only when the tail mode needs it.
-     *
-     * @returns {void}
-     */
-    function updateOfflineExportModeUi() {
-        const isTailMode = getSelectedOfflineExportMode() === "tail";
-        offlineExportTailControl?.classList.toggle("hidden", !isTailMode);
-        if (offlineExportTailSecondsInput) {
-            offlineExportTailSecondsInput.disabled = !isTailMode;
-        }
-    }
-
-    /**
-     * Refreshes the offline export duration estimate using the same materialized
-     * pattern sequence used by offline audio and MIDI exports.
-     *
-     * @returns {void}
-     */
-    function updateEstimatedExportDuration() {
-        if (!offlineExportDuration) return;
-
-        const settings = getAllSettings();
-        const { notes: patternNotes } = materializePatternSequence(
-            settings.baseNotes || settings.notes,
-            {
-                direction: settings.direction,
-                octaveRange: settings.octaveRange,
-                octaveShift: settings.octaveShift,
-                quantize: {
-                    enabled: settings.scaleQuantize,
-                    root: settings.scaleRoot,
-                    scale: settings.scaleType,
-                },
-            },
-        );
-
-        offlineExportDuration.textContent = formatEstimatedExportDuration({
-            loopCount: settings.loopCount,
-            stepsPerLoop: patternNotes.length,
-            interval: settings.interval,
-            bpm: settings.bpm,
-            exportMode: settings.offlineExportMode,
-            tailSeconds: settings.offlineExportTailSeconds,
-            envRelease: settings.envRelease,
-            delayMix: settings.delayMix,
-            reverbMix: settings.reverbMix,
-            chorusMix: settings.chorusMix,
-            autoPanMix: settings.autoPanMix,
-        });
-    }
-
-    /** @type {Record<string, unknown> | null} */
-    let defaultSettings = null;
+    const workspaceController = createWorkspaceController({
+        documentRef: document,
+        dom: { presetNameInput, savedPresetSelect, loadPresetInput },
+        getResetDefinitions: () => resetDefinitions,
+        getPresetStore: () => presetStore,
+        getAllSettings,
+        loadAllSettings,
+        getSelectedPatternDirection: patternControlsController.getSelectedPatternDirection,
+        setSelectedPatternDirection: patternControlsController.setSelectedPatternDirection,
+        clearActiveSoundStarterCard,
+        onStaticLoopChange: requestStaticLoopRender,
+        onHistoryChange: () => historyController?.updateControls(),
+        showToast,
+    });
+    const {
+        applySettingsWithHistory,
+        getFocusedResetDefinition,
+        redoSettings,
+        resetAllSettings,
+        resetIndividualSettings,
+        restoreLastSession,
+        scheduleLastSessionSave,
+        undoSettings,
+    } = workspaceController;
 
     const historyController = createHistoryController({
         dom: {
@@ -1334,13 +1093,7 @@ function initializeApp() {
             presetNameInput,
         },
         documentRef: document,
-        getStatus: () => ({
-            canUndo: settingsHistory.canUndo(),
-            canRedo: settingsHistory.canRedo(),
-            isAtDefault:
-                defaultSettings !== null &&
-                JSON.stringify(getAllSettings()) === JSON.stringify(defaultSettings),
-        }),
+        getStatus: workspaceController.getStatus,
         onUndo: undoSettings,
         onRedo: redoSettings,
         onResetDefaults: resetAllSettings,
@@ -1350,121 +1103,6 @@ function initializeApp() {
             resetIndividualSettings(definition);
             return true;
         },
-    });
-
-    /**
-     * Updates all history action availability states.
-     *
-     * @returns {void}
-     */
-    function updateHistoryControls() {
-        historyController.updateControls();
-    }
-
-    /**
-     * Applies a history snapshot without recording another entry.
-     *
-     * @param {Record<string, unknown>} settings - Snapshot to apply.
-     * @returns {void}
-     */
-    function applyHistorySnapshot(settings) {
-        loadAllSettings(settings);
-        clearActiveSoundStarterCard();
-        scheduleLastSessionSave();
-        debouncedRenderStaticLoop();
-        updateHistoryControls();
-    }
-
-    /**
-     * Records the current serialized settings after a user-originated edit.
-     *
-     * @param {boolean} [coalesced=false] - Whether this belongs to a continuous input gesture.
-     * @returns {boolean} Whether history changed.
-     */
-    function recordCurrentSettings(coalesced = false) {
-        const changed = coalesced
-            ? settingsHistory.recordCoalesced(getAllSettings())
-            : settingsHistory.record(getAllSettings());
-        if (changed) updateHistoryControls();
-        return changed;
-    }
-
-    /**
-     * Applies a settings replacement and records it as a single history action.
-     *
-     * @param {Record<string, unknown>} settings - Replacement settings.
-     * @returns {{ok: boolean, settings?: import("./core/settings-contract.js").ArpeggiatorSettings, error?: unknown}}
-     */
-    function applySettingsWithHistory(settings, options = {}) {
-        settingsHistory.endTransaction();
-        const result = loadAllSettings(settings, options);
-        if (!result.ok) return result;
-        recordCurrentSettings();
-        clearActiveSoundStarterCard();
-        scheduleLastSessionSave();
-        debouncedRenderStaticLoop();
-        return result;
-    }
-
-    /**
-     * Performs an undo action when history is available.
-     *
-     * @returns {void}
-     */
-    function undoSettings() {
-        const settings = settingsHistory.undo();
-        if (settings) applyHistorySnapshot(settings);
-    }
-
-    /**
-     * Performs a redo action when history is available.
-     *
-     * @returns {void}
-     */
-    function redoSettings() {
-        const settings = settingsHistory.redo();
-        if (settings) applyHistorySnapshot(settings);
-    }
-
-    /**
-     * Resets the entire serialized workspace to its captured defaults.
-     *
-     * @returns {void}
-     */
-    function resetAllSettings() {
-        if (!defaultSettings) return;
-        applySettingsWithHistory(defaultSettings);
-        showToast("Restored default settings. Undo is available.", "info");
-    }
-
-    const patternControlsController = createPatternControlsController({
-        dom: {
-            notesInput,
-            intervalSelect,
-            gateSlider,
-            gateValue,
-            scaleQuantizeToggle,
-            scaleTypeSelect,
-            scaleRootSelect,
-            octaveShiftButtons,
-            octaveRangeButtons,
-        },
-        normalizeNotes: normalizeNotesSequence,
-        setNotes: (notes) => {
-            currentNotes = notes;
-        },
-        setOctaveShift: (value) => {
-            currentOctaveShift = value;
-        },
-        setOctaveRange: (value) => {
-            currentOctaveRange = value;
-        },
-        onPatternChange: createOrUpdatePattern,
-        onEstimatedDurationChange: updateEstimatedExportDuration,
-        onStaticLoopChange: () => debouncedRenderStaticLoop(),
-        onScaleQuantizeUiChange: updateScaleQuantizeUi,
-        onScaleQuantizeTextChange: updateScaleQuantizeToggleText,
-        debounce,
     });
 
     const resetDefinitions = [
@@ -1700,204 +1338,27 @@ function initializeApp() {
                 "label[for='offline-export-tail-seconds']",
             ],
         },
-    ];
-
-    /**
-     * Applies the captured defaults for a logical settings group.
-     *
-     * @param {{name: string, keys: string[]}} definition - Resettable settings definition.
-     * @returns {void}
-     */
-    function resetIndividualSettings(definition) {
-        if (!defaultSettings) return;
-        const next = { ...getAllSettings() };
-        definition.keys.forEach((key) => {
-            next[key] = defaultSettings[key];
-        });
-        applySettingsWithHistory(next);
-        showToast(`Reset ${definition.name} to default.`, "info");
-    }
-
-    /**
-     * Wires double-click and keyboard reset gestures without adding permanent controls.
-     *
-     * @returns {void}
-     */
-    function registerIndividualResetGestures() {
-        resetDefinitions.forEach((definition) => {
-            const hint = `Double-click to reset ${definition.name}. Press Escape while focused to reset.`;
-            definition.targets.forEach((selector) => {
-                const target = document.querySelector(selector);
-                if (!target) return;
-                target.setAttribute("title", hint);
-                target.classList.add("resettable-setting-target");
-                target.addEventListener("dblclick", (event) => {
-                    event.preventDefault();
-                    resetIndividualSettings(definition);
-                });
-            });
-            definition.controls.forEach((control) => {
-                if (!control) return;
-                control.setAttribute("aria-description", hint);
-            });
-        });
-    }
-
-    /**
-     * Finds the reset definition associated with the focused element.
-     *
-     * @param {Element | null} element - Focused element.
-     * @returns {{name: string, keys: string[], controls: Element[]} | null} Matching definition.
-     */
-    function getFocusedResetDefinition(element) {
-        if (!element) return null;
-        return (
-            resetDefinitions.find((definition) =>
-                definition.controls.some(
-                    (control) => control === element || control?.contains(element),
-                ),
-            ) || null
-        );
-    }
-
-    /**
-     * Updates the UI for the quantizer (enables/disables visual emphasis without locking dropdowns).
-     * @returns {void}
-     */
-    function updateScaleQuantizeUi() {
-        const isEnabled = scaleQuantizeToggle.checked && scaleTypeSelect.value !== "chromatic";
-        if (isEnabled) {
-            scaleRootSelect.classList.remove("opacity-50");
-            scaleRootSelect.disabled = false;
-        } else {
-            scaleRootSelect.classList.add("opacity-50");
-            scaleRootSelect.disabled = true;
-        }
-        scaleTypeSelect.disabled = false;
-    }
-
-    /**
-     * Updates the quantizer toggle button label text and aria-checked attribute.
-     * @returns {void}
-     */
-    function updateScaleQuantizeToggleText() {
-        const isEnabled = scaleQuantizeToggle.checked && scaleTypeSelect.value !== "chromatic";
-        scaleQuantizeToggle.setAttribute("aria-checked", isEnabled ? "true" : "false");
-        if (isEnabled) {
-            scaleQuantizeToggleStatus.textContent = "Enabled";
-            scaleQuantizeToggleStatus.classList.remove("text-gray-400");
-            scaleQuantizeToggleStatus.classList.add("text-green-400");
-        } else {
-            scaleQuantizeToggleStatus.textContent = "Disabled";
-            scaleQuantizeToggleStatus.classList.remove("text-green-400");
-            scaleQuantizeToggleStatus.classList.add("text-gray-400");
-        }
-    }
-
-    setupKeyboardNavigation(patternButtons, "input[type='radio'], button.pattern-btn");
-    setupKeyboardNavigation(waveformButtons, "button.waveform-btn");
-    setupKeyboardNavigation(octaveShiftButtons, "input[type='radio'], button.octave-btn");
-    setupKeyboardNavigation(octaveRangeButtons, "input[type='radio'], button.octave-btn");
+    ].map((definition) => ({
+        ...definition,
+        targets: definition.targets.flatMap((selector) => {
+            const target = document.querySelector(selector);
+            return target ? [target] : [];
+        }),
+    }));
 
     // ==================================================================
     //    Event Listeners
     // ==================================================================
-
-    // --- Pattern Button Selection (Native change & Click delegation) ---
-    patternButtons.addEventListener("change", (e) => {
-        const target = /** @type {HTMLInputElement} */ (e.target);
-        if (target && target.name === "pattern-direction") {
-            setSelectedPatternDirection(target.value);
-            createOrUpdatePattern();
-        }
-    });
-
-    patternButtons.addEventListener("click", (e) => {
-        const target = /** @type {Element} */ (e.target).closest(".pattern-btn, button, label");
-        if (!target) return;
-        const btn = target.classList.contains("pattern-btn")
-            ? target
-            : target.querySelector(".pattern-btn, [data-pattern]");
-        if (btn) {
-            const pattern = btn.getAttribute("data-pattern");
-            if (pattern) {
-                setSelectedPatternDirection(pattern);
-                createOrUpdatePattern();
-            }
-        }
-    });
-
-    /**
-     * Serializes current settings to URL search parameters, writes the URL to the clipboard,
-     * and reports the result to the user.
-     * @returns {void}
-     */
-    function sharePresetAsUrl() {
-        const settings = getAllSettings();
-        const params = serializePresetToUrlParams(settings);
-        const shareUrl = `${window.location.origin}${window.location.pathname}?${params.toString()}`;
-
-        navigator.clipboard
-            .writeText(shareUrl)
-            .then(() => {
-                showToast("Share link copied to clipboard!", "success");
-            })
-            .catch((err) => {
-                console.error("Failed to copy share link:", err);
-                showToast(`Failed to copy link. Generated URL: ${shareUrl}`, "error");
-            });
-    }
-
-    /**
-     * Parses the current URL search parameters, validates each value against strict boundaries,
-     * and loads them into the application via loadAllSettings.
-     *
-     * The toast notification is only shown when at least one recognized preset parameter was
-     * found, validated successfully, AND its value actually differs from the current setting.
-     * @returns {void}
-     */
-    /**
-     * Parses the current URL search parameters, validates each value against strict boundaries,
-     * and loads them into the application via loadAllSettings.
-     *
-     * The toast notification is only shown when at least one recognized preset parameter was
-     * found, validated successfully, AND its value actually differs from the current setting.
-     * @returns {void}
-     */
-    function loadPresetFromUrl() {
-        const current = getAllSettings();
-        const settings = parsePresetFromUrlParams(window.location.search, current);
-        if (!settings || !hasPresetChanges(settings, current)) return;
-
-        applySettingsWithHistory(settings);
-        showToast("Preset loaded from URL link!", "success");
-    }
 
     /**
      * Starts audio playback if not already running.
      * @returns {Promise<void>}
      */
     async function startPlayback() {
-        if (!isAudioContextStarted) {
-            onboardingController.prepareForPlayback();
+        if (!playbackController) {
+            throw new Error("Playback controller is not initialized.");
         }
-        await startAudio();
-        if (recorderManager && !recorderManager.isRecording) {
-            await recorderManager.initRecorder();
-        }
-        createOrUpdatePattern();
-        if (!isPlaying) {
-            if (arpPattern) arpPattern.start();
-            Tone.getTransport().start();
-            if (playStopButton) {
-                playStopButton.textContent = "Stop Audio";
-                playStopButton.setAttribute("aria-label", "Press to stop arpeggio");
-                playStopButton.classList.add("bg-yellow-600", "hover:bg-yellow-700");
-                playStopButton.classList.remove("bg-blue-600", "hover:bg-blue-700");
-            }
-            isPlaying = true;
-            if (visualizer) visualizer.startUiLoop();
-        }
+        await playbackController.start();
     }
 
     /**
@@ -1905,106 +1366,16 @@ function initializeApp() {
      * @returns {void}
      */
     function stopPlayback() {
-        if (isPlaying) {
-            Tone.getTransport().stop();
-            if (arpPattern) arpPattern.stop();
-            if (playStopButton) {
-                playStopButton.textContent = "Restart Audio";
-                playStopButton.setAttribute("aria-label", "Press to restart arpeggio");
-                playStopButton.classList.remove("bg-yellow-600", "hover:bg-yellow-700");
-                playStopButton.classList.add("bg-blue-600", "hover:bg-blue-700");
-            }
-            isPlaying = false;
-            if (visualizer) visualizer.stopUiLoop();
-            noteStepController.clear();
-        }
+        playbackController?.stop();
     }
-
-    /**
-     * Keeps playback controls aligned with the browser AudioContext state.
-     *
-     * @returns {void}
-     */
-    function observeAudioContextState() {
-        const rawAudioContext = Tone.getContext().rawContext;
-        if (observedRawAudioContext === rawAudioContext) return;
-
-        if (observedRawAudioContext && audioContextStateListener) {
-            observedRawAudioContext.removeEventListener("statechange", audioContextStateListener);
-        }
-
-        audioContextStateListener = () => {
-            if (Tone.getContext().state !== "running") {
-                stopPlayback();
-            }
-        };
-        observedRawAudioContext = rawAudioContext;
-        rawAudioContext.addEventListener("statechange", audioContextStateListener);
-    }
-
-    const transportController = createTransportController({
-        dom: { playStopButton, stickyTransportBar },
-        windowRef: window,
-        getIsPlaying: () => isPlaying,
-        onStart: startPlayback,
-        onStop: stopPlayback,
-    });
-    transportController.initialize();
 
     /**
      * Debounced wrapper to update the synth envelope.
      * @type {() => void}
      */
     const debouncedUpdateEnvelope = debounce(() => {
-        audioEngine?.updateEnvelope();
+        getAudioEngine()?.updateEnvelope();
     }, 16);
-
-    // --- Randomize Notes ---
-    randomizeNotesButton.addEventListener("click", () => {
-        const isQuantized = scaleQuantizeToggle.checked && scaleTypeSelect.value !== "chromatic";
-        let root = scaleRootSelect.value;
-        let scaleType = scaleTypeSelect.value;
-
-        // If scale quantization is disabled, pick a random root note without forcing quantization on
-        if (!isQuantized) {
-            const rootOptions = scaleRootSelect.options;
-            root = rootOptions[Math.floor(Math.random() * rootOptions.length)].value;
-            scaleRootSelect.value = root;
-            scaleType = "chromatic";
-        }
-
-        const randomizedNotes = generateRandomNotes(root, scaleType);
-
-        clearActiveSoundStarterCard();
-        // Update the notes input field and trigger change events to refresh Tone.Pattern.
-        notesInput.value = randomizedNotes.join(" ");
-        notesInput.dispatchEvent(new Event("input", { bubbles: true }));
-        notesInput.dispatchEvent(new Event("change", { bubbles: true }));
-
-        const formattedScaleName =
-            scaleType === "chromatic"
-                ? `${root} Mode (Chromatic)`
-                : `${root} ${scaleType.charAt(0).toUpperCase() + scaleType.slice(1)}`;
-        showToast(`Randomized notes using ${formattedScaleName}!`, "success");
-    });
-
-    // --- Chord / Scale Builder Buttons ---
-    const chordButtons = document.querySelectorAll(".chord-btn");
-    chordButtons.forEach((btn) => {
-        btn.addEventListener("click", () => {
-            const chordType = btn.getAttribute("data-chord") || "major";
-            const root = scaleRootSelect?.value || "C";
-            const chordNotesStr = buildChordString(chordType, root);
-            const chordName = resolveChordDefinition(chordType).name;
-
-            clearActiveSoundStarterCard();
-            notesInput.value = chordNotesStr;
-            notesInput.dispatchEvent(new Event("input", { bubbles: true }));
-            notesInput.dispatchEvent(new Event("change", { bubbles: true }));
-
-            showToast(`Loaded ${root} ${chordName} chord!`, "success");
-        });
-    });
 
     // --- Transport & Pattern ---
 
@@ -2013,23 +1384,8 @@ function initializeApp() {
      * @type {(db: number) => void}
      */
     const debouncedSetPostGain = debounce((/** @type {number} */ db) => {
+        const audioEngine = getAudioEngine();
         if (audioEngine) audioEngine.postGain.volume.value = db;
-    }, 16);
-
-    /**
-     * Debounced wrapper to set BPM.
-     * @type {(val: number) => void}
-     */
-    const debouncedSetBpm = debounce((/** @type {number} */ val) => {
-        if (audioEngine) Tone.getTransport().bpm.value = val;
-    }, 16);
-
-    /**
-     * Debounced wrapper to set swing.
-     * @type {(val: number) => void}
-     */
-    const debouncedSetSwing = debounce((/** @type {number} */ val) => {
-        if (audioEngine) Tone.getTransport().swing = val;
     }, 16);
 
     /**
@@ -2037,6 +1393,7 @@ function initializeApp() {
      * @type {(val: number) => void}
      */
     const debouncedSetHarmonicity = debounce((/** @type {number} */ val) => {
+        const audioEngine = getAudioEngine();
         if (audioEngine?.activeSynth && "harmonicity" in audioEngine.activeSynth) {
             audioEngine.activeSynth.harmonicity.value = val;
         }
@@ -2047,6 +1404,7 @@ function initializeApp() {
      * @type {(val: number) => void}
      */
     const debouncedSetModIndex = debounce((/** @type {number} */ val) => {
+        const audioEngine = getAudioEngine();
         if (audioEngine?.activeSynth && "modulationIndex" in audioEngine.activeSynth) {
             audioEngine.activeSynth.modulationIndex.value = val;
         }
@@ -2057,6 +1415,7 @@ function initializeApp() {
      * @type {(val: number) => void}
      */
     const debouncedSetDuty = debounce((/** @type {number} */ val) => {
+        const audioEngine = getAudioEngine();
         const synth = audioEngine?.activeSynth;
         if (
             synth &&
@@ -2073,6 +1432,7 @@ function initializeApp() {
      * @type {(val: number) => void}
      */
     const debouncedSetFilterCutoff = debounce((/** @type {number} */ val) => {
+        const audioEngine = getAudioEngine();
         if (audioEngine) audioEngine.filter.frequency.value = val;
     }, 16);
 
@@ -2081,6 +1441,7 @@ function initializeApp() {
      * @type {(val: number) => void}
      */
     const debouncedSetFilterQ = debounce((/** @type {number} */ val) => {
+        const audioEngine = getAudioEngine();
         if (audioEngine) audioEngine.filter.Q.value = val;
     }, 16);
 
@@ -2089,6 +1450,7 @@ function initializeApp() {
      * @type {(val: number) => void}
      */
     const debouncedSetDelayMix = debounce((/** @type {number} */ val) => {
+        const audioEngine = getAudioEngine();
         if (audioEngine) audioEngine.delay.wet.value = val;
     }, 16);
 
@@ -2097,8 +1459,33 @@ function initializeApp() {
      * @type {(val: number) => void}
      */
     const debouncedSetReverbMix = debounce((/** @type {number} */ val) => {
+        const audioEngine = getAudioEngine();
         if (audioEngine) audioEngine.reverb.wet.value = val;
     }, 16);
+
+    const transportController = createTransportController({
+        dom: {
+            playStopButton,
+            stickyTransportBar,
+            bpmSlider,
+            bpmValue,
+            swingSlider,
+            swingValue,
+        },
+        windowRef: window,
+        getIsPlaying: () => isPlaying,
+        onStart: startPlayback,
+        onStop: stopPlayback,
+        onBpmChange: (value) => {
+            if (getAudioEngine()) Tone.getTransport().bpm.value = value;
+            updateEstimatedExportDuration();
+        },
+        onSwingChange: (value) => {
+            if (getAudioEngine()) Tone.getTransport().swing = value;
+        },
+        debounce,
+    });
+    transportController.initialize();
 
     const synthControlsController = createSynthControlsController({
         dom: {
@@ -2140,19 +1527,20 @@ function initializeApp() {
             membraneOctavesValue,
         },
         onSynthTypeChange: (type) => {
-            audioEngine?.setSynth(type);
+            getAudioEngine()?.setSynth(type);
             createOrUpdatePattern();
         },
         onWaveformChange: (waveform) => {
             appState.currentWaveform = waveform;
-            updateWaveformButtons(appState.currentWaveform);
-            audioEngine?.setSynth(synthTypeSelect.value);
+            synthControlsController.updateWaveformButtons(appState.currentWaveform);
+            getAudioEngine()?.setSynth(synthTypeSelect.value);
         },
         onEnvelopeChange: debouncedUpdateEnvelope,
         onHarmonicityChange: debouncedSetHarmonicity,
         onModIndexChange: debouncedSetModIndex,
         onDutyChange: debouncedSetDuty,
         onMonoCutoffChange: (value) => {
+            const audioEngine = getAudioEngine();
             if (
                 audioEngine?.activeSynth &&
                 "filterEnvelope" in audioEngine.activeSynth &&
@@ -2162,6 +1550,7 @@ function initializeApp() {
             }
         },
         onMonoOctavesChange: (value) => {
+            const audioEngine = getAudioEngine();
             if (
                 audioEngine?.activeSynth &&
                 "filterEnvelope" in audioEngine.activeSynth &&
@@ -2171,6 +1560,7 @@ function initializeApp() {
             }
         },
         onMonoQChange: (value) => {
+            const audioEngine = getAudioEngine();
             if (
                 audioEngine?.activeSynth &&
                 "filter" in audioEngine.activeSynth &&
@@ -2180,36 +1570,43 @@ function initializeApp() {
             }
         },
         onDuoHarmonicityChange: (value) => {
+            const audioEngine = getAudioEngine();
             if (audioEngine?.activeSynth && "harmonicity" in audioEngine.activeSynth) {
                 audioEngine.activeSynth.harmonicity.value = value;
             }
         },
         onDuoVibratoChange: (value) => {
+            const audioEngine = getAudioEngine();
             if (audioEngine?.activeSynth && "vibratoAmount" in audioEngine.activeSynth) {
                 audioEngine.activeSynth.vibratoAmount.value = value;
             }
         },
         onPluckDampeningChange: (value) => {
+            const audioEngine = getAudioEngine();
             if (audioEngine?.activeSynth && "dampening" in audioEngine.activeSynth) {
                 audioEngine.activeSynth.dampening = value;
             }
         },
         onPluckResonanceChange: (value) => {
+            const audioEngine = getAudioEngine();
             if (audioEngine?.activeSynth && "resonance" in audioEngine.activeSynth) {
                 audioEngine.activeSynth.resonance = value;
             }
         },
         onPluckNoiseChange: (value) => {
+            const audioEngine = getAudioEngine();
             if (audioEngine?.activeSynth && "attackNoise" in audioEngine.activeSynth) {
                 audioEngine.activeSynth.attackNoise = value;
             }
         },
         onMembranePitchDecayChange: (value) => {
+            const audioEngine = getAudioEngine();
             if (audioEngine?.activeSynth && "pitchDecay" in audioEngine.activeSynth) {
                 audioEngine.activeSynth.pitchDecay = value;
             }
         },
         onMembraneOctavesChange: (value) => {
+            const audioEngine = getAudioEngine();
             if (audioEngine?.activeSynth && "octaves" in audioEngine.activeSynth) {
                 audioEngine.activeSynth.octaves = value;
             }
@@ -2241,12 +1638,15 @@ function initializeApp() {
         onFilterCutoffChange: debouncedSetFilterCutoff,
         onFilterResonanceChange: debouncedSetFilterQ,
         onDriveMixChange: (value) => {
+            const audioEngine = getAudioEngine();
             if (audioEngine?.distortion) audioEngine.distortion.wet.value = value;
         },
         onChorusMixChange: (value) => {
+            const audioEngine = getAudioEngine();
             if (audioEngine?.chorus) audioEngine.chorus.wet.value = value;
         },
         onAutoPanMixChange: (value) => {
+            const audioEngine = getAudioEngine();
             if (audioEngine?.autoPanner) audioEngine.autoPanner.wet.value = value;
         },
         onDelayMixChange: debouncedSetDelayMix,
@@ -2254,441 +1654,82 @@ function initializeApp() {
     });
     effectsControlsController.initialize();
 
-    bpmSlider.addEventListener("input", () => {
-        bpmValue.textContent = bpmSlider.value;
-        debouncedSetBpm(parseInt(bpmSlider.value, 10));
-        updateEstimatedExportDuration();
+    const staticLoopRenderer = createStaticLoopRenderer({
+        isAudioContextStarted: () => isAudioContextStarted,
+        getTone: () => Tone,
+        getAudioEngine,
+        getSettings: () => getAllSettings(),
+        updateStaticLoopMap: (buffer, markers) =>
+            getVisualizer()?.updateStaticLoopMap(buffer, markers),
+        logger: console,
     });
-
-    loopCountInput.addEventListener("input", updateEstimatedExportDuration);
-    loopCountInput.addEventListener("change", () => {
-        loopCountInput.value = String(normalizeLoopCount(loopCountInput.value));
-        updateEstimatedExportDuration();
+    exportControlsController = createExportControlsController({
+        dom: {
+            loopCountInput,
+            offlineExportModeInputs,
+            offlineExportTailControl,
+            offlineExportTailSecondsInput,
+            offlineExportDuration,
+            recordButton,
+            exportButton,
+            offlineExportButton,
+            offlineExportMidiButton,
+            toggleVisualizerButton,
+            visualizerModeSelect,
+        },
+        getSettings: () => getAllSettings(),
+        getCurrentNotes: () => ({
+            notes: currentNotes,
+            octaveRange: currentOctaveRange,
+            octaveShift: currentOctaveShift,
+        }),
+        getRecorderManager,
+        getVisualizer,
+        startAudio,
+        generateFilename,
+        showToast,
+        renderStaticLoop: staticLoopRenderer.render,
+        debounce,
+        logger: console,
     });
-
-    offlineExportModeInputs.forEach((input) => {
-        input.addEventListener("change", () => {
-            if (!input.checked) return;
-            updateOfflineExportModeUi();
-            updateEstimatedExportDuration();
-        });
-    });
-
-    offlineExportTailSecondsInput?.addEventListener("input", updateEstimatedExportDuration);
-    offlineExportTailSecondsInput?.addEventListener("change", () => {
-        offlineExportTailSecondsInput.value = String(
-            normalizeOfflineExportTailSeconds(offlineExportTailSecondsInput.value),
-        );
-        updateEstimatedExportDuration();
-    });
-
-    swingSlider.addEventListener("input", () => {
-        debouncedSetSwing(parseFloat(swingSlider.value));
-        swingValue.textContent = parseFloat(swingSlider.value).toFixed(2);
-    });
-
-    // --- Recording Controls ---
-    recordButton.addEventListener("click", async () => {
-        try {
-            await startAudio();
-        } catch (error) {
-            console.warn("AudioContext failed to start on record click:", error);
-            return;
-        }
-        await recorderManager?.toggleRecording();
-    });
-
-    exportButton.addEventListener("click", async () => {
-        try {
-            await startAudio();
-        } catch (error) {
-            console.warn("AudioContext failed to start on recording export click:", error);
-            return;
-        }
-        await recorderManager?.exportRealtime();
-    });
-
-    offlineExportButton.addEventListener("click", async () => {
-        try {
-            await startAudio();
-        } catch (error) {
-            console.warn("AudioContext failed to start on offline export click:", error);
-            return;
-        }
-        await recorderManager?.exportOffline();
-    });
-
-    if (offlineExportMidiButton) {
-        offlineExportMidiButton.addEventListener("click", () => {
-            const settings = getAllSettings();
-            const sequenceResult = materializePatternSequence(currentNotes, {
-                direction: settings.direction,
-                octaveRange: currentOctaveRange,
-                octaveShift: currentOctaveShift,
-                quantize: {
-                    enabled: settings.scaleQuantize,
-                    root: settings.scaleRoot,
-                    scale: settings.scaleType,
-                },
-            });
-
-            const filename = `${generateFilename(false)}.mid`;
-            exportMidiFile(
-                {
-                    notes: sequenceResult.notes,
-                    bpm: settings.bpm,
-                    interval: settings.interval,
-                    gateRatio: settings.gateRatio,
-                    loopCount: settings.loopCount,
-                },
-                filename,
-            );
-            showToast("Exported MIDI pattern file!", "success");
-        });
-    }
-
-    // --- Visualizer Toggle ---
-    toggleVisualizerButton.addEventListener("click", () => {
-        visualizer?.toggle();
-    });
-
-    if (visualizerModeSelect) {
-        visualizerModeSelect.addEventListener("change", () => {
-            if (visualizerModeSelect.value === "loopMap") {
-                renderStaticLoop();
-            }
-        });
-    }
+    exportControlsController.initialize();
 
     // ==================================================================
     //    Preset Management
     // ==================================================================
 
-    sharePresetButton.addEventListener("click", () => {
-        log("Share preset button clicked.");
-        sharePresetAsUrl();
-    });
-
-    /**
-     * Helper function to handle preset serialization, file downloads, and IndexedDB persistence.
-     *
-     * @param {'save'|'download'} source - Action source ('save' for browser storage only, 'download' for JSON download).
-     * @returns {Promise<'success'|'download-only-fail'|'save-fail'>} Outcome of the save operation.
-     */
-    async function performPresetSave(source) {
-        const settings = getAllSettings();
-        const filename = `${generateFilename(false)}-preset.json`;
-        const presetName = presetNameInput?.value.trim() || filename;
-        if (source === "download") {
-            const settingsBlob = new Blob([JSON.stringify(settings, null, 2)], {
-                type: "application/json",
-            });
-            downloadBlob(settingsBlob, filename);
-        }
-
-        try {
-            const record = await presetStore.save(settings, {
-                filename,
-                name: presetName,
-                source,
-            });
-            hideBrowserStorageRecovery();
-            await refreshSavedPresetList(record.id);
-            return "success";
-        } catch (storeError) {
-            console.warn("Failed to save preset to browser storage:", storeError);
-            showBrowserStorageRecovery();
-            return source === "download" ? "download-only-fail" : "save-fail";
-        }
-    }
-
-    savePresetButton.addEventListener("click", async () => {
-        log("Save preset button clicked.");
-        const result = await performPresetSave("download");
-        if (result === "download-only-fail") {
-            showToast("Preset downloaded, but browser save failed.", "info");
-        } else {
-            showToast("Preset saved!", "success");
-        }
-    });
-
-    if (savePresetToBrowserButton) {
-        /**
-         * Event listener for saving the current preset settings to IndexedDB browser storage.
-         *
-         * @param {Event} event - The button click event.
-         * @returns {Promise<void>}
-         */
-        savePresetToBrowserButton.addEventListener("click", async (event) => {
-            event.preventDefault();
-            log("Save to browser preset button clicked.");
-            const result = await performPresetSave("save");
-            if (result === "success") {
-                showToast("Preset saved to browser!", "success");
-            } else {
-                showToast("Browser save failed.", "error");
-            }
-        });
-    }
-
-    loadPresetButton.addEventListener("click", () => {
-        log("Load preset button clicked.");
-        loadPresetInput.click();
-    });
-
-    function saveImportedPreset(settings, file) {
-        presetStore
-            .save(settings, { filename: file.name, name: file.name, source: "import" })
-            .then((record) => refreshSavedPresetList(record.id))
-            .catch((error) => {
-                console.warn("Failed to save imported preset:", error);
-                showBrowserStorageRecovery();
-            });
-    }
-
-    const futurePresetDialogController = createFuturePresetDialogController({
-        getReturnFocus: () => loadPresetButton,
-        onConfirm: (settings, fileName) => {
-            const result = applySettingsWithHistory(settings, { allowFutureVersion: true });
-            if (result.ok) {
-                saveImportedPreset(getAllSettings(), { name: fileName });
-                showToast("Loaded compatible settings from newer preset.", "info");
-            }
+    presetWorkflowController = createPresetWorkflowController({
+        dom: {
+            sharePresetButton,
+            savePresetButton,
+            savePresetToBrowserButton,
+            loadPresetButton,
+            loadPresetInput,
+            loadSavedPresetButton,
+            clearSavedPresetButton,
+            deleteSavedPresetButton,
+            presetNameInput,
+            savedPresetSelect,
         },
+        windowRef: window,
+        navigatorRef: navigator,
+        fileReaderFactory: () => new FileReader(),
+        confirm: (message) => window.confirm(message),
+        factoryPresets: FACTORY_PRESETS,
+        getPresetStore: () => presetStore,
+        getAllSettings,
+        applySettingsWithHistory,
+        generateFilename,
+        refreshSavedPresetList,
+        setActiveSoundStarterCard,
+        showStorageRecovery: showBrowserStorageRecovery,
+        hideStorageRecovery: hideBrowserStorageRecovery,
+        showToast,
+        logger: console,
     });
-
-    loadPresetInput.addEventListener("change", (event) => {
-        const target = /** @type {HTMLInputElement} */ (event.target);
-        const file = target.files ? target.files[0] : null;
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            const fileReaderTarget = /** @type {FileReader} */ (e.target);
-            if (fileReaderTarget && typeof fileReaderTarget.result === "string") {
-                try {
-                    const settings = JSON.parse(fileReaderTarget.result);
-                    const result = applySettingsWithHistory(settings);
-                    if (result.ok) {
-                        saveImportedPreset(getAllSettings(), file);
-                        showToast("Preset loaded!", "success");
-                    } else if (
-                        result.error instanceof UnsupportedSettingsVersionError &&
-                        result.error.isFutureVersion
-                    ) {
-                        futurePresetDialogController.open(settings, file.name);
-                    } else {
-                        showToast("Failed to load preset.", "error");
-                    }
-                } catch (err) {
-                    console.error("Failed to load preset:", err);
-                    showToast("Failed to load preset.", "error");
-                }
-            }
-        };
-        reader.readAsText(file);
-        target.value = "";
-    });
-
-    if (loadSavedPresetButton) {
-        loadSavedPresetButton.addEventListener("click", async () => {
-            log("Load saved preset button clicked.");
-            const selectedId = savedPresetSelect?.value || "";
-
-            // Check if selected preset is a Factory Preset
-            const factoryPreset = FACTORY_PRESETS.find((p) => p.id === selectedId);
-            if (factoryPreset) {
-                applySettingsWithHistory(mergeSettings(DEFAULT_SETTINGS, factoryPreset.settings));
-                if (presetNameInput) presetNameInput.value = factoryPreset.name;
-                setActiveSoundStarterCard(factoryPreset.id);
-                showToast(`Loaded factory preset: ${factoryPreset.name}`, "success");
-                return;
-            }
-
-            try {
-                const record = selectedId
-                    ? await presetStore.get(selectedId)
-                    : await presetStore.loadLatest();
-                if (!record) {
-                    showToast("No saved preset found yet.", "info");
-                    return;
-                }
-                const result = applySettingsWithHistory(record.settings || record);
-                if (!result.ok) {
-                    showToast("Saved preset requires a newer version of Web Arpeggiator.", "error");
-                    return;
-                }
-                if (presetNameInput) presetNameInput.value = record.name || record.filename || "";
-                await refreshSavedPresetList(record.id);
-                showToast("Loaded saved preset from browser storage.", "success");
-            } catch (error) {
-                console.error("Failed to load saved preset:", error);
-                showBrowserStorageRecovery();
-                showToast("Failed to load saved preset.", "error");
-            }
-        });
-    }
-
-    if (clearSavedPresetButton) {
-        clearSavedPresetButton.addEventListener("click", async () => {
-            log("Clear saved presets button clicked.");
-            const confirmed = confirm(
-                "Are you sure you want to clear all your saved user presets? This action cannot be undone.",
-            );
-
-            if (!confirmed) {
-                return;
-            }
-
-            try {
-                await presetStore.clear();
-                await refreshSavedPresetList();
-                showToast("Saved browser presets cleared.", "success");
-            } catch (error) {
-                console.error("Failed to clear saved presets:", error);
-                showBrowserStorageRecovery();
-                showToast("Failed to clear saved presets.", "error");
-            }
-        });
-    }
-
-    if (deleteSavedPresetButton) {
-        deleteSavedPresetButton.addEventListener("click", async () => {
-            log("Delete saved preset button clicked.");
-            const selectedId = savedPresetSelect?.value || "";
-
-            if (!selectedId) {
-                showToast("No saved preset selected.", "info");
-                return;
-            }
-
-            if (selectedId.startsWith("factory-")) {
-                showToast("Factory presets cannot be deleted.", "info");
-                return;
-            }
-
-            try {
-                await presetStore.remove(selectedId);
-                await refreshSavedPresetList();
-                showToast("Deleted saved preset.", "success");
-            } catch (error) {
-                console.error("Failed to delete saved preset:", error);
-                showBrowserStorageRecovery();
-                showToast("Failed to delete saved preset.", "error");
-            }
-        });
-    }
-
-    /**
-     * Renders exactly one cycle of the arpeggio loop offline, calculates the note trigger markers,
-     * and sends the resulting buffer to the visualizer for rendering.
-     *
-     * @returns {Promise<void>}
-     */
-    async function renderStaticLoop() {
-        if (!isAudioContextStarted || !audioEngine || !visualizer) return;
-
-        const settings = getAllSettings();
-        const markers = calculateNoteMarkers(settings);
-
-        if (!markers || markers.length === 0) return;
-
-        // Render exactly 1 loop duration
-        const noteDuration = Tone.Time(settings.interval).toSeconds();
-        const loopDuration = markers.length * noteDuration;
-
-        try {
-            const audioBuffer = await Tone.Offline(async (offlineContext) => {
-                offlineContext.transport.bpm.value = settings.bpm;
-                offlineContext.transport.swing = settings.swing;
-
-                // Recreate offline chain
-                const { offlineSynth } = audioEngine.createOfflineChain(offlineContext, settings);
-
-                // Schedule note triggers at exact intervals
-                const gateLength = settings.gateRatio * noteDuration;
-                markers.forEach((marker, idx) => {
-                    const triggerTime = idx * noteDuration;
-                    offlineSynth.triggerAttackRelease(marker.note, gateLength, triggerTime);
-                });
-
-                offlineContext.transport.start(0);
-            }, loopDuration);
-
-            // Pass buffer and markers to visualizer
-            visualizer.updateStaticLoopMap(audioBuffer, markers);
-        } catch (e) {
-            console.error("Static loop render failed:", e);
-        }
-    }
-
-    /**
-     * Debounced wrapper to trigger the static loop map background render.
-     * @type {() => void}
-     */
-    const debouncedRenderStaticLoop = debounce(() => {
-        if (visualizer && visualizer.currentMode === "loopMap") {
-            renderStaticLoop();
-        }
-    }, 150);
+    presetWorkflowController.initialize();
 
     patternControlsController.initialize();
-
-    // --- Autosave (on any input/change/click) ---
-    document.addEventListener("input", (event) => {
-        const target = /** @type {Element} */ (event.target);
-        if (target === presetNameInput) return;
-        if (target.matches("input, select, textarea")) {
-            recordCurrentSettings(true);
-            clearActiveSoundStarterCard();
-            scheduleLastSessionSave();
-            if (
-                target !== loopCountInput &&
-                target !== offlineExportTailSecondsInput &&
-                !target.matches("input[name='offline-export-mode']")
-            ) {
-                // Exclude export controls from debounced static-loop rendering.
-                debouncedRenderStaticLoop();
-            }
-        }
-    });
-
-    document.addEventListener("change", (event) => {
-        const target = /** @type {Element} */ (event.target);
-        if (
-            target === presetNameInput ||
-            target === savedPresetSelect ||
-            target === loadPresetInput
-        )
-            return;
-        if (target.matches("input, select, textarea")) {
-            settingsHistory.endTransaction();
-            recordCurrentSettings();
-            clearActiveSoundStarterCard();
-            scheduleLastSessionSave();
-            if (
-                target !== loopCountInput &&
-                target !== offlineExportTailSecondsInput &&
-                !target.matches("input[name='offline-export-mode']")
-            ) {
-                // Exclude export controls from debounced static-loop rendering.
-                debouncedRenderStaticLoop();
-            }
-        }
-    });
-
-    document.addEventListener("click", (event) => {
-        const target = /** @type {Element} */ (event.target);
-        if (
-            target?.closest(
-                ".pattern-btn, .waveform-btn, #octave-shift-buttons, #octave-range-buttons",
-            )
-        ) {
-            recordCurrentSettings();
-            clearActiveSoundStarterCard();
-            scheduleLastSessionSave();
-            debouncedRenderStaticLoop();
-        }
-    });
 
     // ==================================================================
     //    Initial Setup
@@ -2698,9 +1739,7 @@ function initializeApp() {
     keyboardToggle.checked = false;
     updateKeyboardControlUi();
 
-    defaultSettings = getAllSettings();
-    settingsHistory.initialize(defaultSettings);
-    registerIndividualResetGestures();
+    workspaceController.initialize(getAllSettings());
     historyController.initialize();
     buildSoundStartersStrip();
 

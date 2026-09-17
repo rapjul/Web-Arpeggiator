@@ -18,6 +18,8 @@ bun run lint
 bun run typecheck
 ```
 
+For module ownership, composition boundaries, and the deferred `app.js` follow-up, see the [Architecture Guide](./architecture.md). Keep contributor workflow and test-runner guidance in this document.
+
 ## Test Commands
 
 ```bash

@@ -4,6 +4,8 @@
  * @module synth-controls-controller
  */
 
+import { setupKeyboardNavigation } from "@ui/a11y-navigation.js";
+
 /**
  * @typedef {object} SynthControlsControllerDependencies
  * @property {{synthTypeSelect: HTMLSelectElement, waveformButtons: HTMLElement, envAttackSlider: HTMLInputElement, envAttackValue: HTMLElement|null, envDecaySlider: HTMLInputElement, envDecayValue: HTMLElement|null, envSustainSlider: HTMLInputElement, envSustainValue: HTMLElement|null, envReleaseSlider: HTMLInputElement, envReleaseValue: HTMLElement|null, harmonicitySlider: HTMLInputElement, harmonicityValue: HTMLElement|null, modIndexSlider: HTMLInputElement, modIndexValue: HTMLElement|null, dutySlider: HTMLInputElement, dutyValue: HTMLElement|null, monoCutoffSlider: HTMLInputElement|null, monoCutoffValue: HTMLElement|null, monoOctavesSlider: HTMLInputElement|null, monoOctavesValue: HTMLElement|null, monoQSlider: HTMLInputElement|null, monoQValue: HTMLElement|null, duoHarmSlider: HTMLInputElement|null, duoHarmValue: HTMLElement|null, duoVibratoSlider: HTMLInputElement|null, duoVibratoValue: HTMLElement|null, pluckDampeningSlider: HTMLInputElement|null, pluckDampeningValue: HTMLElement|null, pluckResonanceSlider: HTMLInputElement|null, pluckResonanceValue: HTMLElement|null, pluckNoiseSlider: HTMLInputElement|null, pluckNoiseValue: HTMLElement|null, membranePitchDecaySlider: HTMLInputElement|null, membranePitchDecayValue: HTMLElement|null, membraneOctavesSlider: HTMLInputElement|null, membraneOctavesValue: HTMLElement|null}} dom
@@ -29,7 +31,7 @@
  * Binds synthesis controls while leaving audio-engine ownership with the app.
  *
  * @param {SynthControlsControllerDependencies} dependencies - Injected UI and audio actions.
- * @returns {{initialize: () => void, destroy: () => void}}
+ * @returns {{initialize: () => void, destroy: () => void, updateWaveformButtons: (waveform: string) => void}}
  */
 export function createSynthControlsController(dependencies) {
     const {
@@ -92,6 +94,20 @@ export function createSynthControlsController(dependencies) {
     let isInitialized = false;
     /** @type {AbortController | null} */
     let listenerController = null;
+    /** @type {(() => void) | null} */
+    let keyboardNavigationCleanup = null;
+
+    /**
+     * Reflects the selected waveform in the waveform button group.
+     *
+     * @param {string} waveform - Active waveform name.
+     * @returns {void}
+     */
+    function updateWaveformButtons(waveform) {
+        waveformButtons.querySelectorAll("button").forEach((button) => {
+            button.classList.toggle("selected", button.getAttribute("data-wave") === waveform);
+        });
+    }
 
     /**
      * Binds a numeric slider to an injected action and its optional value label.
@@ -121,6 +137,7 @@ export function createSynthControlsController(dependencies) {
         isInitialized = true;
         listenerController = new AbortController();
         const options = { signal: listenerController.signal };
+        keyboardNavigationCleanup = setupKeyboardNavigation(waveformButtons, "button.waveform-btn");
         synthTypeSelect.addEventListener(
             "change",
             () => {
@@ -183,9 +200,11 @@ export function createSynthControlsController(dependencies) {
 
     function destroy() {
         listenerController?.abort();
+        keyboardNavigationCleanup?.();
+        keyboardNavigationCleanup = null;
         listenerController = null;
         isInitialized = false;
     }
 
-    return { initialize, destroy };
+    return { initialize, destroy, updateWaveformButtons };
 }

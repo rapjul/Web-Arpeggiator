@@ -14,6 +14,10 @@ Web Arpeggiator is a browser-based musical arpeggiator application built with va
 
 ## Architecture
 
+### Composition Root and Controller Boundaries
+
+See the [Architecture Guide](./docs/architecture.md) for the detailed module ownership map, runtime flow, source layout, and deferred `app.js` follow-up. For agent work, keep DOM querying, shared state contracts, settings-manager composition, and final cross-feature callback wiring in `src/app.js`; add new control listeners to the relevant focused controller and preserve its teardown boundary.
+
 ### 1. Audio Engine
 
 The audio signal chain follows this path:
@@ -342,6 +346,7 @@ Web Arpeggiator/
 │   │   ├── 0011-playwright-browser-testing.md
 │   │   ├── 0012-observable-playwright-synchronization-and-artifact-validation.md
 │   │   └── 0013-workbox-custom-service-worker-caching.md
+│   ├── architecture.md     # Module ownership, runtime flow, and deferred boundaries
 │   ├── development.md      # Local setup, commands, and test-runner guidance
 │   ├── improvements/       # Deferred, scoped follow-up plans
 │   ├── history-and-default-settings.md # Default parameters and settings history reference
@@ -363,7 +368,10 @@ Web Arpeggiator/
 │   ├── audio/              # Web Audio / Tone.js synthesis and scheduling
 │   │   ├── audio-engine.js # Tone.js synths, effects chain, setSynth, updateEnvelope
 │   │   ├── pattern-generator.js # Pattern scheduling & transport sync
-│   │   └── recorder.js     # Real-time recording + offline Tone.Offline export
+│   │   ├── playback-controller.js # Transport start/stop and AudioContext recovery
+│   │   ├── recorder.js     # Real-time recording + offline Tone.Offline export
+│   │   ├── runtime-controller.js # Deferred Tone loading and runtime construction
+│   │   └── static-loop-renderer.js # One-cycle offline loop rendering for previews
 │   ├── storage/            # Persistence and configuration management
 │   │   ├── presets-store.js# IndexedDB preset persistence
 │   │   ├── session-manager.js # Workspace auto-save and restoration lifecycle
@@ -378,13 +386,16 @@ Web Arpeggiator/
 │   │   ├── onboarding-controller.js # First-visit and quick-start onboarding flow
 │   │   ├── pattern-controls-controller.js # Notes, scale, octave, interval, and gate controls
 │   │   ├── preset-controller.js # Factory and saved preset list interactions
+│   │   ├── preset-workflow-controller.js # URL, file, and browser-preset workflows
 │   │   ├── synth-controls-controller.js # Synth selection, envelope, and synth-specific controls
 │   │   ├── transport-controller.js # Playback button and responsive sticky transport UI
 │   │   ├── ui-feedback.js  # Toast alerts and UI status indicators
-│   │   └── visualizer.js   # Canvas waveform rendering, UI update loop, toggle
+│   │   ├── export-controls-controller.js # Recording, export, and loop-preview controls
+│   │   ├── visualizer.js   # Canvas waveform rendering, UI update loop, toggle
+│   │   └── workspace-controller.js # History, reset, autosave, and session restoration
 │   ├── pwa/                # Service Worker & PWA lifecycle
 │   │   └── pwa.js          # Service worker registration
-│   └── app.js              # Application entry point, DOM wiring, transport coordination
+│   └── app.js              # Composition root for DOM, state, settings, and callbacks
 ├── exports/                # Generated audio test files
 │   ├── realtime-recordings/
 │   └── perfect-loops/

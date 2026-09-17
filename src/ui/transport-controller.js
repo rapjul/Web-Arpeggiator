@@ -6,11 +6,14 @@
 
 /**
  * @typedef {object} TransportControllerDependencies
- * @property {{playStopButton?: HTMLButtonElement|null, stickyTransportBar?: HTMLElement|null}} dom
+ * @property {{playStopButton?: HTMLButtonElement|null, stickyTransportBar?: HTMLElement|null, bpmSlider?: HTMLInputElement|null, bpmValue?: HTMLElement|null, swingSlider?: HTMLInputElement|null, swingValue?: HTMLElement|null}} dom
  * @property {Window} windowRef
  * @property {() => boolean} getIsPlaying
  * @property {() => Promise<void>} onStart
  * @property {() => void} onStop
+ * @property {(value: number) => void} [onBpmChange]
+ * @property {(value: number) => void} [onSwingChange]
+ * @property {(callback: () => void, wait: number) => () => void} [debounce]
  * @property {{warn: (...args: unknown[]) => void}} [logger]
  */
 
@@ -23,13 +26,32 @@
  */
 export function createTransportController(dependencies) {
     const { dom, windowRef, getIsPlaying, onStart, onStop, logger = console } = dependencies;
-    const { playStopButton, stickyTransportBar } = dom;
+    const { playStopButton, stickyTransportBar, bpmSlider, bpmValue, swingSlider, swingValue } =
+        dom;
     let isInitialized = false;
     let stickyUpdateScheduled = false;
     /** @type {number | null} */
     let pendingStickyUpdateFrame = null;
     /** @type {AbortController | null} */
     let listenerController = null;
+    /** @param {() => void} handler @returns {() => void} */
+    function schedule(handler) {
+        return typeof dependencies.debounce === "function"
+            ? dependencies.debounce(handler, 16)
+            : handler;
+    }
+    function handleBpmChange() {
+        if (!isInitialized) return;
+        const value = Number.parseInt(bpmSlider?.value || "", 10);
+        if (Number.isFinite(value)) dependencies.onBpmChange?.(value);
+    }
+    function handleSwingChange() {
+        if (!isInitialized) return;
+        const value = Number.parseFloat(swingSlider?.value || "");
+        if (Number.isFinite(value)) dependencies.onSwingChange?.(value);
+    }
+    const debouncedBpmChange = schedule(handleBpmChange);
+    const debouncedSwingChange = schedule(handleSwingChange);
 
     /**
      * Applies the square sticky treatment only after the desktop bar reaches
@@ -95,6 +117,23 @@ export function createTransportController(dependencies) {
             "click",
             () => {
                 void handlePlayStopClick();
+            },
+            listenerOptions,
+        );
+        bpmSlider?.addEventListener(
+            "input",
+            () => {
+                if (bpmValue) bpmValue.textContent = bpmSlider.value;
+                debouncedBpmChange();
+            },
+            listenerOptions,
+        );
+        swingSlider?.addEventListener(
+            "input",
+            () => {
+                const value = Number.parseFloat(swingSlider.value);
+                if (swingValue && Number.isFinite(value)) swingValue.textContent = value.toFixed(2);
+                debouncedSwingChange();
             },
             listenerOptions,
         );
