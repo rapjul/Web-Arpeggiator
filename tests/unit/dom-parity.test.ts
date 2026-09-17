@@ -136,27 +136,27 @@ describe("Production DOM Parity Suite", () => {
         }
     });
 
-    it("correctly generates Tone.Pattern for each pattern direction directly from index.html DOM", () => {
+    it("materializes every DOM pattern direction into a timeline-backed Tone.Pattern", () => {
         const expectedDirections = [
-            { dir: "up", expectedPattern: "up" },
-            { dir: "down", expectedPattern: "down" },
-            { dir: "upDown", expectedPattern: "upDown" },
-            { dir: "downUp", expectedPattern: "downUp" },
-            { dir: "upDownRepeat", expectedPattern: "up" },
-            { dir: "downUpRepeat", expectedPattern: "up" },
-            { dir: "random", expectedPattern: "random" },
-            { dir: "octaveCycle", expectedPattern: "up" },
-            { dir: "octaveCycleReverse", expectedPattern: "up" },
-            { dir: "octaveCyclePingPong", expectedPattern: "up" },
-            { dir: "randomWalk", expectedPattern: "randomWalk" },
-            { dir: "randomWalkDrunk", expectedPattern: "up" },
+            "up",
+            "down",
+            "upDown",
+            "downUp",
+            "upDownRepeat",
+            "downUpRepeat",
+            "random",
+            "octaveCycle",
+            "octaveCycleReverse",
+            "octaveCyclePingPong",
+            "randomWalk",
+            "randomWalkDrunk",
         ];
 
         const radios = document.querySelectorAll<HTMLInputElement>(
             "input[name='pattern-direction']",
         );
 
-        for (const { dir, expectedPattern } of expectedDirections) {
+        for (const dir of expectedDirections) {
             // Uncheck all radios
             radios.forEach((r) => {
                 r.checked = false;
@@ -173,7 +173,7 @@ describe("Production DOM Parity Suite", () => {
 
             const pattern = updatePattern();
             expect(pattern).toBeDefined();
-            expect(pattern?.pattern).toBe(expectedPattern);
+            expect(pattern?.pattern).toBe("up");
             expect(pattern?.values.length).toBeGreaterThan(0);
         }
     });

@@ -378,6 +378,8 @@ function initializeApp() {
             interval: intervalSelect.value,
             gate: parseFloat(gateSlider.value),
             direction: patternControlsController.getSelectedPatternDirection(),
+            bpm: parseFloat(bpmSlider.value),
+            swing: parseFloat(swingSlider.value),
             quantize: {
                 enabled: scaleQuantizeToggle.checked,
                 root: scaleRootSelect.value,
@@ -1264,10 +1266,12 @@ function initializeApp() {
         onStop: stopPlayback,
         onBpmChange: (value) => {
             if (getAudioEngine()) Tone.getTransport().bpm.value = value;
+            createOrUpdatePattern();
             updateEstimatedExportDuration();
         },
-        onSwingChange: (value) => {
-            if (getAudioEngine()) Tone.getTransport().swing = value;
+        onSwingChange: (_value) => {
+            if (getAudioEngine()) Tone.getTransport().swing = 0;
+            createOrUpdatePattern();
         },
         debounce,
     });

@@ -4,11 +4,11 @@
  * @module audio/static-loop-renderer
  */
 
-import { calculateNoteMarkers } from "@core/pattern-core.js";
+import { compileTimeline, ticksToSeconds } from "@core/timeline.js";
 
 /** @typedef {import("@core/settings-contract.js").ArpeggiatorSettings} ArpeggiatorSettings */
 /** @typedef {{transport: {bpm: {value: number}, swing: number, start: (time: number) => void}}} OfflineContextLike */
-/** @typedef {{Time: (value: string) => {toSeconds: () => number}, Offline: (callback: (context: OfflineContextLike) => Promise<void>, duration: number) => Promise<unknown>}} StaticToneLike */
+/** @typedef {{Offline: (callback: (context: OfflineContextLike) => Promise<void>, duration: number) => Promise<unknown>}} StaticToneLike */
 
 /**
  * Creates a one-cycle offline renderer without importing Tone at module load.
@@ -33,23 +33,44 @@ export function createStaticLoopRenderer(dependencies) {
         if (!isAudioContextStarted() || !tone || !audioEngine) return;
 
         const settings = getSettings();
-        const markers = calculateNoteMarkers(settings);
-        if (!markers || markers.length === 0) return;
+        const timeline = compileTimeline(
+            {
+                baseNotes: settings.baseNotes,
+                direction: settings.direction,
+                octaveRange: settings.octaveRange,
+                octaveShift: settings.octaveShift,
+                quantize: {
+                    enabled: settings.scaleQuantize,
+                    root: settings.scaleRoot,
+                    scale: settings.scaleType,
+                },
+                interval: settings.interval,
+                gateRatio: settings.gateRatio,
+                bpm: settings.bpm,
+                swing: settings.swing,
+            },
+            { cycles: 1 },
+        );
+        if (timeline.events.length === 0) return;
 
-        const noteDuration = tone.Time(settings.interval).toSeconds();
-        const loopDuration = markers.length * noteDuration;
+        const markers = timeline.events.map((event) => ({
+            note: event.pitch,
+            timeRatio: event.startTick / timeline.cycleDurationTicks,
+        }));
+        const loopDuration = ticksToSeconds(timeline.musicalDurationTicks, timeline.bpm);
+
+        if (!(loopDuration > 0)) return;
 
         try {
             const audioBuffer = await tone.Offline(async (offlineContext) => {
-                offlineContext.transport.bpm.value = settings.bpm;
-                offlineContext.transport.swing = settings.swing;
+                offlineContext.transport.bpm.value = timeline.bpm;
+                offlineContext.transport.swing = 0;
                 const { offlineSynth } = audioEngine.createOfflineChain(offlineContext, settings);
-                const gateLength = settings.gateRatio * noteDuration;
-                markers.forEach((marker, index) => {
+                timeline.events.forEach((event) => {
                     offlineSynth.triggerAttackRelease(
-                        marker.note,
-                        gateLength,
-                        index * noteDuration,
+                        event.pitch,
+                        ticksToSeconds(event.durationTicks, timeline.bpm),
+                        ticksToSeconds(event.startTick, timeline.bpm),
                     );
                 });
                 offlineContext.transport.start(0);

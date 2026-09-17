@@ -70,7 +70,7 @@ const baseSettings = () => ({
 });
 
 describe("Pattern controller", () => {
-    it("creates an isolated Tone.Pattern from a settings snapshot", () => {
+    it("creates an isolated timeline-backed Tone.Pattern from a settings snapshot", () => {
         const onPatternChange = vi.fn();
         const controller = createPatternController({
             getSynth: () => null,
@@ -87,7 +87,7 @@ describe("Pattern controller", () => {
         expect(onPatternChange).toHaveBeenLastCalledWith(pattern);
     });
 
-    it("uses a valid scheduling interval when duration conversion fails", () => {
+    it("uses the shared timeline interval and gate duration", () => {
         const synth = { triggerAttackRelease: vi.fn() };
         const controller = createPatternController({
             getSynth: () => synth,
@@ -96,12 +96,11 @@ describe("Pattern controller", () => {
 
         const pattern = controller.update({
             ...baseSettings(),
-            interval: "invalid",
+            interval: "16n",
         }) as unknown as MockPatternInstance;
 
-        expect(pattern.interval).toBe(0.1);
         pattern.callback(0.5, "C4");
-        expect(synth.triggerAttackRelease).toHaveBeenCalledWith("C4", expect.closeTo(0.075), 0.5);
+        expect(synth.triggerAttackRelease).toHaveBeenCalledWith("C4", expect.closeTo(0.09375), 0.5);
     });
 
     it("schedules synth attack/release and the mapped indicator callback through injections", () => {
@@ -119,10 +118,9 @@ describe("Pattern controller", () => {
         }) as unknown as MockPatternInstance;
         expect(pattern.isStarted).toBe(true);
 
-        pattern.index = 2;
         pattern.callback(0.25, "G4");
         expect(synth.triggerAttack).toHaveBeenCalledWith("G4", 0.25);
-        expect(synth.triggerRelease).toHaveBeenCalledWith(0.4375);
+        expect(synth.triggerRelease).toHaveBeenCalledWith(0.34375);
         expect(onStep).toHaveBeenCalledWith(2);
     });
 
@@ -141,7 +139,7 @@ describe("Pattern controller", () => {
 
         pattern.callback(0.5, "C4");
         expect(synth.triggerAttack).toHaveBeenLastCalledWith("C4");
-        expect(synth.triggerRelease).toHaveBeenLastCalledWith("+0.1875");
+        expect(synth.triggerRelease).toHaveBeenLastCalledWith("+0.09375");
 
         const attackRelease = { triggerAttackRelease: vi.fn() };
         const alternate = createPatternController({
@@ -150,7 +148,7 @@ describe("Pattern controller", () => {
         });
         const alternatePattern = alternate.update(baseSettings()) as unknown as MockPatternInstance;
         alternatePattern.callback(0.5, "C4");
-        expect(attackRelease.triggerAttackRelease).toHaveBeenCalledWith("C4", 0.1875, 0.5);
+        expect(attackRelease.triggerAttackRelease).toHaveBeenCalledWith("C4", 0.09375, 0.5);
     });
 
     it("replaces the previous pattern and disposes it when settings become empty", () => {

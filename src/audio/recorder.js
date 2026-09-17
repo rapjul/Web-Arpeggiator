@@ -23,7 +23,7 @@ import {
     OFFLINE_EXPORT_MODE_SEAMLESS,
 } from "@core/export-duration.js";
 import { createOfflineExportMetadata } from "@core/export-metadata.js";
-import { materializePatternSequence } from "@core/pattern-core.js";
+import { compileTimeline, ticksToSeconds } from "@core/timeline.js";
 
 const DEFAULT_OFFLINE_SAMPLE_RATE = 44100;
 
@@ -367,9 +367,9 @@ export function createRecorderManager(context) {
         const settings = actions.getAllSettings();
         const filename = actions.generateFilename(false, settings, "audio");
 
-        const { notes: patternNotes } = materializePatternSequence(
-            settings.baseNotes || settings.notes,
+        const baseTimeline = compileTimeline(
             {
+                baseNotes: settings.baseNotes || settings.notes,
                 direction: settings.direction,
                 octaveRange: settings.octaveRange,
                 octaveShift: settings.octaveShift,
@@ -378,11 +378,17 @@ export function createRecorderManager(context) {
                     root: settings.scaleRoot,
                     scale: settings.scaleType,
                 },
+                interval: settings.interval,
+                gateRatio: settings.gateRatio,
+                bpm: settings.bpm,
+                swing: settings.swing,
             },
+            { cycles: 1 },
         );
+        const patternNotes = baseTimeline.resolvedNotes;
         const exportDuration = calculateOfflineExportDuration({
             loopCount: settings.loopCount,
-            stepsPerLoop: patternNotes.length,
+            stepsPerLoop: baseTimeline.events.length,
             interval: settings.interval,
             bpm: settings.bpm,
             exportMode: settings.offlineExportMode,
@@ -425,6 +431,27 @@ export function createRecorderManager(context) {
         const patternStopTime = isSeamlessExport
             ? exportDuration.preRollDuration + exportDuration.musicalDuration
             : exportDuration.musicalDuration;
+        const renderCycles = isSeamlessExport
+            ? exportDuration.preRollCycles + exportDuration.loopCount
+            : exportDuration.loopCount;
+        const timeline = compileTimeline(
+            {
+                baseNotes: settings.baseNotes || settings.notes,
+                direction: settings.direction,
+                octaveRange: settings.octaveRange,
+                octaveShift: settings.octaveShift,
+                quantize: {
+                    enabled: settings.scaleQuantize,
+                    root: settings.scaleRoot,
+                    scale: settings.scaleType,
+                },
+                interval: settings.interval,
+                gateRatio: settings.gateRatio,
+                bpm: settings.bpm,
+                swing: settings.swing,
+            },
+            { cycles: renderCycles },
+        );
 
         dom.offlineExportStatus.textContent = isSeamlessExport
             ? "Generating seamless WAV-ready audio... please wait."
@@ -433,33 +460,25 @@ export function createRecorderManager(context) {
         try {
             const toneAudioBuffer = await Tone.Offline(
                 async (offlineContext) => {
-                    offlineContext.transport.bpm.value = settings.bpm;
-                    offlineContext.transport.swing = settings.swing;
+                    offlineContext.transport.bpm.value = timeline.bpm;
+                    offlineContext.transport.swing = 0;
 
                     // Recreate the synth + effects graph using the shared audio engine helper
                     const { offlineSynth } = audio.createOfflineChain(offlineContext, settings);
 
-                    // --- Pattern for offline ---
-                    const gateLength = settings.gateRatio * exportDuration.intervalInSeconds;
-
-                    const offlinePattern = new Tone.Pattern(
-                        (time, note) => {
-                            // Split triggerAttackRelease to ensure exact scheduling reference time is used
-                            if (
-                                typeof offlineSynth.triggerAttack === "function" &&
-                                typeof offlineSynth.triggerRelease === "function"
-                            ) {
-                                offlineSynth.triggerAttack(note, time);
-                                offlineSynth.triggerRelease(time + gateLength);
-                            } else {
-                                offlineSynth.triggerAttackRelease(note, gateLength, time);
-                            }
-                        },
-                        patternNotes,
-                        "up",
-                    );
-                    offlinePattern.interval = settings.interval;
-                    offlinePattern.start(0);
+                    timeline.events.forEach((event) => {
+                        const time = ticksToSeconds(event.startTick, timeline.bpm);
+                        const duration = ticksToSeconds(event.durationTicks, timeline.bpm);
+                        if (
+                            typeof offlineSynth.triggerAttack === "function" &&
+                            typeof offlineSynth.triggerRelease === "function"
+                        ) {
+                            offlineSynth.triggerAttack(event.pitch, time);
+                            offlineSynth.triggerRelease(time + duration);
+                        } else {
+                            offlineSynth.triggerAttackRelease(event.pitch, duration, time);
+                        }
+                    });
 
                     offlineContext.transport.start(0);
                     offlineContext.transport.stop(patternStopTime);

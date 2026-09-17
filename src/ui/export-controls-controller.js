@@ -10,7 +10,7 @@ import {
     normalizeOfflineExportTailSeconds,
 } from "@core/export-duration.js";
 import { exportMidiFile } from "@core/midi-export.js";
-import { materializePatternSequence } from "@core/pattern-core.js";
+import { compileTimeline } from "@core/timeline.js";
 
 /** @typedef {import("@core/settings-contract.js").ArpeggiatorSettings} ArpeggiatorSettings */
 
@@ -24,7 +24,6 @@ export function createExportControlsController(dependencies) {
     const {
         dom,
         getSettings,
-        getCurrentNotes,
         getRecorderManager,
         getVisualizer,
         startAudio,
@@ -70,22 +69,10 @@ export function createExportControlsController(dependencies) {
     function updateEstimatedExportDuration() {
         if (!offlineExportDuration) return;
         const settings = getSettings();
-        const { notes: patternNotes } = materializePatternSequence(
-            settings.baseNotes || settings.notes,
-            {
-                direction: settings.direction,
-                octaveRange: settings.octaveRange,
-                octaveShift: settings.octaveShift,
-                quantize: {
-                    enabled: settings.scaleQuantize,
-                    root: settings.scaleRoot,
-                    scale: settings.scaleType,
-                },
-            },
-        );
+        const timeline = compileTimeline(settings, { cycles: 1 });
         offlineExportDuration.textContent = formatEstimatedExportDuration({
             loopCount: settings.loopCount,
-            stepsPerLoop: patternNotes.length,
+            stepsPerLoop: timeline.stepsPerCycle,
             interval: settings.interval,
             bpm: settings.bpm,
             exportMode: settings.offlineExportMode,
@@ -115,27 +102,8 @@ export function createExportControlsController(dependencies) {
     function handleMidiExport() {
         try {
             const settings = getSettings();
-            const currentNotes = getCurrentNotes();
-            const sequenceResult = materializePatternSequence(currentNotes.notes, {
-                direction: settings.direction,
-                octaveRange: currentNotes.octaveRange,
-                octaveShift: currentNotes.octaveShift,
-                quantize: {
-                    enabled: settings.scaleQuantize,
-                    root: settings.scaleRoot,
-                    scale: settings.scaleType,
-                },
-            });
-            exportMidiFile(
-                {
-                    notes: sequenceResult.notes,
-                    bpm: settings.bpm,
-                    interval: settings.interval,
-                    gateRatio: settings.gateRatio,
-                    loopCount: settings.loopCount,
-                },
-                `${generateFilename(false)}.mid`,
-            );
+            const timeline = compileTimeline(settings, { cycles: settings.loopCount });
+            exportMidiFile({ timeline }, `${generateFilename(false)}.mid`);
             showToast("Exported MIDI pattern file!", "success");
         } catch (error) {
             logger.error?.("Failed to export MIDI pattern:", error);
