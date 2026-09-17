@@ -27,6 +27,7 @@ import { createPlaybackController } from "@audio/playback-controller.js";
 import { createStaticLoopRenderer } from "@audio/static-loop-renderer.js";
 import { initializeKeyboardControls } from "@ui/keyboard-controller.js";
 import { createHistoryController } from "@ui/history-controller.js";
+import { createInterfaceModeController } from "@ui/interface-mode-controller.js";
 import { createInputFilterController } from "@ui/input-filter-controller.js";
 import { createNoteStepController } from "@ui/note-step-controller.js";
 import { createOnboardingController } from "@ui/onboarding-controller.js";
@@ -153,6 +154,7 @@ function initializeApp() {
     const {
         documentRef,
         appMain,
+        interfaceModeSelect,
         stickyTransportBar,
         playStopButton,
         undoButton,
@@ -302,6 +304,10 @@ function initializeApp() {
         liveRegion,
         quickStartModal,
         quickStartOverlay,
+        quickStartModeChoice,
+        quickStartModeContent,
+        quickStartSimpleButton,
+        quickStartFullButton,
         quickStartPresetsGrid,
         quickStartScratchButton,
         startOverlay,
@@ -665,9 +671,23 @@ function initializeApp() {
 
     const { getAllSettings, loadAllSettings, generateFilename } = settingsManager;
 
+    const interfaceModeController = createInterfaceModeController({
+        dom: { appMain, interfaceModeSelect },
+        documentRef,
+        storage: {
+            getItem: (key) => window.localStorage.getItem(key),
+            setItem: (key, value) => window.localStorage.setItem(key, value),
+        },
+        logger: console,
+    });
+
     const onboardingController = createOnboardingController({
         dom: {
             appMain,
+            quickStartModeChoice,
+            quickStartModeContent,
+            quickStartSimpleButton,
+            quickStartFullButton,
             playStopButton,
             quickStartModal,
             quickStartOverlay,
@@ -709,6 +729,9 @@ function initializeApp() {
         onStartOverlay: async () => {
             await startAudio();
             loadPresetFromUrl();
+        },
+        onInterfaceModeSelected: (mode) => {
+            interfaceModeController.setMode(mode);
         },
         logger: console,
     });
@@ -1573,6 +1596,7 @@ function initializeApp() {
     historyController.initialize();
     buildSoundStartersStrip();
 
+    interfaceModeController.initialize();
     onboardingController.initialize();
 
     log("Arpeggiator initialized and ready.");

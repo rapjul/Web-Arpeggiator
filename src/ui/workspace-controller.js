@@ -233,7 +233,8 @@ export function createWorkspaceController(dependencies) {
         if (
             target === presetNameInput ||
             target === savedPresetSelect ||
-            target === loadPresetInput
+            target === loadPresetInput ||
+            target.id === "interface-mode"
         )
             return false;
         return target.matches("input, select, textarea");

@@ -345,7 +345,8 @@ Web Arpeggiator/
 │   │   ├── 0012-observable-playwright-synchronization-and-artifact-validation.md
 │   │   ├── 0013-workbox-custom-service-worker-caching.md
 │   │   ├── 0014-shared-timing-and-final-output-recording.md
-│   │   └── 0015-recommended-effects-tail-strategy.md
+│   │   ├── 0015-recommended-effects-tail-strategy.md
+│   │   └── 0016-persisted-interface-mode.md
 │   ├── architecture.md     # Module ownership, runtime flow, and deferred boundaries
 │   ├── development.md      # Local setup, commands, and test-runner guidance
 │   ├── improvements/       # Deferred, scoped follow-up plans
