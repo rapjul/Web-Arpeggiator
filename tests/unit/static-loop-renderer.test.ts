@@ -38,4 +38,29 @@ describe("static loop renderer", () => {
         expect(start).toHaveBeenCalledWith(0);
         expect(updateStaticLoopMap).toHaveBeenCalledOnce();
     });
+
+    it("skips marker publication when the offline render fails", async () => {
+        const updateStaticLoopMap = vi.fn();
+        const logger = { error: vi.fn() };
+        const error = new Error("render failed");
+        const tone = {
+            Time: vi.fn(() => ({ toSeconds: () => 0.25 })),
+            Offline: vi.fn(async () => {
+                throw error;
+            }),
+        };
+        const renderer = createStaticLoopRenderer({
+            isAudioContextStarted: () => true,
+            getTone: () => tone,
+            getAudioEngine: () => ({ createOfflineChain: vi.fn() }),
+            getSettings: () => ({ ...DEFAULT_SETTINGS, baseNotes: ["C4", "E4", "G4"] }),
+            updateStaticLoopMap,
+            logger,
+        });
+
+        await renderer.render();
+
+        expect(updateStaticLoopMap).not.toHaveBeenCalled();
+        expect(logger.error).toHaveBeenCalledWith("Static loop render failed:", error);
+    });
 });

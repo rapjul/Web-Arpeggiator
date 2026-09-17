@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createFuturePresetDialogController } from "@ui/future-preset-dialog-controller.js";
 
+const controllers: Array<ReturnType<typeof createFuturePresetDialogController>> = [];
+
 function renderDialog(): HTMLButtonElement {
     document.body.innerHTML = `
         <main id="app-main"></main>
@@ -16,6 +18,9 @@ function renderDialog(): HTMLButtonElement {
 }
 
 afterEach(() => {
+    controllers.splice(0).forEach((controller) => {
+        controller.destroy();
+    });
     document.body.innerHTML = "";
     vi.restoreAllMocks();
 });
@@ -27,6 +32,7 @@ describe("future preset dialog controller", () => {
             getReturnFocus: () => loadPresetButton,
             onConfirm: vi.fn(),
         });
+        controllers.push(controller);
         const appMain = document.getElementById("app-main");
         const overlay = document.getElementById("future-preset-overlay");
         const dialog = document.getElementById("future-preset-dialog");
@@ -61,6 +67,7 @@ describe("future preset dialog controller", () => {
             getReturnFocus: () => loadPresetButton,
             onConfirm,
         });
+        controllers.push(controller);
         const overlay = document.getElementById("future-preset-overlay");
         const confirmButton = document.getElementById("future-preset-confirm") as HTMLButtonElement;
 
@@ -76,5 +83,21 @@ describe("future preset dialog controller", () => {
         overlay?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
         expect(overlay?.classList.contains("hidden")).toBe(true);
         expect(onConfirm).toHaveBeenCalledTimes(1);
+    });
+
+    it("removes keyboard listeners during teardown", () => {
+        const loadPresetButton = renderDialog();
+        const controller = createFuturePresetDialogController({
+            getReturnFocus: () => loadPresetButton,
+            onConfirm: vi.fn(),
+        });
+        controllers.push(controller);
+        const overlay = document.getElementById("future-preset-overlay");
+
+        controller.destroy();
+        controller.open({ settingsVersion: 99 }, "future-preset.json");
+        window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+
+        expect(overlay?.getAttribute("aria-hidden")).toBe("false");
     });
 });

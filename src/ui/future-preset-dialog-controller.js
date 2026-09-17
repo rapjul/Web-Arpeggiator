@@ -8,7 +8,7 @@
  * Creates the controller that owns the newer-preset compatibility dialog.
  *
  * @param {{documentRoot?: Document, windowRoot?: Window, getReturnFocus: () => HTMLElement|null, onConfirm: (settings: Record<string, unknown>, fileName: string) => void}} options - Dialog dependencies.
- * @returns {{open: (settings: Record<string, unknown>, fileName: string) => void, close: () => void}} Dialog controls.
+ * @returns {{open: (settings: Record<string, unknown>, fileName: string) => void, close: () => void, destroy: () => void}} Dialog controls.
  */
 export function createFuturePresetDialogController(options) {
     const { documentRoot = document, windowRoot = window, getReturnFocus, onConfirm } = options;
@@ -21,6 +21,8 @@ export function createFuturePresetDialogController(options) {
     let pendingPreset = null;
     /** @type {HTMLElement|null} */
     let returnFocus = null;
+    const listenerController = new AbortController();
+    const listenerOptions = { signal: listenerController.signal };
 
     /** Closes the dialog without applying the pending imported settings. */
     function close() {
@@ -75,22 +77,39 @@ export function createFuturePresetDialogController(options) {
         }
     }
 
-    cancelButton?.addEventListener("click", close);
-    overlay?.addEventListener("click", (event) => {
-        if (event.target === overlay) close();
-    });
-    dialog?.addEventListener("keydown", trapFocus);
-    windowRoot.addEventListener("keydown", (event) => {
-        if (event.key !== "Escape" || overlay?.getAttribute("aria-hidden") !== "false") return;
-        event.preventDefault();
-        close();
-    });
-    confirmButton?.addEventListener("click", () => {
-        if (!pendingPreset) return;
-        const { settings, fileName } = pendingPreset;
-        close();
-        onConfirm(settings, fileName);
-    });
+    cancelButton?.addEventListener("click", close, listenerOptions);
+    overlay?.addEventListener(
+        "click",
+        (event) => {
+            if (event.target === overlay) close();
+        },
+        listenerOptions,
+    );
+    dialog?.addEventListener("keydown", trapFocus, listenerOptions);
+    windowRoot.addEventListener(
+        "keydown",
+        (event) => {
+            if (event.key !== "Escape" || overlay?.getAttribute("aria-hidden") !== "false") return;
+            event.preventDefault();
+            close();
+        },
+        listenerOptions,
+    );
+    confirmButton?.addEventListener(
+        "click",
+        () => {
+            if (!pendingPreset) return;
+            const { settings, fileName } = pendingPreset;
+            close();
+            onConfirm(settings, fileName);
+        },
+        listenerOptions,
+    );
 
-    return { open, close };
+    function destroy() {
+        close();
+        listenerController.abort();
+    }
+
+    return { open, close, destroy };
 }

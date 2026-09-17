@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_SETTINGS } from "@core/settings-contract.js";
+import { exportMidiFile } from "@core/midi-export.js";
 import { createExportControlsController } from "@ui/export-controls-controller.js";
+
+vi.mock("@core/midi-export.js", () => ({ exportMidiFile: vi.fn() }));
 
 const controllers: Array<ReturnType<typeof createExportControlsController>> = [];
 
@@ -54,7 +57,7 @@ function createFixture() {
     const startAudio = vi.fn(async () => {});
     const renderStaticLoop = vi.fn(async () => {});
     const showToast = vi.fn();
-    const logger = { warn: vi.fn() };
+    const logger = { error: vi.fn(), warn: vi.fn() };
     const controller = createExportControlsController({
         dom: {
             loopCountInput,
@@ -172,5 +175,18 @@ describe("export controls controller", () => {
                 expect.any(Error),
             );
         });
+    });
+
+    it("reports synchronous MIDI export failures", () => {
+        const { logger, midiButton, showToast } = createFixture();
+        const error = new Error("MIDI download failed");
+        vi.mocked(exportMidiFile).mockImplementationOnce(() => {
+            throw error;
+        });
+
+        midiButton.click();
+
+        expect(logger.error).toHaveBeenCalledWith("Failed to export MIDI pattern:", error);
+        expect(showToast).toHaveBeenCalledWith("Failed to export MIDI pattern.", "error");
     });
 });

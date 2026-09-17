@@ -201,4 +201,25 @@ describe("transport controller", () => {
         expect(onBpmChange).not.toHaveBeenCalled();
         expect(onSwingChange).not.toHaveBeenCalled();
     });
+
+    test("applies parsed tempo values while initialized", () => {
+        const {
+            bpmSlider,
+            controller,
+            flushTransportChanges,
+            onBpmChange,
+            onSwingChange,
+            swingSlider,
+        } = createFixture();
+        controller.initialize();
+
+        bpmSlider.value = "150";
+        bpmSlider.dispatchEvent(new Event("input"));
+        swingSlider.value = "0.4";
+        swingSlider.dispatchEvent(new Event("input"));
+        flushTransportChanges();
+
+        expect(onBpmChange).toHaveBeenCalledWith(150);
+        expect(onSwingChange).toHaveBeenCalledWith(0.4);
+    });
 });

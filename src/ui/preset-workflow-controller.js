@@ -61,6 +61,7 @@ export function createPresetWorkflowController(dependencies) {
         savedPresetSelect,
     } = dom;
     let listenerController = null;
+    let futurePresetDialogController = null;
 
     function sharePresetAsUrl() {
         const params = serializePresetToUrlParams(getAllSettings());
@@ -135,16 +136,18 @@ export function createPresetWorkflowController(dependencies) {
         }
     }
 
-    const futurePresetDialogController = createFuturePresetDialogController({
-        getReturnFocus: () => loadPresetButton,
-        onConfirm: (settings, fileName) => {
-            const result = applySettingsWithHistory(settings, { allowFutureVersion: true });
-            if (result.ok) {
-                void saveImportedPreset(getAllSettings(), { name: fileName });
-                showToast("Loaded compatible settings from newer preset.", "info");
-            }
-        },
-    });
+    function createFuturePresetDialog() {
+        return createFuturePresetDialogController({
+            getReturnFocus: () => loadPresetButton,
+            onConfirm: (settings, fileName) => {
+                const result = applySettingsWithHistory(settings, { allowFutureVersion: true });
+                if (result.ok) {
+                    void saveImportedPreset(getAllSettings(), { name: fileName });
+                    showToast("Loaded compatible settings from newer preset.", "info");
+                }
+            },
+        });
+    }
 
     function handleFileImport(event) {
         const target = /** @type {HTMLInputElement} */ (event.target);
@@ -164,7 +167,7 @@ export function createPresetWorkflowController(dependencies) {
                     result.error instanceof UnsupportedSettingsVersionError &&
                     result.error.isFutureVersion
                 ) {
-                    futurePresetDialogController.open(settings, file.name);
+                    futurePresetDialogController?.open(settings, file.name);
                 } else {
                     showToast("Failed to load preset.", "error");
                 }
@@ -252,6 +255,7 @@ export function createPresetWorkflowController(dependencies) {
     function initialize() {
         if (listenerController) return;
         listenerController = new AbortController();
+        futurePresetDialogController = createFuturePresetDialog();
         const listenerOptions = { signal: listenerController.signal };
         sharePresetButton.addEventListener("click", sharePresetAsUrl, listenerOptions);
         savePresetButton.addEventListener(
@@ -293,7 +297,8 @@ export function createPresetWorkflowController(dependencies) {
     function destroy() {
         listenerController?.abort();
         listenerController = null;
-        futurePresetDialogController.close();
+        futurePresetDialogController?.destroy();
+        futurePresetDialogController = null;
     }
 
     return { initialize, destroy, loadPresetFromUrl };

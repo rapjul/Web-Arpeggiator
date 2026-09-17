@@ -17,7 +17,7 @@ import { materializePatternSequence } from "@core/pattern-core.js";
 /**
  * Creates the export controls controller.
  *
- * @param {{dom: {loopCountInput: HTMLInputElement, offlineExportModeInputs: NodeListOf<HTMLInputElement>, offlineExportTailControl: HTMLElement|null, offlineExportTailSecondsInput: HTMLInputElement|null, offlineExportDuration: HTMLElement|null, recordButton: HTMLElement, exportButton: HTMLElement, offlineExportButton: HTMLElement, offlineExportMidiButton: HTMLElement|null, toggleVisualizerButton: HTMLElement, visualizerModeSelect: HTMLSelectElement|null}, getSettings: () => ArpeggiatorSettings, getCurrentNotes: () => {notes: string[], octaveRange: number, octaveShift: number}, getRecorderManager: () => {toggleRecording: () => Promise<void>, exportRealtime: () => Promise<void>, exportOffline: () => Promise<void>}|undefined, getVisualizer: () => {currentMode: string, toggle: () => void}|undefined, startAudio: () => Promise<void>, generateFilename: (isRealtime: boolean) => string, showToast: (message: string, type?: string) => void, renderStaticLoop: () => Promise<void>, debounce: (callback: () => void, wait: number) => () => void, logger?: {warn?: (...args: unknown[]) => void}}} dependencies - Injected export behavior.
+ * @param {{dom: {loopCountInput: HTMLInputElement, offlineExportModeInputs: NodeListOf<HTMLInputElement>, offlineExportTailControl: HTMLElement|null, offlineExportTailSecondsInput: HTMLInputElement|null, offlineExportDuration: HTMLElement|null, recordButton: HTMLElement, exportButton: HTMLElement, offlineExportButton: HTMLElement, offlineExportMidiButton: HTMLElement|null, toggleVisualizerButton: HTMLElement, visualizerModeSelect: HTMLSelectElement|null}, getSettings: () => ArpeggiatorSettings, getCurrentNotes: () => {notes: string[], octaveRange: number, octaveShift: number}, getRecorderManager: () => {toggleRecording: () => Promise<void>, exportRealtime: () => Promise<void>, exportOffline: () => Promise<void>}|undefined, getVisualizer: () => {currentMode: string, toggle: () => void}|undefined, startAudio: () => Promise<void>, generateFilename: (isRealtime: boolean) => string, showToast: (message: string, type?: string) => void, renderStaticLoop: () => Promise<void>, debounce: (callback: () => void, wait: number) => () => void, logger?: {error?: (...args: unknown[]) => void, warn?: (...args: unknown[]) => void}}} dependencies - Injected export behavior.
  * @returns {{initialize: () => void, destroy: () => void, updateEstimatedExportDuration: () => void, updateOfflineExportModeUi: () => void, requestStaticLoopRender: () => void}} Export controls API.
  */
 export function createExportControlsController(dependencies) {
@@ -113,29 +113,34 @@ export function createExportControlsController(dependencies) {
     }
 
     function handleMidiExport() {
-        const settings = getSettings();
-        const currentNotes = getCurrentNotes();
-        const sequenceResult = materializePatternSequence(currentNotes.notes, {
-            direction: settings.direction,
-            octaveRange: currentNotes.octaveRange,
-            octaveShift: currentNotes.octaveShift,
-            quantize: {
-                enabled: settings.scaleQuantize,
-                root: settings.scaleRoot,
-                scale: settings.scaleType,
-            },
-        });
-        exportMidiFile(
-            {
-                notes: sequenceResult.notes,
-                bpm: settings.bpm,
-                interval: settings.interval,
-                gateRatio: settings.gateRatio,
-                loopCount: settings.loopCount,
-            },
-            `${generateFilename(false)}.mid`,
-        );
-        showToast("Exported MIDI pattern file!", "success");
+        try {
+            const settings = getSettings();
+            const currentNotes = getCurrentNotes();
+            const sequenceResult = materializePatternSequence(currentNotes.notes, {
+                direction: settings.direction,
+                octaveRange: currentNotes.octaveRange,
+                octaveShift: currentNotes.octaveShift,
+                quantize: {
+                    enabled: settings.scaleQuantize,
+                    root: settings.scaleRoot,
+                    scale: settings.scaleType,
+                },
+            });
+            exportMidiFile(
+                {
+                    notes: sequenceResult.notes,
+                    bpm: settings.bpm,
+                    interval: settings.interval,
+                    gateRatio: settings.gateRatio,
+                    loopCount: settings.loopCount,
+                },
+                `${generateFilename(false)}.mid`,
+            );
+            showToast("Exported MIDI pattern file!", "success");
+        } catch (error) {
+            logger.error?.("Failed to export MIDI pattern:", error);
+            showToast("Failed to export MIDI pattern.", "error");
+        }
     }
 
     function initialize() {
