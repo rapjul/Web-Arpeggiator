@@ -215,6 +215,9 @@ describe("Production DOM Parity Suite", () => {
         const tailInput = document.getElementById(
             "offline-export-tail-seconds",
         ) as HTMLInputElement | null;
+        const tailMode = document.getElementById(
+            "offline-export-tail-mode",
+        ) as HTMLSelectElement | null;
         const duration = document.getElementById("offline-export-duration");
 
         expect(document.getElementById("offline-export-title")?.textContent).not.toContain(
@@ -229,6 +232,8 @@ describe("Production DOM Parity Suite", () => {
         expect(tailInput?.max).toBe("10");
         expect(tailInput?.step).toBe("0.1");
         expect(tailInput?.value).toBe("2");
+        expect(tailMode?.value).toBe("auto");
+        expect(tailMode?.querySelectorAll("option")).toHaveLength(2);
         expect(duration?.getAttribute("aria-live")).toBe("polite");
     });
 

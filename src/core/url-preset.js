@@ -9,6 +9,7 @@
 
 import {
     normalizeOfflineExportMode,
+    normalizeOfflineExportTailMode,
     normalizeOfflineExportTailSeconds,
 } from "./export-duration.js";
 import { normalizeNotesSequence } from "./pattern-core.js";
@@ -60,6 +61,7 @@ export const PRESET_URL_KEYS = Object.freeze(
         "reverb",
         "loop",
         "export",
+        "tail-mode",
         "tail",
     ]),
 );
@@ -154,6 +156,7 @@ export function clampFloat(val, min, max, fallback) {
  * @property {number} [reverbMix] - Reverb effect wet mix.
  * @property {number} [loopCount] - Number of loops for export.
  * @property {"seamless"|"tail"} [offlineExportMode] - Offline audio export mode.
+ * @property {"auto"|"custom"} [offlineExportTailMode] - Effects-tail strategy.
  * @property {number} [offlineExportTailSeconds] - Appended effects tail duration.
  * @property {number} [monoCutoff] - MonoSynth filter cutoff.
  * @property {number} [monoOctaves] - MonoSynth filter octave span.
@@ -226,6 +229,12 @@ export function serializePresetToUrlParams(settings) {
     if (settings.loopCount !== undefined) params.set("loop", String(settings.loopCount));
     if (settings.offlineExportMode !== undefined) {
         params.set("export", normalizeOfflineExportMode(settings.offlineExportMode));
+    }
+    if (settings.offlineExportTailMode !== undefined) {
+        params.set(
+            "tail-mode",
+            normalizeOfflineExportTailMode(settings.offlineExportTailMode, "custom"),
+        );
     }
     if (settings.offlineExportTailSeconds !== undefined) {
         params.set(
@@ -368,6 +377,12 @@ export function parsePresetFromUrlParams(searchParams, currentSettings) {
     if (params.has("export")) {
         settings.offlineExportMode = normalizeOfflineExportMode(params.get("export"));
     }
+    if (params.has("tail-mode")) {
+        settings.offlineExportTailMode = normalizeOfflineExportTailMode(
+            params.get("tail-mode"),
+            "custom",
+        );
+    }
     if (params.has("tail")) {
         settings.offlineExportTailSeconds = normalizeOfflineExportTailSeconds(params.get("tail"));
     }
@@ -423,6 +438,11 @@ export function hasPresetChanges(a, b) {
     if (
         normalizeOfflineExportMode(a.offlineExportMode) !==
         normalizeOfflineExportMode(b.offlineExportMode)
+    )
+        return true;
+    if (
+        normalizeOfflineExportTailMode(a.offlineExportTailMode, "custom") !==
+        normalizeOfflineExportTailMode(b.offlineExportTailMode, "custom")
     )
         return true;
     if (

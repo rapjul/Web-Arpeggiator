@@ -8,6 +8,7 @@
 import {
     normalizeLoopCount,
     normalizeOfflineExportMode,
+    normalizeOfflineExportTailMode,
     normalizeOfflineExportTailSeconds,
 } from "./export-duration.js";
 import { getArpeggioNotes, normalizeNotesSequence } from "./pattern-core.js";
@@ -147,6 +148,7 @@ export const SETTINGS_BOUNDS = Object.freeze({
  *   reverbMix: number,
  *   loopCount: number,
  *   offlineExportMode: "seamless"|"tail",
+ *   offlineExportTailMode: "auto"|"custom",
  *   offlineExportTailSeconds: number,
  *   notes: readonly string[]
  * }} ArpeggiatorSettings
@@ -221,6 +223,7 @@ export const DEFAULT_SETTINGS = Object.freeze({
     reverbMix: 0.3,
     loopCount: 4,
     offlineExportMode: "tail",
+    offlineExportTailMode: "auto",
     offlineExportTailSeconds: 2,
     notes: Object.freeze(["C4", "C5", "E4", "E5", "G4", "G5"]),
 });
@@ -299,6 +302,10 @@ function normalizeAllowedValue(value, allowed, fallback) {
  */
 export function normalizeSettings(candidate, fallback = DEFAULT_SETTINGS, options = {}) {
     const source = isSettingsRecord(candidate) ? candidate : {};
+    const hasCandidateRecord = isSettingsRecord(candidate);
+    const hasTailMode = Object.hasOwn(source, "offlineExportTailMode");
+    const tailModeFallback =
+        hasCandidateRecord && !hasTailMode ? "custom" : fallback.offlineExportTailMode;
     const sourceVersion = source.settingsVersion;
     const hasExplicitVersion = Object.hasOwn(source, "settingsVersion");
     if (
@@ -466,6 +473,10 @@ export function normalizeSettings(candidate, fallback = DEFAULT_SETTINGS, option
         loopCount: normalizeLoopCount(source.loopCount ?? fallback.loopCount),
         offlineExportMode: normalizeOfflineExportMode(
             source.offlineExportMode ?? fallback.offlineExportMode,
+        ),
+        offlineExportTailMode: normalizeOfflineExportTailMode(
+            hasTailMode ? source.offlineExportTailMode : tailModeFallback,
+            tailModeFallback,
         ),
         offlineExportTailSeconds: normalizeOfflineExportTailSeconds(
             source.offlineExportTailSeconds ?? fallback.offlineExportTailSeconds,
