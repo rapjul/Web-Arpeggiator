@@ -50,7 +50,7 @@ function formatEffectList(effectNames) {
  *
  * @param {object}   context                                - Injected app context.
  * @param {object}   context.audio                          - Audio-engine references.
- * @param {Tone.Reverb}     context.audio.reverb            - Reverb node (signal tap point).
+ * @param {Tone.ToneAudioNode} context.audio.recordingOutput - Final monitored signal tap point.
  * @param {object}          context.audio.synths            - { synth, fmSynth, amSynth } for offline config.
  * @param {Function}        context.audio.createOfflineChain - Offline routing creation callback.
  * @param {object}   context.dom                            - DOM element references.
@@ -104,6 +104,7 @@ export function createRecorderManager(context) {
     let recordedChunks = [];
     let recorderType = null;
     let liveRecordedWavBlob = null;
+    let decodedRecording = null;
     let isRecording = false;
     let recordingStartTime = 0;
     /** @type {Promise<void>|null} */
@@ -150,7 +151,7 @@ export function createRecorderManager(context) {
                 // Try Tone.Recorder first (works in HTTP and Canvas contexts)
                 try {
                     recorder = new Tone.Recorder();
-                    audio.reverb.connect(recorder);
+                    audio.recordingOutput.connect(recorder);
                     recorderType = "ToneRecorder";
                     dom.recordStatus.textContent = "Ready to record (Tone.Recorder).";
                     actions.showToast("Recorder ready (Fallback)", "info");
@@ -162,7 +163,7 @@ export function createRecorderManager(context) {
                                 Tone.getContext().rawContext
                             );
                             const dest = rawCtx.createMediaStreamDestination();
-                            audio.reverb.connect(dest);
+                            audio.recordingOutput.connect(dest);
                             recorder = new MediaRecorder(dest.stream);
                             recorderType = "MediaRecorder";
 
@@ -244,11 +245,7 @@ export function createRecorderManager(context) {
             }
 
             liveRecordedWavBlob = null;
-
-            // If transport is currently stopped, auto-start playback so recording captures active audio
-            if (!state.isPlaying && typeof actions.startPlayback === "function") {
-                await actions.startPlayback();
-            }
+            decodedRecording = null;
 
             if (recorderType === "MediaRecorder") {
                 recordedChunks = [];
@@ -256,6 +253,9 @@ export function createRecorderManager(context) {
             } else if (recorderType === "ToneRecorder") {
                 recorder.start();
             }
+
+            // Start capture before playback so the first scheduled note is retained.
+            isRecording = true;
 
             dom.recordButton.classList.add("recording");
             dom.exportControls.classList.add("hidden");
@@ -266,7 +266,23 @@ export function createRecorderManager(context) {
                 "aria-label",
                 "Stop recording (current elapsed time 00:00.0)",
             );
-            isRecording = true;
+
+            // If transport is currently stopped, auto-start playback after capture is active.
+            if (!state.isPlaying && typeof actions.startPlayback === "function") {
+                try {
+                    await actions.startPlayback();
+                } catch (error) {
+                    isRecording = false;
+                    if (recorderType === "MediaRecorder") {
+                        recorder.stop();
+                    } else if (recorderType === "ToneRecorder") {
+                        await recorder.stop();
+                    }
+                    onRecordingStop();
+                    actions.stopUiLoop();
+                    throw error;
+                }
+            }
         }
 
         if (isRecording) {
@@ -305,7 +321,6 @@ export function createRecorderManager(context) {
         dom.exportButton.textContent = "Exporting...";
 
         const filename = actions.generateFilename(true);
-        let decodedRecording = null;
         const decodeRecording = async () => {
             if (!decodedRecording) {
                 decodedRecording = await Tone.getContext().decodeAudioData(
@@ -584,6 +599,7 @@ export function createRecorderManager(context) {
         },
         setRecorderBlob: (blob) => {
             liveRecordedWavBlob = blob;
+            decodedRecording = null;
         },
     };
 }
