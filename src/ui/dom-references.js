@@ -218,6 +218,20 @@ export function createDomReferences(documentRef) {
             getById("quick-start-scratch")
         ),
         startOverlay: getById("start-overlay"),
+        chordConflictOverlay: getById("chord-conflict-overlay"),
+        chordConflictDialog: getById("chord-conflict-dialog"),
+        chordConflictRequestedNotes: getById("chord-conflict-requested-notes"),
+        chordConflictAdaptedNotes: getById("chord-conflict-adapted-notes"),
+        chordConflictChangedPitches: getById("chord-conflict-changed-pitches"),
+        chordConflictKeepButton: /** @type {HTMLButtonElement | null} */ (
+            getById("chord-conflict-keep")
+        ),
+        chordConflictAdaptButton: /** @type {HTMLButtonElement | null} */ (
+            getById("chord-conflict-adapt")
+        ),
+        chordConflictCancelButton: /** @type {HTMLButtonElement | null} */ (
+            getById("chord-conflict-cancel")
+        ),
         chordButtons: queryAll(".chord-btn"),
         resolveResetTargets,
     };
