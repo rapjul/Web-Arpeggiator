@@ -18,6 +18,8 @@ Web Arpeggiator is a browser-based musical arpeggiator application built with va
 
 See the [Architecture Guide](./docs/architecture.md) for the detailed module ownership map, runtime flow, and source layout. For agent work, use `src/ui/dom-references.js` for initialization-time DOM lookup and `src/state/application-state.js` for shared mutable state; keep settings-manager composition and final cross-feature callback wiring in `src/app.js`. Add new control listeners to the relevant focused controller and preserve its teardown boundary.
 
+Playback, previews, offline audio, and MIDI exports share the 480-PPQ musical timeline compiler in `src/core/timeline.js`; keep note resolution, swing, gate lengths, and event boundaries in that shared contract.
+
 ### 1. Audio Engine
 
 The audio signal chain follows this path:
