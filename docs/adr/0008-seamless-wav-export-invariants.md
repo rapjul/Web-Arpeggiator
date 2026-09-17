@@ -27,7 +27,7 @@ Before rendering, the exporter derives the crop start, output frame count, and r
 
 Chorus and Auto-pan are time-varying effects. Seamless mode warms chorus’s short delay and auto-pan’s modulation stage, then checks whether every active LFO completes a whole number of phases across the selected musical duration. If it does not, the exporter rejects seamless mode with guidance to adjust Pattern cycles, disable the effect, or select Include effects tail. It never silently bypasses or retimes an enabled modulation effect.
 
-For **Include effects tail**, the renderer retains its cold start and appends the selected 0–10 second tail. It has no warm-up crop or boundary treatment.
+For **Include effects tail**, the renderer retains its cold start, waits for the final scheduled gate to end, and then appends either an automatically recommended tail or an explicit custom 0–10 second tail. Auto estimates the synth release plus active delay, reverb, and chorus decay, excludes auto-pan because it does not add decaying energy, and caps the recommendation at 10 seconds. Custom preserves the requested duration. Legacy settings without a tail strategy normalize to the previous explicit 2-second custom tail. Neither tail strategy has a warm-up crop.
 
 The sample-exact seamless-loop guarantee applies only to WAV. MP3 receives the same prepared source material and gapless delay/padding metadata where supported, but lossy encoding and player behavior prevent an equivalent guarantee.
 
