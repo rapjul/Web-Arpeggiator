@@ -19,7 +19,7 @@ import { createSessionManager } from "@storage/session-manager.js";
  * @property {string} name - Human-readable setting group name.
  * @property {string[]} keys - Serialized settings keys restored together.
  * @property {Array<Element|null>} controls - Controls associated with the group.
- * @property {string[]} targets - Selectors for resettable labels or headings.
+ * @property {Array<Element|null>} targets - Resolved resettable labels or headings.
  */
 
 /**
@@ -186,8 +186,7 @@ export function createWorkspaceController(dependencies) {
     function registerIndividualResetGestures() {
         getResetDefinitions().forEach((definition) => {
             const hint = `Double-click to reset ${definition.name}. Press Escape while focused to reset.`;
-            definition.targets.forEach((selector) => {
-                const target = documentRef.querySelector(selector);
+            definition.targets.forEach((target) => {
                 if (!target) return;
                 target.setAttribute("title", hint);
                 target.classList.add("resettable-setting-target");

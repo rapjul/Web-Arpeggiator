@@ -1338,7 +1338,13 @@ function initializeApp() {
                 "label[for='offline-export-tail-seconds']",
             ],
         },
-    ];
+    ].map((definition) => ({
+        ...definition,
+        targets: definition.targets.flatMap((selector) => {
+            const target = document.querySelector(selector);
+            return target ? [target] : [];
+        }),
+    }));
 
     // ==================================================================
     //    Event Listeners

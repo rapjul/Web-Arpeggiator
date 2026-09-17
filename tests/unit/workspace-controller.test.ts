@@ -15,7 +15,7 @@ function createFixture() {
         name: "BPM",
         keys: ["bpm"],
         controls: [bpmInput],
-        targets: ["label"],
+        targets: [resetTarget],
     };
     document.body.append(
         bpmInput,
