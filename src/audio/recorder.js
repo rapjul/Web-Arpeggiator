@@ -75,6 +75,7 @@ function formatEffectList(effectNames) {
  * @param {Function} context.actions.formatTime             - Time formatting helper.
  * @param {Function} [context.actions.startAudio]           - Start Web Audio context helper.
  * @param {Function} [context.actions.startPlayback]        - Start transport playback helper.
+ * @param {Function} [context.actions.getTimeline]          - Current shared compiled timeline.
  * @typedef {object} RecorderManager
  * @property {Function} initRecorder - Creates recorder instance (lazy, called once).
  * @property {Function} toggleRecording - Start/stop recording.
@@ -367,24 +368,26 @@ export function createRecorderManager(context) {
         const settings = actions.getAllSettings();
         const filename = actions.generateFilename(false, settings, "audio");
 
-        const baseTimeline = compileTimeline(
-            {
-                baseNotes: settings.baseNotes || settings.notes,
-                direction: settings.direction,
-                octaveRange: settings.octaveRange,
-                octaveShift: settings.octaveShift,
-                quantize: {
-                    enabled: settings.scaleQuantize,
-                    root: settings.scaleRoot,
-                    scale: settings.scaleType,
+        const baseTimeline =
+            actions.getTimeline?.() ??
+            compileTimeline(
+                {
+                    baseNotes: settings.baseNotes || settings.notes,
+                    direction: settings.direction,
+                    octaveRange: settings.octaveRange,
+                    octaveShift: settings.octaveShift,
+                    quantize: {
+                        enabled: settings.scaleQuantize,
+                        root: settings.scaleRoot,
+                        scale: settings.scaleType,
+                    },
+                    interval: settings.interval,
+                    gateRatio: settings.gateRatio,
+                    bpm: settings.bpm,
+                    swing: settings.swing,
                 },
-                interval: settings.interval,
-                gateRatio: settings.gateRatio,
-                bpm: settings.bpm,
-                swing: settings.swing,
-            },
-            { cycles: 1 },
-        );
+                { cycles: 1 },
+            );
         const patternNotes = baseTimeline.resolvedNotes;
         const exportDuration = calculateOfflineExportDuration({
             loopCount: settings.loopCount,

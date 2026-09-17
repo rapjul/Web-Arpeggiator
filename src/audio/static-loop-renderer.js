@@ -13,7 +13,7 @@ import { compileTimeline, ticksToSeconds } from "@core/timeline.js";
 /**
  * Creates a one-cycle offline renderer without importing Tone at module load.
  *
- * @param {{isAudioContextStarted: () => boolean, getTone: () => StaticToneLike|null, getAudioEngine: () => {createOfflineChain: (context: OfflineContextLike, settings: ArpeggiatorSettings) => {offlineSynth: {triggerAttackRelease: (note: string, duration: number, time: number) => void}}}|undefined, getSettings: () => ArpeggiatorSettings, updateStaticLoopMap: (buffer: unknown, markers: unknown[]) => void, logger?: {error?: (...args: unknown[]) => void}}} dependencies - Injected runtime dependencies.
+ * @param {{isAudioContextStarted: () => boolean, getTone: () => StaticToneLike|null, getAudioEngine: () => {createOfflineChain: (context: OfflineContextLike, settings: ArpeggiatorSettings) => {offlineSynth: {triggerAttackRelease: (note: string, duration: number, time: number) => void}}}|undefined, getSettings: () => ArpeggiatorSettings, getTimeline?: () => import("@core/timeline.js").CompiledTimeline|null, updateStaticLoopMap: (buffer: unknown, markers: unknown[]) => void, logger?: {error?: (...args: unknown[]) => void}}} dependencies - Injected runtime dependencies.
  * @returns {{render: () => Promise<void>}} Static loop renderer API.
  */
 export function createStaticLoopRenderer(dependencies) {
@@ -22,6 +22,7 @@ export function createStaticLoopRenderer(dependencies) {
         getTone,
         getAudioEngine,
         getSettings,
+        getTimeline,
         updateStaticLoopMap,
         logger = console,
     } = dependencies;
@@ -33,24 +34,26 @@ export function createStaticLoopRenderer(dependencies) {
         if (!isAudioContextStarted() || !tone || !audioEngine) return;
 
         const settings = getSettings();
-        const timeline = compileTimeline(
-            {
-                baseNotes: settings.baseNotes,
-                direction: settings.direction,
-                octaveRange: settings.octaveRange,
-                octaveShift: settings.octaveShift,
-                quantize: {
-                    enabled: settings.scaleQuantize,
-                    root: settings.scaleRoot,
-                    scale: settings.scaleType,
+        const timeline =
+            getTimeline?.() ??
+            compileTimeline(
+                {
+                    baseNotes: settings.baseNotes,
+                    direction: settings.direction,
+                    octaveRange: settings.octaveRange,
+                    octaveShift: settings.octaveShift,
+                    quantize: {
+                        enabled: settings.scaleQuantize,
+                        root: settings.scaleRoot,
+                        scale: settings.scaleType,
+                    },
+                    interval: settings.interval,
+                    gateRatio: settings.gateRatio,
+                    bpm: settings.bpm,
+                    swing: settings.swing,
                 },
-                interval: settings.interval,
-                gateRatio: settings.gateRatio,
-                bpm: settings.bpm,
-                swing: settings.swing,
-            },
-            { cycles: 1 },
-        );
+                { cycles: 1 },
+            );
         if (timeline.events.length === 0) return;
 
         const markers = timeline.events.map((event) => ({
