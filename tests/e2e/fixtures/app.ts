@@ -156,7 +156,9 @@ export async function dismissOnboarding(page: Page): Promise<void> {
 
     if (await quickStartOverlay.isVisible()) {
         const modeChoice = page.locator("#quick-start-mode-choice");
-        if (await modeChoice.isVisible()) await page.locator("#quick-start-full").click();
+        if (await modeChoice.isVisible()) {
+            await page.locator("#quick-start-full").click();
+        }
         await page.locator("#quick-start-scratch").click();
     } else if (await startOverlay.isVisible()) {
         await startOverlay.click();
