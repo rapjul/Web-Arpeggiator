@@ -2,6 +2,8 @@
 
 This document provides a technical overview of the Standard MIDI File (SMF 1.0) binary format and details how Web Arpeggiator implements native, zero-dependency MIDI export in [`../src/core/midi-export.js`](../src/core/midi-export.js).
 
+MIDI is one output of the shared musical timeline in [`../src/core/timeline.js`](../src/core/timeline.js). Playback, loop previews, offline audio, and MIDI therefore use the same materialized note sequence and absolute event timing.
+
 ---
 
 ## 1. Official Standards & Specifications
@@ -144,14 +146,22 @@ Web Arpeggiator writes note events on MIDI Channel 1 (Channel Index 0):
 [Delta-Time: Note Duration (VLQ)] 0x80 [Note Number: 0-127] [Release Velocity: 0x40]
 ```
 
-- The delta-time before the Note-Off event matches the note duration in ticks:
-  $$\text{noteDurationTicks} = \text{round}(\text{stepDurationTicks} \times \text{gateRatio})$$
-- The subsequent Note-On uses a delta time matching the rest duration:
-  $$\text{restDurationTicks} = \text{stepDurationTicks} - \text{noteDurationTicks}$$
+- The Note-Off absolute tick is the compiled event start plus its effective gate duration. The duration is bounded by the next event start so a long gate cannot release after a later note has begun.
+- Delta times are calculated after all absolute events are sorted. With swing enabled, the next Note-On delta reflects the compiled swing offset rather than assuming a fixed rest duration.
+
+### 3.5. Shared Timeline Timing Contract
+
+The timeline compiler uses integer ticks at 480 PPQ:
+
+- Each supported interval maps to a fixed step length from 30 ticks (`64n`) through 960 ticks (`2n`).
+- Pattern directions and scale quantization are materialized into one resolved cycle before events are emitted.
+- Swing is applied to event start ticks using the same 8th-note subdivision model as Tone.Transport, then Tone transport swing remains `0` for consumers of the compiled events.
+- Each event retains `sourceNoteIndex`, `sourceStepIndex`, `cycleIndex`, and `stepIndex`, allowing the UI and exports to refer back to the authored pattern.
+- MIDI converts absolute event starts and ends into delta-time VLQs and emits Note-Off before Note-On when events share a tick.
 
 ---
 
-### 3.5. Pitch to MIDI Note Number Mapping
+### 3.6. Pitch to MIDI Note Number Mapping
 
 MIDI assigns note number $60$ to Middle C ($C4$). The conversion formula for scientific pitch notation is:
 
