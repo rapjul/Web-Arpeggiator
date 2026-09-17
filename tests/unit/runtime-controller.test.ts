@@ -18,6 +18,7 @@ function createFixture() {
         meter: {},
         peakAnalyser: {},
         reverb: {},
+        recordingOutput: {},
         synths: {},
         currentWaveform: "sine",
         createOfflineChain: vi.fn(),
@@ -133,6 +134,7 @@ describe("audio runtime controller", () => {
             createPatternController,
             createRecorderManager,
             createVisualizer,
+            engine,
             loadAllSettings,
             loadModules,
             state,
@@ -147,6 +149,11 @@ describe("audio runtime controller", () => {
         expect(createAudioEngine).toHaveBeenCalledOnce();
         expect(createPatternController).toHaveBeenCalledOnce();
         expect(createRecorderManager).toHaveBeenCalledOnce();
+        expect(createRecorderManager).toHaveBeenCalledWith(
+            expect.objectContaining({
+                audio: expect.objectContaining({ recordingOutput: engine.recordingOutput }),
+            }),
+        );
         expect(createVisualizer).toHaveBeenCalledOnce();
         expect(loadAllSettings).toHaveBeenCalledWith({ bpm: 120 });
         expect(contextState()).toBe("running");

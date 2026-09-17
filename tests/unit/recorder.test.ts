@@ -714,6 +714,27 @@ describe("Recorder Manager Module", () => {
         expect(manager.recordingStartTime).toBeDefined();
     });
 
+    it("preserves a Tone recording when playback startup fails", async () => {
+        mockActions.startPlayback = vi.fn(async () => {
+            throw new Error("playback failed");
+        });
+        const manager = createRecorderManager({
+            audio: mockAudio,
+            dom: mockDom,
+            state: mockState,
+            actions: mockActions,
+        });
+
+        await expect(manager.toggleRecording()).rejects.toThrow("playback failed");
+        expect(manager.isRecording).toBe(false);
+
+        mockDom.realtimeExportWavCheck.checked = true;
+        await manager.exportRealtime();
+
+        expect(audioBufferToWav).toHaveBeenCalled();
+        expect(mockDom.recordStatus.textContent).toContain("Export complete");
+    });
+
     it("handles short audio buffers in offline export", async () => {
         const Tone = await import("tone");
         // @ts-expect-error mocking Offline return
