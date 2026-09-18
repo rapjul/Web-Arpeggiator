@@ -73,7 +73,6 @@ function createFixture() {
             visualizerModeSelect,
         },
         getSettings: () => settings,
-        getCurrentNotes: () => ({ notes: settings.baseNotes, octaveRange: 2, octaveShift: 0 }),
         getRecorderManager: () => recorder,
         getVisualizer: () => visualizer,
         startAudio,
