@@ -21,6 +21,8 @@ A short crossfade was considered as a way to disguise a discontinuity. It change
 
 For **Seamless loop**, the renderer repeats the source by whole pattern cycles before the selected export region. The warm-up duration accounts for the synth release, enabled eighth-note feedback delay settling to approximately -60 dB, and enabled reverb decay. The export boundary remains cycle-aligned.
 
+The warm-up source is a cyclic repetition of the already materialized selected export block. It must not advance a stochastic pattern cursor to create different random warm-up cycles. This keeps the crop boundary aligned with the exported notes and makes the metadata's selected sequence an exact description of the rendered region.
+
 Before rendering, the exporter derives the crop start, output frame count, and required source length from one integer-frame timeline. It requests one non-exported guard frame and rejects a renderer result that is shorter than the complete crop window. After rendering, it copies exactly `round(musicalDurationSeconds * sampleRate)` frames from that boundary for every channel. It does not apply a crossfade, fade, resampling step, padding frame, or other post-crop PCM modification. The result therefore has exactly the requested integer number of pattern cycles when the requested musical duration does.
 
 Chorus and Auto-pan are time-varying effects. Seamless mode warms chorus’s short delay and auto-pan’s modulation stage, then checks whether every active LFO completes a whole number of phases across the selected musical duration. If it does not, the exporter rejects seamless mode with guidance to adjust Pattern cycles, disable the effect, or select Include effects tail. It never silently bypasses or retimes an enabled modulation effect.
@@ -29,7 +31,7 @@ For **Include effects tail**, the renderer retains its cold start and appends th
 
 The sample-exact seamless-loop guarantee applies only to WAV. MP3 receives the same prepared source material and gapless delay/padding metadata where supported, but lossy encoding and player behavior prevent an equivalent guarantee.
 
-Tests must cover the pure timing and crop calculations, then encode a deterministic multi-channel PCM fixture to WAV. The decoded payload must have the expected RIFF frame count, exact per-channel samples, and exactly the requested number of cycles. Browser offline-rendering tests additionally exercise effect warm-up and scheduling, but do not substitute engine-dependent audio comparisons for the binary invariant.
+Tests must cover the pure timing and crop calculations, including that warm-up repeats the selected materialized stream for stochastic directions, then encode a deterministic multi-channel PCM fixture to WAV. The decoded payload must have the expected RIFF frame count, exact per-channel samples, and exactly the requested number of cycles. Browser offline-rendering tests additionally exercise effect warm-up and scheduling, but do not substitute engine-dependent audio comparisons for the binary invariant.
 
 ### Positive Consequences
 
@@ -49,3 +51,5 @@ Tests must cover the pure timing and crop calculations, then encode a determinis
 * [Audio Export Metadata](../audio-export-metadata.md)
 * [ADR 0002: Modular ES Source Architecture](./0002-modular-es-source-architecture.md)
 * [ADR 0009: Versioned Offline Audio Export Metadata](./0009-versioned-offline-audio-export-metadata.md)
+* [ADR 0015: Shared 480-PPQ Musical Timeline Contract](./0015-shared-480-ppq-musical-timeline-contract.md)
+* [ADR 0016: Reproducible Stochastic Pattern Semantics](./0016-reproducible-stochastic-pattern-semantics.md)

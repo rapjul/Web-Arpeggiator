@@ -32,9 +32,9 @@ The root retains the integration callbacks needed to connect focused modules to 
 
 ### Shared Musical Timeline
 
-`src/core/timeline.js` is the timing boundary shared by every musical output. It materializes the selected pattern once, assigns each event an absolute integer tick position at 480 PPQ, applies the configured swing offset, bounds each gate before the next event, and preserves the authored-note/source-step mapping.
+`src/core/timeline.js` is the timing boundary shared by every musical output. It materializes the selected pattern once, assigns each event an absolute integer tick position at 480 PPQ, applies the configured swing offset, bounds each gate before the next event, and preserves the authored-note/source-step mapping. [ADR 0015](./adr/0015-shared-480-ppq-musical-timeline-contract.md) records this cross-output timing contract.
 
-Live playback adapts that timeline to `Tone.Pattern` so the existing transport lifecycle remains intact. Static previews and offline audio schedule the compiled events directly. MIDI converts the same absolute starts and ends into delta-time events. These consumers keep Tone transport swing disabled when the timeline has already applied swing, preventing double timing offsets.
+Live playback adapts that timeline to `Tone.Pattern` so the existing transport lifecycle remains intact. Static previews and offline audio schedule the compiled events directly. MIDI converts the same absolute starts and ends into delta-time events. These consumers keep Tone transport swing disabled when the timeline has already applied swing, preventing double timing offsets. [ADR 0016](./adr/0016-reproducible-stochastic-pattern-semantics.md) defines the seeded stochastic-pattern behavior that the timeline materializes.
 
 ### Storage
 
