@@ -104,14 +104,7 @@ export function createExportControlsController(dependencies) {
     function handleMidiExport() {
         try {
             const settings = getSettings();
-            const currentTimeline = getTimeline?.();
-            const timeline = currentTimeline
-                ? compileTimeline(settings, {
-                      cycles: settings.loopCount,
-                      resolvedNotes: currentTimeline.resolvedNotes,
-                      sourceNoteMap: currentTimeline.sourceNoteMap,
-                  })
-                : compileTimeline(settings, { cycles: settings.loopCount });
+            const timeline = compileTimeline(settings, { cycles: settings.loopCount });
             exportMidiFile({ timeline }, `${generateFilename(false)}.mid`);
             showToast("Exported MIDI pattern file!", "success");
         } catch (error) {

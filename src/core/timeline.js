@@ -5,7 +5,9 @@
  * @module timeline
  */
 
-import { materializePatternSequence } from "./pattern-core.js";
+import { createPatternSequenceCursor } from "./pattern-core.js";
+import { DEFAULT_RANDOM_SEED, normalizeRandomSeed } from "./random-seed.js";
+import { DEFAULT_BPM, MAX_BPM, MIN_BPM } from "./timing-constants.js";
 
 /** Standard MIDI-style resolution used by the application timeline. */
 export const TICKS_PER_BEAT = 480;
@@ -20,7 +22,7 @@ export const INTERVAL_TICKS = Object.freeze({
     "2n": 960,
 });
 
-export const DEFAULT_TIMELINE_BPM = 120;
+export const DEFAULT_TIMELINE_BPM = DEFAULT_BPM;
 export const DEFAULT_TIMELINE_INTERVAL = "16n";
 export const DEFAULT_TIMELINE_GATE = 0.8;
 export const DEFAULT_TIMELINE_VELOCITY = 100;
@@ -47,6 +49,7 @@ const MAX_INTERNAL_TIMELINE_CYCLES = MAX_TIMELINE_CYCLES * 100;
  * @typedef {object} CompiledTimeline
  * @property {TimelineEvent[]} events - Resolved scheduled events.
  * @property {string[]} resolvedNotes - One-cycle resolved note sequence.
+ * @property {string[]} scheduledNotes - Flattened notes scheduled for the requested range.
  * @property {number[]} sourceNoteMap - One-cycle source-note mapping.
  * @property {number} stepsPerCycle - Number of events in one cycle.
  * @property {number} stepDurationTicks - Unswing step duration.
@@ -57,6 +60,7 @@ const MAX_INTERNAL_TIMELINE_CYCLES = MAX_TIMELINE_CYCLES * 100;
  * @property {number} swing - Normalized swing amount.
  * @property {number} cycles - Normalized cycle count.
  * @property {string} interval - Normalized interval identifier.
+ * @property {number} randomSeed - Normalized unsigned random seed.
  */
 
 /**
@@ -110,8 +114,19 @@ export function getIntervalTicks(interval) {
  */
 export function ticksToSeconds(ticks, bpm) {
     const safeTicks = Number.isFinite(Number(ticks)) ? Number(ticks) : 0;
-    const safeBpm = normalizeNumber(bpm, DEFAULT_TIMELINE_BPM, 1, 1000);
+    const safeBpm = normalizeNumber(bpm, DEFAULT_TIMELINE_BPM, MIN_BPM, MAX_BPM);
     return (safeTicks / TICKS_PER_BEAT) * (60 / safeBpm);
+}
+
+/** Returns the bounded swung start for an absolute zero-based occurrence. */
+export function getTimelineStartTick(occurrenceIndex, stepDurationTicks, swing) {
+    const safeOccurrence = Math.max(0, Math.trunc(Number(occurrenceIndex) || 0));
+    const safeStepDuration = Math.max(1, Math.trunc(Number(stepDurationTicks) || 1));
+    const rawStartTick = safeOccurrence * safeStepDuration;
+    return Math.min(
+        rawStartTick + getSwingOffsetTicks(rawStartTick, swing),
+        rawStartTick + safeStepDuration - 1,
+    );
 }
 
 /**
@@ -146,7 +161,7 @@ export function getSwingOffsetTicks(startTick, swing) {
  * Returns the note source configuration accepted by the timeline compiler.
  *
  * @param {Record<string, unknown>} settings - Candidate settings.
- * @returns {{baseNotes: string[], direction: string, octaveRange: number, octaveShift: number, quantize: {enabled: boolean, root: string, scale: string}, interval: string, gate: number, bpm: number, swing: number, velocity: number}}
+ * @returns {{baseNotes: string[], direction: string, octaveRange: number, octaveShift: number, quantize: {enabled: boolean, root: string, scale: string}, interval: string, gate: number, bpm: number, swing: number, velocity: number, randomSeed: number}}
  */
 function normalizeTimelineSettings(settings) {
     const rawBaseNotes = settings.baseNotes ?? settings.notes;
@@ -185,9 +200,10 @@ function normalizeTimelineSettings(settings) {
         interval:
             typeof settings.interval === "string" ? settings.interval : DEFAULT_TIMELINE_INTERVAL,
         gate: normalizeNumber(settings.gate ?? settings.gateRatio, DEFAULT_TIMELINE_GATE, 0.05, 1),
-        bpm: normalizeNumber(settings.bpm, DEFAULT_TIMELINE_BPM, 1, 1000),
+        bpm: normalizeNumber(settings.bpm, DEFAULT_TIMELINE_BPM, MIN_BPM, MAX_BPM),
         swing: normalizeNumber(settings.swing, 0, 0, 1),
         velocity: normalizeInteger(settings.velocity, DEFAULT_TIMELINE_VELOCITY, 1, 127),
+        randomSeed: normalizeRandomSeed(settings.randomSeed, DEFAULT_RANDOM_SEED),
     };
 }
 
@@ -195,7 +211,7 @@ function normalizeTimelineSettings(settings) {
  * Compiles a finite, deterministic musical timeline.
  *
  * @param {Record<string, unknown>} [settings={}] - Musical settings snapshot.
- * @param {{cycles?: unknown, maxCycles?: unknown, rng?: () => number, resolvedNotes?: unknown, sourceNoteMap?: unknown}} [range={}] - Requested render range and random source.
+ * @param {{cycles?: unknown, maxCycles?: unknown, rng?: () => number, resolvedNotes?: unknown, sourceNoteMap?: unknown, terminalGatePolicy?: "clip"|"preserve"}} [range={}] - Requested render range and random source.
  * @returns {CompiledTimeline} Immutable-by-convention compiled timeline data.
  */
 export function compileTimeline(settings = {}, range = {}) {
@@ -213,13 +229,13 @@ export function compileTimeline(settings = {}, range = {}) {
         MIN_TIMELINE_CYCLES,
         maxCycles,
     );
-    const resolvedNotes = Array.isArray(range.resolvedNotes)
+    const suppliedNotes = Array.isArray(range.resolvedNotes)
         ? range.resolvedNotes.filter((note) => typeof note === "string")
         : null;
-    const sequence = resolvedNotes
+    const suppliedSequence = suppliedNotes
         ? {
-              notes: resolvedNotes,
-              map: resolvedNotes.map((_, index) =>
+              notes: suppliedNotes,
+              map: suppliedNotes.map((_, index) =>
                   normalizeInteger(
                       Array.isArray(range.sourceNoteMap) ? range.sourceNoteMap[index] : index,
                       index,
@@ -228,32 +244,43 @@ export function compileTimeline(settings = {}, range = {}) {
                   ),
               ),
           }
-        : materializePatternSequence(normalized.baseNotes, {
+        : null;
+    const cursor = suppliedSequence
+        ? {
+              stepsPerCycle: suppliedSequence.notes.length,
+              nextCycle: () => ({
+                  notes: [...suppliedSequence.notes],
+                  map: [...suppliedSequence.map],
+              }),
+          }
+        : createPatternSequenceCursor(normalized.baseNotes, {
               direction: normalized.direction,
               octaveRange: normalized.octaveRange,
               octaveShift: normalized.octaveShift,
               quantize: normalized.quantize,
-              rng: typeof range.rng === "function" ? range.rng : Math.random,
+              randomSeed: normalized.randomSeed,
+              rng: typeof range.rng === "function" ? range.rng : undefined,
           });
     const stepDurationTicks = getIntervalTicks(normalized.interval);
-    const stepsPerCycle = sequence.notes.length;
+    const stepsPerCycle = cursor.stepsPerCycle;
     const cycleDurationTicks = stepsPerCycle * stepDurationTicks;
     const musicalDurationTicks = cycleDurationTicks * cycles;
     const nominalDurationTicks = Math.max(1, Math.round(stepDurationTicks * normalized.gate));
 
     /** @type {TimelineEvent[]} */
     const rawEvents = [];
+    let firstSequence = { notes: [], map: [] };
     for (let cycleIndex = 0; cycleIndex < cycles; cycleIndex += 1) {
+        const sequence = cursor.nextCycle();
+        if (cycleIndex === 0) firstSequence = sequence;
         for (let stepIndex = 0; stepIndex < stepsPerCycle; stepIndex += 1) {
             const sourceStepIndex = stepIndex;
             const rawStartTick = cycleIndex * cycleDurationTicks + stepIndex * stepDurationTicks;
-            const requestedStartTick =
-                rawStartTick + getSwingOffsetTicks(rawStartTick, normalized.swing);
-            const nextRawStartTick =
-                cycleIndex * cycleDurationTicks + (stepIndex + 1) * stepDurationTicks;
-            const startTick = Math.min(
-                requestedStartTick,
-                Math.max(rawStartTick, nextRawStartTick - 1),
+            const occurrenceIndex = cycleIndex * stepsPerCycle + stepIndex;
+            const startTick = getTimelineStartTick(
+                occurrenceIndex,
+                stepDurationTicks,
+                normalized.swing,
             );
             const swingOffsetTicks = startTick - rawStartTick;
             rawEvents.push({
@@ -273,7 +300,11 @@ export function compileTimeline(settings = {}, range = {}) {
     }
 
     const events = rawEvents.map((event, index) => {
-        const nextStartTick = rawEvents[index + 1]?.startTick ?? musicalDurationTicks;
+        const nextStartTick =
+            rawEvents[index + 1]?.startTick ??
+            (range.terminalGatePolicy === "preserve"
+                ? event.startTick + event.nominalDurationTicks
+                : musicalDurationTicks);
         const availableDurationTicks = Math.max(1, nextStartTick - event.startTick);
         return {
             ...event,
@@ -283,8 +314,9 @@ export function compileTimeline(settings = {}, range = {}) {
 
     return {
         events,
-        resolvedNotes: [...sequence.notes],
-        sourceNoteMap: [...sequence.map],
+        resolvedNotes: [...firstSequence.notes],
+        scheduledNotes: events.map((event) => event.pitch),
+        sourceNoteMap: [...firstSequence.map],
         stepsPerCycle,
         stepDurationTicks,
         cycleDurationTicks,
@@ -293,6 +325,7 @@ export function compileTimeline(settings = {}, range = {}) {
         bpm: normalized.bpm,
         swing: normalized.swing,
         cycles,
+        randomSeed: normalized.randomSeed,
         interval: Object.hasOwn(INTERVAL_TICKS, normalized.interval)
             ? normalized.interval
             : DEFAULT_TIMELINE_INTERVAL,

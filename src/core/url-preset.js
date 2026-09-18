@@ -12,6 +12,7 @@ import {
     normalizeOfflineExportTailSeconds,
 } from "./export-duration.js";
 import { normalizeNotesSequence } from "./pattern-core.js";
+import { MAX_RANDOM_SEED } from "./random-seed.js";
 import {
     ALLOWED_DIRECTIONS,
     ALLOWED_INTERVALS,
@@ -30,6 +31,7 @@ export const PRESET_URL_KEYS = Object.freeze(
     new Set([
         "bpm",
         "swing",
+        "seed",
         "gain",
         "notes",
         "dir",
@@ -124,6 +126,7 @@ export function clampFloat(val, min, max, fallback) {
  * @property {readonly string[]} [notes] - Expanded octave notes array.
  * @property {number} [bpm] - Beats per minute.
  * @property {number} [swing] - Swing feel ratio.
+ * @property {number} [randomSeed] - Reproducible stochastic pattern seed.
  * @property {number} [postGain] - Master output gain in dB.
  * @property {string} [direction] - Pattern direction slug.
  * @property {string} [interval] - Note subdivision interval.
@@ -183,6 +186,7 @@ export function serializePresetToUrlParams(settings) {
     }
     if (settings.bpm !== undefined) params.set("bpm", String(settings.bpm));
     if (settings.swing !== undefined) params.set("swing", Number(settings.swing).toFixed(2));
+    if (settings.randomSeed !== undefined) params.set("seed", String(settings.randomSeed));
     if (settings.postGain !== undefined) params.set("gain", Number(settings.postGain).toFixed(0));
     if (settings.direction) params.set("dir", settings.direction);
     if (settings.interval) params.set("int", settings.interval);
@@ -267,6 +271,8 @@ export function parsePresetFromUrlParams(searchParams, currentSettings) {
         settings.bpm = clampInt(params.get("bpm"), ...SETTINGS_BOUNDS.bpm, settings.bpm);
     if (params.has("swing"))
         settings.swing = clampFloat(params.get("swing"), ...SETTINGS_BOUNDS.swing, settings.swing);
+    if (params.has("seed"))
+        settings.randomSeed = clampInt(params.get("seed"), 0, MAX_RANDOM_SEED, settings.randomSeed);
     if (params.has("gain"))
         settings.postGain = clampFloat(
             params.get("gain"),
@@ -394,6 +400,7 @@ export function hasPresetChanges(a, b) {
     if (a.scaleQuantize !== b.scaleQuantize) return true;
     if (Math.abs((a.bpm ?? 0) - (b.bpm ?? 0)) > eps) return true;
     if (Math.abs((a.swing ?? 0) - (b.swing ?? 0)) > eps) return true;
+    if (a.randomSeed !== b.randomSeed) return true;
     if (Math.abs((a.postGain ?? 0) - (b.postGain ?? 0)) > eps) return true;
     if (Math.abs((a.harmonicity ?? 0) - (b.harmonicity ?? 0)) > eps) return true;
     if (Math.abs((a.modulationIndex ?? 0) - (b.modulationIndex ?? 0)) > eps) return true;

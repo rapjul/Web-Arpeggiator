@@ -51,6 +51,7 @@ export function createStaticLoopRenderer(dependencies) {
                     gateRatio: settings.gateRatio,
                     bpm: settings.bpm,
                     swing: settings.swing,
+                    randomSeed: settings.randomSeed,
                 },
                 { cycles: 1 },
             );

@@ -152,6 +152,9 @@ export function createDomReferences(documentRef) {
         reverbMixSlider: /** @type {HTMLInputElement} */ (getById("reverb-mix")),
         reverbMixValue: getById("reverb-mix-value"),
         randomizeNotesButton: getById("randomize-notes"),
+        reshufflePatternButton: /** @type {HTMLButtonElement | null} */ (
+            getById("reshuffle-pattern")
+        ),
         noteStepIndicator: getById("note-step-indicator"),
         recordButton: getById("record-button"),
         recordStatus: getById("record-status") || getById("realtime-record-status"),

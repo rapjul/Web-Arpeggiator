@@ -1,5 +1,7 @@
 import { downloadBlob } from "./audio-utils.js";
+import { normalizeRandomSeed } from "./random-seed.js";
 import { compileTimeline, TICKS_PER_BEAT } from "./timeline.js";
+import { DEFAULT_BPM, MAX_BPM, MIN_BPM } from "./timing-constants.js";
 
 /**
  * Standard MIDI File (.mid) Format 0 Binary Encoder and Pattern Export Utility.
@@ -124,6 +126,7 @@ export function uint16ToBytes(value) {
  * @param {number} [options.loopCount=1] - Number of times to loop the pattern in the export.
  * @param {number} [options.velocity=100] - Note-On MIDI velocity (1–127).
  * @param {number} [options.swing=0] - Swing amount from 0 through 1.
+ * @param {number} [options.randomSeed] - Seed used to materialize and identify random patterns.
  * @param {import("./timeline.js").CompiledTimeline} [options.timeline] - Precompiled shared event timeline.
  * @returns {Uint8Array} Standard MIDI File binary data.
  */
@@ -141,12 +144,17 @@ export function createMidiFileBytes(options = {}) {
                       bpm: sourceOptions.bpm,
                       swing: sourceOptions.swing,
                       velocity: sourceOptions.velocity,
+                      randomSeed: sourceOptions.randomSeed,
                   },
                   { cycles: sourceOptions.loopCount },
               );
 
     // Microseconds per quarter note for Set Tempo meta event (60,000,000 / BPM)
-    const microSecondsPerBeat = Math.round(60000000 / timeline.bpm);
+    const suppliedBpm = Number(timeline.bpm);
+    const safeBpm = Number.isFinite(suppliedBpm)
+        ? Math.min(Math.max(suppliedBpm, MIN_BPM), MAX_BPM)
+        : DEFAULT_BPM;
+    const microSecondsPerBeat = Math.round(60000000 / safeBpm);
 
     const trackEvents = [];
 
@@ -175,7 +183,22 @@ export function createMidiFileBytes(options = {}) {
         microSecondsPerBeat & 0xff,
     );
 
-    // 3. Note Events from the shared absolute-tick timeline.
+    // 3. Sequencer-Specific Meta Event containing reproducibility metadata.
+    const metadataBytes = new TextEncoder().encode(
+        JSON.stringify({
+            application: "Web Arpeggiator",
+            randomSeed: normalizeRandomSeed(timeline.randomSeed),
+        }),
+    );
+    trackEvents.push(
+        ...encodeVariableLengthQuantity(0),
+        0xff,
+        0x7f,
+        ...encodeVariableLengthQuantity(metadataBytes.length),
+        ...metadataBytes,
+    );
+
+    // 4. Note Events from the shared absolute-tick timeline.
     const midiEvents = [];
     timeline.events.forEach((event) => {
         const noteNum = noteNameToMidiNumber(event.pitch);
@@ -203,7 +226,7 @@ export function createMidiFileBytes(options = {}) {
         cursorTick = event.tick;
     });
 
-    // 4. Meta Event: End of Track (00 FF 2F 00)
+    // 5. Meta Event: End of Track (00 FF 2F 00)
     trackEvents.push(
         ...encodeVariableLengthQuantity(Math.max(0, timeline.musicalDurationTicks - cursorTick)),
         0xff,

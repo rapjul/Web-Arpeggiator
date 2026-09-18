@@ -27,6 +27,7 @@ function cloneSettings(settings) {
  * @typedef {object} OfflineExportMetadataOptions
  * @property {Record<string, unknown>} settings - Complete serialized application settings snapshot.
  * @property {string[]} patternNotes - Exact note sequence scheduled for the render.
+ * @property {number} [stepsPerCycle] - Number of scheduled steps in one pattern cycle.
  * @property {{exportMode: string, loopCount: number, musicalDuration: number, preRollCycles: number, preRollDuration: number, tailDuration: number, renderDuration: number}} exportDuration - Calculated timing window for the render.
  * @property {number} sampleRate - Frames per second in the exported buffer.
  * @property {number} channelCount - Audio channels in the exported buffer.
@@ -45,11 +46,16 @@ function cloneSettings(settings) {
 export function createOfflineExportMetadata({
     settings,
     patternNotes,
+    stepsPerCycle,
     exportDuration,
     sampleRate,
     channelCount,
     frameCount,
 }) {
+    const safePatternNotes = Array.isArray(patternNotes) ? patternNotes : [];
+    const safeStepsPerCycle = Number.isInteger(stepsPerCycle)
+        ? stepsPerCycle
+        : safePatternNotes.length;
     return {
         schema: OFFLINE_EXPORT_METADATA_SCHEMA,
         version: OFFLINE_EXPORT_METADATA_VERSION,
@@ -68,8 +74,10 @@ export function createOfflineExportMetadata({
             frameCount,
         },
         pattern: {
-            scheduledNotes: Array.isArray(patternNotes) ? [...patternNotes] : [],
-            stepsPerLoop: Array.isArray(patternNotes) ? patternNotes.length : 0,
+            scheduledNotes: [...safePatternNotes],
+            stepsPerCycle: safeStepsPerCycle,
+            cycleCount: exportDuration.loopCount,
+            stepsPerLoop: safeStepsPerCycle,
         },
         settings: cloneSettings(settings),
     };

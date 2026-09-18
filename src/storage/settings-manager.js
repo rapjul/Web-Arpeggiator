@@ -19,6 +19,7 @@ import { normalizeSettings, SETTINGS_SCHEMA_VERSION } from "@core/settings-contr
  * @property {string[]} currentNotes
  * @property {number} currentOctaveRange
  * @property {number} currentOctaveShift
+ * @property {number} randomSeed
  * @property {string} currentWaveform
  * @property {{oscillator?: {type: string}}|null} activeSynth
  */
@@ -99,6 +100,7 @@ export function createSettingsManager(context) {
             baseNotes,
             notes: notesWithOctaves,
             direction: actions.getSelectedPatternDirection(),
+            randomSeed: state.randomSeed,
             interval: dom.intervalSelect.value,
             octaveShift: state.currentOctaveShift,
             octaveRange: state.currentOctaveRange,
@@ -195,6 +197,7 @@ export function createSettingsManager(context) {
             if (settings.direction) {
                 actions.setSelectedPatternDirection(settings.direction);
             }
+            state.randomSeed = settings.randomSeed;
             if (settings.interval && dom.intervalSelect) {
                 dom.intervalSelect.value = settings.interval;
             }

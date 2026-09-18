@@ -12,11 +12,12 @@ import {
     CHROMATIC_PITCHES,
     CHROMATIC_RANGE,
     calculateNoteMarkers,
+    createPatternSequenceCursor,
     getArpeggioNotes,
     materializePatternSequence,
     quantizeToScale,
 } from "@core/pattern-core.js";
-import { compileTimeline, getSwingOffsetTicks, ticksToSeconds } from "@core/timeline.js";
+import { compileTimeline, getTimelineStartTick, ticksToSeconds } from "@core/timeline.js";
 import * as Tone from "tone";
 
 // Re-export pure domain helpers for backwards compatibility
@@ -42,6 +43,7 @@ export {
  * @property {{enabled: boolean, root: string, scale: string}} quantize
  * @property {number} [bpm]
  * @property {number} [swing]
+ * @property {number} [randomSeed]
  */
 
 /**
@@ -91,6 +93,7 @@ export function createPatternController({
                     gateRatio: settings.gate,
                     bpm: settings.bpm,
                     swing: settings.swing,
+                    randomSeed: settings.randomSeed,
                 },
                 { cycles: 1 },
             );
@@ -100,37 +103,57 @@ export function createPatternController({
             currentTimeline = timeline;
 
             let occurrenceIndex = 0;
+            let activeCycleIndex = -1;
+            let activeSequence = { notes: timeline.resolvedNotes, map: timeline.sourceNoteMap };
+            const liveCursor = createPatternSequenceCursor(settings.baseNotes, {
+                direction: settings.direction,
+                octaveRange: settings.octaveRange,
+                octaveShift: settings.octaveShift,
+                quantize: settings.quantize,
+                randomSeed: timeline.randomSeed,
+            });
             const patternInstance = new Tone.Pattern(
-                (time, note) => {
+                (time) => {
                     const stepIndex =
                         typeof patternInstance.index === "number"
                             ? patternInstance.index % timeline.stepsPerCycle
                             : occurrenceIndex % timeline.stepsPerCycle;
                     const cycleIndex = Math.floor(occurrenceIndex / timeline.stepsPerCycle);
-                    const event = timeline.events[stepIndex] ?? timeline.events[0];
-                    const rawStartTick =
-                        cycleIndex * timeline.cycleDurationTicks + event.rawStartTick;
-                    const nextRawStartTick =
-                        cycleIndex * timeline.cycleDurationTicks +
-                        (event.stepIndex + 1) * timeline.stepDurationTicks;
-                    const swungStartTick = Math.min(
-                        rawStartTick + getSwingOffsetTicks(rawStartTick, timeline.swing),
-                        Math.max(rawStartTick, nextRawStartTick - 1),
+                    if (cycleIndex !== activeCycleIndex) {
+                        activeSequence = liveCursor.nextCycle();
+                        activeCycleIndex = cycleIndex;
+                    }
+                    const note = activeSequence.notes[stepIndex] ?? activeSequence.notes[0];
+                    const sourceNoteIndex = activeSequence.map[stepIndex] ?? 0;
+                    const swungStartTick = getTimelineStartTick(
+                        occurrenceIndex,
+                        timeline.stepDurationTicks,
+                        timeline.swing,
+                    );
+                    const rawStartTick = occurrenceIndex * timeline.stepDurationTicks;
+                    const nextStartTick = getTimelineStartTick(
+                        occurrenceIndex + 1,
+                        timeline.stepDurationTicks,
+                        timeline.swing,
+                    );
+                    const durationTicks = Math.min(
+                        timeline.events[0].nominalDurationTicks,
+                        Math.max(1, nextStartTick - swungStartTick),
                     );
                     const swingOffsetTicks = swungStartTick - rawStartTick;
                     occurrenceIndex += 1;
                     const scheduledTime = time + ticksToSeconds(swingOffsetTicks, timeline.bpm);
                     const synth = getSynth();
-                    if (isTriggerableSynth(synth)) {
+                    if (note && isTriggerableSynth(synth)) {
                         triggerSynth(
                             synth,
                             note,
                             scheduledTime,
-                            ticksToSeconds(event.durationTicks, timeline.bpm),
+                            ticksToSeconds(durationTicks, timeline.bpm),
                         );
                     }
 
-                    Tone.Draw.schedule(() => onStep(event.sourceNoteIndex), scheduledTime);
+                    Tone.Draw.schedule(() => onStep(sourceNoteIndex), scheduledTime);
                 },
                 timeline.resolvedNotes,
                 "up",
