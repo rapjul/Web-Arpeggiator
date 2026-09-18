@@ -75,12 +75,13 @@ The arpeggiator generates note sequences based on:
 - **Down-Up**: Descending then ascending (exclusive endpoints)
 - **Up-Down (Repeated)**: Ascending then descending (inclusive endpoints)
 - **Down-Up (Repeated)**: Descending then ascending (inclusive endpoints)
-- **Random**: Random note selection each step
+- **Random Step**: Seeded random note selection each step, with repeats allowed
+- **Random Cycle**: Seeded shuffle that plays every resolved note once per cycle
 - **Octave Cycle**: Each note played across 3 octaves, repeated twice
 - **Octave Cycle Reverse**: Octave cycle in descending order
 - **Octave Cycle Ping-Pong**: Octave cycle with directional reversal
-- **Random Walk**: Constrained random progression (adjacent notes)
-- **Random Walk (Drunkard)**: Random walk with occasional leaps
+- **Random Walk**: Continuous seeded adjacent-note progression across cycle boundaries
+- **Drunkard's Walk**: Continuous seeded walk with occasional reflected leaps
 
 #### Scale Quantization
 

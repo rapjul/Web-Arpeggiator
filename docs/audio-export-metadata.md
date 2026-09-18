@@ -29,18 +29,21 @@ The embedded value is UTF-8 JSON with this stable envelope:
     "frameCount": 88200
   },
   "pattern": {
-    "scheduledNotes": ["C4", "E4", "G4"],
+    "scheduledNotes": ["C4", "E4", "G4", "C4", "E4", "G4", "C4", "E4", "G4", "C4", "E4", "G4"],
+    "stepsPerCycle": 3,
+    "cycleCount": 4,
     "stepsPerLoop": 3
   },
   "settings": {
     "bpm": 120,
     "baseNotes": ["C4", "E4", "G4"],
-    "direction": "up"
+    "direction": "up",
+    "randomSeed": 1831565813
   }
 }
 ```
 
-`settings` is the complete output of the settings serializer, rather than a hand-picked subset. `pattern.scheduledNotes` preserves the exact sequence rendered for randomized directions. A future importer should validate the schema and version, then restore `settings` through the existing settings loader while retaining the rendered sequence for comparison.
+`settings` is the complete output of the settings serializer, rather than a hand-picked subset. `pattern.scheduledNotes` preserves the flattened sequence rendered across every selected pattern cycle, while `stepsPerCycle` and `cycleCount` retain its boundaries. The seed makes stochastic settings reproducible, and the materialized notes remain available for verification. A future importer should validate the schema and version, then restore `settings` through the existing settings loader while retaining the rendered sequence for comparison.
 
 ## File layouts
 
