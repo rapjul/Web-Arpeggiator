@@ -42,8 +42,9 @@ Web Arpeggiator generates **Standard MIDI File Format 0** (`.mid`) files. Format
 |  - Events Stream:                                           |
 |      1. Time Signature Meta Event (4/4)                     |
 |      2. Set Tempo Meta Event (Microseconds per beat)        |
-|      3. Sequenced Note-On & Note-Off Events with Delays     |
-|      4. End of Track Meta Event                             |
+|      3. Web Arpeggiator Sequencer-Specific Metadata         |
+|      4. Sequenced Note-On & Note-Off Events with Delays     |
+|      5. End of Track Meta Event                             |
 +-------------------------------------------------------------+
 ```
 
@@ -118,7 +119,17 @@ $$\mu s/\text{beat} = \frac{60{,}000{,}000}{120} = 500{,}000\text{ (Hex: 0x07A12
 [Delta-Time: 0x00] 0xFF 0x51 0x03 0x07 0xA1 0x20
 ```
 
-#### 3. End of Track (`0x2F`)
+#### 3. Sequencer-Specific Metadata (`0x7F`)
+
+Stores a compact UTF-8 JSON payload identifying Web Arpeggiator and the normalized `randomSeed` used to materialize the pattern:
+
+```json
+{"application":"Web Arpeggiator","randomSeed":1831565813}
+```
+
+Sequencers that do not recognize this application-specific metadata can safely ignore it. The resolved MIDI notes remain self-contained, while seed-aware importers can recover the exact reproducibility setting.
+
+#### 4. End of Track (`0x2F`)
 
 Signals the termination of the track chunk:
 
