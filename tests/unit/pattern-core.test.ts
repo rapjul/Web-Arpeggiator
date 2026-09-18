@@ -6,6 +6,7 @@ import {
     CHROMATIC_PITCHES,
     CHROMATIC_RANGE,
     calculateNoteMarkers,
+    createPatternSequenceCursor,
     getArpeggioNotes,
     materializePatternSequence,
     normalizeNoteName,
@@ -170,7 +171,7 @@ describe("Pattern Core - Scale Quantization & Octave Expansion", () => {
     });
 });
 
-describe("Pattern Core - All 12 Pattern Directions", () => {
+describe("Pattern Core - All Pattern Directions", () => {
     const base = ["C4", "E4", "G4"];
 
     test("handles empty base notes gracefully", () => {
@@ -273,12 +274,12 @@ describe("Pattern Core - All 12 Pattern Directions", () => {
         const rand = buildPatternSequence(["C4", "E4"], {
             direction: "random",
         });
-        expect(rand.finalDirection).toBe("random");
+        expect(rand.finalDirection).toBe("up");
 
         const randWalk = buildPatternSequence(["C4", "E4"], {
             direction: "randomWalk",
         });
-        expect(randWalk.finalDirection).toBe("randomWalk");
+        expect(randWalk.finalDirection).toBe("up");
     });
 });
 
@@ -456,6 +457,50 @@ describe("Pattern Core - materializePatternSequence Deterministic Unrolling", ()
             rng: deterministicRng,
         });
         expect(drunk.notes.length).toBe(16);
+    });
+
+    test("reproduces seeded random streams and shuffles every note once per cycle", () => {
+        const randomA = createPatternSequenceCursor(base, {
+            direction: "random",
+            randomSeed: 1234,
+        });
+        const randomB = createPatternSequenceCursor(base, {
+            direction: "random",
+            randomSeed: 1234,
+        });
+        expect(randomA.nextCycle()).toEqual(randomB.nextCycle());
+        expect(randomA.nextCycle()).toEqual(randomB.nextCycle());
+
+        const shuffle = createPatternSequenceCursor(base, {
+            direction: "randomCycle",
+            randomSeed: 5678,
+        });
+        const first = shuffle.nextCycle().notes;
+        const second = shuffle.nextCycle().notes;
+        expect([...first].sort()).toEqual([...base].sort());
+        expect([...second].sort()).toEqual([...base].sort());
+        expect(second).not.toEqual(first);
+    });
+
+    test("continues adjacent and drunkard walks across cycle boundaries", () => {
+        const midi = (note: string) => Tonal.Note.midi(note) ?? 0;
+        const walk = createPatternSequenceCursor(base, {
+            direction: "randomWalk",
+            randomSeed: 42,
+        });
+        const walkNotes = [...walk.nextCycle().notes, ...walk.nextCycle().notes];
+        for (let index = 1; index < walkNotes.length; index += 1) {
+            expect(
+                Math.abs(midi(walkNotes[index]) - midi(walkNotes[index - 1])),
+            ).toBeLessThanOrEqual(4);
+        }
+
+        const drunk = createPatternSequenceCursor(base, {
+            direction: "randomWalkDrunk",
+            randomSeed: 99,
+        });
+        expect(drunk.nextCycle().notes).toHaveLength(16);
+        expect(drunk.nextCycle().notes).toHaveLength(16);
     });
 
     test("exercises randomWalk and randomWalkDrunk branches including negative leap modulo wrapping", () => {

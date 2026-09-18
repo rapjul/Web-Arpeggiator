@@ -103,7 +103,7 @@ describe("Production DOM Parity Suite", () => {
         document.body.innerHTML = "";
     });
 
-    it("verifies index.html contains all 12 pattern direction radio inputs and matching spans", () => {
+    it("verifies index.html contains all 13 pattern direction radio inputs and matching spans", () => {
         const patternButtons = document.getElementById("pattern-buttons");
         expect(patternButtons).not.toBeNull();
 
@@ -115,6 +115,7 @@ describe("Production DOM Parity Suite", () => {
             "upDownRepeat",
             "downUpRepeat",
             "random",
+            "randomCycle",
             "octaveCycle",
             "octaveCycleReverse",
             "octaveCyclePingPong",
@@ -125,7 +126,7 @@ describe("Production DOM Parity Suite", () => {
         const radios = patternButtons?.querySelectorAll<HTMLInputElement>(
             "input[name='pattern-direction']",
         );
-        expect(radios?.length).toBe(12);
+        expect(radios?.length).toBe(13);
 
         const radioValues = Array.from(radios || []).map((r) => r.value);
         expect(radioValues).toEqual(expectedDirections);
@@ -136,27 +137,28 @@ describe("Production DOM Parity Suite", () => {
         }
     });
 
-    it("correctly generates Tone.Pattern for each pattern direction directly from index.html DOM", () => {
+    it("materializes every DOM pattern direction into a timeline-backed Tone.Pattern", () => {
         const expectedDirections = [
-            { dir: "up", expectedPattern: "up" },
-            { dir: "down", expectedPattern: "down" },
-            { dir: "upDown", expectedPattern: "upDown" },
-            { dir: "downUp", expectedPattern: "downUp" },
-            { dir: "upDownRepeat", expectedPattern: "up" },
-            { dir: "downUpRepeat", expectedPattern: "up" },
-            { dir: "random", expectedPattern: "random" },
-            { dir: "octaveCycle", expectedPattern: "up" },
-            { dir: "octaveCycleReverse", expectedPattern: "up" },
-            { dir: "octaveCyclePingPong", expectedPattern: "up" },
-            { dir: "randomWalk", expectedPattern: "randomWalk" },
-            { dir: "randomWalkDrunk", expectedPattern: "up" },
+            "up",
+            "down",
+            "upDown",
+            "downUp",
+            "upDownRepeat",
+            "downUpRepeat",
+            "random",
+            "randomCycle",
+            "octaveCycle",
+            "octaveCycleReverse",
+            "octaveCyclePingPong",
+            "randomWalk",
+            "randomWalkDrunk",
         ];
 
         const radios = document.querySelectorAll<HTMLInputElement>(
             "input[name='pattern-direction']",
         );
 
-        for (const { dir, expectedPattern } of expectedDirections) {
+        for (const dir of expectedDirections) {
             // Uncheck all radios
             radios.forEach((r) => {
                 r.checked = false;
@@ -173,7 +175,7 @@ describe("Production DOM Parity Suite", () => {
 
             const pattern = updatePattern();
             expect(pattern).toBeDefined();
-            expect(pattern?.pattern).toBe(expectedPattern);
+            expect(pattern?.pattern).toBe("up");
             expect(pattern?.values.length).toBeGreaterThan(0);
         }
     });
@@ -191,6 +193,9 @@ describe("Production DOM Parity Suite", () => {
     });
 
     it("provides accessible seamless and effects-tail offline export controls", () => {
+        const bpm = document.getElementById("bpm") as HTMLInputElement | null;
+        expect(bpm?.min).toBe("40");
+        expect(bpm?.max).toBe("240");
         const exportModeInputs = document.querySelectorAll<HTMLInputElement>(
             "input[name='offline-export-mode']",
         );
@@ -235,7 +240,7 @@ describe("Production DOM Parity Suite", () => {
         const patternRadios = document.querySelectorAll<HTMLInputElement>(
             '#pattern-buttons input[type="radio"]',
         );
-        expect(patternRadios.length).toBe(12);
+        expect(patternRadios.length).toBe(13);
         for (const radio of patternRadios) {
             expect(radio.getAttribute("aria-label")).toBeTruthy();
         }
@@ -243,7 +248,7 @@ describe("Production DOM Parity Suite", () => {
         const patternButtons = document.querySelectorAll<HTMLElement>(
             "#pattern-buttons .pattern-btn",
         );
-        expect(patternButtons.length).toBe(12);
+        expect(patternButtons.length).toBe(13);
         for (const btn of patternButtons) {
             expect(btn.classList.contains("has-custom-tooltip")).toBe(true);
             expect(btn.getAttribute("data-tooltip")).toBeTruthy();

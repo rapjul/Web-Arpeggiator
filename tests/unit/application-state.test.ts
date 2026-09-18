@@ -22,6 +22,7 @@ describe("createApplicationState", () => {
         expect(state.currentNotes).toEqual(["C4", "E4", "G4"]);
         expect(state.currentOctaveShift).toBe(0);
         expect(state.currentOctaveRange).toBe(2);
+        expect(state.randomSeed).toBe(0x6d2b79f5);
         expect(state.activeSynth).toBeNull();
         expect(state.currentWaveform).toBe("sine");
         expect(state.activeNote).toBeNull();
@@ -36,6 +37,7 @@ describe("createApplicationState", () => {
         first.currentNotes = ["D4", "F4", "A4"];
         first.currentOctaveShift = -1;
         first.currentOctaveRange = 4;
+        first.randomSeed = 42;
         first.activeNote = "C5";
         first.isAudioContextStarted = true;
 
@@ -43,12 +45,14 @@ describe("createApplicationState", () => {
         expect(first.currentNotes).toEqual(["D4", "F4", "A4"]);
         expect(first.currentOctaveShift).toBe(-1);
         expect(first.currentOctaveRange).toBe(4);
+        expect(first.randomSeed).toBe(42);
         expect(first.activeNote).toBe("C5");
         expect(first.isAudioContextStarted).toBe(true);
         expect(second.isPlaying).toBe(false);
         expect(second.currentNotes).toEqual(["C4", "E4", "G4"]);
         expect(second.currentOctaveShift).toBe(0);
         expect(second.currentOctaveRange).toBe(2);
+        expect(second.randomSeed).toBe(0x6d2b79f5);
         expect(second.activeNote).toBeNull();
         expect(second.isAudioContextStarted).toBe(false);
     });

@@ -18,6 +18,8 @@ Web Arpeggiator is a browser-based musical arpeggiator application built with va
 
 See the [Architecture Guide](./docs/architecture.md) for the detailed module ownership map, runtime flow, and source layout. For agent work, use `src/ui/dom-references.js` for initialization-time DOM lookup and `src/state/application-state.js` for shared mutable state; keep settings-manager composition and final cross-feature callback wiring in `src/app.js`. Add new control listeners to the relevant focused controller and preserve its teardown boundary.
 
+Playback, previews, offline audio, and MIDI exports share the 480-PPQ musical timeline compiler in `src/core/timeline.js`; keep note resolution, swing, gate lengths, and event boundaries in that shared contract.
+
 ### 1. Audio Engine
 
 The audio signal chain follows this path:
@@ -73,12 +75,13 @@ The arpeggiator generates note sequences based on:
 - **Down-Up**: Descending then ascending (exclusive endpoints)
 - **Up-Down (Repeated)**: Ascending then descending (inclusive endpoints)
 - **Down-Up (Repeated)**: Descending then ascending (inclusive endpoints)
-- **Random**: Random note selection each step
+- **Random Step**: Seeded random note selection each step, with repeats allowed
+- **Random Cycle**: Seeded shuffle that plays every resolved note once per cycle
 - **Octave Cycle**: Each note played across 3 octaves, repeated twice
 - **Octave Cycle Reverse**: Octave cycle in descending order
 - **Octave Cycle Ping-Pong**: Octave cycle with directional reversal
-- **Random Walk**: Constrained random progression (adjacent notes)
-- **Random Walk (Drunkard)**: Random walk with occasional leaps
+- **Random Walk**: Continuous seeded adjacent-note progression across cycle boundaries
+- **Drunkard's Walk**: Continuous seeded walk with occasional reflected leaps
 
 #### Scale Quantization
 
@@ -509,10 +512,10 @@ The project uses **Vitest** with `@vitest/coverage-v8` to guarantee quality, enf
 ### Automated Coverage Threshold Gates
 
 Configured in [`vitest.config.ts`](./vitest.config.ts) and enforced on every Pull Request in [`.github/workflows/ci.yaml`](./.github/workflows/ci.yaml):
-- **Statements**: $\ge 75\%$
-- **Branches**: $\ge 65\%$
-- **Functions**: $\ge 65\%$
-- **Lines**: $\ge 75\%$
+- **Statements**: ≥ 75%.
+- **Branches**: ≥ 65%.
+- **Functions**: ≥ 65%.
+- **Lines**: ≥ 75%.
 
 These are a ratcheted baseline while untested composition roots are extracted into smaller units. The long-term target is 80% statements, 70% branches, 80% functions, and 80% lines, raised only when meaningful unit coverage supports each increase. Playwright covers browser behavior but does not contribute to the V8 percentage gate.
 

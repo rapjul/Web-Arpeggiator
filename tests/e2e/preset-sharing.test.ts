@@ -20,6 +20,7 @@ test("copies a share URL containing the public preset parameters", async ({ pwaP
 
     const copiedUrl = new URL(await page.evaluate(() => navigator.clipboard.readText()));
     expect(copiedUrl.searchParams.get("bpm")).toBe("195");
+    expect(copiedUrl.searchParams.get("seed")).toMatch(/^\d+$/);
     expect(copiedUrl.searchParams.get("notes")).toBe("D4 F4 A4");
     expect(copiedUrl.searchParams.get("synth")).toBe("fmSynth");
     expect(copiedUrl.searchParams.get("wave")).toBe("square");

@@ -24,6 +24,7 @@ const deterministicMidiSequences: Readonly<Record<string, readonly number[]>> = 
 
 const randomizedPatternLengths: Readonly<Record<string, number>> = {
     random: 3,
+    randomCycle: 3,
     randomWalk: 3,
     randomWalkDrunk: 16,
 };

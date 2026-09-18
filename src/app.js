@@ -43,11 +43,12 @@ import { createApplicationState } from "@/state/application-state.js";
 import { FACTORY_PRESETS } from "./config/factory-presets.js";
 
 /** @typedef {import("./config/factory-presets.js").FactoryPreset} FactoryPreset */
+/** @typedef {import("@core/timeline.js").CompiledTimeline} CompiledTimeline */
 
 /** @typedef {{value: number}} NumericAudioParam */
 /** @typedef {{oscillator: {width: NumericAudioParam}, harmonicity: NumericAudioParam, modulationIndex: NumericAudioParam, filterEnvelope: {baseFrequency: number, octaves: number}, filter: {Q: NumericAudioParam}, vibratoAmount: NumericAudioParam, dampening: number, resonance: number, attackNoise: number, pitchDecay: number, octaves: number}} ActiveSynthLike */
 /** @typedef {{activeSynth: ActiveSynthLike, currentWaveform: string, setSynth: (type: string) => void, updateEnvelope: () => void, postGain: {volume: NumericAudioParam}, distortion: {wet: NumericAudioParam}, filter: {frequency: NumericAudioParam, Q: NumericAudioParam}, chorus: {wet: NumericAudioParam}, autoPanner: {wet: NumericAudioParam}, delay: {wet: NumericAudioParam}, reverb: {wet: NumericAudioParam}, createOfflineChain: (context: unknown, settings: unknown) => {offlineSynth: {triggerAttackRelease: (note: string, duration: number, time: number) => void}}}} AudioEngineLike */
-/** @typedef {{update: (settings: object) => object|null, getPattern: () => {start: () => void, stop: () => void}|null, dispose: () => void}} PatternControllerLike */
+/** @typedef {{update: (settings: object) => object|null, getPattern: () => {start: () => void, stop: () => void}|null, getTimeline?: () => CompiledTimeline|null, dispose: () => void}} PatternControllerLike */
 /** @typedef {{isRecording: boolean, toggleRecording: () => Promise<void>, exportRealtime: () => Promise<void>, exportOffline: () => Promise<void>, initRecorder: () => Promise<void>}} RecorderManagerLike */
 /** @typedef {{currentMode: string, toggle: () => void, startUiLoop: () => void, stopUiLoop: () => void, onManualNoteAttack: () => void, onManualNoteRelease: () => void, updateStaticLoopMap: (buffer: unknown, markers: unknown) => void}} VisualizerLike */
 
@@ -250,6 +251,7 @@ function initializeApp() {
         reverbMixSlider,
         reverbMixValue,
         randomizeNotesButton,
+        reshufflePatternButton,
         noteStepIndicator,
         recordButton,
         recordStatus,
@@ -378,6 +380,9 @@ function initializeApp() {
             interval: intervalSelect.value,
             gate: parseFloat(gateSlider.value),
             direction: patternControlsController.getSelectedPatternDirection(),
+            randomSeed: appState.randomSeed,
+            bpm: parseFloat(bpmSlider.value),
+            swing: parseFloat(swingSlider.value),
             quantize: {
                 enabled: scaleQuantizeToggle.checked,
                 root: scaleRootSelect.value,
@@ -408,6 +413,7 @@ function initializeApp() {
             octaveRangeButtons,
             patternButtons,
             randomizeNotesButton,
+            reshufflePatternButton,
             chordButtons,
         },
         normalizeNotes: normalizeNotesSequence,
@@ -423,6 +429,15 @@ function initializeApp() {
         onPatternChange: createOrUpdatePattern,
         onEstimatedDurationChange: () => updateEstimatedExportDuration(),
         onStaticLoopChange: requestStaticLoopRender,
+        onReshuffle: () => {
+            const seed = new Uint32Array(1);
+            if (typeof globalThis.crypto?.getRandomValues === "function") {
+                globalThis.crypto.getRandomValues(seed);
+            } else seed[0] = Math.floor(Math.random() * 0x100000000);
+            applySettingsWithHistory({ ...getAllSettings(), randomSeed: seed[0] });
+            requestStaticLoopRender();
+            showToast("Generated a new random pattern sequence.", "success");
+        },
         onNotesSelected: (notes) => {
             notesInput.value = notes.join(" ");
             notesInput.dispatchEvent(new Event("input", { bubbles: true }));
@@ -1264,10 +1279,12 @@ function initializeApp() {
         onStop: stopPlayback,
         onBpmChange: (value) => {
             if (getAudioEngine()) Tone.getTransport().bpm.value = value;
+            createOrUpdatePattern();
             updateEstimatedExportDuration();
         },
-        onSwingChange: (value) => {
-            if (getAudioEngine()) Tone.getTransport().swing = value;
+        onSwingChange: (_value) => {
+            if (getAudioEngine()) Tone.getTransport().swing = 0;
+            createOrUpdatePattern();
         },
         debounce,
     });
@@ -1445,6 +1462,7 @@ function initializeApp() {
         getTone: () => Tone,
         getAudioEngine,
         getSettings: () => getAllSettings(),
+        getTimeline: () => getPatternController()?.getTimeline?.() ?? null,
         updateStaticLoopMap: (buffer, markers) =>
             getVisualizer()?.updateStaticLoopMap(buffer, markers),
         logger: console,
@@ -1464,11 +1482,7 @@ function initializeApp() {
             visualizerModeSelect,
         },
         getSettings: () => getAllSettings(),
-        getCurrentNotes: () => ({
-            notes: appState.currentNotes,
-            octaveRange: appState.currentOctaveRange,
-            octaveShift: appState.currentOctaveShift,
-        }),
+        getTimeline: () => getPatternController()?.getTimeline?.() ?? null,
         getRecorderManager,
         getVisualizer,
         startAudio,

@@ -12,10 +12,12 @@ import {
     CHROMATIC_PITCHES,
     CHROMATIC_RANGE,
     calculateNoteMarkers,
+    createPatternSequenceCursor,
     getArpeggioNotes,
     materializePatternSequence,
     quantizeToScale,
 } from "@core/pattern-core.js";
+import { compileTimeline, getTimelineStartTick, ticksToSeconds } from "@core/timeline.js";
 import * as Tone from "tone";
 
 // Re-export pure domain helpers for backwards compatibility
@@ -39,14 +41,17 @@ export {
  * @property {number} gate
  * @property {string} direction
  * @property {{enabled: boolean, root: string, scale: string}} quantize
+ * @property {number} [bpm]
+ * @property {number} [swing]
+ * @property {number} [randomSeed]
  */
 
 /**
- * Builds and owns the active Tone.Pattern. Every application dependency is
+ * Builds and owns the active timeline-backed Tone.Pattern. Every application dependency is
  * injected, keeping this scheduler independent of DOM and window globals.
  *
- * @param {{getSynth: () => unknown, getIsPlaying: () => boolean, onPatternChange?: (pattern: Tone.Pattern<string>|null) => void, onStep?: (index: number) => void, logger?: Pick<Console, "error">}} context - Runtime callbacks.
- * @returns {{update: (settings: PatternSettings) => Tone.Pattern<string>|null, getPattern: () => Tone.Pattern<string>|null, dispose: () => void}} Pattern controller API.
+ * @param {{getSynth: () => unknown, getIsPlaying: () => boolean, onPatternChange?: (pattern: object|null) => void, onStep?: (index: number) => void, logger?: Pick<Console, "error">}} context - Runtime callbacks.
+ * @returns {{update: (settings: PatternSettings) => object|null, getPattern: () => object|null, getTimeline: () => import("@core/timeline.js").CompiledTimeline|null, dispose: () => void}} Pattern controller API.
  */
 export function createPatternController({
     getSynth,
@@ -57,8 +62,8 @@ export function createPatternController({
 }) {
     /** @type {Tone.Pattern<string>|null} */
     let pattern = null;
-    /** @type {number[]} */
-    let stepToBaseIndexMap = [];
+    /** @type {import("@core/timeline.js").CompiledTimeline|null} */
+    let currentTimeline = null;
 
     function dispose() {
         if (pattern) {
@@ -67,56 +72,93 @@ export function createPatternController({
             } catch {}
         }
         pattern = null;
+        currentTimeline = null;
         onPatternChange(null);
     }
 
     /**
      * @param {PatternSettings} settings - Materialized settings snapshot.
-     * @returns {Tone.Pattern<string>|null} The new pattern, or null for no notes.
+     * @returns {object|null} The new timeline-backed pattern, or null for no notes.
      */
     function update(settings) {
         try {
-            const {
-                finalNotes,
-                stepToBaseIndexMap: computedMap,
-                finalDirection,
-            } = buildPatternSequence(settings.baseNotes, {
+            const timeline = compileTimeline(
+                {
+                    baseNotes: settings.baseNotes,
+                    direction: settings.direction,
+                    octaveRange: settings.octaveRange,
+                    octaveShift: settings.octaveShift,
+                    quantize: settings.quantize,
+                    interval: settings.interval,
+                    gateRatio: settings.gate,
+                    bpm: settings.bpm,
+                    swing: settings.swing,
+                    randomSeed: settings.randomSeed,
+                },
+                { cycles: 1 },
+            );
+
+            dispose();
+            if (timeline.events.length === 0) return null;
+            currentTimeline = timeline;
+
+            let occurrenceIndex = 0;
+            let activeCycleIndex = -1;
+            let activeSequence = { notes: timeline.resolvedNotes, map: timeline.sourceNoteMap };
+            const liveCursor = createPatternSequenceCursor(settings.baseNotes, {
                 direction: settings.direction,
                 octaveRange: settings.octaveRange,
                 octaveShift: settings.octaveShift,
                 quantize: settings.quantize,
+                randomSeed: timeline.randomSeed,
             });
-
-            dispose();
-            stepToBaseIndexMap = computedMap;
-            if (finalNotes.length === 0) return null;
-
-            /** @type {string|number} */
-            let patternInterval = settings.interval;
-            let durationSeconds = 0.1;
-            try {
-                durationSeconds = Tone.Time(patternInterval).toSeconds() * settings.gate;
-            } catch {
-                patternInterval = 0.1;
-                durationSeconds = 0.1 * settings.gate;
-            }
-
             const patternInstance = new Tone.Pattern(
-                (time, note) => {
+                (time) => {
+                    const stepIndex =
+                        typeof patternInstance.index === "number"
+                            ? patternInstance.index % timeline.stepsPerCycle
+                            : occurrenceIndex % timeline.stepsPerCycle;
+                    const cycleIndex = Math.floor(occurrenceIndex / timeline.stepsPerCycle);
+                    if (cycleIndex !== activeCycleIndex) {
+                        activeSequence = liveCursor.nextCycle();
+                        activeCycleIndex = cycleIndex;
+                    }
+                    const note = activeSequence.notes[stepIndex] ?? activeSequence.notes[0];
+                    const sourceNoteIndex = activeSequence.map[stepIndex] ?? 0;
+                    const swungStartTick = getTimelineStartTick(
+                        occurrenceIndex,
+                        timeline.stepDurationTicks,
+                        timeline.swing,
+                    );
+                    const rawStartTick = occurrenceIndex * timeline.stepDurationTicks;
+                    const nextStartTick = getTimelineStartTick(
+                        occurrenceIndex + 1,
+                        timeline.stepDurationTicks,
+                        timeline.swing,
+                    );
+                    const durationTicks = Math.min(
+                        timeline.events[0].nominalDurationTicks,
+                        Math.max(1, nextStartTick - swungStartTick),
+                    );
+                    const swingOffsetTicks = swungStartTick - rawStartTick;
+                    occurrenceIndex += 1;
+                    const scheduledTime = time + ticksToSeconds(swingOffsetTicks, timeline.bpm);
                     const synth = getSynth();
-                    if (isTriggerableSynth(synth)) {
-                        triggerSynth(synth, note, time, durationSeconds);
+                    if (note && isTriggerableSynth(synth)) {
+                        triggerSynth(
+                            synth,
+                            note,
+                            scheduledTime,
+                            ticksToSeconds(durationTicks, timeline.bpm),
+                        );
                     }
 
-                    const patternIndex = patternInstance.index;
-                    const pipIndex = stepToBaseIndexMap[patternIndex] ?? 0;
-                    Tone.Draw.schedule(() => onStep(pipIndex), time);
+                    Tone.Draw.schedule(() => onStep(sourceNoteIndex), scheduledTime);
                 },
-                finalNotes,
-                finalDirection,
+                timeline.resolvedNotes,
+                "up",
             );
-
-            patternInstance.interval = patternInterval;
+            patternInstance.interval = timeline.interval;
             pattern = patternInstance;
             onPatternChange(pattern);
             if (getIsPlaying()) pattern.start(0);
@@ -127,7 +169,12 @@ export function createPatternController({
         }
     }
 
-    return { update, getPattern: () => pattern, dispose };
+    return {
+        update,
+        getPattern: () => pattern,
+        getTimeline: () => currentTimeline,
+        dispose,
+    };
 }
 
 /**

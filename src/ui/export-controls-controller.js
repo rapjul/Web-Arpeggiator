@@ -10,21 +10,22 @@ import {
     normalizeOfflineExportTailSeconds,
 } from "@core/export-duration.js";
 import { exportMidiFile } from "@core/midi-export.js";
-import { materializePatternSequence } from "@core/pattern-core.js";
+import { compileTimeline } from "@core/timeline.js";
 
 /** @typedef {import("@core/settings-contract.js").ArpeggiatorSettings} ArpeggiatorSettings */
+/** @typedef {import("@core/timeline.js").CompiledTimeline} CompiledTimeline */
 
 /**
  * Creates the export controls controller.
  *
- * @param {{dom: {loopCountInput: HTMLInputElement, offlineExportModeInputs: NodeListOf<HTMLInputElement>, offlineExportTailControl: HTMLElement|null, offlineExportTailSecondsInput: HTMLInputElement|null, offlineExportDuration: HTMLElement|null, recordButton: HTMLElement, exportButton: HTMLElement, offlineExportButton: HTMLElement, offlineExportMidiButton: HTMLElement|null, toggleVisualizerButton: HTMLElement, visualizerModeSelect: HTMLSelectElement|null}, getSettings: () => ArpeggiatorSettings, getCurrentNotes: () => {notes: string[], octaveRange: number, octaveShift: number}, getRecorderManager: () => {toggleRecording: () => Promise<void>, exportRealtime: () => Promise<void>, exportOffline: () => Promise<void>}|undefined, getVisualizer: () => {currentMode: string, toggle: () => void}|undefined, startAudio: () => Promise<void>, generateFilename: (isRealtime: boolean) => string, showToast: (message: string, type?: string) => void, renderStaticLoop: () => Promise<void>, debounce: (callback: () => void, wait: number) => () => void, logger?: {error?: (...args: unknown[]) => void, warn?: (...args: unknown[]) => void}}} dependencies - Injected export behavior.
+ * @param {{dom: {loopCountInput: HTMLInputElement, offlineExportModeInputs: NodeListOf<HTMLInputElement>, offlineExportTailControl: HTMLElement|null, offlineExportTailSecondsInput: HTMLInputElement|null, offlineExportDuration: HTMLElement|null, recordButton: HTMLElement, exportButton: HTMLElement, offlineExportButton: HTMLElement, offlineExportMidiButton: HTMLElement|null, toggleVisualizerButton: HTMLElement, visualizerModeSelect: HTMLSelectElement|null}, getSettings: () => ArpeggiatorSettings, getTimeline?: () => CompiledTimeline|null, getRecorderManager: () => {toggleRecording: () => Promise<void>, exportRealtime: () => Promise<void>, exportOffline: () => Promise<void>}|undefined, getVisualizer: () => {currentMode: string, toggle: () => void}|undefined, startAudio: () => Promise<void>, generateFilename: (isRealtime: boolean) => string, showToast: (message: string, type?: string) => void, renderStaticLoop: () => Promise<void>, debounce: (callback: () => void, wait: number) => () => void, logger?: {error?: (...args: unknown[]) => void, warn?: (...args: unknown[]) => void}}} dependencies - Injected export behavior.
  * @returns {{initialize: () => void, destroy: () => void, updateEstimatedExportDuration: () => void, updateOfflineExportModeUi: () => void, requestStaticLoopRender: () => void}} Export controls API.
  */
 export function createExportControlsController(dependencies) {
     const {
         dom,
         getSettings,
-        getCurrentNotes,
+        getTimeline,
         getRecorderManager,
         getVisualizer,
         startAudio,
@@ -70,22 +71,10 @@ export function createExportControlsController(dependencies) {
     function updateEstimatedExportDuration() {
         if (!offlineExportDuration) return;
         const settings = getSettings();
-        const { notes: patternNotes } = materializePatternSequence(
-            settings.baseNotes || settings.notes,
-            {
-                direction: settings.direction,
-                octaveRange: settings.octaveRange,
-                octaveShift: settings.octaveShift,
-                quantize: {
-                    enabled: settings.scaleQuantize,
-                    root: settings.scaleRoot,
-                    scale: settings.scaleType,
-                },
-            },
-        );
+        const timeline = getTimeline?.() ?? compileTimeline(settings, { cycles: 1 });
         offlineExportDuration.textContent = formatEstimatedExportDuration({
             loopCount: settings.loopCount,
-            stepsPerLoop: patternNotes.length,
+            stepsPerLoop: timeline.stepsPerCycle,
             interval: settings.interval,
             bpm: settings.bpm,
             exportMode: settings.offlineExportMode,
@@ -115,27 +104,8 @@ export function createExportControlsController(dependencies) {
     function handleMidiExport() {
         try {
             const settings = getSettings();
-            const currentNotes = getCurrentNotes();
-            const sequenceResult = materializePatternSequence(currentNotes.notes, {
-                direction: settings.direction,
-                octaveRange: currentNotes.octaveRange,
-                octaveShift: currentNotes.octaveShift,
-                quantize: {
-                    enabled: settings.scaleQuantize,
-                    root: settings.scaleRoot,
-                    scale: settings.scaleType,
-                },
-            });
-            exportMidiFile(
-                {
-                    notes: sequenceResult.notes,
-                    bpm: settings.bpm,
-                    interval: settings.interval,
-                    gateRatio: settings.gateRatio,
-                    loopCount: settings.loopCount,
-                },
-                `${generateFilename(false)}.mid`,
-            );
+            const timeline = compileTimeline(settings, { cycles: settings.loopCount });
+            exportMidiFile({ timeline }, `${generateFilename(false)}.mid`);
             showToast("Exported MIDI pattern file!", "success");
         } catch (error) {
             logger.error?.("Failed to export MIDI pattern:", error);
