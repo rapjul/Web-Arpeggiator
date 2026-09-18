@@ -11,7 +11,7 @@ describe("PWA Asset Manifest & SVG Integrity", () => {
     const currentDir = path.dirname(fileURLToPath(import.meta.url));
     const root = path.resolve(currentDir, "../../public/images");
 
-    it("verifies all 12 pattern direction SVG files exist with unique IDs", () => {
+    it("verifies all 13 pattern direction SVG files exist with unique IDs", () => {
         const patternsDir = path.join(root, "patterns");
         expect(fs.existsSync(patternsDir)).toBe(true);
 
@@ -23,6 +23,7 @@ describe("PWA Asset Manifest & SVG Integrity", () => {
             "pattern-direction-upDownRepeated.svg",
             "pattern-direction-downUpRepeated.svg",
             "pattern-direction-random.svg",
+            "pattern-direction-randomCycle.svg",
             "pattern-direction-octaveCycle.svg",
             "pattern-direction-octaveCycleReversed.svg",
             "pattern-direction-octaveCyclePingPong.svg",

@@ -13,8 +13,10 @@ interface PatternControlsFixture {
     normalizeNotes: ReturnType<typeof vi.fn>;
     onEstimatedDurationChange: ReturnType<typeof vi.fn>;
     onPatternChange: ReturnType<typeof vi.fn>;
+    onReshuffle: ReturnType<typeof vi.fn>;
     onStaticLoopChange: ReturnType<typeof vi.fn>;
     patternButtons: HTMLDivElement;
+    reshufflePatternButton: HTMLButtonElement;
     octaveRangeButtons: HTMLDivElement;
     octaveShiftButtons: HTMLDivElement;
     scaleQuantizeToggle: HTMLInputElement;
@@ -50,9 +52,11 @@ function createFixture(): PatternControlsFixture {
     const scaleQuantizeToggleStatus = document.createElement("span");
     const patternButtons = document.createElement("div");
     patternButtons.innerHTML = [
-        '<label class="pattern-btn" data-pattern="up"><input type="radio" name="pattern-direction" value="up"></label>',
+        '<label class="pattern-btn" data-pattern="up"><input type="radio" name="pattern-direction" value="up" checked></label>',
         '<label class="pattern-btn" data-pattern="down"><input type="radio" name="pattern-direction" value="down"></label>',
+        '<label class="pattern-btn" data-pattern="random"><input type="radio" name="pattern-direction" value="random"></label>',
     ].join("");
+    const reshufflePatternButton = document.createElement("button");
     const octaveShiftButtons = document.createElement("div");
     octaveShiftButtons.innerHTML =
         '<button class="octave-btn" data-shift="-1">-1</button><label class="octave-btn"><input type="radio" data-shift="1" value="1"></label>';
@@ -71,6 +75,7 @@ function createFixture(): PatternControlsFixture {
         octaveShiftButtons,
         octaveRangeButtons,
         patternButtons,
+        reshufflePatternButton,
     );
 
     const queuedPatternChanges: Array<() => void> = [];
@@ -79,6 +84,7 @@ function createFixture(): PatternControlsFixture {
     const setOctaveShift = vi.fn();
     const setOctaveRange = vi.fn();
     const onPatternChange = vi.fn();
+    const onReshuffle = vi.fn();
     const onEstimatedDurationChange = vi.fn();
     const onStaticLoopChange = vi.fn();
     const debounce: PatternControlsDependencies["debounce"] = (callback) => () => {
@@ -98,6 +104,7 @@ function createFixture(): PatternControlsFixture {
             octaveRangeButtons,
             patternButtons,
             randomizeNotesButton: null,
+            reshufflePatternButton,
             chordButtons: document.querySelectorAll(".chord-btn"),
         },
         normalizeNotes,
@@ -105,6 +112,7 @@ function createFixture(): PatternControlsFixture {
         setOctaveShift,
         setOctaveRange,
         onPatternChange,
+        onReshuffle,
         onEstimatedDurationChange,
         onStaticLoopChange,
         debounce,
@@ -124,10 +132,12 @@ function createFixture(): PatternControlsFixture {
         normalizeNotes,
         onEstimatedDurationChange,
         onPatternChange,
+        onReshuffle,
         onStaticLoopChange,
         octaveRangeButtons,
         octaveShiftButtons,
         patternButtons,
+        reshufflePatternButton,
         scaleQuantizeToggle,
         scaleQuantizeToggleStatus,
         scaleRootSelect,
@@ -195,6 +205,19 @@ describe("pattern controls controller", () => {
         expect(onPatternChange).toHaveBeenCalledTimes(4);
         expect(scaleQuantizeToggleStatus.textContent).toBe("Enabled");
         expect(scaleRootSelect.disabled).toBe(false);
+    });
+
+    test("enables reshuffling only for stochastic directions", () => {
+        const { controller, onReshuffle, patternButtons, reshufflePatternButton } = createFixture();
+        controller.initialize();
+        expect(reshufflePatternButton.disabled).toBe(true);
+
+        const random = patternButtons.querySelector<HTMLInputElement>('input[value="random"]');
+        if (random) random.checked = true;
+        random?.dispatchEvent(new Event("change", { bubbles: true }));
+        expect(reshufflePatternButton.disabled).toBe(false);
+        reshufflePatternButton.click();
+        expect(onReshuffle).toHaveBeenCalledOnce();
     });
 
     test("updates octave controls and applies gate changes through the debounce boundary", () => {

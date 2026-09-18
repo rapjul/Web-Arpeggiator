@@ -309,6 +309,31 @@ describe("Recorder Manager Module", () => {
         expect(lastOfflineTransportStopAt).toBe(0.75);
     });
 
+    it("extends a zero-tail render far enough to preserve the final swung gate", async () => {
+        const manager = createRecorderManager({
+            audio: mockAudio,
+            dom: mockDom,
+            state: mockState,
+            actions: mockActions,
+        });
+        mockActions.getAllSettings = vi.fn(() => ({
+            bpm: 120,
+            swing: 1,
+            notes: ["C4", "E4", "G4"],
+            direction: "up",
+            interval: "16n",
+            gateRatio: 1,
+            loopCount: 1,
+            offlineExportMode: "tail",
+            offlineExportTailSeconds: 0,
+        }));
+
+        await manager.exportOffline();
+
+        expect(lastOfflineTransportStopAt).toBe(0.375);
+        expect(lastOfflineRenderDuration).toBeCloseTo((359 + 120) / 480 / 2);
+    });
+
     it("warms, crops, and exports seamless loops from one settings snapshot", async () => {
         const manager = createRecorderManager({
             audio: mockAudio,
@@ -350,7 +375,20 @@ describe("Recorder Manager Module", () => {
                 version: 1,
                 settings,
                 pattern: expect.objectContaining({
-                    scheduledNotes: ["C4", "E4", "G4"],
+                    scheduledNotes: [
+                        "C4",
+                        "E4",
+                        "G4",
+                        "C4",
+                        "E4",
+                        "G4",
+                        "C4",
+                        "E4",
+                        "G4",
+                        "C4",
+                        "E4",
+                        "G4",
+                    ],
                     stepsPerLoop: 3,
                 }),
                 export: expect.objectContaining({

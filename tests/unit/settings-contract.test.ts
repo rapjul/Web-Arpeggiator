@@ -16,6 +16,7 @@ describe("settings contract", () => {
             bpm: 120,
             baseNotes: ["C4", "E4", "G4"],
             direction: "up",
+            randomSeed: 0x6d2b79f5,
             interval: "16n",
             scaleQuantize: true,
             synthType: "synth",
@@ -217,6 +218,20 @@ describe("settings contract", () => {
             offlineExportMode: "tail",
             offlineExportTailSeconds: 10,
         });
+    });
+
+    test("accepts random cycles and normalizes unsigned random seeds", () => {
+        expect(
+            normalizeSettings({ direction: "randomCycle", randomSeed: 4294967295 }),
+        ).toMatchObject({
+            direction: "randomCycle",
+            randomSeed: 4294967295,
+        });
+        expect(normalizeSettings({ randomSeed: -1 }).randomSeed).toBe(0);
+        expect(normalizeSettings({ randomSeed: Number.NaN }).randomSeed).toBe(
+            DEFAULT_SETTINGS.randomSeed,
+        );
+        expect(normalizeSettings({}).randomSeed).toBe(DEFAULT_SETTINGS.randomSeed);
     });
 
     test("returns a detached default snapshot for a corrupted import", () => {
