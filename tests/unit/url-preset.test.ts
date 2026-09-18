@@ -12,6 +12,7 @@ describe("URL Preset Domain Module", () => {
     const defaultSettings = {
         bpm: 120,
         swing: 0,
+        randomSeed: 123456789,
         postGain: 0,
         baseNotes: ["C4", "E4", "G4"],
         direction: "up",
@@ -86,6 +87,7 @@ describe("URL Preset Domain Module", () => {
     test("serializes settings to URLSearchParams with formatted numeric fields", () => {
         const params = serializePresetToUrlParams(defaultSettings);
         expect(params.get("bpm")).toBe("120");
+        expect(params.get("seed")).toBe("123456789");
         expect(params.get("notes")).toBe("C4 E4 G4");
         expect(params.get("dir")).toBe("up");
         expect(params.get("int")).toBe("16n");
@@ -95,6 +97,16 @@ describe("URL Preset Domain Module", () => {
         expect(params.get("loop")).toBe("2");
         expect(params.get("export")).toBe("tail");
         expect(params.get("tail")).toBe("2.0");
+    });
+
+    test("round-trips and clamps reproducible random seeds", () => {
+        expect(parsePresetFromUrlParams("?seed=42", defaultSettings)?.randomSeed).toBe(42);
+        expect(parsePresetFromUrlParams("?seed=999999999999", defaultSettings)?.randomSeed).toBe(
+            4294967295,
+        );
+        expect(hasPresetChanges(defaultSettings, { ...defaultSettings, randomSeed: 42 })).toBe(
+            true,
+        );
     });
 
     test("parses and clamps URL search parameters correctly", () => {

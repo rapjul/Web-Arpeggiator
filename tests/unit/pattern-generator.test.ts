@@ -66,6 +66,7 @@ const baseSettings = () => ({
     interval: "16n",
     gate: 0.75,
     direction: "up",
+    randomSeed: 1234,
     quantize: { enabled: false, root: "C", scale: "major" },
 });
 
@@ -152,6 +153,30 @@ describe("Pattern controller", () => {
         );
     });
 
+    it("bounds every swung gate by the next actual attack", () => {
+        const synth = { triggerAttack: vi.fn(), triggerRelease: vi.fn() };
+        const controller = createPatternController({
+            getSynth: () => synth,
+            getIsPlaying: () => false,
+        });
+        const pattern = controller.update({
+            ...baseSettings(),
+            gate: 1,
+            swing: 1,
+        }) as unknown as MockPatternInstance;
+
+        for (let occurrence = 0; occurrence < 6; occurrence += 1) {
+            pattern.index = occurrence % 3;
+            pattern.callback(occurrence * 0.125, "ignored");
+        }
+
+        for (let occurrence = 0; occurrence < 5; occurrence += 1) {
+            const release = synth.triggerRelease.mock.calls[occurrence][0];
+            const nextAttack = synth.triggerAttack.mock.calls[occurrence + 1][1];
+            expect(release).toBeLessThanOrEqual(nextAttack);
+        }
+    });
+
     it("uses triggerAttackRelease and falls back to immediate scheduling after a scheduling error", () => {
         const synth = {
             triggerAttack: vi.fn((_note: string, time?: number) => {
@@ -212,6 +237,7 @@ describe("Pattern controller", () => {
             "upDownRepeat",
             "downUpRepeat",
             "random",
+            "randomCycle",
             "octaveCycle",
             "octaveCycleReverse",
             "octaveCyclePingPong",

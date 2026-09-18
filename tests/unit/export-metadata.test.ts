@@ -61,6 +61,8 @@ describe("Offline export metadata", () => {
             },
             pattern: {
                 scheduledNotes: ["C4", "G4", "E4"],
+                stepsPerCycle: 3,
+                cycleCount: 3,
                 stepsPerLoop: 3,
             },
             settings: {
@@ -98,6 +100,8 @@ describe("Offline export metadata", () => {
 
         expect(metadata.pattern).toEqual({
             scheduledNotes: [],
+            stepsPerCycle: 0,
+            cycleCount: 1,
             stepsPerLoop: 0,
         });
         expect(metadata.settings).toEqual({});

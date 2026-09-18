@@ -52,6 +52,28 @@ function readNoteEvents(bytes: Uint8Array) {
     return events;
 }
 
+function readTempo(bytes: Uint8Array) {
+    for (let index = 0; index < bytes.length - 5; index += 1) {
+        if (bytes[index] === 0xff && bytes[index + 1] === 0x51 && bytes[index + 2] === 0x03) {
+            return (bytes[index + 3] << 16) | (bytes[index + 4] << 8) | bytes[index + 5];
+        }
+    }
+    return 0;
+}
+
+function readSequencerMetadata(bytes: Uint8Array) {
+    for (let index = 0; index < bytes.length - 3; index += 1) {
+        if (bytes[index] !== 0xff || bytes[index + 1] !== 0x7f) continue;
+        const length = readVariableLengthQuantity(bytes, index + 2);
+        const payload = bytes.slice(length.nextIndex, length.nextIndex + length.value);
+        return JSON.parse(new TextDecoder().decode(payload)) as {
+            application: string;
+            randomSeed: number;
+        };
+    }
+    return null;
+}
+
 describe("MIDI Export Domain Module", () => {
     test("noteNameToMidiNumber accurately converts scientific pitch notation to standard MIDI numbers", () => {
         expect(noteNameToMidiNumber("C4")).toBe(60); // Middle C
@@ -243,6 +265,38 @@ describe("MIDI Export Domain Module", () => {
         expect(bytes60[tempoIdx60 + 3]).toBe(0x0f);
         expect(bytes60[tempoIdx60 + 4]).toBe(0x42);
         expect(bytes60[tempoIdx60 + 5]).toBe(0x40);
+    });
+
+    test("keeps direct and precompiled MIDI tempos inside the 40-240 BPM contract", () => {
+        expect(readTempo(createMidiFileBytes({ notes: ["C4"], bpm: 40 }))).toBe(1_500_000);
+        expect(readTempo(createMidiFileBytes({ notes: ["C4"], bpm: 240 }))).toBe(250_000);
+        for (const bpm of [1, 7, 0, Number.NaN, Number.POSITIVE_INFINITY]) {
+            expect(readTempo(createMidiFileBytes({ notes: ["C4"], bpm }))).toBe(
+                Number.isFinite(bpm) ? 1_500_000 : 500_000,
+            );
+        }
+
+        const timeline = compileTimeline({ baseNotes: ["C4"], bpm: 120 }, { cycles: 1 });
+        expect(readTempo(createMidiFileBytes({ timeline: { ...timeline, bpm: 1 } }))).toBe(
+            1_500_000,
+        );
+    });
+
+    test("embeds the normalized random seed as sequencer-specific metadata", () => {
+        expect(
+            readSequencerMetadata(
+                createMidiFileBytes({ notes: ["C4", "E4", "G4"], randomSeed: 42 }),
+            ),
+        ).toEqual({ application: "Web Arpeggiator", randomSeed: 42 });
+
+        const timeline = compileTimeline(
+            { baseNotes: ["C4"], randomSeed: 987654321 },
+            { cycles: 1 },
+        );
+        expect(readSequencerMetadata(createMidiFileBytes({ timeline }))).toEqual({
+            application: "Web Arpeggiator",
+            randomSeed: 987654321,
+        });
     });
 
     test("supports all interval subdivisions correctly", () => {

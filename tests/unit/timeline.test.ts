@@ -26,6 +26,60 @@ describe("musical timeline", () => {
         expect(getIntervalTicks("16n")).toBe(120);
         expect(getIntervalTicks("unsupported")).toBe(120);
         expect(ticksToSeconds(TICKS_PER_BEAT, 120)).toBe(0.5);
+        expect(ticksToSeconds(TICKS_PER_BEAT, 1)).toBe(1.5);
+    });
+
+    it("keeps swung gates behind the next actual attack across cycle boundaries", () => {
+        const timeline = compileTimeline(
+            { ...baseSettings(), swing: 1, gateRatio: 1 },
+            { cycles: 2 },
+        );
+        timeline.events.slice(0, -1).forEach((event, index) => {
+            expect(event.startTick + event.durationTicks).toBeLessThanOrEqual(
+                timeline.events[index + 1].startTick,
+            );
+        });
+        expect(
+            timeline.events.map(({ startTick, durationTicks }) => [startTick, durationTicks]),
+        ).toEqual([
+            [0, 120],
+            [233, 120],
+            [359, 114],
+            [473, 7],
+            [480, 120],
+            [713, 7],
+        ]);
+    });
+
+    it("preserves only the terminal gate when requested for an effects tail", () => {
+        const clipped = compileTimeline(
+            { ...baseSettings(), swing: 1, gateRatio: 1 },
+            { cycles: 1, terminalGatePolicy: "clip" },
+        );
+        const preserved = compileTimeline(
+            { ...baseSettings(), swing: 1, gateRatio: 1 },
+            { cycles: 1, terminalGatePolicy: "preserve" },
+        );
+        expect(clipped.events.at(-1)?.durationTicks).toBe(1);
+        expect(preserved.events.at(-1)?.durationTicks).toBe(120);
+    });
+
+    it("materializes seeded stochastic cycles instead of freezing the first cycle", () => {
+        const timeline = compileTimeline(
+            { ...baseSettings(), direction: "randomCycle", randomSeed: 1234 },
+            { cycles: 2 },
+        );
+        const first = timeline.scheduledNotes.slice(0, timeline.stepsPerCycle);
+        const second = timeline.scheduledNotes.slice(timeline.stepsPerCycle);
+        expect([...first].sort()).toEqual(["C4", "E4", "G4"]);
+        expect([...second].sort()).toEqual(["C4", "E4", "G4"]);
+        expect(second).not.toEqual(first);
+        expect(
+            compileTimeline(
+                { ...baseSettings(), direction: "randomCycle", randomSeed: 1234 },
+                { cycles: 2 },
+            ).scheduledNotes,
+        ).toEqual(timeline.scheduledNotes);
     });
 
     it("matches Tone's default 8th-note swing shape at integer ticks", () => {
