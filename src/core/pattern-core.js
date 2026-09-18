@@ -9,6 +9,7 @@
  */
 
 import * as Tonal from "tonal";
+import { createSeededRandom, DEFAULT_RANDOM_SEED } from "./random-seed.js";
 
 /**
  * Standard 12 chromatic pitch classes starting from C.
@@ -44,6 +45,18 @@ export const CHROMATIC_RANGE = Object.freeze(
         return range;
     })(),
 );
+
+export const STOCHASTIC_DIRECTIONS = Object.freeze([
+    "random",
+    "randomCycle",
+    "randomWalk",
+    "randomWalkDrunk",
+]);
+
+/** @param {unknown} direction */
+export function isStochasticDirection(direction) {
+    return typeof direction === "string" && STOCHASTIC_DIRECTIONS.includes(direction);
+}
 
 /**
  * Converts application scale identifiers to the names recognized by Tonal.
@@ -312,6 +325,21 @@ export function buildPatternSequence(baseNotes, options = {}) {
     let finalDirection = "up";
     let stepToBaseIndexMap = [];
 
+    if (isStochasticDirection(direction)) {
+        const sequence = createPatternSequenceCursor(baseNotes, {
+            direction,
+            octaveRange,
+            octaveShift,
+            quantize,
+            rng,
+        }).nextCycle();
+        return {
+            finalNotes: sequence.notes,
+            stepToBaseIndexMap: sequence.map,
+            finalDirection: "up",
+        };
+    }
+
     if (direction === "upDownRepeat") {
         const { notes, map } = buildPatternNotesAndMap(
             baseNotes,
@@ -458,10 +486,134 @@ export function buildPatternSequence(baseNotes, options = {}) {
 }
 
 /**
+ * Reflects an index at sequence boundaries instead of wrapping across octaves.
+ *
+ * @param {number} index - Candidate sequence index.
+ * @param {number} length - Number of entries in the sequence.
+ * @returns {number} A valid sequence index reflected inside the boundaries.
+ */
+function reflectIndex(index, length) {
+    if (length <= 1) return 0;
+    let reflected = index;
+    while (reflected < 0 || reflected >= length) {
+        if (reflected < 0) reflected = -reflected;
+        if (reflected >= length) reflected = 2 * (length - 1) - reflected;
+    }
+    return reflected;
+}
+
+/**
+ * @typedef {object} PatternSequenceCursorOptions
+ * @property {string} [direction="up"] - Pattern direction identifier.
+ * @property {number} [octaveRange=1] - Expanded octave count.
+ * @property {number} [octaveShift=0] - Octave transposition.
+ * @property {{enabled?: boolean, root?: string, scale?: string}} [quantize] - Quantization settings.
+ * @property {number} [randomSeed=DEFAULT_RANDOM_SEED] - Reproducible unsigned seed.
+ * @property {() => number} [rng] - Optional deterministic test seam.
+ */
+
+/** @typedef {{notes: string[], map: number[]}} PatternCycle */
+
+/**
+ * @typedef {object} PatternSequenceCursor
+ * @property {number} stepsPerCycle - Number of emitted steps in each cycle.
+ * @property {() => PatternCycle} nextCycle - Materializes the next stateful pattern cycle.
+ */
+
+/**
+ * Creates a deterministic cursor whose state may continue across pattern cycles.
+ *
+ * @param {readonly string[]} baseNotes - Authored note sequence.
+ * @param {PatternSequenceCursorOptions} [options={}] - Pattern expansion and randomization options.
+ * @returns {PatternSequenceCursor} Stateful cycle generator for the resolved note sequence.
+ */
+export function createPatternSequenceCursor(baseNotes, options = {}) {
+    const {
+        direction = "up",
+        octaveRange = 1,
+        octaveShift = 0,
+        quantize = { enabled: false, root: "C", scale: "major" },
+        randomSeed = DEFAULT_RANDOM_SEED,
+        rng: suppliedRng,
+    } = options;
+    const rng = typeof suppliedRng === "function" ? suppliedRng : createSeededRandom(randomSeed);
+    const expanded = buildPatternNotesAndMap(baseNotes, octaveRange, octaveShift, quantize);
+    const notes = expanded.notes;
+    const map = expanded.map;
+
+    if (notes.length === 0) {
+        return { stepsPerCycle: 0, nextCycle: () => ({ notes: [], map: [] }) };
+    }
+
+    if (!isStochasticDirection(direction)) {
+        const fixed = materializePatternSequence(baseNotes, {
+            direction,
+            octaveRange,
+            octaveShift,
+            quantize,
+            rng,
+        });
+        return {
+            stepsPerCycle: fixed.notes.length,
+            nextCycle: () => ({ notes: [...fixed.notes], map: [...fixed.map] }),
+        };
+    }
+
+    const stepsPerCycle = direction === "randomWalkDrunk" ? 16 : notes.length;
+    let walkIndex = Math.min(Math.floor(rng() * notes.length), notes.length - 1);
+
+    const advanceAdjacent = () => {
+        if (notes.length <= 1) return;
+        if (walkIndex === 0) walkIndex = 1;
+        else if (walkIndex === notes.length - 1) walkIndex -= 1;
+        else walkIndex += rng() >= 0.5 ? 1 : -1;
+    };
+
+    return {
+        stepsPerCycle,
+        nextCycle() {
+            if (direction === "randomCycle") {
+                const indexes = notes.map((_, index) => index);
+                for (let index = indexes.length - 1; index > 0; index -= 1) {
+                    const selected = Math.floor(rng() * (index + 1));
+                    [indexes[index], indexes[selected]] = [indexes[selected], indexes[index]];
+                }
+                return {
+                    notes: indexes.map((index) => notes[index]),
+                    map: indexes.map((index) => map[index]),
+                };
+            }
+
+            const cycleNotes = [];
+            const cycleMap = [];
+            for (let stepIndex = 0; stepIndex < stepsPerCycle; stepIndex += 1) {
+                if (direction === "random") {
+                    const index = Math.min(Math.floor(rng() * notes.length), notes.length - 1);
+                    cycleNotes.push(notes[index]);
+                    cycleMap.push(map[index]);
+                    continue;
+                }
+
+                cycleNotes.push(notes[walkIndex]);
+                cycleMap.push(map[walkIndex]);
+                if (direction === "randomWalkDrunk" && notes.length > 1 && rng() >= 0.8) {
+                    const magnitude = 2 + Math.floor(rng() * 2);
+                    const sign = rng() >= 0.5 ? 1 : -1;
+                    walkIndex = reflectIndex(walkIndex + sign * magnitude, notes.length);
+                } else {
+                    advanceAdjacent();
+                }
+            }
+            return { notes: cycleNotes, map: cycleMap };
+        },
+    };
+}
+
+/**
  * Materializes a finite sequence of notes and base index mappings according to the selected pattern direction.
  *
  * Unlike buildPatternSequence which defers standard directions ('down', 'upDown', 'downUp', 'random', 'randomWalk')
- * to Tone.Pattern traversal during playback, this function unrolls all 12 directions deterministically into a
+ * to Tone.Pattern traversal during playback, this function unrolls every supported direction deterministically into a
  * finite concrete sequence suitable for Standard MIDI export, offline renderers, and static timeline mapping.
  *
  * @param {readonly string[]} baseNotes - Input note strings.
@@ -471,6 +623,7 @@ export function buildPatternSequence(baseNotes, options = {}) {
  * @param {number} [options.octaveShift=0] - Octave shift (-3 to 3).
  * @param {{enabled?: boolean, root?: string, scale?: string}} [options.quantize] - Quantization options.
  * @param {() => number} [options.rng=Math.random] - Optional random number generator for deterministic unrolling.
+ * @param {number} [options.randomSeed=DEFAULT_RANDOM_SEED] - Seed used when no RNG is supplied.
  * @returns {{notes: string[], map: number[]}} Unrolled note sequence and base note index map.
  */
 export function materializePatternSequence(baseNotes, options = {}) {
@@ -479,7 +632,8 @@ export function materializePatternSequence(baseNotes, options = {}) {
         octaveRange = 1,
         octaveShift = 0,
         quantize = { enabled: false, root: "C", scale: "major" },
-        rng = Math.random,
+        rng,
+        randomSeed = DEFAULT_RANDOM_SEED,
     } = options;
 
     if (!baseNotes || baseNotes.length === 0) {
@@ -490,6 +644,17 @@ export function materializePatternSequence(baseNotes, options = {}) {
 
     if (notes.length === 0) {
         return { notes: [], map: [] };
+    }
+
+    if (isStochasticDirection(direction)) {
+        return createPatternSequenceCursor(baseNotes, {
+            direction,
+            octaveRange,
+            octaveShift,
+            quantize,
+            randomSeed,
+            rng,
+        }).nextCycle();
     }
 
     let finalNotes = [];

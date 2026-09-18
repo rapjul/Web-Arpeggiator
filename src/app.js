@@ -251,6 +251,7 @@ function initializeApp() {
         reverbMixSlider,
         reverbMixValue,
         randomizeNotesButton,
+        reshufflePatternButton,
         noteStepIndicator,
         recordButton,
         recordStatus,
@@ -379,6 +380,7 @@ function initializeApp() {
             interval: intervalSelect.value,
             gate: parseFloat(gateSlider.value),
             direction: patternControlsController.getSelectedPatternDirection(),
+            randomSeed: appState.randomSeed,
             bpm: parseFloat(bpmSlider.value),
             swing: parseFloat(swingSlider.value),
             quantize: {
@@ -411,6 +413,7 @@ function initializeApp() {
             octaveRangeButtons,
             patternButtons,
             randomizeNotesButton,
+            reshufflePatternButton,
             chordButtons,
         },
         normalizeNotes: normalizeNotesSequence,
@@ -426,6 +429,15 @@ function initializeApp() {
         onPatternChange: createOrUpdatePattern,
         onEstimatedDurationChange: () => updateEstimatedExportDuration(),
         onStaticLoopChange: requestStaticLoopRender,
+        onReshuffle: () => {
+            const seed = new Uint32Array(1);
+            if (typeof globalThis.crypto?.getRandomValues === "function") {
+                globalThis.crypto.getRandomValues(seed);
+            } else seed[0] = Math.floor(Math.random() * 0x100000000);
+            applySettingsWithHistory({ ...getAllSettings(), randomSeed: seed[0] });
+            requestStaticLoopRender();
+            showToast("Generated a new random pattern sequence.", "success");
+        },
         onNotesSelected: (notes) => {
             notesInput.value = notes.join(" ");
             notesInput.dispatchEvent(new Event("input", { bubbles: true }));

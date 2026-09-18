@@ -368,27 +368,7 @@ export function createRecorderManager(context) {
         const settings = actions.getAllSettings();
         const filename = actions.generateFilename(false, settings, "audio");
 
-        const baseTimeline =
-            actions.getTimeline?.() ??
-            compileTimeline(
-                {
-                    baseNotes: settings.baseNotes || settings.notes,
-                    direction: settings.direction,
-                    octaveRange: settings.octaveRange,
-                    octaveShift: settings.octaveShift,
-                    quantize: {
-                        enabled: settings.scaleQuantize,
-                        root: settings.scaleRoot,
-                        scale: settings.scaleType,
-                    },
-                    interval: settings.interval,
-                    gateRatio: settings.gateRatio,
-                    bpm: settings.bpm,
-                    swing: settings.swing,
-                },
-                { cycles: 1 },
-            );
-        const patternNotes = baseTimeline.resolvedNotes;
+        const baseTimeline = compileTimeline(settings, { cycles: 1 });
         const exportDuration = calculateOfflineExportDuration({
             loopCount: settings.loopCount,
             stepsPerLoop: baseTimeline.events.length,
@@ -428,38 +408,50 @@ export function createRecorderManager(context) {
                   sampleRate: offlineSampleRate,
               })
             : null;
-        const offlineRenderDuration = seamlessRenderWindow
+        let offlineRenderDuration = seamlessRenderWindow
             ? seamlessRenderWindow.offlineRenderDuration
             : exportDuration.renderDuration;
         const patternStopTime = isSeamlessExport
             ? exportDuration.preRollDuration + exportDuration.musicalDuration
             : exportDuration.musicalDuration;
-        const renderCycles = isSeamlessExport
-            ? exportDuration.preRollCycles + exportDuration.loopCount
-            : exportDuration.loopCount;
-        const timeline = compileTimeline(
-            {
-                baseNotes: settings.baseNotes || settings.notes,
-                direction: settings.direction,
-                octaveRange: settings.octaveRange,
-                octaveShift: settings.octaveShift,
-                quantize: {
-                    enabled: settings.scaleQuantize,
-                    root: settings.scaleRoot,
-                    scale: settings.scaleType,
-                },
-                interval: settings.interval,
-                gateRatio: settings.gateRatio,
-                bpm: settings.bpm,
-                swing: settings.swing,
-            },
-            {
-                cycles: renderCycles,
-                maxCycles: renderCycles,
-                resolvedNotes: baseTimeline.resolvedNotes,
-                sourceNoteMap: baseTimeline.sourceNoteMap,
-            },
-        );
+        const selectedTimeline = compileTimeline(settings, {
+            cycles: exportDuration.loopCount,
+            terminalGatePolicy: isSeamlessExport ? "clip" : "preserve",
+        });
+        if (!isSeamlessExport) {
+            const finalEvent = selectedTimeline.events.at(-1);
+            if (finalEvent) {
+                const terminalEndSeconds = ticksToSeconds(
+                    finalEvent.startTick + finalEvent.durationTicks,
+                    selectedTimeline.bpm,
+                );
+                offlineRenderDuration = Math.max(offlineRenderDuration, terminalEndSeconds);
+            }
+        }
+        const patternNotes = selectedTimeline.scheduledNotes;
+        let timeline = selectedTimeline;
+        if (isSeamlessExport && patternNotes.length > 0) {
+            const preRollSteps = exportDuration.preRollCycles * selectedTimeline.stepsPerCycle;
+            const totalSteps = preRollSteps + patternNotes.length;
+            const startIndex =
+                (patternNotes.length - (preRollSteps % patternNotes.length)) % patternNotes.length;
+            const renderedNotes = Array.from(
+                { length: totalSteps },
+                (_, index) => patternNotes[(startIndex + index) % patternNotes.length],
+            );
+            const selectedMap = selectedTimeline.events.map((event) => event.sourceNoteIndex);
+            const renderedMap = Array.from(
+                { length: totalSteps },
+                (_, index) => selectedMap[(startIndex + index) % selectedMap.length],
+            );
+            timeline = compileTimeline(settings, {
+                cycles: 1,
+                maxCycles: 1,
+                resolvedNotes: renderedNotes,
+                sourceNoteMap: renderedMap,
+                terminalGatePolicy: "clip",
+            });
+        }
 
         dom.offlineExportStatus.textContent = isSeamlessExport
             ? "Generating seamless WAV-ready audio... please wait."
@@ -526,7 +518,11 @@ export function createRecorderManager(context) {
             const exportMetadata = createOfflineExportMetadata({
                 settings,
                 patternNotes,
-                exportDuration,
+                stepsPerCycle: selectedTimeline.stepsPerCycle,
+                exportDuration: {
+                    ...exportDuration,
+                    renderDuration: offlineRenderDuration,
+                },
                 sampleRate: exportBuffer.sampleRate,
                 channelCount: exportBuffer.numberOfChannels,
                 frameCount: exportBuffer.length,

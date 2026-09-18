@@ -11,6 +11,8 @@ import {
     normalizeOfflineExportTailSeconds,
 } from "./export-duration.js";
 import { getArpeggioNotes, normalizeNotesSequence } from "./pattern-core.js";
+import { DEFAULT_RANDOM_SEED, normalizeRandomSeed } from "./random-seed.js";
+import { DEFAULT_BPM, MAX_BPM, MIN_BPM } from "./timing-constants.js";
 
 /** Canonical select-control values shared by settings and URL persistence. */
 export const ALLOWED_DIRECTIONS = Object.freeze([
@@ -21,6 +23,7 @@ export const ALLOWED_DIRECTIONS = Object.freeze([
     "upDownRepeat",
     "downUpRepeat",
     "random",
+    "randomCycle",
     "octaveCycle",
     "octaveCycleReverse",
     "octaveCyclePingPong",
@@ -69,7 +72,7 @@ export const ALLOWED_WAVEFORMS = Object.freeze(["sine", "square", "sawtooth", "t
 
 /** @type {Readonly<Record<string, readonly [number, number]>>} Numeric control bounds shared by every persistence boundary. */
 export const SETTINGS_BOUNDS = Object.freeze({
-    bpm: [40, 240],
+    bpm: [MIN_BPM, MAX_BPM],
     swing: [0, 1],
     postGain: [-40, 0],
     octaveShift: [-3, 3],
@@ -105,6 +108,7 @@ export const SETTINGS_BOUNDS = Object.freeze({
  *   bpm: number,
  *   settingsVersion: number,
  *   swing: number,
+ *   randomSeed: number,
  *   postGain: number,
  *   baseNotes: readonly string[],
  *   direction: string,
@@ -150,6 +154,7 @@ export const SETTINGS_BOUNDS = Object.freeze({
 
 /** Increment when a persisted settings migration is required. */
 export const SETTINGS_SCHEMA_VERSION = 1;
+export { DEFAULT_RANDOM_SEED, MAX_RANDOM_SEED } from "./random-seed.js";
 
 export class UnsupportedSettingsVersionError extends Error {
     /** @param {unknown} settingsVersion */
@@ -175,8 +180,9 @@ export class UnsupportedSettingsVersionError extends Error {
  */
 export const DEFAULT_SETTINGS = Object.freeze({
     settingsVersion: SETTINGS_SCHEMA_VERSION,
-    bpm: 120,
+    bpm: DEFAULT_BPM,
     swing: 0,
+    randomSeed: DEFAULT_RANDOM_SEED,
     postGain: -6,
     baseNotes: Object.freeze(["C4", "E4", "G4"]),
     direction: "up",
@@ -325,6 +331,7 @@ export function normalizeSettings(candidate, fallback = DEFAULT_SETTINGS, option
         settingsVersion: SETTINGS_SCHEMA_VERSION,
         bpm: normalizeNumber(source.bpm, fallback.bpm, ...SETTINGS_BOUNDS.bpm),
         swing: normalizeNumber(source.swing, fallback.swing, ...SETTINGS_BOUNDS.swing),
+        randomSeed: normalizeRandomSeed(source.randomSeed, fallback.randomSeed),
         postGain: normalizeNumber(source.postGain, fallback.postGain, ...SETTINGS_BOUNDS.postGain),
         baseNotes: normalizedNotes.length > 0 ? normalizedNotes : [...fallback.baseNotes],
         direction: normalizeAllowedValue(source.direction, ALLOWED_DIRECTIONS, fallback.direction),
