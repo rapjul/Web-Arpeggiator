@@ -1483,11 +1483,6 @@ function initializeApp() {
         },
         getSettings: () => getAllSettings(),
         getTimeline: () => getPatternController()?.getTimeline?.() ?? null,
-        getCurrentNotes: () => ({
-            notes: appState.currentNotes,
-            octaveRange: appState.currentOctaveRange,
-            octaveShift: appState.currentOctaveShift,
-        }),
         getRecorderManager,
         getVisualizer,
         startAudio,
