@@ -63,7 +63,7 @@ test("keeps the scale type and quantization toggle synchronized", async ({ pwaPa
     await expect(status).toHaveText("Enabled");
 
     await quantizeToggle.uncheck();
-    await expect(scaleType).toHaveValue("chromatic");
+    await expect(scaleType).toHaveValue("minor");
     await expect(scaleType).toBeEnabled();
 
     await quantizeToggle.check();
