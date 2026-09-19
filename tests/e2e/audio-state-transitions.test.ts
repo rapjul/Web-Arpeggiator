@@ -1,4 +1,4 @@
-import { captureDownload, expect, startAudio, test } from "./fixtures/app";
+import { captureDownload, expect, parsePcmWav, startAudio, test } from "./fixtures/app";
 
 async function startRecording(page: import("@playwright/test").Page): Promise<void> {
     await page.locator("#record-button").click();
@@ -64,7 +64,13 @@ test("exports a real-time WAV recording through the browser download API", async
     );
 
     expect(download.filename).toMatch(/\.wav$/);
-    expect([...download.bytes.slice(0, 4)]).toEqual([0x52, 0x49, 0x46, 0x46]);
+    const wav = parsePcmWav(download.bytes);
+    expect(wav.channels).toBeGreaterThanOrEqual(1);
+    expect(wav.sampleRate).toBeGreaterThanOrEqual(44_100);
+    expect(wav.durationSeconds).toBeGreaterThan(0.5);
+    expect(wav.firstAudibleFrame / wav.sampleRate).toBeLessThan(0.2);
+    expect(wav.peak).toBeGreaterThan(0.002);
+    expect(wav.rms).toBeGreaterThan(0.0001);
     await expect(page.locator("#realtime-record-status")).toHaveText("Export complete!");
 });
 
@@ -85,6 +91,22 @@ test("exports a real-time MP3 recording through the browser download API", async
     expect(download.bytes[0]).toBe(0xff);
     expect(download.bytes[1] & 0xe0).toBe(0xe0);
     await expect(page.locator("#realtime-record-status")).toHaveText("Export complete!");
+    const decoded = await page.evaluate(async (samples) => {
+        const context = new AudioContext();
+        try {
+            const buffer = await context.decodeAudioData(new Uint8Array(samples).buffer);
+            let peak = 0;
+            for (let channel = 0; channel < buffer.numberOfChannels; channel += 1) {
+                for (const sample of buffer.getChannelData(channel))
+                    peak = Math.max(peak, Math.abs(sample));
+            }
+            return { duration: buffer.duration, peak };
+        } finally {
+            await context.close();
+        }
+    }, Array.from(download.bytes));
+    expect(decoded.duration).toBeGreaterThan(0.5);
+    expect(decoded.peak).toBeGreaterThan(0.0001);
 });
 
 test("renders and downloads a one-cycle offline WAV export", async ({ pwaPage: page }) => {
