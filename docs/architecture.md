@@ -30,6 +30,8 @@ The root retains the integration callbacks needed to connect focused modules to 
 - `playback-controller.js` owns transport start/stop and suspended AudioContext recovery.
 - `static-loop-renderer.js` owns one-cycle offline rendering used by visualizer previews.
 
+Real-time recording has one awaited lifecycle: capture readiness completes before transport playback begins, cleanup preserves the primary failure, and runtime teardown awaits recorder resource release before disposing the engine. Raw takes are retained until replacement or teardown, while decoded PCM is retained only for failed-conversion retries. [ADR 0017](./adr/0017-awaited-recording-lifecycle-and-bounded-audio-resource-ownership.md) records this ownership contract.
+
 ### Shared Musical Timeline
 
 `src/core/timeline.js` is the timing boundary shared by every musical output. It materializes the selected pattern once, assigns each event an absolute integer tick position at 480 PPQ, applies the configured swing offset, bounds each gate before the next event, and preserves the authored-note/source-step mapping. [ADR 0015](./adr/0015-shared-480-ppq-musical-timeline-contract.md) records this cross-output timing contract.

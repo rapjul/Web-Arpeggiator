@@ -127,6 +127,8 @@ For detailed pattern descriptions, see [Pattern Directions Guide](./docs/pattern
 - Changes to parameters are captured in real-time
 - Use on HTTPS for best browser compatibility
 - Falls back to `Tone.Recorder` on HTTP or non-HTTPS contexts
+- Waits for the selected recorder backend to be ready before playback begins, preserving the first scheduled note
+- Keeps the raw take for repeat exports while releasing decoded conversion data after successful export; see [ADR 0017](./docs/adr/0017-awaited-recording-lifecycle-and-bounded-audio-resource-ownership.md)
 
 ### Offline Audio Export
 

@@ -8,9 +8,9 @@
  */
 
 /**
- * @typedef {{activeSynth: object|null, analyser: object, meter: object, peakAnalyser: object, reverb: object, synths: object, createOfflineChain: (...args: unknown[]) => object, currentWaveform: string, dispose: () => void}} RuntimeEngine
+ * @typedef {{activeSynth: object|null, analyser: object, meter: object, peakAnalyser: object, reverb: object, recordingOutput: object, synths: object, createOfflineChain: (...args: unknown[]) => object, currentWaveform: string, dispose: () => void}} RuntimeEngine
  * @typedef {{startUiLoop: () => void, stopUiLoop: () => void, destroy: () => void}} RuntimeVisualizer
- * @typedef {{isRecording: boolean, recordingStartTime: number}} RuntimeRecorder
+ * @typedef {{isRecording: boolean, recordingStartTime: number, destroy?: () => Promise<void>}} RuntimeRecorder
  * @typedef {{isPlaying: boolean, isAudioContextStarted: boolean, activeNote: string|null, currentWaveform: string}} AudioRuntimeState
  * @typedef {[object, {createAudioEngine: (...args: unknown[]) => RuntimeEngine}, {createPatternController: (...args: unknown[]) => object}, {createRecorderManager: (...args: unknown[]) => RuntimeRecorder}, {createVisualizer: (...args: unknown[]) => RuntimeVisualizer}]} AudioModules
  *
@@ -37,7 +37,7 @@
  * Creates a deferred audio runtime controller.
  *
  * @param {AudioRuntimeDependencies} dependencies - Injected runtime dependencies.
- * @returns {{loadAudioModules: () => Promise<void>, startAudio: () => Promise<void>, initializeAudioRuntime: () => Promise<void>, getTone: () => object|null, getAvailableAudioEngine: () => object|null|undefined, getAudioEngine: () => object|undefined, getPatternController: () => object|undefined, getRecorderManager: () => object|undefined, getVisualizer: () => object|undefined, destroy: () => void}}
+ * @returns {{loadAudioModules: () => Promise<void>, startAudio: () => Promise<void>, initializeAudioRuntime: () => Promise<void>, getTone: () => object|null, getAvailableAudioEngine: () => object|null|undefined, getAudioEngine: () => object|undefined, getPatternController: () => object|undefined, getRecorderManager: () => object|undefined, getVisualizer: () => object|undefined, destroy: () => Promise<void>}}
  */
 export function createAudioRuntimeController(dependencies) {
     const {
@@ -166,6 +166,7 @@ export function createAudioRuntimeController(dependencies) {
                     nextRecorderManager = createRecorderManager({
                         audio: {
                             reverb: nextAudioEngine.reverb,
+                            recordingOutput: nextAudioEngine.recordingOutput,
                             synths: nextAudioEngine.synths,
                             createOfflineChain: nextAudioEngine.createOfflineChain,
                         },
@@ -208,6 +209,14 @@ export function createAudioRuntimeController(dependencies) {
                     onContextReady?.();
                 } catch (error) {
                     nextVisualizer?.destroy();
+                    try {
+                        await nextRecorderManager?.destroy?.();
+                    } catch (cleanupError) {
+                        logger.warn?.(
+                            "Failed to dispose a partial recorder runtime:",
+                            cleanupError,
+                        );
+                    }
                     nextAudioEngine?.dispose();
                     try {
                         nextPatternController?.dispose();
@@ -293,9 +302,14 @@ export function createAudioRuntimeController(dependencies) {
         return visualizer;
     }
 
-    /** @returns {void} Releases partially or fully built runtime resources. */
-    function destroy() {
+    /** @returns {Promise<void>} Releases partially or fully built runtime resources. */
+    async function destroy() {
         visualizer?.destroy();
+        try {
+            await recorderManager?.destroy?.();
+        } catch (error) {
+            logger.warn?.("Failed to dispose recorder runtime:", error);
+        }
         audioEngine?.dispose();
         patternController?.dispose();
         audioEngine = undefined;

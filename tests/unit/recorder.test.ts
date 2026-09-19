@@ -9,6 +9,11 @@ let lastOfflineRenderDuration = 0;
 let lastOfflineTransportStopAt: number | null = null;
 let lastSeamlessStartFrame = 0;
 let lastSeamlessFrameCount = 0;
+let recorderLifecycle: string[] = [];
+let recorderStartPromise: Promise<void> | null = null;
+let recorderStartError: Error | null = null;
+let recorderStopError: Error | null = null;
+const recorderDispose = vi.fn();
 
 vi.mock("@core/audio-utils.js", () => ({
     audioBufferToMp3Blob: vi.fn(async () => new Blob(["MP3"], { type: "audio/mp3" })),
@@ -55,14 +60,21 @@ vi.mock("tone", async () => {
             connect() {
                 return this;
             }
-            start() {
+            async start() {
+                if (recorderStartPromise) await recorderStartPromise;
+                if (recorderStartError) throw recorderStartError;
                 this.state = "started";
+                recorderLifecycle.push("recording-start");
             }
             async stop() {
+                if (recorderStopError) throw recorderStopError;
                 this.state = "stopped";
+                recorderLifecycle.push("recording-stop");
                 return new Blob([new Uint8Array(2000)], { type: "audio/wav" });
             }
-            dispose() {}
+            dispose() {
+                recorderDispose();
+            }
         },
         getContext: () => mockContext,
         now: () => 1.0,
@@ -121,6 +133,10 @@ describe("Recorder Manager Module", () => {
         lastOfflineTransportStopAt = null;
         lastSeamlessStartFrame = 0;
         lastSeamlessFrameCount = 0;
+        recorderLifecycle = [];
+        recorderStartPromise = null;
+        recorderStartError = null;
+        recorderStopError = null;
         vi.clearAllMocks();
         const createEl = (tag = "div") => document.createElement(tag);
         mockDom = {
@@ -145,6 +161,9 @@ describe("Recorder Manager Module", () => {
             reverb: {
                 connect: vi.fn(),
             } as unknown as RecorderAudio["reverb"],
+            recordingOutput: {
+                connect: vi.fn(),
+            } as unknown as RecorderAudio["recordingOutput"],
             synths: {} as unknown as RecorderAudio["synths"],
             createOfflineChain: vi.fn(() => ({
                 offlineSynth: {
@@ -177,7 +196,9 @@ describe("Recorder Manager Module", () => {
             generateFilename: vi.fn((prefix: string) => `arp-${prefix}`),
             formatTime: vi.fn((sec: number) => `${sec}s`),
             startAudio: vi.fn(),
-            startPlayback: vi.fn(),
+            startPlayback: vi.fn(async () => {
+                recorderLifecycle.push("playback-start");
+            }),
         };
     });
 
@@ -194,7 +215,7 @@ describe("Recorder Manager Module", () => {
         });
 
         await manager.initRecorder();
-        expect(mockAudio.reverb.connect).toHaveBeenCalled();
+        expect(mockAudio.recordingOutput.connect).toHaveBeenCalled();
         expect(mockDom.recordStatus.textContent).toContain("Ready to record");
     });
 
@@ -238,6 +259,7 @@ describe("Recorder Manager Module", () => {
         expect(audioBufferToWav).toHaveBeenCalledWith(
             expect.objectContaining({ sampleRate: 44100 }),
         );
+        expect(mockContext.decodeAudioData).toHaveBeenCalledTimes(1);
         expect(mockActions.showToast).toHaveBeenCalledWith("Exported MP3 file!", "success");
     });
 
@@ -610,6 +632,7 @@ describe("Recorder Manager Module", () => {
         vi.spyOn(Tone.getContext(), "decodeAudioData").mockRejectedValueOnce(
             new Error("Decode failed"),
         );
+        manager.setRecorderBlob(testBlob);
         await manager.exportRealtime();
         expect(mockActions.showToast).toHaveBeenCalledWith("MP3 encoding failed.", "error");
     });
@@ -628,12 +651,128 @@ describe("Recorder Manager Module", () => {
         await manager.toggleRecording();
         expect(mockActions.startAudio).toHaveBeenCalled();
         expect(mockActions.startPlayback).toHaveBeenCalled();
+        expect(recorderLifecycle.slice(0, 2)).toEqual(["recording-start", "playback-start"]);
         expect(manager.isRecording).toBe(true);
 
         // Stop recording
         await manager.toggleRecording();
         expect(manager.isRecording).toBe(false);
         expect(manager.recordingStartTime).toBeDefined();
+    });
+
+    it("waits for capture readiness before starting playback", async () => {
+        let resolveStart: (() => void) | undefined;
+        recorderStartPromise = new Promise((resolve) => {
+            resolveStart = resolve;
+        });
+        const manager = createRecorderManager({
+            audio: mockAudio,
+            dom: mockDom,
+            state: mockState,
+            actions: mockActions,
+        });
+
+        const startRecording = manager.toggleRecording();
+        await Promise.resolve();
+        expect(mockActions.startPlayback).not.toHaveBeenCalled();
+
+        resolveStart?.();
+        await startRecording;
+        expect(recorderLifecycle.slice(0, 2)).toEqual(["recording-start", "playback-start"]);
+        expect(mockDom.recordButton.disabled).toBe(false);
+    });
+
+    it("restores the idle UI when recorder startup fails", async () => {
+        recorderStartError = new Error("recorder failed");
+        const manager = createRecorderManager({
+            audio: mockAudio,
+            dom: mockDom,
+            state: mockState,
+            actions: mockActions,
+        });
+
+        await expect(manager.toggleRecording()).rejects.toThrow("recorder failed");
+        expect(manager.isRecording).toBe(false);
+        expect(mockActions.startPlayback).not.toHaveBeenCalled();
+        expect(mockDom.recordButton.textContent).toBe("Record");
+        expect(mockActions.showToast).toHaveBeenCalledWith("Recording failed to start.", "error");
+    });
+
+    it("preserves the playback failure when recorder cleanup also fails", async () => {
+        const playbackError = new Error("playback failed");
+        recorderStopError = new Error("stop failed");
+        mockActions.startPlayback = vi.fn(async () => {
+            throw playbackError;
+        });
+        const manager = createRecorderManager({
+            audio: mockAudio,
+            dom: mockDom,
+            state: mockState,
+            actions: mockActions,
+        });
+
+        await expect(manager.toggleRecording()).rejects.toBe(playbackError);
+        expect(manager.isRecording).toBe(false);
+        expect(mockDom.recordButton.textContent).toBe("Record");
+    });
+
+    it("releases decoded PCM after a successful export and retains it for retry", async () => {
+        const manager = createRecorderManager({
+            audio: mockAudio,
+            dom: mockDom,
+            state: mockState,
+            actions: mockActions,
+        });
+        const testBlob = new Blob([new Uint8Array(2048)], { type: "audio/wav" });
+        manager.setRecorderBlob(testBlob);
+        mockDom.realtimeExportWavCheck.checked = false;
+        mockDom.realtimeExportMp3Check.checked = true;
+        vi.mocked(audioBufferToMp3Blob).mockRejectedValueOnce(new Error("encode failed"));
+
+        await manager.exportRealtime();
+        await manager.exportRealtime();
+        expect(mockContext.decodeAudioData).toHaveBeenCalledTimes(1);
+
+        await manager.exportRealtime();
+        expect(mockContext.decodeAudioData).toHaveBeenCalledTimes(2);
+    });
+
+    it("disposes recorder resources and clears retained recordings", async () => {
+        const manager = createRecorderManager({
+            audio: mockAudio,
+            dom: mockDom,
+            state: mockState,
+            actions: mockActions,
+        });
+        await manager.initRecorder();
+        manager.setRecorderBlob(new Blob([new Uint8Array(2048)], { type: "audio/wav" }));
+
+        await manager.destroy();
+        await manager.exportRealtime();
+
+        expect(recorderDispose).toHaveBeenCalledOnce();
+        expect(mockActions.showToast).toHaveBeenCalledWith("No recording found.", "error");
+    });
+
+    it("preserves a Tone recording when playback startup fails", async () => {
+        mockActions.startPlayback = vi.fn(async () => {
+            throw new Error("playback failed");
+        });
+        const manager = createRecorderManager({
+            audio: mockAudio,
+            dom: mockDom,
+            state: mockState,
+            actions: mockActions,
+        });
+
+        await expect(manager.toggleRecording()).rejects.toThrow("playback failed");
+        expect(manager.isRecording).toBe(false);
+
+        mockDom.realtimeExportWavCheck.checked = true;
+        await manager.exportRealtime();
+
+        expect(audioBufferToWav).toHaveBeenCalled();
+        expect(mockDom.recordStatus.textContent).toContain("Export complete");
     });
 
     it("handles short audio buffers in offline export", async () => {

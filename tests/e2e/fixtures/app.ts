@@ -1,4 +1,4 @@
-import { expect, test as base, type Download, type Page } from "@playwright/test";
+import { test as base, type Download, expect, type Page } from "@playwright/test";
 
 const DATABASE_NAME = "web-arpeggiator-presets";
 const STORES_TO_RESET = ["presetSnapshots", "lastSession"];
@@ -11,6 +11,71 @@ export type DownloadedFile = {
     filename: string;
     bytes: Uint8Array;
 };
+
+export type ParsedWav = {
+    channels: number;
+    durationSeconds: number;
+    firstAudibleFrame: number;
+    peak: number;
+    rms: number;
+    sampleRate: number;
+};
+
+/** Parses the PCM payload needed to validate browser-recorded WAV artifacts. */
+export function parsePcmWav(bytes: Uint8Array): ParsedWav {
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    const ascii = (offset: number) => String.fromCharCode(...bytes.slice(offset, offset + 4));
+    if (ascii(0) !== "RIFF" || ascii(8) !== "WAVE") throw new Error("Expected RIFF/WAVE file.");
+
+    let channels = 0;
+    let sampleRate = 0;
+    let bitsPerSample = 0;
+    let dataOffset = 0;
+    let dataLength = 0;
+    for (let offset = 12; offset + 8 <= bytes.length; ) {
+        const id = ascii(offset);
+        const length = view.getUint32(offset + 4, true);
+        const payloadOffset = offset + 8;
+        if (payloadOffset + length > bytes.length) throw new Error("Truncated WAV chunk.");
+        if (id === "fmt ") {
+            if (view.getUint16(payloadOffset, true) !== 1) throw new Error("Expected PCM WAV.");
+            channels = view.getUint16(payloadOffset + 2, true);
+            sampleRate = view.getUint32(payloadOffset + 4, true);
+            bitsPerSample = view.getUint16(payloadOffset + 14, true);
+        }
+        if (id === "data") {
+            dataOffset = payloadOffset;
+            dataLength = length;
+        }
+        offset = payloadOffset + length + (length % 2);
+    }
+    if (!channels || !sampleRate || bitsPerSample !== 16 || !dataLength) {
+        throw new Error("Expected 16-bit PCM WAV data.");
+    }
+
+    const frameCount = dataLength / (channels * 2);
+    let firstAudibleFrame = frameCount;
+    let sumSquares = 0;
+    let peak = 0;
+    for (let frame = 0; frame < frameCount; frame += 1) {
+        for (let channel = 0; channel < channels; channel += 1) {
+            const sample =
+                view.getInt16(dataOffset + (frame * channels + channel) * 2, true) / 32768;
+            if (!Number.isFinite(sample)) throw new Error("WAV contains a non-finite PCM sample.");
+            if (Math.abs(sample) > 0.002) firstAudibleFrame = Math.min(firstAudibleFrame, frame);
+            peak = Math.max(peak, Math.abs(sample));
+            sumSquares += sample * sample;
+        }
+    }
+    return {
+        channels,
+        durationSeconds: frameCount / sampleRate,
+        firstAudibleFrame,
+        peak,
+        rms: Math.sqrt(sumSquares / (frameCount * channels)),
+        sampleRate,
+    };
+}
 
 /**
  * Opens the production-preview PWA and waits until its service worker controls
@@ -189,9 +254,19 @@ async function readDownloadBytes(download: Download): Promise<Uint8Array> {
  */
 export const test = base.extend<AppFixtures>({
     pwaPage: async ({ page }, use) => {
+        const asynchronousFailures: string[] = [];
+        page.on("pageerror", (error) => asynchronousFailures.push(error.message));
+        await page.addInitScript(() => {
+            window.addEventListener("unhandledrejection", (event) => {
+                throw event.reason instanceof Error
+                    ? event.reason
+                    : new Error(String(event.reason));
+            });
+        });
         await openPwa(page);
         await resetAppState(page);
         await use(page);
+        expect(asynchronousFailures, "page errors and unhandled rejections").toEqual([]);
     },
 });
 
