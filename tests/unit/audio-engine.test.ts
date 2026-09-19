@@ -453,6 +453,8 @@ describe("Audio Engine Model Definitions", () => {
                     actions: mockActions,
                 });
                 expect(engine).toBeDefined();
+                expect(engine.limiter).toBeUndefined();
+                expect(engine.recordingOutput).toBe(engine.postGain);
 
                 // Test offline chain without limiter
                 const chain = engine.createOfflineChain(
