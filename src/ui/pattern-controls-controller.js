@@ -24,7 +24,7 @@ import { setupKeyboardNavigation } from "@ui/a11y-navigation.js";
  * @property {(chordType: string, root: string) => string} [buildChordString]
  * @property {(chordType: string) => {name: string}} [resolveChordDefinition]
  * @property {(request: object, scale: object) => {hasConflict: boolean, chordName: string, root: string, requestedNotes: string[], adaptedNotes: string[], changedPitches: Array<{requested: string, adapted: string}>}} [resolveChordConflict]
- * @property {(details: object) => void} [openChordConflict]
+ * @property {(details: {chordName: string, root: string, requestedNotes: string[], adaptedNotes: string[], changedPitches: Array<{requested: string, adapted: string}>, onKeep: () => void, onAdapt: () => void, onCancel?: () => void}) => void} [openChordConflict]
  * @property {(callback: () => void, wait: number) => (() => void) & { cancel: () => void }} debounce
  */
 
@@ -193,11 +193,11 @@ export function createPatternControlsController(dependencies) {
         });
     }
 
-    /** Updates the scale root emphasis and disabled state. */
+    /** Updates the scale controls while keeping the shared chord root available. */
     function updateScaleQuantizeUi() {
-        const isEnabled = scaleQuantizeToggle.checked && scaleTypeSelect.value !== "chromatic";
-        scaleRootSelect.classList.toggle("opacity-50", !isEnabled);
-        scaleRootSelect.disabled = !isEnabled;
+        if (scaleTypeSelect.value !== "chromatic") lastActiveScaleType = scaleTypeSelect.value;
+        scaleRootSelect.classList.remove("opacity-50");
+        scaleRootSelect.disabled = false;
         scaleTypeSelect.disabled = false;
     }
 
@@ -227,7 +227,6 @@ export function createPatternControlsController(dependencies) {
         } else {
             if (scaleTypeSelect.value !== "chromatic") lastActiveScaleType = scaleTypeSelect.value;
             scaleQuantizeToggle.checked = false;
-            scaleTypeSelect.value = "chromatic";
         }
         updateScaleQuantizeUi();
         updateScaleQuantizeToggleText();
