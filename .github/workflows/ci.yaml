@@ -135,10 +135,10 @@ jobs:
             const markdown = `### 📊 Automated Test Coverage Report\n\n` +
               `| Metric | Target | Covered / Total | Coverage | Status |\n` +
               `| :--- | :---: | :---: | :---: | :---: |\n` +
-              `| **Statements** | $\\ge ${thresholds.statements}\\%$ | ${total.statements.covered.toLocaleString()} / ${total.statements.total.toLocaleString()} | ${stmts.pct} | ${stmts.icon} |\n` +
-              `| **Branches** | $\\ge ${thresholds.branches}\\%$ | ${total.branches.covered.toLocaleString()} / ${total.branches.total.toLocaleString()} | ${branch.pct} | ${branch.icon} |\n` +
-              `| **Functions** | $\\ge ${thresholds.functions}\\%$ | ${total.functions.covered.toLocaleString()} / ${total.functions.total.toLocaleString()} | ${funcs.pct} | ${funcs.icon} |\n` +
-              `| **Lines** | $\\ge ${thresholds.lines}\\%$ | ${total.lines.covered.toLocaleString()} / ${total.lines.total.toLocaleString()} | ${lines.pct} | ${lines.icon} |\n\n` +
+              `| **Statements** | ≥ ${thresholds.statements}% | ${total.statements.covered.toLocaleString()} / ${total.statements.total.toLocaleString()} | ${stmts.pct} | ${stmts.icon} |\n` +
+              `| **Branches** | ≥ ${thresholds.branches}% | ${total.branches.covered.toLocaleString()} / ${total.branches.total.toLocaleString()} | ${branch.pct} | ${branch.icon} |\n` +
+              `| **Functions** | ≥ ${thresholds.functions}% | ${total.functions.covered.toLocaleString()} / ${total.functions.total.toLocaleString()} | ${funcs.pct} | ${funcs.icon} |\n` +
+              `| **Lines** | ≥ ${thresholds.lines}% | ${total.lines.covered.toLocaleString()} / ${total.lines.total.toLocaleString()} | ${lines.pct} | ${lines.icon} |\n\n` +
               `<details>\n<summary>📁 <b>File-by-File Coverage Details (Click to Expand)</b></summary>\n\n` +
               `| File | Statements | Branches | Functions | Lines | Coverage |\n` +
               `| :--- | :---: | :---: | :---: | :---: | :---: |\n` +
