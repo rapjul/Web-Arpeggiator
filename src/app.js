@@ -412,6 +412,7 @@ function initializeApp() {
     const chordConflictDialogController = createChordConflictDialogController({
         documentRef: document,
         dom: {
+            appMain,
             overlay: chordConflictOverlay,
             dialog: chordConflictDialog,
             requestedNotes: chordConflictRequestedNotes,
