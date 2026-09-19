@@ -2,8 +2,11 @@ import { createPatternControlsController } from "@ui/pattern-controls-controller
 import { afterEach, describe, expect, test, vi } from "vitest";
 
 type PatternControlsDependencies = Parameters<typeof createPatternControlsController>[0];
+type OpenChordConflict = NonNullable<PatternControlsDependencies["openChordConflict"]>;
+type ChordConflictDetails = Parameters<OpenChordConflict>[0];
 
 interface PatternControlsFixture {
+    chordButton: HTMLButtonElement;
     controller: ReturnType<typeof createPatternControlsController>;
     flushDebouncedPatternChange: () => void;
     gateSlider: HTMLInputElement;
@@ -11,10 +14,13 @@ interface PatternControlsFixture {
     intervalSelect: HTMLSelectElement;
     notesInput: HTMLInputElement;
     normalizeNotes: ReturnType<typeof vi.fn>;
+    onClearActiveSoundStarter: ReturnType<typeof vi.fn>;
     onEstimatedDurationChange: ReturnType<typeof vi.fn>;
     onPatternChange: ReturnType<typeof vi.fn>;
     onReshuffle: ReturnType<typeof vi.fn>;
     onStaticLoopChange: ReturnType<typeof vi.fn>;
+    onNotesSelected: ReturnType<typeof vi.fn>;
+    openChordConflict: ReturnType<typeof vi.fn>;
     patternButtons: HTMLDivElement;
     reshufflePatternButton: HTMLButtonElement;
     octaveRangeButtons: HTMLDivElement;
@@ -23,6 +29,8 @@ interface PatternControlsFixture {
     scaleQuantizeToggleStatus: HTMLSpanElement;
     scaleRootSelect: HTMLSelectElement;
     scaleTypeSelect: HTMLSelectElement;
+    resolveChordConflict: ReturnType<typeof vi.fn>;
+    showToast: ReturnType<typeof vi.fn>;
     setNotes: ReturnType<typeof vi.fn>;
     setOctaveRange: ReturnType<typeof vi.fn>;
     setOctaveShift: ReturnType<typeof vi.fn>;
@@ -57,6 +65,11 @@ function createFixture(): PatternControlsFixture {
         '<label class="pattern-btn" data-pattern="random"><input type="radio" name="pattern-direction" value="random"></label>',
     ].join("");
     const reshufflePatternButton = document.createElement("button");
+    const chordButtonsContainer = document.createElement("div");
+    chordButtonsContainer.innerHTML =
+        '<button class="chord-btn" data-chord="minor" type="button">Minor</button>';
+    const chordButton = chordButtonsContainer.querySelector<HTMLButtonElement>(".chord-btn");
+    if (!chordButton) throw new Error("Expected chord button fixture.");
     const octaveShiftButtons = document.createElement("div");
     octaveShiftButtons.innerHTML =
         '<button class="octave-btn" data-shift="-1">-1</button><label class="octave-btn"><input type="radio" data-shift="1" value="1"></label>';
@@ -76,6 +89,7 @@ function createFixture(): PatternControlsFixture {
         octaveRangeButtons,
         patternButtons,
         reshufflePatternButton,
+        chordButtonsContainer,
     );
 
     const queuedPatternChanges: Array<() => void> = [];
@@ -87,6 +101,18 @@ function createFixture(): PatternControlsFixture {
     const onReshuffle = vi.fn();
     const onEstimatedDurationChange = vi.fn();
     const onStaticLoopChange = vi.fn();
+    const onNotesSelected = vi.fn();
+    const onClearActiveSoundStarter = vi.fn();
+    const showToast = vi.fn();
+    const resolveChordConflict = vi.fn(() => ({
+        hasConflict: false,
+        chordName: "Minor",
+        root: "C",
+        requestedNotes: ["C4", "D#4", "G4"],
+        adaptedNotes: ["C4", "D4", "G4"],
+        changedPitches: [],
+    }));
+    const openChordConflict = vi.fn();
     const debounce: PatternControlsDependencies["debounce"] = (callback) => () => {
         queuedPatternChanges.push(callback);
     };
@@ -105,7 +131,7 @@ function createFixture(): PatternControlsFixture {
             patternButtons,
             randomizeNotesButton: null,
             reshufflePatternButton,
-            chordButtons: document.querySelectorAll(".chord-btn"),
+            chordButtons: chordButtonsContainer.querySelectorAll(".chord-btn"),
         },
         normalizeNotes,
         setNotes,
@@ -115,10 +141,18 @@ function createFixture(): PatternControlsFixture {
         onReshuffle,
         onEstimatedDurationChange,
         onStaticLoopChange,
+        onNotesSelected,
+        onClearActiveSoundStarter,
+        showToast,
+        buildChordString: vi.fn(() => "C4 D#4 G4"),
+        resolveChordDefinition: vi.fn(() => ({ name: "Minor" })),
+        resolveChordConflict,
+        openChordConflict,
         debounce,
     };
 
     return {
+        chordButton,
         controller: createPatternControlsController(dependencies),
         flushDebouncedPatternChange: () => {
             queuedPatternChanges.splice(0).forEach((callback) => {
@@ -130,10 +164,13 @@ function createFixture(): PatternControlsFixture {
         intervalSelect,
         notesInput,
         normalizeNotes,
+        onClearActiveSoundStarter,
         onEstimatedDurationChange,
         onPatternChange,
         onReshuffle,
         onStaticLoopChange,
+        onNotesSelected,
+        openChordConflict,
         octaveRangeButtons,
         octaveShiftButtons,
         patternButtons,
@@ -142,6 +179,8 @@ function createFixture(): PatternControlsFixture {
         scaleQuantizeToggleStatus,
         scaleRootSelect,
         scaleTypeSelect,
+        resolveChordConflict,
+        showToast,
         setNotes,
         setOctaveRange,
         setOctaveShift,
@@ -194,7 +233,8 @@ describe("pattern controls controller", () => {
 
         scaleQuantizeToggle.checked = false;
         scaleQuantizeToggle.dispatchEvent(new Event("change"));
-        expect(scaleTypeSelect.value).toBe("chromatic");
+        expect(scaleTypeSelect.value).toBe("minor");
+        expect(scaleRootSelect.disabled).toBe(false);
 
         scaleQuantizeToggle.checked = true;
         scaleQuantizeToggle.dispatchEvent(new Event("change"));
@@ -205,6 +245,83 @@ describe("pattern controls controller", () => {
         expect(onPatternChange).toHaveBeenCalledTimes(4);
         expect(scaleQuantizeToggleStatus.textContent).toBe("Enabled");
         expect(scaleRootSelect.disabled).toBe(false);
+    });
+
+    test("remembers a restored scale while quantization is disabled", () => {
+        const { controller, scaleQuantizeToggle, scaleTypeSelect } = createFixture();
+        controller.initialize();
+
+        scaleTypeSelect.value = "minor";
+        scaleQuantizeToggle.checked = false;
+        controller.updateScaleQuantizeUi();
+        scaleTypeSelect.value = "chromatic";
+        scaleTypeSelect.dispatchEvent(new Event("change"));
+        scaleQuantizeToggle.checked = true;
+        scaleQuantizeToggle.dispatchEvent(new Event("change"));
+
+        expect(scaleTypeSelect.value).toBe("minor");
+        expect(scaleQuantizeToggle.checked).toBe(true);
+    });
+
+    test("applies compatible chords immediately", () => {
+        const {
+            chordButton,
+            controller,
+            onClearActiveSoundStarter,
+            onNotesSelected,
+            openChordConflict,
+            showToast,
+        } = createFixture();
+        controller.initialize();
+
+        chordButton.click();
+
+        expect(openChordConflict).not.toHaveBeenCalled();
+        expect(onClearActiveSoundStarter).toHaveBeenCalledOnce();
+        expect(onNotesSelected).toHaveBeenCalledWith(["C4", "D#4", "G4"]);
+        expect(showToast).toHaveBeenCalledWith("Loaded C Minor chord!", "success");
+    });
+
+    test("keeps, adapts, or cancels conflicting chords without leaking state", () => {
+        const {
+            chordButton,
+            controller,
+            onNotesSelected,
+            openChordConflict,
+            resolveChordConflict,
+            scaleQuantizeToggle,
+            scaleTypeSelect,
+        } = createFixture();
+        scaleTypeSelect.value = "major";
+        scaleQuantizeToggle.checked = true;
+        resolveChordConflict.mockReturnValue({
+            hasConflict: true,
+            chordName: "Minor",
+            root: "C",
+            requestedNotes: ["C4", "D#4", "G4"],
+            adaptedNotes: ["C4", "D4", "G4"],
+            changedPitches: [{ requested: "D#4", adapted: "D4" }],
+        });
+        controller.initialize();
+
+        chordButton.click();
+        const cancelDetails = openChordConflict.mock.calls.at(-1)?.[0] as ChordConflictDetails;
+        cancelDetails.onCancel?.();
+        expect(onNotesSelected).not.toHaveBeenCalled();
+        expect(scaleQuantizeToggle.checked).toBe(true);
+
+        chordButton.click();
+        const adaptDetails = openChordConflict.mock.calls.at(-1)?.[0] as ChordConflictDetails;
+        adaptDetails.onAdapt();
+        expect(onNotesSelected).toHaveBeenLastCalledWith(["C4", "D4", "G4"]);
+        expect(scaleQuantizeToggle.checked).toBe(true);
+
+        chordButton.click();
+        const keepDetails = openChordConflict.mock.calls.at(-1)?.[0] as ChordConflictDetails;
+        keepDetails.onKeep();
+        expect(onNotesSelected).toHaveBeenLastCalledWith(["C4", "D#4", "G4"]);
+        expect(scaleQuantizeToggle.checked).toBe(false);
+        expect(scaleTypeSelect.value).toBe("major");
     });
 
     test("enables reshuffling only for stochastic directions", () => {

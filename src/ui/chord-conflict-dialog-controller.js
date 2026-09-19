@@ -7,11 +7,12 @@
 /**
  * Creates a controller for the chord/scale conflict dialog.
  *
- * @param {{documentRef: Document, dom: {overlay: HTMLElement|null, dialog: HTMLElement|null, requestedNotes: HTMLElement|null, adaptedNotes: HTMLElement|null, changedPitches: HTMLElement|null, keepButton: HTMLButtonElement|null, adaptButton: HTMLButtonElement|null, cancelButton: HTMLButtonElement|null}}} dependencies - Injected DOM references.
+ * @param {{documentRef: Document, dom: {appMain: HTMLElement|null, overlay: HTMLElement|null, dialog: HTMLElement|null, requestedNotes: HTMLElement|null, adaptedNotes: HTMLElement|null, changedPitches: HTMLElement|null, keepButton: HTMLButtonElement|null, adaptButton: HTMLButtonElement|null, cancelButton: HTMLButtonElement|null}}} dependencies - Injected DOM references.
  * @returns {{open: (details: {chordName: string, root: string, requestedNotes: string[], adaptedNotes: string[], changedPitches: Array<{requested: string, adapted: string}>, onKeep: () => void, onAdapt: () => void, onCancel?: () => void}) => void, close: () => void, destroy: () => void}}
  */
 export function createChordConflictDialogController({ documentRef, dom }) {
     const {
+        appMain,
         overlay,
         dialog,
         requestedNotes,
@@ -23,15 +24,23 @@ export function createChordConflictDialogController({ documentRef, dom }) {
     } = dom;
     let pending = null;
     let returnFocus = null;
+    const listenerController = new AbortController();
+    const listenerOptions = { signal: listenerController.signal };
+
+    /** Hides the dialog, restores the application, and returns focus. */
+    function dismiss() {
+        overlay?.classList.add("hidden");
+        overlay?.classList.remove("flex");
+        overlay?.setAttribute("aria-hidden", "true");
+        appMain?.removeAttribute("inert");
+        returnFocus?.focus();
+        returnFocus = null;
+    }
 
     function close() {
         const onCancel = pending?.onCancel;
         pending = null;
-        overlay?.classList.add("hidden");
-        overlay?.classList.remove("flex");
-        overlay?.setAttribute("aria-hidden", "true");
-        returnFocus?.focus();
-        returnFocus = null;
+        dismiss();
         onCancel?.();
     }
 
@@ -39,11 +48,7 @@ export function createChordConflictDialogController({ documentRef, dom }) {
         const current = pending;
         if (!current) return;
         pending = null;
-        overlay?.classList.add("hidden");
-        overlay?.classList.remove("flex");
-        overlay?.setAttribute("aria-hidden", "true");
-        returnFocus?.focus();
-        returnFocus = null;
+        dismiss();
         if (choice === "keep") current.onKeep();
         else if (choice === "adapt") current.onAdapt();
         else current.onCancel?.();
@@ -68,23 +73,30 @@ export function createChordConflictDialogController({ documentRef, dom }) {
         }
     }
 
-    function handleKeydown(event) {
-        if (event.key === "Escape" && pending) {
+    function handleDialogKeydown(event) {
+        if (!pending) return;
+        trapFocus(event);
+        if (event.key === "Escape") {
             event.preventDefault();
             choose("cancel");
         }
+        event.stopPropagation();
     }
 
-    keepButton?.addEventListener("click", () => choose("keep"));
-    adaptButton?.addEventListener("click", () => choose("adapt"));
-    cancelButton?.addEventListener("click", () => choose("cancel"));
-    dialog?.addEventListener("keydown", trapFocus);
-    documentRef.addEventListener("keydown", handleKeydown);
-    overlay?.addEventListener("click", (event) => {
-        if (event.target === overlay) choose("cancel");
-    });
+    keepButton?.addEventListener("click", () => choose("keep"), listenerOptions);
+    adaptButton?.addEventListener("click", () => choose("adapt"), listenerOptions);
+    cancelButton?.addEventListener("click", () => choose("cancel"), listenerOptions);
+    dialog?.addEventListener("keydown", handleDialogKeydown, listenerOptions);
+    overlay?.addEventListener(
+        "click",
+        (event) => {
+            if (event.target === overlay) choose("cancel");
+        },
+        listenerOptions,
+    );
 
     function open(details) {
+        if (pending) close();
         pending = details;
         returnFocus =
             documentRef.activeElement instanceof HTMLElement ? documentRef.activeElement : null;
@@ -101,13 +113,13 @@ export function createChordConflictDialogController({ documentRef, dom }) {
         overlay?.classList.remove("hidden");
         overlay?.classList.add("flex");
         overlay?.setAttribute("aria-hidden", "false");
+        appMain?.setAttribute("inert", "");
         adaptButton?.focus();
     }
 
     function destroy() {
-        documentRef.removeEventListener("keydown", handleKeydown);
-        dialog?.removeEventListener("keydown", trapFocus);
         close();
+        listenerController.abort();
     }
 
     return { open, close, destroy };
