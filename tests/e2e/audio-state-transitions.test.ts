@@ -16,6 +16,19 @@ async function waitForRecordedAudio(page: import("@playwright/test").Page): Prom
     await expect(page.locator("#record-button")).toHaveText(/Stop Recording \(00:0[12]\./);
 }
 
+async function captureRecordedWav(
+    page: import("@playwright/test").Page,
+): Promise<ReturnType<typeof parsePcmWav>> {
+    await startRecording(page);
+    await waitForRecordedAudio(page);
+    await stopRecording(page);
+    await page.locator("#realtime-export-mp3").uncheck();
+    const download = await captureDownload(page, () =>
+        page.locator("#realtime-export-button").click(),
+    );
+    return parsePcmWav(download.bytes);
+}
+
 test("transitions transport and recording through their public controls", async ({
     pwaPage: page,
 }) => {
@@ -107,6 +120,26 @@ test("exports a real-time MP3 recording through the browser download API", async
     }, Array.from(download.bytes));
     expect(decoded.duration).toBeGreaterThan(0.5);
     expect(decoded.peak).toBeGreaterThan(0.0001);
+});
+
+test("captures master post-gain changes in real-time WAV recordings", async ({ pwaPage: page }) => {
+    await startAudio(page);
+    await page.locator("#notes").fill("C4");
+    await page.locator("#delay-mix").fill("0");
+    await page.locator("#reverb-mix").fill("0");
+
+    await page.locator("#post-gain").fill("-12");
+    const louder = await captureRecordedWav(page);
+
+    await page.locator("#post-gain").fill("-36");
+    await expect
+        .poll(async () => Number(await page.locator("#vu-meter-bar").getAttribute("aria-valuenow")))
+        .toBeLessThanOrEqual(-30);
+    const quieter = await captureRecordedWav(page);
+
+    expect(louder.rms).toBeGreaterThan(0.0001);
+    expect(quieter.rms).toBeLessThan(louder.rms * 0.25);
+    expect(quieter.peak).toBeLessThan(louder.peak * 0.25);
 });
 
 test("renders and downloads a one-cycle offline WAV export", async ({ pwaPage: page }) => {
