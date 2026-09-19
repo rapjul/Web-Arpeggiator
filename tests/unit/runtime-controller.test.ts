@@ -1,5 +1,5 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
 import { createAudioRuntimeController } from "@audio/runtime-controller.js";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 const controllers: Array<ReturnType<typeof createAudioRuntimeController>> = [];
 
@@ -33,7 +33,7 @@ function createFixture() {
         startUiLoop: vi.fn(),
         stopUiLoop: vi.fn(),
     };
-    const recorder = { isRecording: false, recordingStartTime: 0 };
+    const recorder = { isRecording: false, recordingStartTime: 0, destroy: vi.fn(async () => {}) };
     const createAudioEngine = vi.fn(() => engine);
     const createPatternController = vi.fn(() => pattern);
     const createRecorderManager = vi.fn(() => recorder);
@@ -92,10 +92,8 @@ function createFixture() {
 }
 
 describe("audio runtime controller", () => {
-    afterEach(() => {
-        controllers.splice(0).forEach((controller) => {
-            controller.destroy();
-        });
+    afterEach(async () => {
+        await Promise.all(controllers.splice(0).map((controller) => controller.destroy()));
     });
 
     it("defers module loading and shares concurrent activation", async () => {
@@ -150,13 +148,14 @@ describe("audio runtime controller", () => {
     });
 
     it("rebuilds the runtime after teardown", async () => {
-        const { controller, createAudioEngine, state } = createFixture();
+        const { controller, createAudioEngine, recorder, state } = createFixture();
         await controller.startAudio();
 
-        controller.destroy();
+        await controller.destroy();
 
         expect(controller.getAudioEngine()).toBeUndefined();
         expect(state.isAudioContextStarted).toBe(false);
+        expect(recorder.destroy).toHaveBeenCalledOnce();
 
         await controller.startAudio();
 
