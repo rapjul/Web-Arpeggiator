@@ -108,6 +108,7 @@ Powered by `Tone.getTransport()`:
 - Dual recorder system:
     - **`MediaRecorder`** (preferred on HTTPS): Native browser API
     - **`Tone.Recorder`** (fallback): Works in all contexts including HTTP/Canvas
+- Capture readiness is awaited before playback begins. Recorder teardown releases graph connections, browser streams, and transient decoded PCM; see [ADR 0018](./docs/adr/0018-awaited-recording-lifecycle-and-bounded-audio-resource-ownership.md).
 
 #### Offline Audio Export
 
@@ -349,7 +350,8 @@ Web Arpeggiator/
 │   │   ├── 0014-versioned-settings-snapshot-compatibility.md
 │   │   ├── 0015-shared-480-ppq-musical-timeline-contract.md
 │   │   ├── 0016-reproducible-stochastic-pattern-semantics.md
-│   │   └── 0017-zero-stderr-test-runner-noise-and-diagnostic-log-assertion.md
+│   │   ├── 0017-zero-stderr-test-runner-noise-and-diagnostic-log-assertion.md
+│   │   └── 0018-awaited-recording-lifecycle-and-bounded-audio-resource-ownership.md
 │   ├── architecture.md     # Module ownership, runtime flow, and deferred boundaries
 │   ├── development.md      # Local setup, commands, and test-runner guidance
 │   ├── improvements/       # Deferred, scoped follow-up plans
