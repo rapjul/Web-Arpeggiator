@@ -33,7 +33,11 @@ function createFixture() {
         startUiLoop: vi.fn(),
         stopUiLoop: vi.fn(),
     };
-    const recorder = { isRecording: false, recordingStartTime: 0 };
+    const recorder = {
+        isRecording: false,
+        recordingStartTime: 0,
+        destroy: vi.fn(async () => {}),
+    };
     let visualizerArgs: {
         state: {
             isRecording: boolean;
