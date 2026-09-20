@@ -79,7 +79,7 @@ The custom PWA worker uses Vite PWA's `injectManifest` build integration and Wor
 5. **Play**: Click the play button to start the arpeggiator
 6. **Adjust**: Change BPM, pattern direction, synth type, and effects in real-time
 
-The Interface selector remains available at the top of the app. Your choice is remembered in this browser and changes presentation only; it never changes the musical settings in a preset or session.
+The Interface selector remains available at the top of the app. Your choice is remembered in this browser and never changes the musical settings in a preset or session. Moving to Simple controls turns off the hidden virtual keyboard and visualizer and safely stops an active real-time recording; returning to Full controls does not restart them automatically.
 
 ### Basic Workflow
 
