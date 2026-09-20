@@ -4,7 +4,7 @@ import {
     normalizeInterfaceMode,
 } from "@core/interface-mode.js";
 import { createInterfaceModeController } from "@ui/interface-mode-controller.js";
-import { afterEach, describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 
 describe("interface mode", () => {
     afterEach(() => {
@@ -21,6 +21,7 @@ describe("interface mode", () => {
 
     test("applies and persists the selected presentation mode", () => {
         const appMain = document.createElement("main");
+        appMain.hidden = true;
         const advancedSection = document.createElement("section");
         advancedSection.dataset.interfaceAdvanced = "true";
         const modeSelect = document.createElement("select");
@@ -31,13 +32,13 @@ describe("interface mode", () => {
 
         const controller = createInterfaceModeController({
             dom: { appMain, interfaceModeSelect: modeSelect },
-            documentRef: document,
             storage: localStorage,
         });
 
         controller.initialize();
         expect(controller.getMode()).toBe(DEFAULT_INTERFACE_MODE);
         expect(appMain.dataset.interfaceMode).toBe("full");
+        expect(appMain.hidden).toBe(false);
         expect(advancedSection.hidden).toBe(false);
 
         controller.setMode(INTERFACE_MODE_SIMPLE);
@@ -61,12 +62,58 @@ describe("interface mode", () => {
 
         const controller = createInterfaceModeController({
             dom: { appMain, interfaceModeSelect: null },
-            documentRef: document,
             storage: localStorage,
         });
 
         controller.initialize();
         expect(controller.getMode()).toBe(INTERFACE_MODE_SIMPLE);
         expect(advancedSection.hidden).toBe(true);
+    });
+
+    test("reports applied modes and removes its select listener on teardown", () => {
+        const appMain = document.createElement("main");
+        const modeSelect = document.createElement("select");
+        modeSelect.innerHTML =
+            '<option value="simple">Simple controls</option><option value="full">Full controls</option>';
+        appMain.append(modeSelect);
+        const onModeApplied = vi.fn();
+        const controller = createInterfaceModeController({
+            dom: { appMain, interfaceModeSelect: modeSelect },
+            storage: localStorage,
+            onModeApplied,
+        });
+
+        controller.initialize();
+        modeSelect.value = "simple";
+        modeSelect.dispatchEvent(new Event("change"));
+        expect(onModeApplied).toHaveBeenLastCalledWith(INTERFACE_MODE_SIMPLE);
+
+        controller.destroy();
+        modeSelect.value = "full";
+        modeSelect.dispatchEvent(new Event("change"));
+        expect(controller.getMode()).toBe(INTERFACE_MODE_SIMPLE);
+    });
+
+    test("falls back safely and warns when browser storage is unavailable", () => {
+        const appMain = document.createElement("main");
+        const logger = { warn: vi.fn() };
+        const controller = createInterfaceModeController({
+            dom: { appMain, interfaceModeSelect: null },
+            storage: {
+                getItem: vi.fn(() => {
+                    throw new Error("read denied");
+                }),
+                setItem: vi.fn(() => {
+                    throw new Error("write denied");
+                }),
+            },
+            logger,
+        });
+
+        controller.initialize();
+        expect(controller.getMode()).toBe(DEFAULT_INTERFACE_MODE);
+        controller.setMode(INTERFACE_MODE_SIMPLE);
+        expect(controller.getMode()).toBe(INTERFACE_MODE_SIMPLE);
+        expect(logger.warn).toHaveBeenCalledTimes(2);
     });
 });

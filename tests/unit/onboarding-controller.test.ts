@@ -2,6 +2,8 @@ import { createOnboardingController } from "@ui/onboarding-controller.js";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { FACTORY_PRESETS } from "@/config/factory-presets.js";
 
+const activeControllers: Array<ReturnType<typeof createOnboardingController>> = [];
+
 /**
  * Builds a complete onboarding DOM fixture and injected dependencies.
  *
@@ -76,6 +78,7 @@ function createFixture(search = "", withModeChoice = false) {
         onStartOverlay,
         onInterfaceModeSelected,
     });
+    activeControllers.push(controller);
 
     return {
         appMain,
@@ -100,6 +103,9 @@ function createFixture(search = "", withModeChoice = false) {
 
 describe("onboarding controller", () => {
     afterEach(() => {
+        activeControllers.splice(0).forEach((controller) => {
+            controller.destroy();
+        });
         localStorage.clear();
         document.body.replaceChildren();
     });
@@ -157,6 +163,76 @@ describe("onboarding controller", () => {
         expect(quickStartPresetsGrid.querySelectorAll(".sound-starter-card")).toHaveLength(
             FACTORY_PRESETS.length,
         );
+    });
+
+    test("traps focus within whichever onboarding stage is visible", () => {
+        const {
+            controller,
+            quickStartFullButton,
+            quickStartModal,
+            quickStartPresetsGrid,
+            quickStartScratchButton,
+            quickStartSimpleButton,
+        } = createFixture("", true);
+
+        controller.initialize();
+        quickStartFullButton?.focus();
+        quickStartModal.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Tab" }));
+        expect(document.activeElement).toBe(quickStartSimpleButton);
+
+        quickStartSimpleButton?.focus();
+        quickStartModal.dispatchEvent(
+            new KeyboardEvent("keydown", { bubbles: true, key: "Tab", shiftKey: true }),
+        );
+        expect(document.activeElement).toBe(quickStartFullButton);
+
+        quickStartSimpleButton?.click();
+        const firstPreset = quickStartPresetsGrid.querySelector("button");
+        quickStartScratchButton.focus();
+        quickStartModal.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Tab" }));
+        expect(document.activeElement).toBe(firstPreset);
+
+        firstPreset?.focus();
+        quickStartModal.dispatchEvent(
+            new KeyboardEvent("keydown", { bubbles: true, key: "Tab", shiftKey: true }),
+        );
+        expect(document.activeElement).toBe(quickStartScratchButton);
+    });
+
+    test("falls back to Full controls when Escape dismisses the mode choice", async () => {
+        const { controller, onInterfaceModeSelected, onStartFromScratch, quickStartOverlay } =
+            createFixture("", true);
+
+        controller.initialize();
+        window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+
+        await vi.waitFor(() => expect(onStartFromScratch).toHaveBeenCalledOnce());
+        expect(onInterfaceModeSelected).toHaveBeenCalledWith("full");
+        expect(quickStartOverlay.classList.contains("is-hidden")).toBe(true);
+    });
+
+    test("falls back to Full controls when the backdrop dismisses the mode choice", async () => {
+        const { controller, onInterfaceModeSelected, onStartFromScratch, quickStartOverlay } =
+            createFixture("", true);
+
+        controller.initialize();
+        quickStartOverlay.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+        await vi.waitFor(() => expect(onStartFromScratch).toHaveBeenCalledOnce());
+        expect(onInterfaceModeSelected).toHaveBeenCalledWith("full");
+    });
+
+    test("keeps an explicit interface choice when the preset stage is dismissed", async () => {
+        const { controller, onInterfaceModeSelected, onStartFromScratch, quickStartSimpleButton } =
+            createFixture("", true);
+
+        controller.initialize();
+        quickStartSimpleButton?.click();
+        window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+
+        await vi.waitFor(() => expect(onStartFromScratch).toHaveBeenCalledOnce());
+        expect(onInterfaceModeSelected).toHaveBeenCalledTimes(1);
+        expect(onInterfaceModeSelected).toHaveBeenCalledWith("simple");
     });
 
     test("applies a quick-start preset through its injected callback", async () => {
