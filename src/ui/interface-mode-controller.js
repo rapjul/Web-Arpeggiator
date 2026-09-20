@@ -20,8 +20,9 @@ export function createInterfaceModeController(dependencies) {
     /** @type {"simple"|"full"} */
     let currentMode = DEFAULT_INTERFACE_MODE;
     let isInitialized = false;
+    let hasAppliedMode = false;
 
-    function applyMode(mode) {
+    function applyMode(mode, notify) {
         if (appMain) {
             appMain.dataset.interfaceMode = mode;
             const advancedControls = appMain.querySelectorAll("[data-interface-advanced]");
@@ -34,13 +35,15 @@ export function createInterfaceModeController(dependencies) {
             appMain.hidden = false;
         }
         if (interfaceModeSelect) interfaceModeSelect.value = mode;
-        onModeApplied?.(mode);
+        if (notify) onModeApplied?.(mode);
     }
 
     function setMode(mode, options = {}) {
         const normalizedMode = normalizeInterfaceMode(mode);
+        const hasModeChanged = !hasAppliedMode || currentMode !== normalizedMode;
         currentMode = normalizedMode;
-        applyMode(normalizedMode);
+        applyMode(normalizedMode, hasModeChanged);
+        hasAppliedMode = true;
         if (options.persist === false) return normalizedMode;
         try {
             storage.setItem(INTERFACE_MODE_STORAGE_KEY, normalizedMode);

@@ -714,6 +714,13 @@ function initializeApp() {
                             "Could not stop recording after selecting Simple controls:",
                             error,
                         );
+                        if (interfaceModeController.getMode() === "simple") {
+                            interfaceModeController.setMode("full");
+                            showToast(
+                                "Recording could not be stopped, so Full controls were restored.",
+                                "error",
+                            );
+                        }
                     });
             }
         },

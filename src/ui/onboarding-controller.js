@@ -153,6 +153,7 @@ export function createOnboardingController(dependencies) {
 
             card.append(accentBar, topRow, title);
             card.addEventListener("click", () => {
+                if (!isInitialized) return;
                 void handleQuickStartPresetClick(preset);
             });
             quickStartPresetsGrid.appendChild(card);
@@ -377,6 +378,7 @@ export function createOnboardingController(dependencies) {
         quickStartOverlay?.removeEventListener("click", handleQuickStartOverlayClick);
         quickStartModal?.removeEventListener("keydown", trapQuickStartFocus);
         documentRef.defaultView?.removeEventListener("keydown", handleWindowKeydown);
+        quickStartPresetsGrid?.replaceChildren();
         isInitialized = false;
     }
 

@@ -21,7 +21,7 @@ The first-visit Quick Start modal asks users to choose **Simple controls** or **
 
 Simple controls retain Sound Starters, Transport, Pattern, Scale Quantization, Offline Audio Export, and Preset Management. The controller restores the saved mode before revealing the application shell, then hides the octave, keyboard, synthesis, envelope, filter, effects, Utilities, and real-time recording sections by setting both `hidden` and `aria-hidden`; switching back to Full restores them. The selected mode is not part of `ArpeggiatorSettings`, so changing it does not create a musical history entry or modify a preset.
 
-Switching to Simple controls turns off the virtual keyboard and visualizer and requests a safe stop for an active real-time recording before those controls remain unavailable. Switching back to Full exposes those tools without restarting them. Synthesis and effect settings remain active because they are part of the musical project rather than transient interface activity.
+Switching to Simple controls turns off the virtual keyboard and visualizer and requests a safe stop for an active or still-starting real-time recording before those controls remain unavailable. If that stop cannot be confirmed, the application restores Full controls rather than hiding an unresolved recorder. Switching back to Full exposes those tools without restarting them. Synthesis and effect settings remain active because they are part of the musical project rather than transient interface activity.
 
 Incoming URL presets continue to bypass the first-visit choice and load their musical values unchanged. An Escape dismissal without an explicit mode choice falls back to the Full presentation.
 

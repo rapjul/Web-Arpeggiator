@@ -257,6 +257,19 @@ describe("onboarding controller", () => {
         expect(localStorage.getItem("webArpHasVisited")).toBe("true");
     });
 
+    test("does not retain active quick-start preset handlers after teardown", async () => {
+        const { controller, onPresetSelected, quickStartPresetsGrid } = createFixture();
+
+        controller.initialize();
+        const card = quickStartPresetsGrid.querySelector("button");
+        controller.destroy();
+        card?.dispatchEvent(new Event("click"));
+
+        await Promise.resolve();
+        expect(onPresetSelected).not.toHaveBeenCalled();
+        expect(quickStartPresetsGrid.childElementCount).toBe(0);
+    });
+
     test("starts from scratch without retaining the expanded Sound Starters state", async () => {
         const {
             controller,

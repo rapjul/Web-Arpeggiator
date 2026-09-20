@@ -70,7 +70,7 @@ describe("interface mode", () => {
         expect(advancedSection.hidden).toBe(true);
     });
 
-    test("reports applied modes and removes its select listener on teardown", () => {
+    test("reports real mode transitions and removes its select listener on teardown", () => {
         const appMain = document.createElement("main");
         const modeSelect = document.createElement("select");
         modeSelect.innerHTML =
@@ -84,9 +84,17 @@ describe("interface mode", () => {
         });
 
         controller.initialize();
+        expect(onModeApplied).toHaveBeenCalledTimes(1);
+        controller.setMode("full");
+        expect(onModeApplied).toHaveBeenCalledTimes(1);
+
         modeSelect.value = "simple";
         modeSelect.dispatchEvent(new Event("change"));
         expect(onModeApplied).toHaveBeenLastCalledWith(INTERFACE_MODE_SIMPLE);
+        expect(onModeApplied).toHaveBeenCalledTimes(2);
+
+        controller.setMode(INTERFACE_MODE_SIMPLE);
+        expect(onModeApplied).toHaveBeenCalledTimes(2);
 
         controller.destroy();
         modeSelect.value = "full";
