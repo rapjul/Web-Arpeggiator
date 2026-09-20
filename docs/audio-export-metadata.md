@@ -8,7 +8,7 @@ Real-time recordings are intentionally excluded: settings can change while they 
 
 ## Record schema
 
-The embedded value is UTF-8 JSON with this stable envelope. The complete `settings` snapshot records whether the export used the automatic or custom effects-tail strategy, while `export.tailDurationSeconds` records the actual rendered duration after normalization and any 10-second cap:
+The embedded value is UTF-8 JSON with this stable envelope. The complete `settings` snapshot records whether the export used the automatic or custom effects-tail strategy, while `export.tailDurationSeconds` records the actual rendered tail duration after normalization and any 10-second cap. `export.renderDurationSeconds` records the complete render duration:
 
 ```json
 {
