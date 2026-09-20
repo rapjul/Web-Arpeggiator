@@ -159,3 +159,24 @@ test("renders and downloads a one-cycle offline WAV export", async ({ pwaPage: p
     await expect(page.locator("#offline-export-status")).toContainText("complete");
     await expect(page.locator("#offline-export-button")).toBeEnabled();
 });
+
+test("names an Auto-tail WAV with its effective rendered duration", async ({ pwaPage: page }) => {
+    await startAudio(page);
+
+    await page.locator("#offline-export-mp3").uncheck();
+    await page.locator("#notes").fill("C4");
+    await page.locator("#notes").dispatchEvent("change");
+    await page.locator("input[name='octave-range'][value='1']").locator("xpath=..").click();
+    await page.locator("#loop-count").fill("1");
+    await page.locator("#env-release").fill("1.2");
+    await page.locator("#delay-mix").fill("0");
+    await page.locator("#reverb-mix").fill("0");
+
+    const download = await captureDownload(page, () =>
+        page.locator("#offline-export-button").click(),
+    );
+    const wav = parsePcmWav(download.bytes);
+
+    expect(download.filename).toMatch(/tail-auto-1\.2s.*\.wav$/);
+    expect(wav.durationSeconds).toBeCloseTo(1.325, 2);
+});

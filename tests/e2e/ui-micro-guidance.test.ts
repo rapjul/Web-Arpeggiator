@@ -92,6 +92,7 @@ test("updates the offline export duration estimate from public pattern controls"
 
     await notes.fill("C4 E4 G4");
     await notes.dispatchEvent("change");
+    await page.locator("#offline-export-tail-mode").selectOption("custom");
     await selectRadio("input[name='octave-range'][value='1']");
     await page.locator("#interval").selectOption("16n");
     await bpm.fill("60");
@@ -139,4 +140,49 @@ test("updates the offline export duration estimate from public pattern controls"
     await loopCount.fill("101");
     await loopCount.dispatchEvent("change");
     await expect(loopCount).toHaveValue("100");
+});
+
+test("refreshes the Auto tail estimate when its source settings change", async ({
+    pwaPage: page,
+}) => {
+    await dismissOnboarding(page);
+
+    const duration = page.locator("#offline-export-duration");
+    await page.locator("#notes").fill("C4");
+    await page.locator("#notes").dispatchEvent("change");
+    await page.locator("#interval").selectOption("16n");
+    await page.locator("#loop-count").fill("1");
+    await page.locator("#env-release").fill("1.2");
+    await expect(duration).toContainText("Auto effects tail: 5.2s");
+
+    await page.locator("#reverb-mix").fill("0");
+    await expect(duration).toContainText("Auto effects tail: 3.7s");
+
+    await page.locator("#delay-mix").fill("0");
+    await expect(duration).toContainText("Auto effects tail: 1.2s");
+
+    await page.locator("#synth-type").selectOption("pluckSynth");
+    await expect(duration).toContainText("Auto effects tail: 1.0s");
+
+    await page.evaluate(() => {
+        const durationOutput = document.getElementById("offline-export-duration");
+        if (!durationOutput) return;
+        durationOutput.dataset.chorusEstimateUpdates = "0";
+        new MutationObserver(() => {
+            durationOutput.dataset.chorusEstimateUpdates = String(
+                Number(durationOutput.dataset.chorusEstimateUpdates) + 1,
+            );
+        }).observe(durationOutput, { childList: true });
+    });
+    await page.locator("#chorus-mix").fill("0.5");
+    await expect
+        .poll(() =>
+            page.evaluate(() =>
+                Number(
+                    document.getElementById("offline-export-duration")?.dataset
+                        .chorusEstimateUpdates,
+                ),
+            ),
+        )
+        .toBeGreaterThan(0);
 });

@@ -21,6 +21,7 @@ import {
     OFFLINE_CHORUS_FREQUENCY_HERTZ,
     OFFLINE_DELAY_FEEDBACK,
     OFFLINE_DELAY_INTERVAL,
+    PLUCK_SYNTH_RELEASE_SECONDS,
     OFFLINE_REVERB_DECAY_SECONDS,
 } from "@core/export-duration.js";
 import * as Tone from "tone";
@@ -223,6 +224,7 @@ export function createAudioEngine(context) {
         pluckSynth: new Tone.PluckSynth({
             attackNoise: 1,
             dampening: 4000,
+            release: PLUCK_SYNTH_RELEASE_SECONDS,
             resonance: 0.9,
         }),
         membraneSynth: new Tone.MembraneSynth({
@@ -529,7 +531,10 @@ export function createAudioEngine(context) {
                 offlineSynth.voice1.oscillator.type = settings.waveform;
             }
         } else if (synthType === "pluckSynth") {
-            offlineSynth = new Tone.PluckSynth(getSynthConfig("pluckSynth"));
+            offlineSynth = new Tone.PluckSynth({
+                ...getSynthConfig("pluckSynth"),
+                release: PLUCK_SYNTH_RELEASE_SECONDS,
+            });
             if (settings.pluckDampening) offlineSynth.dampening = settings.pluckDampening;
             if (settings.pluckResonance) offlineSynth.resonance = settings.pluckResonance;
             if (settings.pluckNoise) offlineSynth.attackNoise = settings.pluckNoise;

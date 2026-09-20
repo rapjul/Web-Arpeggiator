@@ -285,12 +285,17 @@ describe("URL Preset Domain Module", () => {
 
     test("normalizes invalid export mode and tail URL values safely", () => {
         const parsed = parsePresetFromUrlParams(
-            "?export=invalid&tail=not-a-number",
+            "?export=invalid&tail-mode=invalid&tail=not-a-number",
             defaultSettings,
         );
 
         expect(parsed?.offlineExportMode).toBe("tail");
         expect(parsed?.offlineExportTailMode).toBe("auto");
         expect(parsed?.offlineExportTailSeconds).toBe(2);
+
+        const customBaseline = { ...defaultSettings, offlineExportTailMode: "custom" as const };
+        expect(
+            parsePresetFromUrlParams("?tail-mode=invalid", customBaseline)?.offlineExportTailMode,
+        ).toBe("custom");
     });
 });

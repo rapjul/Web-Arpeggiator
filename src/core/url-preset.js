@@ -380,7 +380,7 @@ export function parsePresetFromUrlParams(searchParams, currentSettings) {
     if (params.has("tail-mode")) {
         settings.offlineExportTailMode = normalizeOfflineExportTailMode(
             params.get("tail-mode"),
-            "custom",
+            settings.offlineExportTailMode,
         );
     }
     if (params.has("tail")) {

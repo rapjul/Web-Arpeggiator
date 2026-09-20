@@ -73,6 +73,11 @@ vi.mock("tone", async () => {
         dampening = 4000;
         resonance = 0.8;
         attackNoise = 1.0;
+        release: number;
+        constructor(options?: { release?: number }) {
+            super();
+            this.release = options?.release ?? 0;
+        }
         triggerAttack() {}
         triggerRelease() {}
         triggerAttackRelease() {}
@@ -492,6 +497,8 @@ describe("Audio Engine Model Definitions", () => {
                 pluckNoise: 1.8,
             });
             expect(pluckChain.offlineSynth).toBeDefined();
+            expect(pluckChain.offlineSynth.release).toBe(1);
+            expect(engine.synths.pluckSynth.release).toBe(1);
 
             // Membrane synth
             const membraneChain = engine.createOfflineChain(mockOfflineContext, {

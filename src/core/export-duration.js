@@ -38,6 +38,7 @@ export const OFFLINE_CHORUS_DELAY_SECONDS = OFFLINE_CHORUS_DELAY_MILLISECONDS / 
 export const OFFLINE_CHORUS_DEPTH = 0.7;
 export const OFFLINE_EFFECT_SETTLE_AMPLITUDE = 0.001;
 export const SEAMLESS_RENDER_GUARD_FRAMES = 1;
+export const PLUCK_SYNTH_RELEASE_SECONDS = 1;
 
 /**
  * Converts the selected note subdivision into seconds at a given tempo.
@@ -131,6 +132,13 @@ function hasActiveEffectMix(mix) {
     return Number.isFinite(parsedMix) && parsedMix > 0;
 }
 
+function getSynthReleaseSeconds(synthType, envRelease) {
+    if (synthType === "pluckSynth") return PLUCK_SYNTH_RELEASE_SECONDS;
+
+    const parsedRelease = Number(envRelease);
+    return Number.isFinite(parsedRelease) && parsedRelease > 0 ? parsedRelease : 0;
+}
+
 function isPhaseAligned(durationSeconds, periodSeconds) {
     const phaseCount = durationSeconds / periodSeconds;
     return Number.isFinite(phaseCount) && Math.abs(phaseCount - Math.round(phaseCount)) < 0.0000001;
@@ -217,6 +225,7 @@ export function calculateSeamlessRenderFrameWindow({
  * @param {object} options - Current export-effect settings.
  * @param {unknown} options.bpm - Tempo in beats per minute.
  * @param {unknown} options.envRelease - Synth release time in seconds.
+ * @param {unknown} [options.synthType] - Active synth type.
  * @param {unknown} options.delayMix - Delay wet mix.
  * @param {unknown} options.reverbMix - Reverb wet mix.
  * @param {unknown} options.chorusMix - Chorus wet mix.
@@ -226,13 +235,13 @@ export function calculateSeamlessRenderFrameWindow({
 export function calculateEffectWarmupSeconds({
     bpm,
     envRelease,
+    synthType,
     delayMix,
     reverbMix,
     chorusMix,
     autoPanMix,
 }) {
-    const parsedRelease = Number(envRelease);
-    const releaseSeconds = Number.isFinite(parsedRelease) && parsedRelease > 0 ? parsedRelease : 0;
+    const releaseSeconds = getSynthReleaseSeconds(synthType, envRelease);
     const hasDelay = hasActiveEffectMix(delayMix);
     const hasReverb = hasActiveEffectMix(reverbMix);
     const hasChorus = hasActiveEffectMix(chorusMix);
@@ -269,6 +278,7 @@ export function calculateEffectWarmupSeconds({
  * @param {object} options - Export-effect settings.
  * @param {unknown} options.bpm - Tempo in beats per minute.
  * @param {unknown} options.envRelease - Synth release time in seconds.
+ * @param {unknown} [options.synthType] - Active synth type.
  * @param {unknown} options.delayMix - Delay wet mix.
  * @param {unknown} options.reverbMix - Reverb wet mix.
  * @param {unknown} options.chorusMix - Chorus wet mix.
@@ -291,11 +301,13 @@ export function calculateRecommendedTailSeconds(options) {
  * @param {unknown} [options.tailMode] - Automatic recommended or custom tail strategy.
  * @param {unknown} [options.tailSeconds] - Effects tail duration in seconds.
  * @param {unknown} [options.envRelease] - Synth release time in seconds.
+ * @param {unknown} [options.synthType] - Active synth type.
  * @param {unknown} [options.delayMix] - Delay wet mix.
  * @param {unknown} [options.reverbMix] - Reverb wet mix.
  * @param {unknown} [options.chorusMix] - Chorus wet mix.
  * @param {unknown} [options.autoPanMix] - Auto-pan wet mix.
  * @param {unknown} [options.terminalDuration] - Final selected release end in seconds.
+ * @param {unknown} [options.terminalEventEndSeconds] - Final release trigger time from the compiled timeline.
  * @returns {{loopCount: number, stepsPerLoop: number, intervalInSeconds: number, loopDuration: number, patternDuration: number, musicalDuration: number, preRollCycles: number, preRollDuration: number, tailDuration: number, recommendedTailSeconds: number, tailWasCapped: boolean, exportDuration: number, renderDuration: number, totalDuration: number, exportMode: "seamless"|"tail", tailMode: "auto"|"custom"}} Normalized timing values.
  */
 export function calculateOfflineExportDuration({
@@ -307,11 +319,13 @@ export function calculateOfflineExportDuration({
     tailMode,
     tailSeconds,
     envRelease,
+    synthType,
     delayMix,
     reverbMix,
     chorusMix,
     autoPanMix,
     terminalDuration,
+    terminalEventEndSeconds,
 }) {
     const safeLoopCount = normalizeLoopCount(loopCount);
     const parsedStepsPerLoop = Number(stepsPerLoop);
@@ -327,6 +341,7 @@ export function calculateOfflineExportDuration({
     const recommendedTailSeconds = calculateRecommendedTailSeconds({
         bpm,
         envRelease,
+        synthType,
         delayMix,
         reverbMix,
         chorusMix,
@@ -351,6 +366,7 @@ export function calculateOfflineExportDuration({
             ? calculateEffectWarmupSeconds({
                   bpm,
                   envRelease,
+                  synthType,
                   delayMix,
                   reverbMix,
                   chorusMix,
@@ -360,7 +376,14 @@ export function calculateOfflineExportDuration({
     const preRollCycles =
         effectWarmupSeconds > 0 ? Math.ceil(effectWarmupSeconds / loopDuration) : 0;
     const preRollDuration = preRollCycles * loopDuration;
-    const exportDuration = musicalDuration + tailDuration;
+    const parsedTerminalEventEnd = Number(terminalEventEndSeconds);
+    const sourceDuration =
+        safeExportMode === OFFLINE_EXPORT_MODE_TAIL &&
+        Number.isFinite(parsedTerminalEventEnd) &&
+        parsedTerminalEventEnd > musicalDuration
+            ? parsedTerminalEventEnd
+            : musicalDuration;
+    const exportDuration = sourceDuration + tailDuration;
     const renderDuration = preRollDuration + exportDuration;
 
     return {
@@ -398,11 +421,13 @@ export function calculateOfflineExportDuration({
  * @param {unknown} [options.tailMode] - Automatic recommended or custom tail strategy.
  * @param {unknown} [options.tailSeconds] - Effects tail duration in seconds.
  * @param {unknown} [options.envRelease] - Synth release time in seconds.
+ * @param {unknown} [options.synthType] - Active synth type.
  * @param {unknown} [options.delayMix] - Delay wet mix.
  * @param {unknown} [options.reverbMix] - Reverb wet mix.
  * @param {unknown} [options.chorusMix] - Chorus wet mix.
  * @param {unknown} [options.autoPanMix] - Auto-pan wet mix.
  * @param {unknown} [options.terminalDuration] - Final selected release end in seconds.
+ * @param {unknown} [options.terminalEventEndSeconds] - Final release trigger time from the compiled timeline.
  * @returns {string} Formatted duration estimate.
  */
 export function formatEstimatedExportDuration(options) {
@@ -451,7 +476,7 @@ export function formatEstimatedExportDuration(options) {
             ? `Auto effects tail: ${tailDuration.toFixed(1)}s`
             : `${tailDuration.toFixed(1)}s effects tail`;
     const capText = tailWasCapped
-        ? `. Auto estimate is ${recommendedTailSeconds.toFixed(1)}s and is capped at ${MAX_OFFLINE_EXPORT_TAIL_SECONDS}s.`
+        ? ` Auto estimate is ${recommendedTailSeconds.toFixed(1)}s and is capped at ${MAX_OFFLINE_EXPORT_TAIL_SECONDS}s.`
         : "";
     const sentenceEnd = tailWasCapped || tailMode === OFFLINE_EXPORT_TAIL_MODE_AUTO ? "." : "";
     return `${safeLoopCount} ${loopLabel} at ${formattedLoopDuration} each + ${tailLabel}. Export duration: ~${exportDuration.toFixed(1)} seconds${sentenceEnd}${capText}`;

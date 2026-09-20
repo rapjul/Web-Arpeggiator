@@ -60,7 +60,6 @@ describe("createDomReferences", () => {
         );
         expect(dom.chordButtons).toHaveLength(1);
         expect(dom.offlineExportModeInputs).toHaveLength(1);
-        expect(dom.offlineExportTailModeSelect).toBeNull();
         expect(dom.resolveResetTargets(["label[for='bpm']", "#bpm-value", "#missing"])).toEqual([
             isolatedDocument.querySelector("label[for='bpm']"),
             isolatedDocument.getElementById("bpm-value"),

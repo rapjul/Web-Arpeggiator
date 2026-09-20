@@ -117,17 +117,17 @@ describe("Export Duration", () => {
         ).toBe(recommended);
     });
 
-    it("caps an automatic recommendation at the supported ten-second tail", () => {
+    it("caps a reachable automatic recommendation at the supported ten-second tail", () => {
         expect(
             calculateOfflineExportDuration({
                 loopCount: 1,
                 stepsPerLoop: 1,
                 interval: "16n",
-                bpm: 120,
+                bpm: 40,
                 exportMode: OFFLINE_EXPORT_MODE_TAIL,
                 tailMode: OFFLINE_EXPORT_TAIL_MODE_AUTO,
-                envRelease: 12,
-                delayMix: 0,
+                envRelease: 5,
+                delayMix: 0.5,
                 reverbMix: 0,
                 chorusMix: 0,
             }),
@@ -135,6 +135,38 @@ describe("Export Duration", () => {
             tailDuration: MAX_OFFLINE_EXPORT_TAIL_SECONDS,
             tailWasCapped: true,
             tailMode: OFFLINE_EXPORT_TAIL_MODE_AUTO,
+        });
+    });
+
+    it("uses Pluck Synth's physical-model release instead of the ADSR setting", () => {
+        expect(
+            calculateRecommendedTailSeconds({
+                bpm: 120,
+                envRelease: 5,
+                synthType: "pluckSynth",
+                delayMix: 0,
+                reverbMix: 0,
+                chorusMix: 0,
+            }),
+        ).toBe(1);
+    });
+
+    it("appends a tail after a preserved terminal gate", () => {
+        expect(
+            calculateOfflineExportDuration({
+                loopCount: 1,
+                stepsPerLoop: 1,
+                interval: "16n",
+                bpm: 120,
+                exportMode: OFFLINE_EXPORT_MODE_TAIL,
+                tailMode: OFFLINE_EXPORT_TAIL_MODE_CUSTOM,
+                tailSeconds: 2,
+                terminalEventEndSeconds: 0.25,
+            }),
+        ).toMatchObject({
+            musicalDuration: 0.125,
+            exportDuration: 2.25,
+            renderDuration: 2.25,
         });
     });
 
@@ -327,11 +359,14 @@ describe("Export Duration", () => {
                 loopCount: 1,
                 stepsPerLoop: 1,
                 interval: "16n",
-                bpm: 120,
+                bpm: 40,
                 exportMode: OFFLINE_EXPORT_MODE_TAIL,
                 tailMode: OFFLINE_EXPORT_TAIL_MODE_AUTO,
-                envRelease: 12,
+                envRelease: 5,
+                delayMix: 0.5,
             }),
-        ).toContain("Auto effects tail: 10.0s");
+        ).toBe(
+            "1 Pattern cycle at ~0.38s each + Auto effects tail: 10.0s. Export duration: ~10.4 seconds. Auto estimate is 12.5s and is capped at 10s.",
+        );
     });
 });
