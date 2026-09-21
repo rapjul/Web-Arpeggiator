@@ -8,6 +8,7 @@ type ChordConflictDetails = Parameters<OpenChordConflict>[0];
 interface PatternControlsFixture {
     chordButton: HTMLButtonElement;
     controller: ReturnType<typeof createPatternControlsController>;
+    dependencies: PatternControlsDependencies;
     flushDebouncedPatternChange: () => void;
     gateSlider: HTMLInputElement;
     gateValue: HTMLSpanElement;
@@ -154,6 +155,7 @@ function createFixture(): PatternControlsFixture {
     return {
         chordButton,
         controller: createPatternControlsController(dependencies),
+        dependencies,
         flushDebouncedPatternChange: () => {
             queuedPatternChanges.splice(0).forEach((callback) => {
                 callback();
@@ -322,6 +324,35 @@ describe("pattern controls controller", () => {
         expect(onNotesSelected).toHaveBeenLastCalledWith(["C4", "D#4", "G4"]);
         expect(scaleQuantizeToggle.checked).toBe(false);
         expect(scaleTypeSelect.value).toBe("major");
+    });
+
+    test("adapts a conflicting chord when the optional dialog callback is unavailable", () => {
+        const fixture = createFixture();
+        fixture.scaleTypeSelect.value = "major";
+        fixture.scaleQuantizeToggle.checked = true;
+        fixture.resolveChordConflict.mockReturnValue({
+            hasConflict: true,
+            chordName: "Minor",
+            root: "C",
+            requestedNotes: ["C4", "D#4", "G4"],
+            adaptedNotes: ["C4", "D4", "G4"],
+            changedPitches: [{ requested: "D#4", adapted: "D4" }],
+        });
+        const { openChordConflict: _unusedDialog, ...dependenciesWithoutDialog } =
+            fixture.dependencies;
+        const controller = createPatternControlsController(dependenciesWithoutDialog);
+        controller.initialize();
+
+        fixture.chordButton.click();
+
+        expect(fixture.onNotesSelected).toHaveBeenCalledWith(["C4", "D4", "G4"]);
+        expect(fixture.scaleQuantizeToggle.checked).toBe(true);
+        expect(fixture.showToast).toHaveBeenCalledWith(
+            "Loaded an adapted C Minor chord.",
+            "success",
+        );
+        controller.destroy();
+        fixture.controller.destroy();
     });
 
     test("enables reshuffling only for stochastic directions", () => {

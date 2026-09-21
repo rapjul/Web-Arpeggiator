@@ -24,6 +24,7 @@ export function createChordConflictDialogController({ documentRef, dom }) {
     } = dom;
     let pending = null;
     let returnFocus = null;
+    let isDestroyed = false;
     const listenerController = new AbortController();
     const listenerOptions = { signal: listenerController.signal };
 
@@ -96,6 +97,13 @@ export function createChordConflictDialogController({ documentRef, dom }) {
     );
 
     function open(details) {
+        const hasRequiredDialogControls = Boolean(
+            appMain && overlay && dialog && keepButton && adaptButton && cancelButton,
+        );
+        if (isDestroyed || !hasRequiredDialogControls) {
+            details.onCancel?.();
+            return;
+        }
         if (pending) close();
         pending = details;
         returnFocus =
@@ -118,6 +126,8 @@ export function createChordConflictDialogController({ documentRef, dom }) {
     }
 
     function destroy() {
+        if (isDestroyed) return;
+        isDestroyed = true;
         close();
         listenerController.abort();
     }

@@ -166,10 +166,30 @@ describe("chord conflict dialog controller", () => {
         fixture.controller.destroy();
     });
 
-    it("removes every listener when destroyed", () => {
+    it("fails closed when required dialog controls are unavailable", () => {
+        const fixture = createFixture();
+        const onCancel = vi.fn();
+        const controller = createChordConflictDialogController({
+            ...fixture.dependencies,
+            dom: { ...fixture.dependencies.dom, adaptButton: null },
+        });
+
+        fixture.returnFocus.focus();
+        controller.open(createDetails({ onCancel }));
+
+        expect(onCancel).toHaveBeenCalledOnce();
+        expect(fixture.overlay.classList.contains("hidden")).toBe(true);
+        expect(fixture.appMain.hasAttribute("inert")).toBe(false);
+        expect(document.activeElement).toBe(fixture.returnFocus);
+        controller.destroy();
+        fixture.controller.destroy();
+    });
+
+    it("cancels post-destroy opens without orphaning the dialog", () => {
         const fixture = createFixture();
         const onKeep = vi.fn();
         const onCancel = vi.fn();
+        fixture.controller.destroy();
         fixture.controller.destroy();
 
         fixture.controller.open(createDetails({ onKeep, onCancel }));
@@ -180,7 +200,8 @@ describe("chord conflict dialog controller", () => {
         );
 
         expect(onKeep).not.toHaveBeenCalled();
-        expect(onCancel).not.toHaveBeenCalled();
-        fixture.controller.close();
+        expect(onCancel).toHaveBeenCalledOnce();
+        expect(fixture.overlay.classList.contains("hidden")).toBe(true);
+        expect(fixture.appMain.hasAttribute("inert")).toBe(false);
     });
 });
