@@ -4,7 +4,10 @@ export const MAX_RANDOM_SEED = 0xffffffff;
 
 /** @param {unknown} value @param {number} [fallback=DEFAULT_RANDOM_SEED] */
 export function normalizeRandomSeed(value, fallback = DEFAULT_RANDOM_SEED) {
-    const parsed = Number(value);
+    const parsed =
+        typeof value === "number" || (typeof value === "string" && value.trim() !== "")
+            ? Number(value)
+            : Number.NaN;
     if (!Number.isFinite(parsed)) return normalizeRandomSeed(fallback, DEFAULT_RANDOM_SEED);
     return Math.min(Math.max(Math.trunc(parsed), 0), MAX_RANDOM_SEED) >>> 0;
 }
