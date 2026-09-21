@@ -163,6 +163,7 @@ describe("export controls controller", () => {
             loopCount: 1,
             octaveRange: 1,
             offlineExportMode: "tail",
+            offlineExportTailMode: "custom",
             offlineExportTailSeconds: 0,
         });
 
