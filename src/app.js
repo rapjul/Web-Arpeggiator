@@ -695,6 +695,7 @@ function initializeApp() {
 
     const interfaceModeController = createInterfaceModeController({
         dom: { appMain, interfaceModeSelect },
+        documentRef: document,
         storage: {
             getItem: (key) => window.localStorage.getItem(key),
             setItem: (key, value) => window.localStorage.setItem(key, value),

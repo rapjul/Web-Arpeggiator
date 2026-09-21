@@ -353,7 +353,8 @@ Web Arpeggiator/
 │   │   ├── 0017-awaited-recording-lifecycle-and-bounded-audio-resource-ownership.md
 │   │   ├── 0018-recommended-effects-tail-strategy.md
 │   │   ├── 0019-persisted-interface-mode.md
-│   │   └── 0020-optional-creation-walkthrough.md
+│   │   ├── 0020-optional-creation-walkthrough.md
+│   │   └── 0021-progressive-simple-controls.md
 │   ├── architecture.md     # Module ownership, runtime flow, and deferred boundaries
 │   ├── development.md      # Local setup, commands, and test-runner guidance
 │   ├── improvements/       # Deferred, scoped follow-up plans

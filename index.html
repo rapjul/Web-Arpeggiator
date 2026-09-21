@@ -464,7 +464,7 @@
                 <div class="space-y-4">
                     <div>
                         <label for="post-gain" class="block text-sm font-medium mb-1">
-                            Post Gain:
+                            Volume:
                             <span id="post-gain-value">85</span>
                             %
                         </label>
@@ -475,7 +475,7 @@
                     </div>
                     <div>
                         <label for="bpm" class="block text-sm font-medium mb-1">
-                            BPM:
+                            Tempo:
                             <span id="bpm-value">120</span>
                         </label>
                         <p class="text-[11px] text-gray-400 mb-1">
@@ -754,7 +754,7 @@
                     <!-- START Selection: Pattern Direction -->
                     <div class="space-y-2">
                         <span id="pattern-label" class="block text-sm font-medium mb-1">
-                            Pattern Direction
+                            Pattern
                         </span>
                         <fieldset id="pattern-buttons" aria-labelledby="pattern-label">
                             <label class="cursor-pointer">
@@ -1220,7 +1220,7 @@
                     <!-- START Selection: Note Duration -->
                     <div>
                         <label for="interval" class="block text-sm font-medium mb-1">
-                            Note Duration
+                            Note length
                         </label>
                         <p class="text-[11px] text-gray-400 mb-1">
                             Rhythmic step subdivision (32nd note to Half note)
@@ -1261,7 +1261,7 @@
                             id="scale-quantization-title"
                             class="text-xl font-semibold text-blue-300 inline"
                         >
-                            🎼 Scale Quantization
+                            🎼 Stay in key
                         </h2>
                     </summary>
                     <div id="quantizer-card" class="mt-4">
@@ -1291,7 +1291,7 @@
                             <!-- START Selector: Root Note -->
                             <div>
                                 <label for="scale-root" class="block text-sm font-medium mb-1">
-                                    Root Note
+                                    Key
                                 </label>
                                 <select
                                     id="scale-root"
@@ -1579,10 +1579,14 @@
             <section
                 class="md:col-span-3 col-span-full bg-gray-700 p-4 rounded-lg shadow-inner"
                 aria-labelledby="synth-title"
-                data-interface-advanced="true"
             >
-                <h2 id="synth-title" class="text-xl font-semibold mb-3 text-blue-300">Synth</h2>
-                <div class="space-y-4">
+                <details id="synth-details" class="card-details" data-interface-simple-collapsible open>
+                    <summary>
+                        <h2 id="synth-title" class="text-xl font-semibold text-blue-300 inline">
+                            Synth
+                        </h2>
+                    </summary>
+                <div class="mt-4 space-y-4">
                     <!-- START Selector: Synth Type -->
                     <div>
                         <label for="synth-type" class="block text-sm font-medium mb-1">
@@ -2083,18 +2087,21 @@
                     </div>
                     <!-- END Selector: Gate -->
                 </div>
+                </details>
             </section>
 
             <!-- Card: Envelope (ADSR) -->
             <section
                 class="md:col-span-3 col-span-full bg-gray-700 p-4 rounded-lg shadow-inner"
                 aria-labelledby="envelope-title"
-                data-interface-advanced="true"
             >
-                <h2 id="envelope-title" class="text-xl font-semibold mb-3 text-blue-300">
-                    Envelope (ADSR)
-                </h2>
-                <div class="space-y-4">
+                <details id="envelope-details" class="card-details" data-interface-simple-collapsible open>
+                    <summary>
+                        <h2 id="envelope-title" class="text-xl font-semibold text-blue-300 inline">
+                            Envelope (ADSR)
+                        </h2>
+                    </summary>
+                <div class="mt-4 space-y-4">
                     <!-- START Selector: Attack -->
                     <div>
                         <label for="env-attack" class="block text-sm font-medium mb-1">
@@ -2178,16 +2185,21 @@
                     </div>
                     <!-- END Selector: Release -->
                 </div>
+                </details>
             </section>
 
             <!-- Card: Filter Controls -->
             <section
                 class="md:col-span-2 col-span-full bg-gray-700 p-4 rounded-lg shadow-inner"
                 aria-labelledby="filter-title"
-                data-interface-advanced="true"
             >
-                <h2 id="filter-title" class="text-xl font-semibold mb-3 text-blue-300">Filter</h2>
-                <div class="space-y-4">
+                <details id="filter-details" class="card-details" data-interface-simple-collapsible open>
+                    <summary>
+                        <h2 id="filter-title" class="text-xl font-semibold text-blue-300 inline">
+                            Filter
+                        </h2>
+                    </summary>
+                <div class="mt-4 space-y-4">
                     <!-- START Selector: Filter Cutoff -->
                     <div>
                         <label for="filter-cutoff" class="block text-sm font-medium mb-1">
@@ -2229,16 +2241,21 @@
                     </div>
                     <!-- END Selector: Filter Resonance -->
                 </div>
+                </details>
             </section>
 
             <!-- Card: Effects Controls -->
             <section
                 class="md:col-span-2 col-span-full bg-gray-700 p-4 rounded-lg shadow-inner"
                 aria-labelledby="effects-title"
-                data-interface-advanced="true"
             >
-                <h2 id="effects-title" class="text-xl font-semibold mb-3 text-blue-300">Effects</h2>
-                <div class="space-y-4">
+                <details id="effects-details" class="card-details" data-interface-simple-collapsible open>
+                    <summary>
+                        <h2 id="effects-title" class="text-xl font-semibold text-blue-300 inline">
+                            Effects
+                        </h2>
+                    </summary>
+                <div class="mt-4 space-y-4">
                     <!-- START Selector: Drive Mix -->
                     <div>
                         <label for="drive-mix" class="block text-sm font-medium mb-1">
@@ -2325,6 +2342,7 @@
                     </div>
                     <!-- END Selector: Reverb Mix -->
                 </div>
+                </details>
             </section>
 
             <!-- Card: Utilities -->

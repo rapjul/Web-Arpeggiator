@@ -55,7 +55,7 @@ Live playback adapts that timeline to `Tone.Pattern` so the existing transport l
 `src/ui/` contains DOM controllers and visual rendering:
 
 - Pattern, synth, transport, effects, onboarding, keyboard, visualizer, note-step, and accessibility controllers own their respective controls.
-- `interface-mode-controller.js` restores the Simple/Full presentation choice before revealing the application shell, persists it separately from musical settings, and hides complete advanced sections. The composition root deactivates transient keyboard and visualizer activity and cancels active or starting recording when their controls become unavailable in Simple mode; a recording stop failure restores Full controls.
+- `interface-mode-controller.js` restores the Simple/Full presentation choice before revealing the application shell, persists it separately from musical settings, uses plain-language primary labels, and progressively discloses advanced controls. The composition root deactivates transient keyboard and visualizer activity and cancels active or starting recording when their controls become unavailable in Simple mode; a recording stop failure restores Full controls.
 - `creation-walkthrough-controller.js` tracks optional beginner guidance through observable UI actions, storing only its progress state outside musical settings and history.
 - `dom-references.js` builds the complete injected DOM reference registry and resolves reset targets for the composition root.
 - `workspace-controller.js` coordinates settings history, resets, autosave, and session restoration.
