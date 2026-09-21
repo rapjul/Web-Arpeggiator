@@ -3,6 +3,8 @@ import {
     compileTimeline,
     createCyclicRenderEvents,
     getIntervalTicks,
+    getSwingPhaseCycleCount,
+    isSwingPhaseAligned,
     getTimelineEndTick,
     getSwingOffsetTicks,
     TICKS_PER_BEAT,
@@ -107,6 +109,19 @@ describe("musical timeline", () => {
         expect(getSwingOffsetTicks(240, 1)).toBe(160);
         expect(getSwingOffsetTicks(120, 0.5)).toBe(57);
         expect(getSwingOffsetTicks(120, 0)).toBe(0);
+    });
+
+    it("requires a whole swing phase before a timeline can repeat seamlessly", () => {
+        const oneCycle = compileTimeline({ ...baseSettings(), swing: 1 }, { cycles: 1 });
+        const alignedCycles = compileTimeline({ ...baseSettings(), swing: 1 }, { cycles: 4 });
+
+        expect(isSwingPhaseAligned(oneCycle.musicalDurationTicks, oneCycle.swing)).toBe(false);
+        expect(isSwingPhaseAligned(alignedCycles.musicalDurationTicks, alignedCycles.swing)).toBe(
+            true,
+        );
+        expect(isSwingPhaseAligned(oneCycle.musicalDurationTicks, 0)).toBe(true);
+        expect(getSwingPhaseCycleCount(oneCycle.cycleDurationTicks, oneCycle.swing)).toBe(4);
+        expect(getSwingPhaseCycleCount(oneCycle.cycleDurationTicks, 0)).toBe(1);
     });
 
     it("compiles resolved notes, source identity, gate, and trailing musical duration", () => {

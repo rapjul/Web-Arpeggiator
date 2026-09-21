@@ -1,17 +1,17 @@
 /**
- * Renders one exact arpeggio cycle for the loop-map visualizer.
+ * Renders the shortest swing-phase-aligned arpeggio loop for the visualizer.
  *
  * @module audio/static-loop-renderer
  */
 
-import { compileTimeline, ticksToSeconds } from "@core/timeline.js";
+import { compileTimeline, getSwingPhaseCycleCount, ticksToSeconds } from "@core/timeline.js";
 
 /** @typedef {import("@core/settings-contract.js").ArpeggiatorSettings} ArpeggiatorSettings */
 /** @typedef {{transport: {bpm: {value: number}, swing: number, start: (time: number) => void}}} OfflineContextLike */
 /** @typedef {{Offline: (callback: (context: OfflineContextLike) => Promise<void>, duration: number) => Promise<unknown>}} StaticToneLike */
 
 /**
- * Creates a one-cycle offline renderer without importing Tone at module load.
+ * Creates an offline loop renderer without importing Tone at module load.
  *
  * @param {{isAudioContextStarted: () => boolean, getTone: () => StaticToneLike|null, getAudioEngine: () => {createOfflineChain: (context: OfflineContextLike, settings: ArpeggiatorSettings) => {offlineSynth: {triggerAttackRelease: (note: string, duration: number, time: number) => void}}}|undefined, getSettings: () => ArpeggiatorSettings, getTimeline?: () => import("@core/timeline.js").CompiledTimeline|null, updateStaticLoopMap: (buffer: unknown, markers: unknown[]) => void, logger?: {error?: (...args: unknown[]) => void}}} dependencies - Injected runtime dependencies.
  * @returns {{render: () => Promise<void>}} Static loop renderer API.
@@ -34,7 +34,7 @@ export function createStaticLoopRenderer(dependencies) {
         if (!isAudioContextStarted() || !tone || !audioEngine) return;
 
         const settings = getSettings();
-        const timeline =
+        const oneCycleTimeline =
             getTimeline?.() ??
             compileTimeline(
                 {
@@ -55,6 +55,14 @@ export function createStaticLoopRenderer(dependencies) {
                 },
                 { cycles: 1 },
             );
+        const swingPhaseCycles = getSwingPhaseCycleCount(
+            oneCycleTimeline.cycleDurationTicks,
+            oneCycleTimeline.swing,
+        );
+        const timeline =
+            swingPhaseCycles === 1
+                ? oneCycleTimeline
+                : compileTimeline(settings, { cycles: swingPhaseCycles });
         if (timeline.events.length === 0) return;
 
         const markers = timeline.events.map((event) => ({

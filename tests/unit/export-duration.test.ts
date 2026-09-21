@@ -264,5 +264,17 @@ describe("Export Duration", () => {
         ).toBe(
             "1 Pattern cycle at ~0.38s each. Seamless WAV duration: ~0.4 seconds. Includes an internal 0.4s effects warm-up. Chorus is not phase-aligned across the selected Pattern cycles. Disable it, adjust Pattern cycles, or use Include effects tail.",
         );
+        expect(
+            formatEstimatedExportDuration({
+                loopCount: 1,
+                stepsPerLoop: 3,
+                interval: "16n",
+                bpm: 120,
+                swing: 1,
+                exportMode: OFFLINE_EXPORT_MODE_SEAMLESS,
+            }),
+        ).toBe(
+            "1 Pattern cycle at ~0.38s each. Seamless WAV duration: ~0.4 seconds. Swing is not phase-aligned across the selected Pattern cycles. Disable it, adjust Pattern cycles, or use Include effects tail.",
+        );
     });
 });

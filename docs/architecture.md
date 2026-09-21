@@ -28,7 +28,7 @@ The root retains the integration callbacks needed to connect focused modules to 
 - `recorder.js` owns real-time recording and offline audio encoding/rendering from the same timeline.
 - `runtime-controller.js` owns deferred Tone loading, runtime construction, pending settings, and partial-runtime cleanup.
 - `playback-controller.js` owns transport start/stop and suspended AudioContext recovery.
-- `static-loop-renderer.js` owns one-cycle offline rendering used by visualizer previews.
+- `static-loop-renderer.js` owns offline rendering for visualizer previews and repeats a pattern through a complete swing phase when required to close the Loop Map boundary.
 
 ### Shared Musical Timeline
 

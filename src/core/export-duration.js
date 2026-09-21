@@ -4,6 +4,8 @@
  * @module export-duration
  */
 
+import { getIntervalTicks, isSwingPhaseAligned } from "./timeline.js";
+
 const SUPPORTED_NOTE_DENOMINATORS = new Set([2, 4, 8, 16, 32, 64]);
 const DEFAULT_BPM = 120;
 const DEFAULT_INTERVAL = "16n";
@@ -343,12 +345,14 @@ export function calculateOfflineExportDuration({
  * @param {unknown} [options.reverbMix] - Reverb wet mix.
  * @param {unknown} [options.chorusMix] - Chorus wet mix.
  * @param {unknown} [options.autoPanMix] - Auto-pan wet mix.
+ * @param {unknown} [options.swing] - Swing amount from 0 through 1.
  * @param {unknown} [options.terminalDuration] - Final selected release end in seconds.
  * @returns {string} Formatted duration estimate.
  */
 export function formatEstimatedExportDuration(options) {
     const {
         loopCount: safeLoopCount,
+        stepsPerLoop: safeStepsPerLoop,
         loopDuration,
         exportDuration,
         preRollDuration,
@@ -381,7 +385,13 @@ export function formatEstimatedExportDuration(options) {
                       incompatibleEffects.length === 1 ? "it" : "them"
                   }, adjust Pattern cycles, or use Include effects tail.`
                 : "";
-        return `${safeLoopCount} ${loopLabel} at ${formattedLoopDuration} each. Seamless WAV duration: ~${exportDuration.toFixed(1)} seconds.${warmupText}${modulationText}`;
+        const swingText = !isSwingPhaseAligned(
+            safeLoopCount * safeStepsPerLoop * getIntervalTicks(options.interval),
+            options.swing,
+        )
+            ? " Swing is not phase-aligned across the selected Pattern cycles. Disable it, adjust Pattern cycles, or use Include effects tail."
+            : "";
+        return `${safeLoopCount} ${loopLabel} at ${formattedLoopDuration} each. Seamless WAV duration: ~${exportDuration.toFixed(1)} seconds.${warmupText}${modulationText}${swingText}`;
     }
 
     return `${safeLoopCount} ${loopLabel} at ${formattedLoopDuration} each + ${tailDuration.toFixed(1)}s effects tail. Export duration: ~${exportDuration.toFixed(1)} seconds`;

@@ -39,6 +39,36 @@ describe("static loop renderer", () => {
         expect(updateStaticLoopMap).toHaveBeenCalledOnce();
     });
 
+    it("renders enough cycles to close a swung Loop Map boundary", async () => {
+        const triggerAttackRelease = vi.fn();
+        const tone = {
+            Offline: vi.fn(async (callback, duration) => {
+                await callback({
+                    transport: { bpm: { value: 120 }, swing: 0, start: vi.fn() },
+                });
+                return { duration };
+            }),
+        };
+        const renderer = createStaticLoopRenderer({
+            isAudioContextStarted: () => true,
+            getTone: () => tone,
+            getAudioEngine: () => ({
+                createOfflineChain: vi.fn(() => ({ offlineSynth: { triggerAttackRelease } })),
+            }),
+            getSettings: () => ({
+                ...DEFAULT_SETTINGS,
+                baseNotes: ["C4", "E4", "G4"],
+                swing: 1,
+            }),
+            updateStaticLoopMap: vi.fn(),
+        });
+
+        await renderer.render();
+
+        expect(tone.Offline).toHaveBeenCalledWith(expect.any(Function), 1.5);
+        expect(triggerAttackRelease).toHaveBeenCalledTimes(12);
+    });
+
     it("skips marker publication when the offline render fails", async () => {
         const updateStaticLoopMap = vi.fn();
         const logger = { error: vi.fn() };

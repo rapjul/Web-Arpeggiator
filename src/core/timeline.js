@@ -211,6 +211,41 @@ export function getSwingOffsetTicks(startTick, swing) {
 }
 
 /**
+ * Determines whether a duration ends at the same swing phase where it began.
+ *
+ * @param {unknown} durationTicks - Candidate duration in timeline ticks.
+ * @param {unknown} swing - Swing amount from 0 through 1.
+ * @returns {boolean} Whether a repeated range preserves the swing phase.
+ */
+export function isSwingPhaseAligned(durationTicks, swing) {
+    const safeDuration = Math.max(0, Math.trunc(Number(durationTicks) || 0));
+    const safeSwing = normalizeNumber(swing, 0, 0, 1);
+    return safeSwing === 0 || safeDuration === 0 || safeDuration % TICKS_PER_BEAT === 0;
+}
+
+/**
+ * Returns how many pattern cycles make a complete swing-phase repetition.
+ *
+ * @param {unknown} cycleDurationTicks - One pattern-cycle duration in timeline ticks.
+ * @param {unknown} swing - Swing amount from 0 through 1.
+ * @returns {number} Number of cycles required for a seamless phase boundary.
+ */
+export function getSwingPhaseCycleCount(cycleDurationTicks, swing) {
+    const safeDuration = Math.max(0, Math.trunc(Number(cycleDurationTicks) || 0));
+    const safeSwing = normalizeNumber(swing, 0, 0, 1);
+    if (safeSwing === 0 || safeDuration === 0) return 1;
+
+    let divisor = TICKS_PER_BEAT;
+    let remainder = safeDuration % TICKS_PER_BEAT;
+    while (remainder !== 0) {
+        const nextRemainder = divisor % remainder;
+        divisor = remainder;
+        remainder = nextRemainder;
+    }
+    return TICKS_PER_BEAT / divisor;
+}
+
+/**
  * Returns the note source configuration accepted by the timeline compiler.
  *
  * @param {Record<string, unknown>} settings - Candidate settings.

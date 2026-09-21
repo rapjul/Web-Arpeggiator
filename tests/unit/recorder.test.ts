@@ -337,7 +337,8 @@ describe("Recorder Manager Module", () => {
         expect(lastOfflineRenderDuration).toBeCloseTo((359 + 120) / 480 / 2);
     });
 
-    it("preserves the selected swung attacks at a seamless crop boundary", async () => {
+    it("rejects a seamless export that ends at a different swing phase", async () => {
+        const Tone = await import("tone");
         const manager = createRecorderManager({
             audio: mockAudio,
             dom: mockDom,
@@ -362,19 +363,10 @@ describe("Recorder Manager Module", () => {
 
         await manager.exportOffline();
 
-        const cropStart = 1.125;
-        const cropIndex = lastOfflineAttackTimes.indexOf(cropStart);
-        expect(cropIndex).toBeGreaterThanOrEqual(0);
-        expect(lastOfflineAttackTimes.slice(cropIndex, cropIndex + 3)).toEqual([
-            cropStart,
-            (1080 + 233) / 960,
-            (1080 + 359) / 960,
-        ]);
-        expect(lastOfflinePatternValues.slice(cropIndex, cropIndex + 3)).toEqual([
-            "C4",
-            "E4",
-            "G4",
-        ]);
+        expect(Tone.Offline).not.toHaveBeenCalled();
+        expect(mockDom.offlineExportStatus.textContent).toContain(
+            "Cannot generate a seamless loop with Swing",
+        );
     });
 
     it("warms, crops, and exports seamless loops from one settings snapshot", async () => {

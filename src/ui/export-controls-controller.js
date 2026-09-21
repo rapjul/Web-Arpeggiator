@@ -94,6 +94,7 @@ export function createExportControlsController(dependencies) {
             reverbMix: settings.reverbMix,
             chorusMix: settings.chorusMix,
             autoPanMix: settings.autoPanMix,
+            swing: settings.swing,
             terminalDuration,
         });
     }

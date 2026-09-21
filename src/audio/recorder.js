@@ -27,6 +27,7 @@ import {
     compileTimeline,
     createCyclicRenderEvents,
     getTimelineEndTick,
+    isSwingPhaseAligned,
     ticksToSeconds,
 } from "@core/timeline.js";
 
@@ -406,10 +407,16 @@ export function createRecorderManager(context) {
             chorusMix: settings.chorusMix,
             autoPanMix: settings.autoPanMix,
         });
+        const incompatibleSeamlessComponents = [
+            ...(!isSwingPhaseAligned(selectedTimeline.musicalDurationTicks, selectedTimeline.swing)
+                ? ["Swing"]
+                : []),
+            ...seamlessModulation.incompatibleEffects,
+        ];
 
-        if (isSeamlessExport && !seamlessModulation.isCompatible) {
-            const effectLabel = formatEffectList(seamlessModulation.incompatibleEffects);
-            const message = `Cannot generate a seamless loop with ${effectLabel}: change Pattern cycles, disable it, or use Include effects tail.`;
+        if (isSeamlessExport && incompatibleSeamlessComponents.length > 0) {
+            const componentLabel = formatEffectList(incompatibleSeamlessComponents);
+            const message = `Cannot generate a seamless loop with ${componentLabel}: change Pattern cycles, disable it, or use Include effects tail.`;
             dom.offlineExportStatus.textContent = message;
             actions.showToast(message, "error");
             dom.offlineExportButton.disabled = false;
