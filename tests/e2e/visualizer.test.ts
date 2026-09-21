@@ -123,7 +123,6 @@ test("rerenders the Loop Map canvas for every pattern-affecting public control",
 
     let fingerprint = await expectLoopMapRerender(page, "");
     await page.locator("#notes").fill("D3 F#3 A3");
-    await page.locator("#notes").dispatchEvent("change");
     fingerprint = await expectLoopMapRerender(page, fingerprint);
 
     for (const range of ["3", "5", "1"]) {

@@ -14,7 +14,6 @@ import { setupKeyboardNavigation } from "@ui/a11y-navigation.js";
  * @property {(value: number) => void} setOctaveShift
  * @property {(value: number) => void} setOctaveRange
  * @property {() => void} onPatternChange
- * @property {() => void} onEstimatedDurationChange
  * @property {() => void} onStaticLoopChange
  * @property {() => void} [onReshuffle]
  * @property {(notes: string[]) => void} [onNotesSelected]
@@ -41,7 +40,6 @@ export function createPatternControlsController(dependencies) {
         setOctaveShift,
         setOctaveRange,
         onPatternChange,
-        onEstimatedDurationChange,
         onStaticLoopChange,
         onReshuffle,
         onNotesSelected,
@@ -292,7 +290,8 @@ export function createPatternControlsController(dependencies) {
             () => {
                 const nextNotes = notesInput.value.trim().split(/\s+/).filter(Boolean);
                 setNotes(nextNotes.length > 0 ? nextNotes : ["C4"]);
-                onEstimatedDurationChange();
+                pendingPatternChangeLifecycle = lifecycleId;
+                debouncedPatternChange();
             },
             options,
         );

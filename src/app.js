@@ -427,7 +427,6 @@ function initializeApp() {
             appState.currentOctaveRange = value;
         },
         onPatternChange: createOrUpdatePattern,
-        onEstimatedDurationChange: () => updateEstimatedExportDuration(),
         onStaticLoopChange: requestStaticLoopRender,
         onReshuffle: () => {
             const seed = new Uint32Array(1);

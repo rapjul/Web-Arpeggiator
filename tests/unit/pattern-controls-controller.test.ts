@@ -11,7 +11,6 @@ interface PatternControlsFixture {
     intervalSelect: HTMLSelectElement;
     notesInput: HTMLInputElement;
     normalizeNotes: ReturnType<typeof vi.fn>;
-    onEstimatedDurationChange: ReturnType<typeof vi.fn>;
     onPatternChange: ReturnType<typeof vi.fn>;
     onReshuffle: ReturnType<typeof vi.fn>;
     onStaticLoopChange: ReturnType<typeof vi.fn>;
@@ -85,7 +84,6 @@ function createFixture(): PatternControlsFixture {
     const setOctaveRange = vi.fn();
     const onPatternChange = vi.fn();
     const onReshuffle = vi.fn();
-    const onEstimatedDurationChange = vi.fn();
     const onStaticLoopChange = vi.fn();
     const debounce: PatternControlsDependencies["debounce"] = (callback) => () => {
         queuedPatternChanges.push(callback);
@@ -113,7 +111,6 @@ function createFixture(): PatternControlsFixture {
         setOctaveRange,
         onPatternChange,
         onReshuffle,
-        onEstimatedDurationChange,
         onStaticLoopChange,
         debounce,
     };
@@ -130,7 +127,6 @@ function createFixture(): PatternControlsFixture {
         intervalSelect,
         notesInput,
         normalizeNotes,
-        onEstimatedDurationChange,
         onPatternChange,
         onReshuffle,
         onStaticLoopChange,
@@ -153,12 +149,12 @@ describe("pattern controls controller", () => {
         document.body.replaceChildren();
     });
 
-    test("normalizes submitted notes and retains a safe fallback while editing", () => {
+    test("normalizes committed notes and rebuilds the pattern while editing", () => {
         const {
             controller,
+            flushDebouncedPatternChange,
             normalizeNotes,
             notesInput,
-            onEstimatedDurationChange,
             onPatternChange,
             setNotes,
         } = createFixture();
@@ -174,7 +170,9 @@ describe("pattern controls controller", () => {
         notesInput.value = "";
         notesInput.dispatchEvent(new Event("input"));
         expect(setNotes).toHaveBeenLastCalledWith(["C4"]);
-        expect(onEstimatedDurationChange).toHaveBeenCalledOnce();
+        expect(onPatternChange).toHaveBeenCalledOnce();
+        flushDebouncedPatternChange();
+        expect(onPatternChange).toHaveBeenCalledTimes(2);
     });
 
     test("coordinates scale mode selection and dependent pattern updates", () => {
