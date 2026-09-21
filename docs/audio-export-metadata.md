@@ -29,10 +29,9 @@ The embedded value is UTF-8 JSON with this stable envelope:
     "frameCount": 88200
   },
   "pattern": {
-    "scheduledNotes": ["C4", "E4", "G4", "C4", "E4", "G4", "C4", "E4", "G4", "C4", "E4", "G4"],
-    "stepsPerCycle": 3,
-    "cycleCount": 4,
-    "stepsPerLoop": 3
+    "scheduledNotes": ["C4", "E4", "G4"],
+    "stepsPerLoop": 3,
+    "renderedNotes": ["C4", "E4", "G4", "C4", "E4", "G4", "C4", "E4", "G4", "C4", "E4", "G4"]
   },
   "settings": {
     "bpm": 120,
@@ -43,7 +42,7 @@ The embedded value is UTF-8 JSON with this stable envelope:
 }
 ```
 
-`settings` is the complete output of the settings serializer, rather than a hand-picked subset. `pattern.scheduledNotes` preserves the flattened sequence rendered across every selected pattern cycle, while `stepsPerCycle` and `cycleCount` retain its boundaries. The seed makes stochastic settings reproducible, and the materialized notes remain available for verification. A future importer should validate the schema and version, then restore `settings` through the existing settings loader while retaining the rendered sequence for comparison.
+`settings` is the complete output of the settings serializer, rather than a hand-picked subset. For version-1 compatibility, `pattern.scheduledNotes` retains one materialized pattern cycle and `stepsPerLoop` equals its length. `pattern.renderedNotes` is an optional additive field that preserves the exact note order across every selected cycle. The seed makes stochastic settings reproducible, and the materialized notes remain available for verification. A future importer should validate the schema and version, then restore `settings` through the existing settings loader while retaining the rendered sequence for comparison.
 
 ## File layouts
 

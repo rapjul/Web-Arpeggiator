@@ -180,6 +180,36 @@ describe("export controls controller", () => {
         preview.controller.destroy();
     });
 
+    it("preserves the terminal MIDI gate when compiling from the export controls", () => {
+        const { midiButton, settings } = createFixture();
+        Object.assign(settings, {
+            baseNotes: ["C4", "E4", "G4"],
+            interval: "16n",
+            gateRatio: 1,
+            swing: 1,
+            loopCount: 1,
+            octaveRange: 1,
+        });
+        vi.mocked(exportMidiFile).mockClear();
+
+        midiButton.click();
+
+        expect(exportMidiFile).toHaveBeenCalledWith(
+            expect.objectContaining({
+                timeline: expect.objectContaining({
+                    events: expect.arrayContaining([
+                        expect.objectContaining({
+                            pitch: "G4",
+                            startTick: 359,
+                            durationTicks: 120,
+                        }),
+                    ]),
+                }),
+            }),
+            "arpeggio.mid",
+        );
+    });
+
     it("reports export action failures without unhandled rejections", async () => {
         const { logger, recorder, recordButton } = createFixture();
         recorder.toggleRecording.mockRejectedValueOnce(new Error("recorder failed"));

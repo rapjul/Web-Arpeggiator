@@ -21,7 +21,7 @@ The metadata must survive ordinary file movement, be understandable by audio too
 
 Each offline WAV and MP3 export receives one immutable UTF-8 JSON record created from the export settings snapshot and resolved render result. Its stable envelope uses schema `web-arpeggiator.offline-export` and numeric version `1`.
 
-The record includes the complete normalized settings serialization, including `randomSeed`; the flattened materialized scheduled note sequence across every selected cycle; its `stepsPerCycle` and `cycleCount`; and render details: export mode, loop count, musical/pre-roll/tail/render durations, sample rate, channel count, and output frame count. Capturing both the seed and rendered sequence makes randomized exports inspectable and provides a future importer with a concrete comparison target.
+The record includes the complete normalized settings serialization, including `randomSeed`; one materialized cycle in `scheduledNotes` and its `stepsPerLoop` for version-1 compatibility; and an optional `renderedNotes` sequence across every selected cycle. It also includes render details: export mode, loop count, musical/pre-roll/tail/render durations, sample rate, channel count, and output frame count. Capturing both the seed and rendered sequence makes randomized exports inspectable and provides a future importer with a concrete comparison target.
 
 WAV writes human-readable `LIST/INFO` tags plus the full record in a private `arpg` RIFF chunk before `data`; the PCM payload and its frame count remain unchanged. MP3 writes standard ID3v2.4 title and software tags plus the full record in a `TXXX` frame named `WEB_ARPEGGIATOR_EXPORT`; the tag precedes MPEG frames so the Info/LAME gapless frame remains available.
 

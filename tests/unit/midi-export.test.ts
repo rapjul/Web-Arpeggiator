@@ -344,4 +344,39 @@ describe("MIDI Export Domain Module", () => {
 
         expect(actual).toEqual(expected);
     });
+
+    test("preserves the configured terminal gate for direct MIDI exports", () => {
+        const settings = {
+            baseNotes: ["C4", "E4", "G4"],
+            interval: "16n",
+            gateRatio: 1,
+            swing: 1,
+        };
+        const directEvents = readNoteEvents(
+            createMidiFileBytes({
+                notes: settings.baseNotes,
+                interval: settings.interval,
+                gateRatio: settings.gateRatio,
+                swing: settings.swing,
+                loopCount: 1,
+            }),
+        );
+        const clippedTimeline = compileTimeline(settings, { cycles: 1 });
+        const suppliedEvents = readNoteEvents(createMidiFileBytes({ timeline: clippedTimeline }));
+
+        expect(directEvents.findLast((event) => event.type === "off" && event.note === 67)).toEqual(
+            {
+                type: "off",
+                tick: 479,
+                note: 67,
+            },
+        );
+        expect(
+            suppliedEvents.findLast((event) => event.type === "off" && event.note === 67),
+        ).toEqual({
+            type: "off",
+            tick: 360,
+            note: 67,
+        });
+    });
 });

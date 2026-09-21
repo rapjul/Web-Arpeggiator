@@ -22,9 +22,11 @@ describe("Offline export metadata", () => {
             offlineExportTailSeconds: 0,
         };
         const patternNotes = ["C4", "G4", "E4"];
+        const renderedNotes = ["C4", "G4", "E4", "G4", "C4", "E4", "E4", "C4", "G4"];
         const metadata = createOfflineExportMetadata({
             settings,
             patternNotes,
+            renderedNotes,
             exportDuration: {
                 exportMode: "seamless",
                 loopCount: 3,
@@ -41,6 +43,7 @@ describe("Offline export metadata", () => {
 
         settings.baseNotes[0] = "D4";
         patternNotes[0] = "D4";
+        renderedNotes[0] = "D4";
 
         expect(metadata).toEqual({
             schema: OFFLINE_EXPORT_METADATA_SCHEMA,
@@ -61,9 +64,8 @@ describe("Offline export metadata", () => {
             },
             pattern: {
                 scheduledNotes: ["C4", "G4", "E4"],
-                stepsPerCycle: 3,
-                cycleCount: 3,
                 stepsPerLoop: 3,
+                renderedNotes: ["C4", "G4", "E4", "G4", "C4", "E4", "E4", "C4", "G4"],
             },
             settings: {
                 bpm: 123,
@@ -84,6 +86,7 @@ describe("Offline export metadata", () => {
         const metadata = createOfflineExportMetadata({
             settings: circularSettings,
             patternNotes: null as unknown as string[],
+            renderedNotes: null as unknown as string[],
             exportDuration: {
                 exportMode: "tail",
                 loopCount: 1,
@@ -100,9 +103,8 @@ describe("Offline export metadata", () => {
 
         expect(metadata.pattern).toEqual({
             scheduledNotes: [],
-            stepsPerCycle: 0,
-            cycleCount: 1,
             stepsPerLoop: 0,
+            renderedNotes: [],
         });
         expect(metadata.settings).toEqual({});
     });

@@ -418,7 +418,9 @@ describe("Recorder Manager Module", () => {
                 version: 1,
                 settings,
                 pattern: expect.objectContaining({
-                    scheduledNotes: [
+                    scheduledNotes: ["C4", "E4", "G4"],
+                    stepsPerLoop: 3,
+                    renderedNotes: [
                         "C4",
                         "E4",
                         "G4",
@@ -432,7 +434,6 @@ describe("Recorder Manager Module", () => {
                         "E4",
                         "G4",
                     ],
-                    stepsPerLoop: 3,
                 }),
                 export: expect.objectContaining({
                     mode: "seamless",

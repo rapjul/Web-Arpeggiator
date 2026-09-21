@@ -146,7 +146,7 @@ export function createMidiFileBytes(options = {}) {
                       velocity: sourceOptions.velocity,
                       randomSeed: sourceOptions.randomSeed,
                   },
-                  { cycles: sourceOptions.loopCount },
+                  { cycles: sourceOptions.loopCount, terminalGatePolicy: "preserve" },
               );
 
     // Microseconds per quarter note for Set Tempo meta event (60,000,000 / BPM)

@@ -431,7 +431,8 @@ export function createRecorderManager(context) {
         const patternStopTime = isSeamlessExport
             ? exportDuration.preRollDuration + exportDuration.musicalDuration
             : exportDuration.musicalDuration;
-        const patternNotes = selectedTimeline.scheduledNotes;
+        const patternNotes = selectedTimeline.resolvedNotes;
+        const renderedNotes = selectedTimeline.scheduledNotes;
         const renderEvents = isSeamlessExport
             ? createCyclicRenderEvents(
                   selectedTimeline,
@@ -504,7 +505,7 @@ export function createRecorderManager(context) {
             const exportMetadata = createOfflineExportMetadata({
                 settings,
                 patternNotes,
-                stepsPerCycle: selectedTimeline.stepsPerCycle,
+                renderedNotes,
                 exportDuration: {
                     ...exportDuration,
                     renderDuration: offlineRenderDuration,
