@@ -146,5 +146,9 @@ test("rerenders the Loop Map canvas for every pattern-affecting public control",
     await page.locator("#scale-root").selectOption("G");
     fingerprint = await expectLoopMapRerender(page, fingerprint);
     await page.locator("#interval").selectOption("8n");
+    fingerprint = await expectLoopMapRerender(page, fingerprint);
+    await page.locator("#bpm").fill("180");
+    fingerprint = await expectLoopMapRerender(page, fingerprint);
+    await page.locator("#swing").fill("0.5");
     await expectLoopMapRerender(page, fingerprint);
 });

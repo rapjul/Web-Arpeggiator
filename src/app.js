@@ -1281,10 +1281,12 @@ function initializeApp() {
             if (getAudioEngine()) Tone.getTransport().bpm.value = value;
             createOrUpdatePattern();
             updateEstimatedExportDuration();
+            requestStaticLoopRender();
         },
         onSwingChange: (_value) => {
             if (getAudioEngine()) Tone.getTransport().swing = 0;
             createOrUpdatePattern();
+            requestStaticLoopRender();
         },
         debounce,
     });
