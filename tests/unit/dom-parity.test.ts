@@ -192,6 +192,19 @@ describe("Production DOM Parity Suite", () => {
         expect(chordTypes).toEqual(expectedChords);
     });
 
+    it("describes the chord conflict decision and shared scale-root control", () => {
+        const dialog = document.getElementById("chord-conflict-dialog");
+        const descriptionId = dialog?.getAttribute("aria-describedby");
+        const description = descriptionId ? document.getElementById(descriptionId) : null;
+        const rootSelect = document.getElementById("scale-root");
+        const rootHelpId = rootSelect?.getAttribute("aria-describedby");
+        const rootHelp = rootHelpId ? document.getElementById(rootHelpId) : null;
+
+        expect(description?.textContent).toContain("turns scale snapping off");
+        expect(description?.textContent).toContain("Adapt keeps scale snapping on");
+        expect(rootHelp?.textContent).toContain("scale snapping and chord starters");
+    });
+
     it("provides accessible seamless and effects-tail offline export controls", () => {
         const bpm = document.getElementById("bpm") as HTMLInputElement | null;
         expect(bpm?.min).toBe("40");
