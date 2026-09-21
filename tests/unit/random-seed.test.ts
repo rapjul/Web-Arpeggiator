@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_RANDOM_SEED, MAX_RANDOM_SEED, normalizeRandomSeed } from "@core/random-seed.js";
+import {
+    createSeededRandom,
+    DEFAULT_RANDOM_SEED,
+    MAX_RANDOM_SEED,
+    normalizeRandomSeed,
+} from "@core/random-seed.js";
 
 describe("random seed normalization", () => {
     it("defaults missing and nonnumeric settings while preserving valid unsigned seeds", () => {
@@ -11,5 +16,14 @@ describe("random seed normalization", () => {
         expect(normalizeRandomSeed(-1)).toBe(0);
         expect(normalizeRandomSeed(MAX_RANDOM_SEED + 1)).toBe(MAX_RANDOM_SEED);
         expect(normalizeRandomSeed(null, 7)).toBe(7);
+    });
+
+    it("produces the same sequence for independent generators with the same seed", () => {
+        const first = createSeededRandom(1234);
+        const second = createSeededRandom(1234);
+        const firstSequence = Array.from({ length: 10 }, () => first());
+        const secondSequence = Array.from({ length: 10 }, () => second());
+
+        expect(secondSequence).toEqual(firstSequence);
     });
 });

@@ -437,36 +437,8 @@ export function buildPatternSequence(baseNotes, options = {}) {
             }
         });
         finalDirection = "up";
-    } else if (direction === "randomWalkDrunk") {
-        const { notes, map } = buildPatternNotesAndMap(
-            baseNotes,
-            octaveRange,
-            octaveShift,
-            quantize,
-        );
-        if (notes.length > 0) {
-            let currentIndex = Math.floor(rng() * notes.length);
-            finalNotes.push(notes[currentIndex]);
-            stepToBaseIndexMap.push(map[currentIndex]);
-
-            for (let i = 1; i < 16; i++) {
-                let step;
-                if (rng() < 0.8) {
-                    step = rng() > 0.5 ? 1 : -1;
-                } else {
-                    step = Math.floor(rng() * 7) - 3;
-                    if (step === 0) step = 1;
-                }
-
-                currentIndex =
-                    (((currentIndex + step) % notes.length) + notes.length) % notes.length;
-                finalNotes.push(notes[currentIndex]);
-                stepToBaseIndexMap.push(map[currentIndex]);
-            }
-            finalDirection = "up";
-        }
     } else {
-        // Standard directions: 'up', 'down', 'upDown', 'downUp', 'random', 'randomWalk'
+        // Standard directions: 'up', 'down', 'upDown', and 'downUp'.
         const { notes, map } = buildPatternNotesAndMap(
             baseNotes,
             octaveRange,
@@ -612,9 +584,9 @@ export function createPatternSequenceCursor(baseNotes, options = {}) {
 /**
  * Materializes a finite sequence of notes and base index mappings according to the selected pattern direction.
  *
- * Unlike buildPatternSequence which defers standard directions ('down', 'upDown', 'downUp', 'random', 'randomWalk')
- * to Tone.Pattern traversal during playback, this function unrolls every supported direction deterministically into a
- * finite concrete sequence suitable for Standard MIDI export, offline renderers, and static timeline mapping.
+ * Unlike buildPatternSequence, this function unrolls every supported direction, including cursor-driven stochastic
+ * directions, into a finite concrete sequence suitable for Standard MIDI export, offline renderers, and static
+ * timeline mapping.
  *
  * @param {readonly string[]} baseNotes - Input note strings.
  * @param {object} [options={}] - Configuration options.
@@ -760,47 +732,6 @@ export function materializePatternSequence(baseNotes, options = {}) {
                     finalMap.push(i);
                 }
             });
-            break;
-        }
-        case "random": {
-            const count = Math.max(1, notes.length);
-            for (let i = 0; i < count; i++) {
-                const idx = Math.floor(rng() * notes.length);
-                finalNotes.push(notes[idx]);
-                finalMap.push(map[idx]);
-            }
-            break;
-        }
-        case "randomWalk": {
-            const count = Math.max(1, notes.length);
-            let idx = Math.floor(rng() * notes.length);
-            finalNotes.push(notes[idx]);
-            finalMap.push(map[idx]);
-            for (let i = 1; i < count; i++) {
-                const step = rng() > 0.5 ? 1 : -1;
-                idx = (((idx + step) % notes.length) + notes.length) % notes.length;
-                finalNotes.push(notes[idx]);
-                finalMap.push(map[idx]);
-            }
-            break;
-        }
-        case "randomWalkDrunk": {
-            let currentIndex = Math.floor(rng() * notes.length);
-            finalNotes.push(notes[currentIndex]);
-            finalMap.push(map[currentIndex]);
-            for (let i = 1; i < 16; i++) {
-                let step;
-                if (rng() < 0.8) {
-                    step = rng() > 0.5 ? 1 : -1;
-                } else {
-                    step = Math.floor(rng() * 7) - 3;
-                    if (step === 0) step = 1;
-                }
-                currentIndex =
-                    (((currentIndex + step) % notes.length) + notes.length) % notes.length;
-                finalNotes.push(notes[currentIndex]);
-                finalMap.push(map[currentIndex]);
-            }
             break;
         }
         default:
