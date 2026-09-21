@@ -343,6 +343,7 @@ export function calculateOfflineExportDuration({
  * @param {unknown} [options.reverbMix] - Reverb wet mix.
  * @param {unknown} [options.chorusMix] - Chorus wet mix.
  * @param {unknown} [options.autoPanMix] - Auto-pan wet mix.
+ * @param {unknown} [options.terminalDuration] - Final selected release end in seconds.
  * @returns {string} Formatted duration estimate.
  */
 export function formatEstimatedExportDuration(options) {

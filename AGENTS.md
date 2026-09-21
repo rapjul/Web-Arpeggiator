@@ -112,9 +112,9 @@ Powered by `Tone.getTransport()`:
 
 #### Offline Audio Export
 
-- **Seamless loop (WAV)**: Renders repeated source material before the selected cycles to establish envelope, delay, and reverb state; crops the WAV to the exact musical sample count without altering the PCM boundary.
+- **Seamless loop (WAV)**: Repeats the selected event timeline before the selected cycles to establish envelope, delay, and reverb state; preserves swung starts and gate lengths, then crops the WAV to the exact musical sample count without altering the PCM boundary.
 - Seamless loop validates Chorus and Auto-pan phase alignment across the requested Pattern cycles. When an active modulation effect cannot return to its starting phase, users must adjust the cycle count, disable the effect, or choose Include effects tail.
-- **Include effects tail**: Preserves a cold start and appends 0–10 seconds of effects decay after the selected cycles; legacy presets default to this mode with a 2-second tail.
+- **Include effects tail**: Preserves a cold start, waits for the final scheduled gate to end, and then appends 0–10 seconds of effects decay; legacy presets default to this mode with a 2-second tail.
 - Both modes use `Tone.Offline`, support 1-100 pattern cycles, and avoid real-time timing variation. MP3 includes gapless delay/padding metadata for compatible players, but WAV remains the sample-exact format.
 - Offline WAV and MP3 exports embed a versioned settings snapshot, materialized pattern sequence, and render timing. The binary layouts and future import contract are documented in [`docs/audio-export-metadata.md`](./docs/audio-export-metadata.md).
 
