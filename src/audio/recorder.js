@@ -23,7 +23,12 @@ import {
     OFFLINE_EXPORT_MODE_SEAMLESS,
 } from "@core/export-duration.js";
 import { createOfflineExportMetadata } from "@core/export-metadata.js";
-import { compileTimeline, ticksToSeconds } from "@core/timeline.js";
+import {
+    compileTimeline,
+    createCyclicRenderEvents,
+    getTimelineEndTick,
+    ticksToSeconds,
+} from "@core/timeline.js";
 
 const DEFAULT_OFFLINE_SAMPLE_RATE = 44100;
 
@@ -369,20 +374,32 @@ export function createRecorderManager(context) {
         const filename = actions.generateFilename(false, settings, "audio");
 
         const baseTimeline = compileTimeline(settings, { cycles: 1 });
-        const exportDuration = calculateOfflineExportDuration({
-            loopCount: settings.loopCount,
-            stepsPerLoop: baseTimeline.events.length,
-            interval: settings.interval,
-            bpm: settings.bpm,
-            exportMode: settings.offlineExportMode,
-            tailSeconds: settings.offlineExportTailSeconds,
-            envRelease: settings.envRelease,
-            delayMix: settings.delayMix,
-            reverbMix: settings.reverbMix,
-            chorusMix: settings.chorusMix,
-            autoPanMix: settings.autoPanMix,
-        });
+        const calculateExportDuration = (terminalDuration) =>
+            calculateOfflineExportDuration({
+                loopCount: settings.loopCount,
+                stepsPerLoop: baseTimeline.events.length,
+                interval: settings.interval,
+                bpm: settings.bpm,
+                exportMode: settings.offlineExportMode,
+                tailSeconds: settings.offlineExportTailSeconds,
+                envRelease: settings.envRelease,
+                delayMix: settings.delayMix,
+                reverbMix: settings.reverbMix,
+                chorusMix: settings.chorusMix,
+                autoPanMix: settings.autoPanMix,
+                terminalDuration,
+            });
+        let exportDuration = calculateExportDuration();
         const isSeamlessExport = exportDuration.exportMode === OFFLINE_EXPORT_MODE_SEAMLESS;
+        const selectedTimeline = compileTimeline(settings, {
+            cycles: exportDuration.loopCount,
+            terminalGatePolicy: isSeamlessExport ? "clip" : "preserve",
+        });
+        if (!isSeamlessExport) {
+            exportDuration = calculateExportDuration(
+                ticksToSeconds(getTimelineEndTick(selectedTimeline), selectedTimeline.bpm),
+            );
+        }
         const seamlessModulation = getSeamlessModulationCompatibility({
             bpm: settings.bpm,
             musicalDuration: exportDuration.musicalDuration,
@@ -408,50 +425,19 @@ export function createRecorderManager(context) {
                   sampleRate: offlineSampleRate,
               })
             : null;
-        let offlineRenderDuration = seamlessRenderWindow
+        const offlineRenderDuration = seamlessRenderWindow
             ? seamlessRenderWindow.offlineRenderDuration
             : exportDuration.renderDuration;
         const patternStopTime = isSeamlessExport
             ? exportDuration.preRollDuration + exportDuration.musicalDuration
             : exportDuration.musicalDuration;
-        const selectedTimeline = compileTimeline(settings, {
-            cycles: exportDuration.loopCount,
-            terminalGatePolicy: isSeamlessExport ? "clip" : "preserve",
-        });
-        if (!isSeamlessExport) {
-            const finalEvent = selectedTimeline.events.at(-1);
-            if (finalEvent) {
-                const terminalEndSeconds = ticksToSeconds(
-                    finalEvent.startTick + finalEvent.durationTicks,
-                    selectedTimeline.bpm,
-                );
-                offlineRenderDuration = Math.max(offlineRenderDuration, terminalEndSeconds);
-            }
-        }
         const patternNotes = selectedTimeline.scheduledNotes;
-        let timeline = selectedTimeline;
-        if (isSeamlessExport && patternNotes.length > 0) {
-            const preRollSteps = exportDuration.preRollCycles * selectedTimeline.stepsPerCycle;
-            const totalSteps = preRollSteps + patternNotes.length;
-            const startIndex =
-                (patternNotes.length - (preRollSteps % patternNotes.length)) % patternNotes.length;
-            const renderedNotes = Array.from(
-                { length: totalSteps },
-                (_, index) => patternNotes[(startIndex + index) % patternNotes.length],
-            );
-            const selectedMap = selectedTimeline.events.map((event) => event.sourceNoteIndex);
-            const renderedMap = Array.from(
-                { length: totalSteps },
-                (_, index) => selectedMap[(startIndex + index) % selectedMap.length],
-            );
-            timeline = compileTimeline(settings, {
-                cycles: 1,
-                maxCycles: 1,
-                resolvedNotes: renderedNotes,
-                sourceNoteMap: renderedMap,
-                terminalGatePolicy: "clip",
-            });
-        }
+        const renderEvents = isSeamlessExport
+            ? createCyclicRenderEvents(
+                  selectedTimeline,
+                  exportDuration.preRollCycles * selectedTimeline.cycleDurationTicks,
+              )
+            : selectedTimeline.events;
 
         dom.offlineExportStatus.textContent = isSeamlessExport
             ? "Generating seamless WAV-ready audio... please wait."
@@ -460,15 +446,15 @@ export function createRecorderManager(context) {
         try {
             const toneAudioBuffer = await Tone.Offline(
                 async (offlineContext) => {
-                    offlineContext.transport.bpm.value = timeline.bpm;
+                    offlineContext.transport.bpm.value = selectedTimeline.bpm;
                     offlineContext.transport.swing = 0;
 
                     // Recreate the synth + effects graph using the shared audio engine helper
                     const { offlineSynth } = audio.createOfflineChain(offlineContext, settings);
 
-                    timeline.events.forEach((event) => {
-                        const time = ticksToSeconds(event.startTick, timeline.bpm);
-                        const duration = ticksToSeconds(event.durationTicks, timeline.bpm);
+                    renderEvents.forEach((event) => {
+                        const time = ticksToSeconds(event.startTick, selectedTimeline.bpm);
+                        const duration = ticksToSeconds(event.durationTicks, selectedTimeline.bpm);
                         if (
                             typeof offlineSynth.triggerAttack === "function" &&
                             typeof offlineSynth.triggerRelease === "function"

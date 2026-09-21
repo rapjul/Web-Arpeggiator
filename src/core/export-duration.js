@@ -256,6 +256,7 @@ export function calculateEffectWarmupSeconds({
  * @param {unknown} [options.reverbMix] - Reverb wet mix.
  * @param {unknown} [options.chorusMix] - Chorus wet mix.
  * @param {unknown} [options.autoPanMix] - Auto-pan wet mix.
+ * @param {unknown} [options.terminalDuration] - Final selected release end in seconds.
  * @returns {{loopCount: number, stepsPerLoop: number, intervalInSeconds: number, loopDuration: number, patternDuration: number, musicalDuration: number, preRollCycles: number, preRollDuration: number, tailDuration: number, exportDuration: number, renderDuration: number, totalDuration: number, exportMode: "seamless"|"tail"}} Normalized timing values.
  */
 export function calculateOfflineExportDuration({
@@ -270,6 +271,7 @@ export function calculateOfflineExportDuration({
     reverbMix,
     chorusMix,
     autoPanMix,
+    terminalDuration,
 }) {
     const safeLoopCount = normalizeLoopCount(loopCount);
     const parsedStepsPerLoop = Number(stepsPerLoop);
@@ -279,8 +281,15 @@ export function calculateOfflineExportDuration({
             : 1;
     const intervalInSeconds = getIntervalDurationSeconds(interval, bpm);
     const loopDuration = safeStepsPerLoop * intervalInSeconds;
-    const musicalDuration = safeLoopCount * loopDuration;
+    const patternDuration = safeLoopCount * loopDuration;
     const safeExportMode = normalizeOfflineExportMode(exportMode);
+    const parsedTerminalDuration = Number(terminalDuration);
+    const musicalDuration =
+        safeExportMode === OFFLINE_EXPORT_MODE_TAIL &&
+        Number.isFinite(parsedTerminalDuration) &&
+        parsedTerminalDuration > 0
+            ? Math.max(patternDuration, parsedTerminalDuration)
+            : patternDuration;
     const tailDuration =
         safeExportMode === OFFLINE_EXPORT_MODE_TAIL
             ? normalizeOfflineExportTailSeconds(tailSeconds)
@@ -307,7 +316,7 @@ export function calculateOfflineExportDuration({
         stepsPerLoop: safeStepsPerLoop,
         intervalInSeconds,
         loopDuration,
-        patternDuration: musicalDuration,
+        patternDuration,
         musicalDuration,
         preRollCycles,
         preRollDuration,

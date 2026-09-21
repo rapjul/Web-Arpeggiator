@@ -96,6 +96,7 @@ function createFixture() {
         recorder,
         recordButton,
         renderStaticLoop,
+        settings,
         showToast,
         startAudio,
         tailControl,
@@ -133,6 +134,22 @@ describe("export controls controller", () => {
         loopCountInput.dispatchEvent(new Event("change", { bubbles: true }));
         expect(loopCountInput.value).toBe("100");
         expect(controller.updateEstimatedExportDuration).toBeTypeOf("function");
+    });
+
+    it("includes a swung terminal release in the tail-duration estimate", () => {
+        const { controller, duration, settings } = createFixture();
+        Object.assign(settings, {
+            swing: 1,
+            gateRatio: 1,
+            loopCount: 1,
+            octaveRange: 1,
+            offlineExportMode: "tail",
+            offlineExportTailSeconds: 0,
+        });
+
+        controller.updateEstimatedExportDuration();
+
+        expect(duration.textContent).toContain("Export duration: ~0.5 seconds");
     });
 
     it("starts recording and rendering exports only after audio activation", async () => {

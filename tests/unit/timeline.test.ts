@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
     compileTimeline,
+    createCyclicRenderEvents,
     getIntervalTicks,
+    getTimelineEndTick,
     getSwingOffsetTicks,
     TICKS_PER_BEAT,
     ticksToSeconds,
@@ -62,6 +64,24 @@ describe("musical timeline", () => {
         );
         expect(clipped.events.at(-1)?.durationTicks).toBe(1);
         expect(preserved.events.at(-1)?.durationTicks).toBe(120);
+        expect(getTimelineEndTick(clipped)).toBe(360);
+        expect(getTimelineEndTick(preserved)).toBe(479);
+    });
+
+    it("repeats selected swung timing through seamless warm-up", () => {
+        const selected = compileTimeline(
+            { ...baseSettings(), swing: 1, gateRatio: 1 },
+            { cycles: 1, terminalGatePolicy: "clip" },
+        );
+        const preRollTicks = selected.cycleDurationTicks * 3;
+        const renderedEvents = createCyclicRenderEvents(selected, preRollTicks);
+
+        expect(renderedEvents.map((event) => event.startTick)).toEqual([
+            0, 233, 359, 360, 593, 719, 720, 953, 1079, 1080, 1313, 1439,
+        ]);
+        expect(renderedEvents.slice(-3).map((event) => event.pitch)).toEqual(
+            selected.scheduledNotes,
+        );
     });
 
     it("materializes seeded stochastic cycles instead of freezing the first cycle", () => {

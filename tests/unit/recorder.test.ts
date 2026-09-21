@@ -5,6 +5,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 let lastOfflinePatternValues: string[] = [];
+let lastOfflineAttackTimes: number[] = [];
 let lastOfflineRenderDuration = 0;
 let lastOfflineTransportStopAt: number | null = null;
 let lastSeamlessStartFrame = 0;
@@ -117,6 +118,7 @@ describe("Recorder Manager Module", () => {
 
     beforeEach(() => {
         lastOfflinePatternValues = [];
+        lastOfflineAttackTimes = [];
         lastOfflineRenderDuration = 0;
         lastOfflineTransportStopAt = null;
         lastSeamlessStartFrame = 0;
@@ -148,8 +150,9 @@ describe("Recorder Manager Module", () => {
             synths: {} as unknown as RecorderAudio["synths"],
             createOfflineChain: vi.fn(() => ({
                 offlineSynth: {
-                    triggerAttack: vi.fn((note: string) => {
+                    triggerAttack: vi.fn((note: string, time: number) => {
                         lastOfflinePatternValues.push(note);
+                        lastOfflineAttackTimes.push(time);
                     }),
                     triggerRelease: vi.fn(),
                 } as unknown as ReturnType<RecorderAudio["createOfflineChain"]>["offlineSynth"],
@@ -330,8 +333,48 @@ describe("Recorder Manager Module", () => {
 
         await manager.exportOffline();
 
-        expect(lastOfflineTransportStopAt).toBe(0.375);
+        expect(lastOfflineTransportStopAt).toBeCloseTo((359 + 120) / 480 / 2);
         expect(lastOfflineRenderDuration).toBeCloseTo((359 + 120) / 480 / 2);
+    });
+
+    it("preserves the selected swung attacks at a seamless crop boundary", async () => {
+        const manager = createRecorderManager({
+            audio: mockAudio,
+            dom: mockDom,
+            state: mockState,
+            actions: mockActions,
+        });
+        mockActions.getAllSettings = vi.fn(() => ({
+            bpm: 120,
+            swing: 1,
+            notes: ["C4", "E4", "G4"],
+            direction: "up",
+            interval: "16n",
+            gateRatio: 1,
+            loopCount: 1,
+            offlineExportMode: "seamless",
+            envRelease: 1,
+            delayMix: 0,
+            reverbMix: 0,
+            chorusMix: 0,
+            autoPanMix: 0,
+        }));
+
+        await manager.exportOffline();
+
+        const cropStart = 1.125;
+        const cropIndex = lastOfflineAttackTimes.indexOf(cropStart);
+        expect(cropIndex).toBeGreaterThanOrEqual(0);
+        expect(lastOfflineAttackTimes.slice(cropIndex, cropIndex + 3)).toEqual([
+            cropStart,
+            (1080 + 233) / 960,
+            (1080 + 359) / 960,
+        ]);
+        expect(lastOfflinePatternValues.slice(cropIndex, cropIndex + 3)).toEqual([
+            "C4",
+            "E4",
+            "G4",
+        ]);
     });
 
     it("warms, crops, and exports seamless loops from one settings snapshot", async () => {

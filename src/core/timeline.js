@@ -118,6 +118,59 @@ export function ticksToSeconds(ticks, bpm) {
     return (safeTicks / TICKS_PER_BEAT) * (60 / safeBpm);
 }
 
+/**
+ * Returns the end tick of the final scheduled note, including its gate.
+ *
+ * @param {{events?: TimelineEvent[]}|null|undefined} timeline - Candidate compiled timeline.
+ * @returns {number} Last release tick, or zero for an empty timeline.
+ */
+export function getTimelineEndTick(timeline) {
+    if (!timeline || !Array.isArray(timeline.events)) return 0;
+    return timeline.events.reduce(
+        (endTick, event) => Math.max(endTick, event.startTick + event.durationTicks),
+        0,
+    );
+}
+
+/**
+ * Repeats a selected timeline as cyclic source material before its export
+ * region. Every copied event keeps its selected start and gate offsets, which
+ * prevents warm-up scheduling from recalculating a different swing phase.
+ *
+ * @param {CompiledTimeline} timeline - Selected export timeline.
+ * @param {unknown} preRollTicks - Integer warm-up duration before the selected region.
+ * @returns {TimelineEvent[]} Events from the warm-up through the selected range.
+ */
+export function createCyclicRenderEvents(timeline, preRollTicks) {
+    if (!timeline || !Array.isArray(timeline.events) || timeline.events.length === 0) {
+        return [];
+    }
+
+    const sourceDurationTicks = Math.max(0, Math.trunc(Number(timeline.musicalDurationTicks)) || 0);
+    if (sourceDurationTicks === 0) return [];
+
+    const safePreRollTicks = Math.max(0, Math.trunc(Number(preRollTicks)) || 0);
+    const renderEndTick = safePreRollTicks + sourceDurationTicks;
+    const firstCopyIndex = -Math.ceil(safePreRollTicks / sourceDurationTicks);
+    /** @type {TimelineEvent[]} */
+    const events = [];
+
+    for (let copyIndex = firstCopyIndex; copyIndex <= 0; copyIndex += 1) {
+        const offsetTicks = safePreRollTicks + copyIndex * sourceDurationTicks;
+        timeline.events.forEach((event) => {
+            const startTick = offsetTicks + event.startTick;
+            if (startTick < 0 || startTick >= renderEndTick) return;
+            events.push({
+                ...event,
+                startTick,
+                rawStartTick: offsetTicks + event.rawStartTick,
+            });
+        });
+    }
+
+    return events;
+}
+
 /** Returns the bounded swung start for an absolute zero-based occurrence. */
 export function getTimelineStartTick(occurrenceIndex, stepDurationTicks, swing) {
     const safeOccurrence = Math.max(0, Math.trunc(Number(occurrenceIndex) || 0));
