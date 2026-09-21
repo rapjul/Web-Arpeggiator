@@ -29,6 +29,7 @@ import { initializeKeyboardControls } from "@ui/keyboard-controller.js";
 import { createHistoryController } from "@ui/history-controller.js";
 import { createInterfaceModeController } from "@ui/interface-mode-controller.js";
 import { createInputFilterController } from "@ui/input-filter-controller.js";
+import { createCreationWalkthroughController } from "@ui/creation-walkthrough-controller.js";
 import { createNoteStepController } from "@ui/note-step-controller.js";
 import { createOnboardingController } from "@ui/onboarding-controller.js";
 import { createEffectsControlsController } from "@ui/effects-controls-controller.js";
@@ -172,6 +173,13 @@ function initializeApp() {
         resetDefaultsConfirmButton,
         soundStartersDetails,
         soundStartersGrid,
+        guidedWorkflowSection,
+        guidedWorkflowStartButton,
+        guidedWorkflowActivePanel,
+        guidedWorkflowSteps,
+        guidedWorkflowStatus,
+        guidedWorkflowSkipButton,
+        guidedWorkflowRestartButton,
         bpmSlider,
         bpmValue,
         postGainSlider,
@@ -723,6 +731,24 @@ function initializeApp() {
                         }
                     });
             }
+        },
+        logger: console,
+    });
+
+    const creationWalkthroughController = createCreationWalkthroughController({
+        dom: {
+            section: guidedWorkflowSection,
+            startButton: guidedWorkflowStartButton,
+            activePanel: guidedWorkflowActivePanel,
+            stepsList: guidedWorkflowSteps,
+            status: guidedWorkflowStatus,
+            skipButton: guidedWorkflowSkipButton,
+            restartButton: guidedWorkflowRestartButton,
+        },
+        documentRef,
+        storage: {
+            getItem: (key) => window.localStorage.getItem(key),
+            setItem: (key, value) => window.localStorage.setItem(key, value),
         },
         logger: console,
     });
@@ -1652,6 +1678,7 @@ function initializeApp() {
     buildSoundStartersStrip();
 
     interfaceModeController.initialize();
+    creationWalkthroughController.initialize();
     onboardingController.initialize();
 
     log("Arpeggiator initialized and ready.");
