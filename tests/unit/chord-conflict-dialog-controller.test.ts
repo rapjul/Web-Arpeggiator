@@ -166,10 +166,30 @@ describe("chord conflict dialog controller", () => {
         fixture.controller.destroy();
     });
 
-    it("removes every listener when destroyed", () => {
+    it("fails closed when required dialog controls are unavailable", () => {
+        const fixture = createFixture();
+        const onCancel = vi.fn();
+        const controller = createChordConflictDialogController({
+            ...fixture.dependencies,
+            dom: { ...fixture.dependencies.dom, adaptButton: null },
+        });
+
+        fixture.returnFocus.focus();
+        controller.open(createDetails({ onCancel }));
+
+        expect(onCancel).toHaveBeenCalledOnce();
+        expect(fixture.overlay.classList.contains("hidden")).toBe(true);
+        expect(fixture.appMain.hasAttribute("inert")).toBe(false);
+        expect(document.activeElement).toBe(fixture.returnFocus);
+        controller.destroy();
+        fixture.controller.destroy();
+    });
+
+    it("cancels post-destroy opens without orphaning the dialog", () => {
         const fixture = createFixture();
         const onKeep = vi.fn();
         const onCancel = vi.fn();
+        fixture.controller.destroy();
         fixture.controller.destroy();
 
         fixture.controller.open(createDetails({ onKeep, onCancel }));
@@ -180,7 +200,49 @@ describe("chord conflict dialog controller", () => {
         );
 
         expect(onKeep).not.toHaveBeenCalled();
-        expect(onCancel).not.toHaveBeenCalled();
-        fixture.controller.close();
+        expect(onCancel).toHaveBeenCalledOnce();
+        expect(fixture.overlay.classList.contains("hidden")).toBe(true);
+        expect(fixture.appMain.hasAttribute("inert")).toBe(false);
+    });
+
+    it("safely ignores nullish or non-object calls to open", () => {
+        const fixture = createFixture();
+        expect(() => {
+            // @ts-expect-error - testing invalid runtime input
+            fixture.controller.open(null);
+            // @ts-expect-error - testing invalid runtime input
+            fixture.controller.open(undefined);
+            // @ts-expect-error - testing invalid runtime input
+            fixture.controller.open("invalid");
+        }).not.toThrow();
+        expect(fixture.overlay.classList.contains("hidden")).toBe(true);
+        fixture.controller.destroy();
+    });
+
+    it("cancels a pending dialog when another open request arrives", () => {
+        const fixture = createFixture();
+        const firstCancel = vi.fn();
+        const secondAdapt = vi.fn();
+
+        fixture.controller.open(createDetails({ onCancel: firstCancel }));
+        expect(fixture.overlay.classList.contains("hidden")).toBe(false);
+
+        fixture.controller.open(createDetails({ onAdapt: secondAdapt }));
+        expect(firstCancel).toHaveBeenCalledOnce();
+
+        fixture.adaptButton.click();
+        expect(secondAdapt).toHaveBeenCalledOnce();
+        fixture.controller.destroy();
+    });
+
+    it("cancels when clicking the overlay background directly", () => {
+        const fixture = createFixture();
+        const onCancel = vi.fn();
+        fixture.controller.open(createDetails({ onCancel }));
+
+        fixture.overlay.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+        expect(onCancel).toHaveBeenCalledOnce();
+        expect(fixture.overlay.classList.contains("hidden")).toBe(true);
+        fixture.controller.destroy();
     });
 });

@@ -24,6 +24,7 @@ export function createChordConflictDialogController({ documentRef, dom }) {
     } = dom;
     let pending = null;
     let returnFocus = null;
+    let isDestroyed = false;
     const listenerController = new AbortController();
     const listenerOptions = { signal: listenerController.signal };
 
@@ -96,20 +97,31 @@ export function createChordConflictDialogController({ documentRef, dom }) {
     );
 
     function open(details) {
+        if (!details || typeof details !== "object") return;
+        const hasRequiredDialogControls = Boolean(
+            appMain && overlay && dialog && keepButton && adaptButton && cancelButton,
+        );
+        if (isDestroyed || !hasRequiredDialogControls) {
+            details.onCancel?.();
+            return;
+        }
         if (pending) close();
         pending = details;
         returnFocus =
             documentRef.activeElement instanceof HTMLElement ? documentRef.activeElement : null;
-        if (requestedNotes) requestedNotes.textContent = details.requestedNotes.join("  •  ");
-        if (adaptedNotes) adaptedNotes.textContent = details.adaptedNotes.join("  •  ");
+        const requested = Array.isArray(details.requestedNotes) ? details.requestedNotes : [];
+        const adapted = Array.isArray(details.adaptedNotes) ? details.adaptedNotes : [];
+        const pitches = Array.isArray(details.changedPitches) ? details.changedPitches : [];
+        if (requestedNotes) requestedNotes.textContent = requested.join("  •  ");
+        if (adaptedNotes) adaptedNotes.textContent = adapted.join("  •  ");
         if (changedPitches) {
-            changedPitches.textContent = details.changedPitches
+            changedPitches.textContent = pitches
                 .map(({ requested, adapted }) => `${requested} → ${adapted}`)
                 .join(", ");
         }
         const title = dialog?.querySelector("[data-chord-conflict-title]");
         if (title)
-            title.textContent = `${details.root} ${details.chordName} does not fit the active scale`;
+            title.textContent = `${details.root || "C"} ${details.chordName || "Major"} does not fit the active scale`;
         overlay?.classList.remove("hidden");
         overlay?.classList.add("flex");
         overlay?.setAttribute("aria-hidden", "false");
@@ -118,6 +130,8 @@ export function createChordConflictDialogController({ documentRef, dom }) {
     }
 
     function destroy() {
+        if (isDestroyed) return;
+        isDestroyed = true;
         close();
         listenerController.abort();
     }

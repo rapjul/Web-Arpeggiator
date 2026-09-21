@@ -352,6 +352,35 @@ describe("pattern controls controller", () => {
         expect(scaleTypeSelect.value).toBe("major");
     });
 
+    test("adapts a conflicting chord when the optional dialog callback is unavailable", () => {
+        const fixture = createFixture();
+        fixture.scaleTypeSelect.value = "major";
+        fixture.scaleQuantizeToggle.checked = true;
+        fixture.resolveChordConflict.mockReturnValue({
+            hasConflict: true,
+            chordName: "Minor",
+            root: "C",
+            requestedNotes: ["C4", "D#4", "G4"],
+            adaptedNotes: ["C4", "D4", "G4"],
+            changedPitches: [{ requested: "D#4", adapted: "D4" }],
+        });
+        const { openChordConflict: _unusedDialog, ...dependenciesWithoutDialog } =
+            fixture.dependencies;
+        const controller = createPatternControlsController(dependenciesWithoutDialog);
+        controller.initialize();
+
+        fixture.chordButton.click();
+
+        expect(fixture.onNotesSelected).toHaveBeenCalledWith(["C4", "D4", "G4"]);
+        expect(fixture.scaleQuantizeToggle.checked).toBe(true);
+        expect(fixture.showToast).toHaveBeenCalledWith(
+            "Loaded an adapted C Minor chord.",
+            "success",
+        );
+        controller.destroy();
+        fixture.controller.destroy();
+    });
+
     test("enables reshuffling only for stochastic directions", () => {
         const { controller, onReshuffle, patternButtons, reshufflePatternButton } = createFixture();
         controller.initialize();

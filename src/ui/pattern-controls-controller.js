@@ -301,6 +301,13 @@ export function createPatternControlsController(dependencies) {
                         });
                         return;
                     }
+                    if (conflict?.hasConflict) {
+                        applyChord(
+                            conflict.adaptedNotes,
+                            `Loaded an adapted ${root} ${resolveChordDefinition(chordType).name} chord.`,
+                        );
+                        return;
+                    }
                     applyChord(
                         requestedNotes,
                         `Loaded ${root} ${resolveChordDefinition(chordType).name} chord!`,
