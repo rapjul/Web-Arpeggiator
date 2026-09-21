@@ -10,7 +10,7 @@ import {
     normalizeOfflineExportTailSeconds,
 } from "@core/export-duration.js";
 import { exportMidiFile } from "@core/midi-export.js";
-import { compileTimeline } from "@core/timeline.js";
+import { compileTimeline, getTimelineEndTick, ticksToSeconds } from "@core/timeline.js";
 
 /** @typedef {import("@core/settings-contract.js").ArpeggiatorSettings} ArpeggiatorSettings */
 /** @typedef {import("@core/timeline.js").CompiledTimeline} CompiledTimeline */
@@ -72,6 +72,16 @@ export function createExportControlsController(dependencies) {
         if (!offlineExportDuration) return;
         const settings = getSettings();
         const timeline = getTimeline?.() ?? compileTimeline(settings, { cycles: 1 });
+        const selectedTimeline =
+            settings.offlineExportMode === "tail"
+                ? compileTimeline(settings, {
+                      cycles: settings.loopCount,
+                      terminalGatePolicy: "preserve",
+                  })
+                : null;
+        const terminalDuration = selectedTimeline
+            ? ticksToSeconds(getTimelineEndTick(selectedTimeline), selectedTimeline.bpm)
+            : undefined;
         offlineExportDuration.textContent = formatEstimatedExportDuration({
             loopCount: settings.loopCount,
             stepsPerLoop: timeline.stepsPerCycle,
@@ -84,6 +94,7 @@ export function createExportControlsController(dependencies) {
             reverbMix: settings.reverbMix,
             chorusMix: settings.chorusMix,
             autoPanMix: settings.autoPanMix,
+            terminalDuration,
         });
     }
 
