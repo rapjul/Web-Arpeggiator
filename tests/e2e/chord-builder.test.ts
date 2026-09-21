@@ -66,6 +66,16 @@ test("isolates, applies, and persists chord conflict choices", async ({ pwaPage:
     await minorChord.click();
     await expect(overlay).toBeVisible();
     await expect(appMain).toHaveAttribute("inert", "");
+    await expect(page.locator("#chord-conflict-dialog")).toHaveAttribute(
+        "aria-describedby",
+        "chord-conflict-description",
+    );
+    await expect(page.locator("#chord-conflict-description")).toContainText(
+        "Keep preserves the requested chord and turns scale snapping off",
+    );
+    await expect(page.locator("#scale-root-help")).toContainText(
+        "scale snapping and chord starters",
+    );
     await expect(page.locator("#chord-conflict-adapt")).toBeFocused();
     await page.keyboard.down("z");
     await expect(c4Key).not.toHaveClass(/active/);
