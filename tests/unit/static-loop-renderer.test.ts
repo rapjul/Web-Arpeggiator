@@ -49,6 +49,7 @@ describe("static loop renderer", () => {
                 return { duration };
             }),
         };
+        const updateStaticLoopMap = vi.fn();
         const renderer = createStaticLoopRenderer({
             isAudioContextStarted: () => true,
             getTone: () => tone,
@@ -60,13 +61,23 @@ describe("static loop renderer", () => {
                 baseNotes: ["C4", "E4", "G4"],
                 swing: 1,
             }),
-            updateStaticLoopMap: vi.fn(),
+            updateStaticLoopMap,
         });
 
         await renderer.render();
 
         expect(tone.Offline).toHaveBeenCalledWith(expect.any(Function), 1.5);
         expect(triggerAttackRelease).toHaveBeenCalledTimes(12);
+        expect(updateStaticLoopMap).toHaveBeenCalledOnce();
+        const [, markers] = updateStaticLoopMap.mock.calls[0];
+        expect(markers).toHaveLength(12);
+        expect(
+            markers.every(
+                (marker: { timeRatio: number }) => marker.timeRatio >= 0 && marker.timeRatio < 1,
+            ),
+        ).toBe(true);
+        expect(markers[0].timeRatio).toBe(0);
+        expect(markers.at(-1)?.timeRatio).toBeGreaterThan(0.75);
     });
 
     it("skips marker publication when the offline render fails", async () => {

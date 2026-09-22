@@ -67,7 +67,7 @@ export function createStaticLoopRenderer(dependencies) {
 
         const markers = timeline.events.map((event) => ({
             note: event.pitch,
-            timeRatio: event.startTick / timeline.cycleDurationTicks,
+            timeRatio: event.startTick / timeline.musicalDurationTicks,
         }));
         const loopDuration = ticksToSeconds(timeline.musicalDurationTicks, timeline.bpm);
 
