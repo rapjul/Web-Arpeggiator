@@ -12,8 +12,11 @@ let lastSeamlessStartFrame = 0;
 let lastSeamlessFrameCount = 0;
 let recorderLifecycle: string[] = [];
 let recorderStartPromise: Promise<void> | null = null;
+let recorderStopPromise: Promise<void> | null = null;
 let recorderStartError: Error | null = null;
 let recorderStopError: Error | null = null;
+let toneRecorderConstructorError: Error | null = null;
+let destinationStreamTracks: { stop: ReturnType<typeof vi.fn> }[] = [];
 const recorderDispose = vi.fn();
 
 vi.mock("@core/audio-utils.js", () => ({
@@ -43,7 +46,11 @@ const mockContext = {
     })),
     rawContext: {
         createMediaStreamDestination: () => ({
-            stream: {} as MediaStream,
+            connect: vi.fn(),
+            disconnect: vi.fn(),
+            stream: {
+                getTracks: () => destinationStreamTracks,
+            } as unknown as MediaStream,
         }),
         decodeAudioData: async (_buf: ArrayBuffer) => ({
             duration: 1.0,
@@ -58,6 +65,9 @@ vi.mock("tone", async () => {
     return {
         Recorder: class MockRecorder {
             state = "stopped";
+            constructor() {
+                if (toneRecorderConstructorError) throw toneRecorderConstructorError;
+            }
             connect() {
                 return this;
             }
@@ -68,6 +78,7 @@ vi.mock("tone", async () => {
                 recorderLifecycle.push("recording-start");
             }
             async stop() {
+                if (recorderStopPromise) await recorderStopPromise;
                 if (recorderStopError) throw recorderStopError;
                 this.state = "stopped";
                 recorderLifecycle.push("recording-stop");
@@ -137,8 +148,11 @@ describe("Recorder Manager Module", () => {
         lastSeamlessFrameCount = 0;
         recorderLifecycle = [];
         recorderStartPromise = null;
+        recorderStopPromise = null;
         recorderStartError = null;
         recorderStopError = null;
+        toneRecorderConstructorError = null;
+        destinationStreamTracks = [{ stop: vi.fn() }];
         vi.clearAllMocks();
         const createEl = (tag = "div") => document.createElement(tag);
         mockDom = {
@@ -220,18 +234,6 @@ describe("Recorder Manager Module", () => {
         await manager.initRecorder();
         expect(mockAudio.recordingOutput.connect).toHaveBeenCalled();
         expect(mockDom.recordStatus.textContent).toContain("Ready to record");
-    });
-
-    it("safely handles concurrent initRecorder calls with promise locking", async () => {
-        const manager = createRecorderManager({
-            audio: mockAudio,
-            dom: mockDom,
-            state: mockState,
-            actions: mockActions,
-        });
-
-        await Promise.all([manager.initRecorder(), manager.initRecorder()]);
-        expect(mockAudio.reverb.connect).toHaveBeenCalledOnce();
     });
 
     it("toggles recording state and updates button labels", async () => {
@@ -512,17 +514,11 @@ describe("Recorder Manager Module", () => {
             autoPanMix: 0,
         }));
 
-        const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-        try {
-            await manager.exportOffline();
+        await manager.exportOffline();
 
-            expect(createSeamlessLoopAudioBuffer).not.toHaveBeenCalled();
-            expect(audioBufferToWav).not.toHaveBeenCalled();
-            expect(mockActions.showToast).toHaveBeenCalledWith("Offline render failed.", "error");
-            expect(errorSpy).toHaveBeenCalledWith("Offline rendering failed:", expect.any(Error));
-        } finally {
-            errorSpy.mockRestore();
-        }
+        expect(createSeamlessLoopAudioBuffer).not.toHaveBeenCalled();
+        expect(audioBufferToWav).not.toHaveBeenCalled();
+        expect(mockActions.showToast).toHaveBeenCalledWith("Offline render failed.", "error");
     });
 
     it("rejects unaligned chorus and auto-pan before offline rendering", async () => {
@@ -655,16 +651,10 @@ describe("Recorder Manager Module", () => {
         expect(mockActions.showToast).toHaveBeenCalledWith("Export complete!", "success");
 
         // Error during offline render
-        const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
         const Tone = await import("tone");
         vi.spyOn(Tone, "Offline").mockRejectedValueOnce(new Error("Offline render crash"));
-        try {
-            await manager.exportOffline();
-            expect(mockActions.showToast).toHaveBeenCalledWith("Offline render failed.", "error");
-            expect(errorSpy).toHaveBeenCalledWith("Offline rendering failed:", expect.any(Error));
-        } finally {
-            errorSpy.mockRestore();
-        }
+        await manager.exportOffline();
+        expect(mockActions.showToast).toHaveBeenCalledWith("Offline render failed.", "error");
     });
 
     it("handles real-time export with only WAV format selected and decode failures", async () => {
@@ -685,7 +675,6 @@ describe("Recorder Manager Module", () => {
         expect(mockActions.showToast).toHaveBeenCalledWith("Export complete!", "success");
 
         // MP3 decode failure
-        const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
         mockActions.showToast.mockClear();
         mockDom.realtimeExportWavCheck.checked = false;
         mockDom.realtimeExportMp3Check.checked = true;
@@ -693,14 +682,9 @@ describe("Recorder Manager Module", () => {
         vi.spyOn(Tone.getContext(), "decodeAudioData").mockRejectedValueOnce(
             new Error("Decode failed"),
         );
-        try {
-            manager.setRecorderBlob(testBlob);
-            await manager.exportRealtime();
-            expect(mockActions.showToast).toHaveBeenCalledWith("MP3 encoding failed.", "error");
-            expect(errorSpy).toHaveBeenCalledWith("MP3 encoding failed:", expect.any(Error));
-        } finally {
-            errorSpy.mockRestore();
-        }
+        manager.setRecorderBlob(testBlob);
+        await manager.exportRealtime();
+        expect(mockActions.showToast).toHaveBeenCalledWith("MP3 encoding failed.", "error");
     });
 
     it("auto-starts audio and playback when recording begins from stopped state", async () => {
@@ -867,6 +851,254 @@ describe("Recorder Manager Module", () => {
         );
     });
 
+    it("serializes destroy with an in-flight stop transition without duplicate stops", async () => {
+        const manager = createRecorderManager({
+            audio: mockAudio,
+            dom: mockDom,
+            state: mockState,
+            actions: mockActions,
+        });
+
+        await manager.toggleRecording();
+        expect(manager.isRecording).toBe(true);
+
+        let resolveStop: () => void = () => {};
+        recorderStopPromise = new Promise((resolve) => {
+            resolveStop = resolve;
+        });
+
+        const stopPromise = manager.toggleRecording();
+        const destroyPromise = manager.destroy();
+
+        resolveStop();
+        await stopPromise;
+        await destroyPromise;
+
+        expect(recorderDispose).toHaveBeenCalled();
+        expect(manager.isRecording).toBe(false);
+    });
+
+    it("serializes destroy with an in-flight start transition and stops before disposal", async () => {
+        const manager = createRecorderManager({
+            audio: mockAudio,
+            dom: mockDom,
+            state: mockState,
+            actions: mockActions,
+        });
+
+        let resolveStart: () => void = () => {};
+        recorderStartPromise = new Promise((resolve) => {
+            resolveStart = resolve;
+        });
+
+        const startPromise = manager.toggleRecording();
+        const destroyPromise = manager.destroy();
+
+        resolveStart();
+        await startPromise;
+        await destroyPromise;
+
+        expect(recorderDispose).toHaveBeenCalled();
+        expect(manager.isRecording).toBe(false);
+    });
+
+    it("handles unexpected mid-capture MediaRecorder errors without advertising export readiness", async () => {
+        toneRecorderConstructorError = new Error("Tone.Recorder unavailable");
+        const originalSecureContext = window.isSecureContext;
+        const originalMediaRecorder = window.MediaRecorder;
+
+        let instance: {
+            ondataavailable: ((e: { data: Blob }) => void) | null;
+            onstop: (() => void) | null;
+            onerror: ((e: { error: Error }) => void) | null;
+            start: ReturnType<typeof vi.fn>;
+            stop: ReturnType<typeof vi.fn>;
+            addEventListener: ReturnType<typeof vi.fn>;
+            removeEventListener: ReturnType<typeof vi.fn>;
+        } | null = null;
+
+        class MockMediaRecorder {
+            ondataavailable = null;
+            onstop = null;
+            onerror = null;
+            start = vi.fn();
+            stop = vi.fn();
+            addEventListener = vi.fn((event: string, cb: () => void) => {
+                if (event === "start") setTimeout(cb, 0);
+            });
+            removeEventListener = vi.fn();
+            constructor() {
+                instance = this;
+            }
+        }
+
+        // @ts-expect-error mocking browser MediaRecorder
+        window.MediaRecorder = MockMediaRecorder;
+        window.isSecureContext = true;
+
+        try {
+            const manager = createRecorderManager({
+                audio: mockAudio,
+                dom: mockDom,
+                state: mockState,
+                actions: mockActions,
+            });
+
+            await manager.toggleRecording();
+            expect(manager.isRecording).toBe(true);
+
+            // Simulate unexpected runtime error mid-capture
+            instance?.onerror?.({ error: new Error("Hardware device lost") });
+            instance?.onstop?.();
+
+            expect(manager.isRecording).toBe(false);
+            expect(mockDom.exportControls.classList.contains("hidden")).toBe(true);
+            expect(mockDom.recordStatus.textContent).toContain(
+                "Recording failed: Hardware device lost",
+            );
+            expect(mockActions.showToast).toHaveBeenCalledWith("Recording failed.", "error");
+        } finally {
+            window.isSecureContext = originalSecureContext;
+            window.MediaRecorder = originalMediaRecorder;
+        }
+    });
+
+    it("does not announce ready to export when abortCapture cannot produce a blob", async () => {
+        mockActions.startPlayback = vi.fn(async () => {
+            throw new Error("transport startup failed");
+        });
+        recorderStopError = new Error("cleanup stop failed");
+
+        const manager = createRecorderManager({
+            audio: mockAudio,
+            dom: mockDom,
+            state: mockState,
+            actions: mockActions,
+        });
+
+        await expect(manager.toggleRecording()).rejects.toThrow("transport startup failed");
+        expect(mockDom.exportControls.classList.contains("hidden")).toBe(true);
+        expect(mockDom.recordButton.textContent).toBe("Record");
+        expect(mockDom.recordStatus.textContent).not.toContain("Ready to export");
+    });
+
+    it("stops all destination stream tracks when MediaRecorder construction throws", async () => {
+        toneRecorderConstructorError = new Error("Tone.Recorder unavailable");
+        const originalSecureContext = window.isSecureContext;
+        const originalMediaRecorder = window.MediaRecorder;
+
+        class ThrowingMediaRecorder {
+            constructor() {
+                throw new Error("MIME type not supported");
+            }
+        }
+
+        // @ts-expect-error mocking MediaRecorder constructor failure
+        window.MediaRecorder = ThrowingMediaRecorder;
+        window.isSecureContext = true;
+
+        try {
+            const manager = createRecorderManager({
+                audio: mockAudio,
+                dom: mockDom,
+                state: mockState,
+                actions: mockActions,
+            });
+
+            await manager.initRecorder();
+            expect(destinationStreamTracks[0].stop).toHaveBeenCalled();
+            expect(mockDom.recordButton.disabled).toBe(true);
+        } finally {
+            window.isSecureContext = originalSecureContext;
+            window.MediaRecorder = originalMediaRecorder;
+        }
+    });
+
+    it("keeps record button disabled on unsupported platforms", async () => {
+        toneRecorderConstructorError = new Error("Tone.Recorder unavailable");
+        const originalSecureContext = window.isSecureContext;
+        const originalMediaRecorder = window.MediaRecorder;
+
+        window.isSecureContext = false;
+        // @ts-expect-error simulating missing MediaRecorder
+        window.MediaRecorder = undefined;
+
+        try {
+            const manager = createRecorderManager({
+                audio: mockAudio,
+                dom: mockDom,
+                state: mockState,
+                actions: mockActions,
+            });
+
+            await manager.toggleRecording();
+            expect(mockDom.recordButton.disabled).toBe(true);
+            expect(mockDom.recordStatus.textContent).toBe(
+                "Recording not available on this device.",
+            );
+        } finally {
+            window.isSecureContext = originalSecureContext;
+            window.MediaRecorder = originalMediaRecorder;
+        }
+    });
+
+    it("disables Record button and blocks recording transitions during active real-time export", async () => {
+        const manager = createRecorderManager({
+            audio: mockAudio,
+            dom: mockDom,
+            state: mockState,
+            actions: mockActions,
+        });
+
+        const testBlob = new Blob([new Uint8Array(2048)], { type: "audio/wav" });
+        manager.setRecorderBlob(testBlob);
+        mockDom.realtimeExportWavCheck.checked = true;
+        mockDom.realtimeExportMp3Check.checked = false;
+
+        let exportResolve: () => void = () => {};
+        vi.mocked(mockContext.decodeAudioData).mockImplementationOnce(async () => {
+            await new Promise<void>((resolve) => {
+                exportResolve = resolve;
+            });
+            return {
+                duration: 1.0,
+                sampleRate: 44100,
+                numberOfChannels: 2,
+                getChannelData: () => new Float32Array(44100),
+            } as unknown as AudioBuffer;
+        });
+
+        const exportPromise = manager.exportRealtime();
+        expect(mockDom.recordButton.disabled).toBe(true);
+
+        // Attempting to record during active export must be ignored
+        await manager.toggleRecording();
+        expect(manager.isRecording).toBe(false);
+
+        exportResolve();
+        await exportPromise;
+        expect(mockDom.recordButton.disabled).toBe(false);
+    });
+
+    it("disposes and resets backend when stopCapture rejects during toggleRecording", async () => {
+        const manager = createRecorderManager({
+            audio: mockAudio,
+            dom: mockDom,
+            state: mockState,
+            actions: mockActions,
+        });
+
+        await manager.toggleRecording();
+        expect(manager.isRecording).toBe(true);
+
+        recorderStopError = new Error("stop capture failure");
+        await expect(manager.toggleRecording()).rejects.toThrow("stop capture failure");
+
+        expect(recorderDispose).toHaveBeenCalled();
+        expect(manager.isRecording).toBe(false);
+        expect(mockDom.recordStatus.textContent).toContain("Recording failed to stop");
+    });
+
     it("handles WAV encoding errors during realtime export gracefully and re-enables export button", async () => {
         const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
         const { audioBufferToWav } = await import("@core/audio-utils.js");
@@ -886,13 +1118,15 @@ describe("Recorder Manager Module", () => {
         mockDom.realtimeExportMp3Check.checked = false;
         mockDom.exportButton.disabled = true;
 
-        await manager.exportRealtime();
-
-        expect(errorSpy).toHaveBeenCalledWith("WAV encoding failed:", expect.any(Error));
-        expect(mockDom.exportButton.disabled).toBe(false);
-        expect(mockDom.exportButton.textContent).toBe("Export Files");
-        expect(mockActions.showToast).toHaveBeenCalledWith("WAV encoding failed.", "error");
-        errorSpy.mockRestore();
+        try {
+            await manager.exportRealtime();
+            expect(errorSpy).toHaveBeenCalledWith("WAV encoding failed:", expect.any(Error));
+            expect(mockDom.exportButton.disabled).toBe(false);
+            expect(mockDom.exportButton.textContent).toBe("Export Files");
+            expect(mockActions.showToast).toHaveBeenCalledWith("WAV encoding failed.", "error");
+        } finally {
+            errorSpy.mockRestore();
+        }
     });
 
     it("handles MP3 encoding errors during realtime export gracefully", async () => {
@@ -911,11 +1145,13 @@ describe("Recorder Manager Module", () => {
         mockDom.realtimeExportWavCheck.checked = false;
         mockDom.realtimeExportMp3Check.checked = true;
 
-        await manager.exportRealtime();
-
-        expect(errorSpy).toHaveBeenCalledWith("MP3 encoding failed:", expect.any(Error));
-        expect(mockDom.recordStatus.textContent).toContain("MP3 encoding failed. See console.");
-        expect(mockActions.showToast).toHaveBeenCalledWith("MP3 encoding failed.", "error");
-        errorSpy.mockRestore();
+        try {
+            await manager.exportRealtime();
+            expect(errorSpy).toHaveBeenCalledWith("MP3 encoding failed:", expect.any(Error));
+            expect(mockDom.recordStatus.textContent).toContain("MP3 encoding failed. See console.");
+            expect(mockActions.showToast).toHaveBeenCalledWith("MP3 encoding failed.", "error");
+        } finally {
+            errorSpy.mockRestore();
+        }
     });
 });

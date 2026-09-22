@@ -112,6 +112,9 @@ export function createRecorderManager(context) {
     let mediaStreamDestination = null;
     let mediaStopResolver = null;
     let mediaStopRejecter = null;
+    let activeTransitionPromise = null;
+    let activeMediaRecorderError = null;
+    let isExporting = false;
     let isDestroyed = false;
 
     // ------------------------------------------------------------------
@@ -134,17 +137,30 @@ export function createRecorderManager(context) {
         dom.exportButton.textContent = "Export Files";
     }
 
-    /** @returns {boolean} Whether the recorder is actively capturing. */
+    /**
+     * Checks whether the recorder is currently capturing audio.
+     *
+     * @returns {boolean} Whether the recorder is actively capturing.
+     */
     function isActivelyRecording() {
         return recordingPhase === "recording";
     }
 
-    /** @param {unknown} error @returns {Error} Normalized recorder error. */
+    /**
+     * Normalizes an unknown error value into a standard Error object.
+     *
+     * @param {unknown} error - Error value or event object to normalize.
+     * @returns {Error} Normalized recorder error.
+     */
     function toError(error) {
         return error instanceof Error ? error : new Error("Recording failed.");
     }
 
-    /** @returns {void} Restores the record control after a failed transition. */
+    /**
+     * Restores the record control button state after an aborted or failed transition.
+     *
+     * @returns {void}
+     */
     function restoreIdleUi() {
         dom.recordButton.textContent = "Record";
         dom.recordButton.setAttribute("aria-label", "Start recording");
@@ -152,7 +168,11 @@ export function createRecorderManager(context) {
         dom.recordButton.disabled = false;
     }
 
-    /** @returns {Promise<void>} Starts the selected capture backend. */
+    /**
+     * Starts the selected capture backend and awaits capture readiness.
+     *
+     * @returns {Promise<void>} Starts the selected capture backend.
+     */
     async function startCapture() {
         if (recorderType === "ToneRecorder") {
             await recorder.start();
@@ -185,7 +205,11 @@ export function createRecorderManager(context) {
         );
     }
 
-    /** @returns {Promise<Blob|null>} Stops the selected capture backend. */
+    /**
+     * Stops the selected capture backend and awaits final recorded data.
+     *
+     * @returns {Promise<Blob|null>} Stops the selected capture backend.
+     */
     async function stopCapture() {
         if (recorderType === "ToneRecorder") return await recorder.stop();
         if (recorderType !== "MediaRecorder") return null;
@@ -203,7 +227,12 @@ export function createRecorderManager(context) {
         });
     }
 
-    /** @param {Blob|null} blob @returns {void} Finalizes an awaited stop. */
+    /**
+     * Finalizes an awaited recording stop and updates exported state.
+     *
+     * @param {Blob|null} blob - Captured recording blob if produced.
+     * @returns {void}
+     */
     function finalizeRecordingStop(blob) {
         if (blob) liveRecordedWavBlob = blob;
         recordingPhase = "idle";
@@ -211,7 +240,12 @@ export function createRecorderManager(context) {
         onRecordingStop();
     }
 
-    /** @param {unknown} primaryError @returns {Promise<void>} Stops after startup/playback failure. */
+    /**
+     * Aborts capture after a startup or playback failure, attempting guarded cleanup.
+     *
+     * @param {unknown} primaryError - Original failure triggering the abort.
+     * @returns {Promise<void>}
+     */
     async function abortCapture(primaryError) {
         let blob = null;
         try {
@@ -219,12 +253,23 @@ export function createRecorderManager(context) {
         } catch (cleanupError) {
             console.warn("Failed to stop recorder during recovery:", cleanupError);
         } finally {
-            finalizeRecordingStop(blob);
+            if (blob) {
+                finalizeRecordingStop(blob);
+            } else {
+                recordingPhase = "idle";
+                actions.stopUiLoop();
+                restoreIdleUi();
+                dom.exportControls.classList.add("hidden");
+            }
         }
         throw primaryError;
     }
 
-    /** @returns {void} Disconnects the source node from its recorder target. */
+    /**
+     * Disconnects the audio source node from its current recorder target.
+     *
+     * @returns {void}
+     */
     function disconnectRecordingTarget() {
         if (!recordingTarget) return;
         try {
@@ -233,6 +278,37 @@ export function createRecorderManager(context) {
             console.warn("Failed to disconnect recording output:", error);
         }
         recordingTarget = null;
+    }
+
+    /**
+     * Releases and clears a failed or stale recorder backend.
+     *
+     * Disconnects audio nodes, disposes Tone.js or native recorder instances,
+     * terminates all media stream tracks, and resets transient capture buffers
+     * and event resolvers so subsequent attempts re-initialize cleanly.
+     *
+     * @returns {void}
+     */
+    function resetRecorderBackend() {
+        disconnectRecordingTarget();
+        try {
+            recorder?.dispose?.();
+        } catch (error) {
+            console.warn("Failed to dispose recorder backend:", error);
+        }
+        mediaStreamDestination?.disconnect?.();
+        if (mediaStreamDestination?.stream?.getTracks) {
+            mediaStreamDestination.stream.getTracks().forEach((track) => {
+                track.stop();
+            });
+        }
+        mediaStreamDestination = null;
+        recorder = null;
+        recorderType = null;
+        recordedChunks = [];
+        mediaStopResolver = null;
+        mediaStopRejecter = null;
+        activeMediaRecorderError = null;
     }
 
     // ------------------------------------------------------------------
@@ -281,13 +357,33 @@ export function createRecorderManager(context) {
                         if (!isDestroyed && event.data.size > 0) recordedChunks.push(event.data);
                     };
                     recorder.onstop = () => {
+                        const error = activeMediaRecorderError;
+                        activeMediaRecorderError = null;
                         const blob = new Blob(recordedChunks, {
                             type: "audio/webm",
                         });
                         recordedChunks = [];
                         const resolveStop = mediaStopResolver;
+                        const rejectStop = mediaStopRejecter;
                         mediaStopResolver = null;
                         mediaStopRejecter = null;
+
+                        if (error) {
+                            if (rejectStop) {
+                                rejectStop(error);
+                            }
+                            if (isDestroyed) {
+                                return;
+                            }
+                            recordingPhase = "idle";
+                            actions.stopUiLoop();
+                            restoreIdleUi();
+                            dom.exportControls.classList.add("hidden");
+                            dom.recordStatus.textContent = `Recording failed: ${error.message}`;
+                            actions.showToast("Recording failed.", "error");
+                            return;
+                        }
+
                         if (resolveStop) {
                             resolveStop(blob);
                         }
@@ -300,10 +396,14 @@ export function createRecorderManager(context) {
                         }
                     };
                     recorder.onerror = (event) => {
+                        const error = toError(/** @type {any} */ (event)?.error);
+                        activeMediaRecorderError = error;
                         const rejectStop = mediaStopRejecter;
-                        mediaStopResolver = null;
-                        mediaStopRejecter = null;
-                        rejectStop?.(toError(event.error));
+                        if (rejectStop) {
+                            mediaStopResolver = null;
+                            mediaStopRejecter = null;
+                            rejectStop(error);
+                        }
                     };
 
                     dom.recordStatus.textContent = "Ready to record (MediaRecorder).";
@@ -311,6 +411,11 @@ export function createRecorderManager(context) {
                 } catch {
                     disconnectRecordingTarget();
                     mediaStreamDestination?.disconnect?.();
+                    if (mediaStreamDestination?.stream?.getTracks) {
+                        mediaStreamDestination.stream.getTracks().forEach((track) => {
+                            track.stop();
+                        });
+                    }
                     mediaStreamDestination = null;
                     recorder = null;
                 }
@@ -338,85 +443,104 @@ export function createRecorderManager(context) {
      * @returns {Promise<void>}
      */
     async function toggleRecording() {
-        if (isDestroyed || recordingPhase === "starting" || recordingPhase === "stopping") return;
+        if (
+            isDestroyed ||
+            isExporting ||
+            recordingPhase === "starting" ||
+            recordingPhase === "stopping"
+        )
+            return;
         if (isActivelyRecording()) {
             recordingPhase = "stopping";
             dom.recordButton.disabled = true;
-            try {
-                finalizeRecordingStop(await stopCapture());
-            } catch (error) {
-                recordingPhase = "idle";
-                actions.stopUiLoop();
-                restoreIdleUi();
-                dom.recordStatus.textContent = "Recording failed to stop. See console.";
-                actions.showToast("Recording failed to stop.", "error");
-                throw error;
-            }
+            const stopTransition = (async () => {
+                try {
+                    finalizeRecordingStop(await stopCapture());
+                } catch (error) {
+                    recordingPhase = "idle";
+                    actions.stopUiLoop();
+                    resetRecorderBackend();
+                    restoreIdleUi();
+                    dom.recordStatus.textContent = "Recording failed to stop. See console.";
+                    actions.showToast("Recording failed to stop.", "error");
+                    throw error;
+                } finally {
+                    activeTransitionPromise = null;
+                }
+            })();
+            activeTransitionPromise = stopTransition;
+            await stopTransition;
             return;
         }
 
         recordingPhase = "starting";
         dom.recordButton.disabled = true;
-        try {
-            // --- Start recording ---
-            // If audio context is not yet started, initialize audio context first
-            if (!state.isAudioContextStarted && typeof actions.startAudio === "function") {
-                await actions.startAudio();
-            }
-
-            // Lazy initialize recorder instance if not yet created
-            if (!recorder) {
-                await initRecorder();
-            }
-
-            if (!recorder) {
-                recordingPhase = "idle";
-                dom.recordStatus.textContent = "Recording not available on this device.";
-                actions.showToast("Recording not supported on this device.", "error");
-                restoreIdleUi();
-                return;
-            }
-
-            liveRecordedWavBlob = null;
-            decodedRecording = null;
-
-            if (recorderType === "MediaRecorder") recordedChunks = [];
-            await startCapture();
-            if (isDestroyed) return;
-
-            // Start capture before playback so the first scheduled note is retained.
-            recordingPhase = "recording";
-
-            dom.recordButton.classList.add("recording");
-            dom.exportControls.classList.add("hidden");
-            dom.recordStatus.textContent = "Recording... Click again to stop.";
-            recordingStartTime = Tone.now();
-            dom.recordButton.textContent = "Stop Recording (00:00.0)";
-            dom.recordButton.setAttribute(
-                "aria-label",
-                "Stop recording (current elapsed time 00:00.0)",
-            );
-
-            // If transport is currently stopped, auto-start playback after capture is active.
-            if (!state.isPlaying && typeof actions.startPlayback === "function") {
-                try {
-                    await actions.startPlayback();
-                } catch (error) {
-                    await abortCapture(error);
+        const startTransition = (async () => {
+            try {
+                // --- Start recording ---
+                // If audio context is not yet started, initialize audio context first
+                if (!state.isAudioContextStarted && typeof actions.startAudio === "function") {
+                    await actions.startAudio();
                 }
+
+                // Lazy initialize recorder instance if not yet created
+                if (!recorder) {
+                    await initRecorder();
+                }
+
+                if (!recorder) {
+                    recordingPhase = "idle";
+                    dom.recordButton.disabled = true;
+                    dom.recordStatus.textContent = "Recording not available on this device.";
+                    actions.showToast("Recording not supported on this device.", "error");
+                    return;
+                }
+
+                liveRecordedWavBlob = null;
+                decodedRecording = null;
+
+                if (recorderType === "MediaRecorder") recordedChunks = [];
+                await startCapture();
+                if (isDestroyed) return;
+
+                // Start capture before playback so the first scheduled note is retained.
+                recordingPhase = "recording";
+
+                dom.recordButton.classList.add("recording");
+                dom.exportControls.classList.add("hidden");
+                dom.recordStatus.textContent = "Recording... Click again to stop.";
+                recordingStartTime = Tone.now();
+                dom.recordButton.textContent = "Stop Recording (00:00.0)";
+                dom.recordButton.setAttribute(
+                    "aria-label",
+                    "Stop recording (current elapsed time 00:00.0)",
+                );
+
+                // If transport is currently stopped, auto-start playback after capture is active.
+                if (!state.isPlaying && typeof actions.startPlayback === "function") {
+                    try {
+                        await actions.startPlayback();
+                    } catch (error) {
+                        await abortCapture(error);
+                    }
+                }
+                actions.startUiLoop();
+                dom.recordButton.disabled = false;
+            } catch (error) {
+                if (recordingPhase === "starting") {
+                    recordingPhase = "idle";
+                    actions.stopUiLoop();
+                    restoreIdleUi();
+                    dom.recordStatus.textContent = "Recording failed to start. See console.";
+                    actions.showToast("Recording failed to start.", "error");
+                }
+                throw error;
+            } finally {
+                activeTransitionPromise = null;
             }
-            actions.startUiLoop();
-            dom.recordButton.disabled = false;
-        } catch (error) {
-            if (recordingPhase === "starting") {
-                recordingPhase = "idle";
-                actions.stopUiLoop();
-                restoreIdleUi();
-                dom.recordStatus.textContent = "Recording failed to start. See console.";
-                actions.showToast("Recording failed to start.", "error");
-            }
-            throw error;
-        }
+        })();
+        activeTransitionPromise = startTransition;
+        await startTransition;
     }
 
     // ------------------------------------------------------------------
@@ -444,65 +568,77 @@ export function createRecorderManager(context) {
             return;
         }
 
+        isExporting = true;
         dom.exportButton.disabled = true;
         dom.exportButton.textContent = "Exporting...";
+        dom.recordButton.disabled = true;
+
+        const currentExportBlob = liveRecordedWavBlob;
+        let localDecodedBuffer = decodedRecording;
+        let exportFailed = false;
 
         const filename = actions.generateFilename(true);
         const decodeRecording = async () => {
-            if (!decodedRecording) {
-                decodedRecording = await Tone.getContext().decodeAudioData(
-                    await liveRecordedWavBlob.arrayBuffer(),
+            if (!localDecodedBuffer) {
+                localDecodedBuffer = await Tone.getContext().decodeAudioData(
+                    await currentExportBlob.arrayBuffer(),
                 );
+                if (liveRecordedWavBlob === currentExportBlob) {
+                    decodedRecording = localDecodedBuffer;
+                }
             }
-            return decodedRecording;
+            return localDecodedBuffer;
         };
 
-        if (dom.realtimeExportWavCheck.checked) {
-            dom.recordStatus.textContent = "Exporting WAV...";
-            actions.showToast("Exporting WAV...", "info");
-            try {
-                const wavBlob = audioBufferToWav(await decodeRecording());
-                downloadBlob(wavBlob, `${filename}.wav`);
-            } catch (error) {
-                console.error("WAV encoding failed:", error);
-                dom.recordStatus.textContent = "WAV encoding failed. See console.";
-                actions.showToast("WAV encoding failed.", "error");
-                dom.exportButton.disabled = false;
-                dom.exportButton.textContent = "Export Files";
-                return;
+        try {
+            if (dom.realtimeExportWavCheck.checked) {
+                dom.recordStatus.textContent = "Exporting WAV...";
+                actions.showToast("Exporting WAV...", "info");
+                try {
+                    const wavBlob = audioBufferToWav(await decodeRecording());
+                    downloadBlob(wavBlob, `${filename}.wav`);
+                } catch (error) {
+                    console.error("WAV encoding failed:", error);
+                    dom.recordStatus.textContent = "WAV encoding failed. See console.";
+                    actions.showToast("WAV encoding failed.", "error");
+                    return;
+                }
+                actions.showToast("Exported WAV file!", "info");
+
+                if (dom.realtimeExportMp3Check.checked) {
+                    await new Promise((resolve) => setTimeout(resolve, 300));
+                }
             }
-            actions.showToast("Exported WAV file!", "info");
 
             if (dom.realtimeExportMp3Check.checked) {
-                await new Promise((resolve) => setTimeout(resolve, 300));
-            }
-        }
+                dom.recordStatus.textContent = "Encoding MP3... (this may take a moment)";
+                actions.showToast("Encoding MP3...", "info");
+                try {
+                    const audioBuffer = await decodeRecording();
+                    const mp3Blob = await audioBufferToMp3Blob(audioBuffer);
+                    downloadBlob(mp3Blob, `${filename}.mp3`);
 
-        let exportFailed = false;
-        if (dom.realtimeExportMp3Check.checked) {
-            dom.recordStatus.textContent = "Encoding MP3... (this may take a moment)";
-            actions.showToast("Encoding MP3...", "info");
-            try {
-                const audioBuffer = await decodeRecording();
-                const mp3Blob = await audioBufferToMp3Blob(audioBuffer);
-                downloadBlob(mp3Blob, `${filename}.mp3`);
-
+                    dom.recordStatus.textContent = "Export complete!";
+                    actions.showToast("Exported MP3 file!", "success");
+                } catch (e) {
+                    exportFailed = true;
+                    console.error("MP3 encoding failed:", e);
+                    dom.recordStatus.textContent = "MP3 encoding failed. See console.";
+                    actions.showToast("MP3 encoding failed.", "error");
+                }
+            } else if (dom.realtimeExportWavCheck.checked) {
                 dom.recordStatus.textContent = "Export complete!";
-                actions.showToast("Exported MP3 file!", "success");
-            } catch (e) {
-                exportFailed = true;
-                console.error("MP3 encoding failed:", e);
-                dom.recordStatus.textContent = "MP3 encoding failed. See console.";
-                actions.showToast("MP3 encoding failed.", "error");
+                actions.showToast("Export complete!", "success");
             }
-        } else if (dom.realtimeExportWavCheck.checked) {
-            dom.recordStatus.textContent = "Export complete!";
-            actions.showToast("Export complete!", "success");
+        } finally {
+            isExporting = false;
+            dom.exportButton.disabled = false;
+            dom.exportButton.textContent = "Export Files";
+            dom.recordButton.disabled = false;
+            if (!exportFailed && liveRecordedWavBlob === currentExportBlob) {
+                decodedRecording = null;
+            }
         }
-
-        dom.exportButton.disabled = false;
-        dom.exportButton.textContent = "Export Files";
-        if (!exportFailed) decodedRecording = null;
     }
 
     // ------------------------------------------------------------------
@@ -723,18 +859,30 @@ export function createRecorderManager(context) {
      */
     async function destroy() {
         if (isDestroyed) return;
-        const shouldStop = isActivelyRecording() || recordingPhase === "stopping";
         isDestroyed = true;
-        recordingPhase = "destroyed";
-        if (shouldStop) {
+
+        if (activeTransitionPromise) {
+            try {
+                await activeTransitionPromise;
+            } catch (error) {
+                console.warn("In-flight recorder transition failed during destruction:", error);
+            }
+        }
+
+        if (isActivelyRecording()) {
+            recordingPhase = "stopping";
             try {
                 await stopCapture();
             } catch (error) {
                 console.warn("Failed to stop recorder during destruction:", error);
             }
         }
+
+        recordingPhase = "destroyed";
         mediaStopResolver = null;
         mediaStopRejecter = null;
+        activeMediaRecorderError = null;
+        activeTransitionPromise = null;
         if (recorderType === "MediaRecorder" && recorder) {
             recorder.ondataavailable = null;
             recorder.onstop = null;
