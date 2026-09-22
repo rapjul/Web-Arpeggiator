@@ -200,7 +200,7 @@ describe("export controls controller", () => {
                     events: expect.arrayContaining([
                         expect.objectContaining({
                             pitch: "G4",
-                            startTick: 359,
+                            startTick: 400,
                             durationTicks: 120,
                         }),
                     ]),

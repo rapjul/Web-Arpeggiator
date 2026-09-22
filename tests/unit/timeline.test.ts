@@ -6,6 +6,7 @@ import {
     getSwingPhaseCycleCount,
     isSwingPhaseAligned,
     getTimelineEndTick,
+    getTimelineStartTick,
     getSwingOffsetTicks,
     TICKS_PER_BEAT,
     ticksToSeconds,
@@ -48,7 +49,7 @@ describe("musical timeline", () => {
         ).toEqual([
             [0, 120],
             [233, 120],
-            [359, 114],
+            [400, 73],
             [473, 7],
             [480, 120],
             [713, 7],
@@ -67,7 +68,7 @@ describe("musical timeline", () => {
         expect(clipped.events.at(-1)?.durationTicks).toBe(1);
         expect(preserved.events.at(-1)?.durationTicks).toBe(120);
         expect(getTimelineEndTick(clipped)).toBe(360);
-        expect(getTimelineEndTick(preserved)).toBe(479);
+        expect(getTimelineEndTick(preserved)).toBe(520);
     });
 
     it("repeats selected swung timing through seamless warm-up", () => {
@@ -260,5 +261,37 @@ describe("musical timeline", () => {
         expect(timeline.stepsPerCycle).toBe(0);
         expect(timeline.cycleDurationTicks).toBe(0);
         expect(timeline.musicalDurationTicks).toBe(0);
+    });
+
+    it("preserves Tone.js 8th-note swing offsets for 16th notes without step truncation", () => {
+        expect(getTimelineStartTick(2, 120, 1)).toBe(400);
+        expect(getTimelineStartTick(1, 120, 1)).toBe(233);
+        expect(getTimelineStartTick(3, 120, 1)).toBe(473);
+
+        const timeline = compileTimeline({
+            ...baseSettings(),
+            baseNotes: ["C4", "E4", "G4", "B4"],
+            interval: "16n",
+            swing: 1,
+        });
+
+        expect(timeline.events.map((event) => event.startTick)).toEqual([0, 233, 400, 473]);
+    });
+
+    it("maintains non-decreasing event starts across all supported intervals and swing values", () => {
+        const intervals = ["64n", "32n", "16n", "8n", "4n", "2n"];
+        for (const interval of intervals) {
+            const stepTicks = getIntervalTicks(interval);
+            for (let swingInt = 0; swingInt <= 20; swingInt += 1) {
+                const swing = swingInt / 20;
+                let prevStart = -1;
+                const stepsToCheck = Math.max(8, Math.ceil((TICKS_PER_BEAT * 4) / stepTicks));
+                for (let step = 0; step <= stepsToCheck; step += 1) {
+                    const start = getTimelineStartTick(step, stepTicks, swing);
+                    expect(start).toBeGreaterThanOrEqual(prevStart);
+                    prevStart = start;
+                }
+            }
+        }
     });
 });

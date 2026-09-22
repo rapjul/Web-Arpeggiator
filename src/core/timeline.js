@@ -171,15 +171,26 @@ export function createCyclicRenderEvents(timeline, preRollTicks) {
     return events;
 }
 
-/** Returns the bounded swung start for an absolute zero-based occurrence. */
+/**
+ * Returns the bounded swung start for an absolute zero-based occurrence.
+ * Preserves Tone.js-calculated swing offsets while bounding starts within
+ * their intra-beat window to prevent event collisions or downbeat overshoot
+ * on fine subdivisions.
+ *
+ * @param {number} occurrenceIndex - Zero-based step occurrence count.
+ * @param {number} stepDurationTicks - Unswung step duration in 480-PPQ ticks.
+ * @param {unknown} swing - Swing amount from 0 through 1.
+ * @returns {number} Integer start tick for the occurrence.
+ */
 export function getTimelineStartTick(occurrenceIndex, stepDurationTicks, swing) {
     const safeOccurrence = Math.max(0, Math.trunc(Number(occurrenceIndex) || 0));
     const safeStepDuration = Math.max(1, Math.trunc(Number(stepDurationTicks) || 1));
     const rawStartTick = safeOccurrence * safeStepDuration;
-    return Math.min(
-        rawStartTick + getSwingOffsetTicks(rawStartTick, swing),
-        rawStartTick + safeStepDuration - 1,
-    );
+    const requestedTick = rawStartTick + getSwingOffsetTicks(rawStartTick, swing);
+    const nextBeatTick = (Math.floor(rawStartTick / TICKS_PER_BEAT) + 1) * TICKS_PER_BEAT;
+    const stepsRemaining = Math.max(1, (nextBeatTick - rawStartTick) / safeStepDuration);
+    const maxTick = nextBeatTick - stepsRemaining;
+    return Math.min(requestedTick, maxTick);
 }
 
 /**
@@ -365,11 +376,16 @@ export function compileTimeline(settings = {}, range = {}) {
             const sourceStepIndex = stepIndex;
             const rawStartTick = cycleIndex * cycleDurationTicks + stepIndex * stepDurationTicks;
             const occurrenceIndex = cycleIndex * stepsPerCycle + stepIndex;
-            const startTick = getTimelineStartTick(
+            const unclippedStartTick = getTimelineStartTick(
                 occurrenceIndex,
                 stepDurationTicks,
                 normalized.swing,
             );
+            const isTerminalPreserved = range.terminalGatePolicy === "preserve";
+            const startTick =
+                !isTerminalPreserved && musicalDurationTicks > 0
+                    ? Math.min(unclippedStartTick, musicalDurationTicks - 1)
+                    : unclippedStartTick;
             const swingOffsetTicks = startTick - rawStartTick;
             rawEvents.push({
                 pitch: sequence.notes[sourceStepIndex],

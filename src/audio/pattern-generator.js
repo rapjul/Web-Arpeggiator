@@ -136,8 +136,11 @@ export function createPatternController({
                         timeline.stepDurationTicks,
                         timeline.swing,
                     );
+                    const nominalDurationTicks =
+                        timeline.events[0]?.nominalDurationTicks ??
+                        Math.max(1, Math.round(timeline.stepDurationTicks * timeline.gateRatio));
                     const durationTicks = Math.min(
-                        timeline.events[0].nominalDurationTicks,
+                        nominalDurationTicks,
                         Math.max(1, nextStartTick - swungStartTick),
                     );
                     const swingOffsetTicks = swungStartTick - rawStartTick;

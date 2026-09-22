@@ -333,8 +333,8 @@ describe("Recorder Manager Module", () => {
 
         await manager.exportOffline();
 
-        expect(lastOfflineTransportStopAt).toBeCloseTo((359 + 120) / 480 / 2);
-        expect(lastOfflineRenderDuration).toBeCloseTo((359 + 120) / 480 / 2);
+        expect(lastOfflineTransportStopAt).toBeCloseTo((400 + 120) / 480 / 2);
+        expect(lastOfflineRenderDuration).toBeCloseTo((400 + 120) / 480 / 2);
     });
 
     it("rejects a seamless export that ends at a different swing phase", async () => {

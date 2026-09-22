@@ -367,7 +367,7 @@ describe("MIDI Export Domain Module", () => {
         expect(directEvents.findLast((event) => event.type === "off" && event.note === 67)).toEqual(
             {
                 type: "off",
-                tick: 479,
+                tick: 520,
                 note: 67,
             },
         );
