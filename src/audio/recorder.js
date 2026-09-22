@@ -252,6 +252,7 @@ export function createRecorderManager(context) {
             blob = await stopCapture();
         } catch (cleanupError) {
             console.warn("Failed to stop recorder during recovery:", cleanupError);
+            resetRecorderBackend();
         } finally {
             if (blob) {
                 finalizeRecordingStop(blob);
@@ -396,7 +397,11 @@ export function createRecorderManager(context) {
                         }
                     };
                     recorder.onerror = (event) => {
-                        const error = toError(/** @type {any} */ (event)?.error);
+                        const rawError =
+                            event && typeof event === "object" && "error" in event
+                                ? /** @type {{ error?: unknown }} */ (event).error
+                                : event;
+                        const error = toError(rawError);
                         activeMediaRecorderError = error;
                         const rejectStop = mediaStopRejecter;
                         if (rejectStop) {
@@ -501,10 +506,9 @@ export function createRecorderManager(context) {
 
                 if (recorderType === "MediaRecorder") recordedChunks = [];
                 await startCapture();
-                if (isDestroyed) return;
-
                 // Start capture before playback so the first scheduled note is retained.
                 recordingPhase = "recording";
+                if (isDestroyed) return;
 
                 dom.recordButton.classList.add("recording");
                 dom.exportControls.classList.add("hidden");

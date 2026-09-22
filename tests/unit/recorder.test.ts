@@ -1154,4 +1154,51 @@ describe("Recorder Manager Module", () => {
             errorSpy.mockRestore();
         }
     });
+
+    it("stops started backend when destroy is called during start transition", async () => {
+        let resolveStart: () => void = () => {};
+        recorderStartPromise = new Promise<void>((resolve) => {
+            resolveStart = resolve;
+        });
+
+        const manager = createRecorderManager({
+            audio: mockAudio,
+            dom: mockDom,
+            state: mockState,
+            actions: mockActions,
+        });
+
+        const togglePromise = manager.toggleRecording();
+        const destroyPromise = manager.destroy();
+
+        resolveStart();
+        await togglePromise;
+        await destroyPromise;
+
+        expect(recorderLifecycle).toContain("recording-start");
+        expect(recorderLifecycle).toContain("recording-stop");
+        expect(recorderDispose).toHaveBeenCalled();
+        expect(manager.isRecording).toBe(false);
+    });
+
+    it("resets and disposes backend when stopCapture fails during abortCapture recovery", async () => {
+        mockActions.startPlayback = vi.fn(async () => {
+            throw new Error("playback failure");
+        });
+        recorderStopError = new Error("recovery stop failure");
+
+        const manager = createRecorderManager({
+            audio: mockAudio,
+            dom: mockDom,
+            state: mockState,
+            actions: mockActions,
+        });
+
+        await expect(manager.toggleRecording()).rejects.toThrow("playback failure");
+
+        expect(recorderDispose).toHaveBeenCalled();
+        expect(manager.isRecording).toBe(false);
+        expect(mockDom.exportControls.classList.contains("hidden")).toBe(true);
+        expect(mockDom.recordButton.textContent).toBe("Record");
+    });
 });
