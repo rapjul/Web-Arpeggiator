@@ -27,7 +27,7 @@ The audio signal chain follows this path:
 ```
 Synths → Distortion → Filter → Chorus → Auto-pan → Delay → Reverb ─┬→ Analyzer (visualizer)
                                                                      └→ Post gain → Limiter ─┬→ Destination (speakers)
-                                                                                            └→ Recorder (capture)
+                                                                                            └→ Recorder (capture, post-gain fallback)
 ```
 
 #### Synthesizers
