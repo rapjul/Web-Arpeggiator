@@ -54,6 +54,10 @@ test("exports a real-time WAV recording through the browser download API", async
     pwaPage: page,
 }) => {
     await startAudio(page);
+    const playStop = page.locator("#play-stop");
+    await playStop.click();
+    await expect(playStop).toHaveText("Restart Audio");
+
     await startRecording(page);
     await waitForRecordedAudio(page);
     await stopRecording(page);
