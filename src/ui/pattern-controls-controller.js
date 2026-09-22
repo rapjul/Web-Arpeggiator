@@ -22,7 +22,7 @@ import { setupKeyboardNavigation } from "@ui/a11y-navigation.js";
  * @property {(root: string, scale: string) => string[]} [generateRandomNotes]
  * @property {(chordType: string, root: string) => string} [buildChordString]
  * @property {(chordType: string) => {name: string}} [resolveChordDefinition]
- * @property {(callback: () => void, wait: number) => () => void} debounce
+ * @property {(callback: () => void, wait: number) => (() => void) & { cancel: () => void }} debounce
  */
 
 /**
@@ -109,6 +109,7 @@ export function createPatternControlsController(dependencies) {
     /** @param {HTMLElement} container @param {string} attribute */
     function handleOctaveClick(container, attribute) {
         return (event) => {
+            if (container.querySelector("input[type='radio']")) return;
             if (!(event.target instanceof Element)) return;
             const target = event.target.closest("button, label");
             const button =
@@ -276,6 +277,8 @@ export function createPatternControlsController(dependencies) {
         notesInput.addEventListener(
             "change",
             () => {
+                pendingPatternChangeLifecycle = 0;
+                debouncedPatternChange.cancel();
                 const raw = notesInput.value.trim().split(/\s+/).filter(Boolean);
                 const normalized = normalizeNotes(raw);
                 const nextNotes = normalized.length > 0 ? normalized : raw.length ? raw : ["C4"];
@@ -387,6 +390,7 @@ export function createPatternControlsController(dependencies) {
     }
 
     function destroy() {
+        debouncedPatternChange.cancel();
         listenerController?.abort();
         keyboardNavigationCleanups.forEach((cleanup) => {
             cleanup();

@@ -5,6 +5,7 @@ type PatternControlsDependencies = Parameters<typeof createPatternControlsContro
 
 interface PatternControlsFixture {
     controller: ReturnType<typeof createPatternControlsController>;
+    debounceCancel: ReturnType<typeof vi.fn>;
     flushDebouncedPatternChange: () => void;
     gateSlider: HTMLInputElement;
     gateValue: HTMLSpanElement;
@@ -85,8 +86,13 @@ function createFixture(): PatternControlsFixture {
     const onPatternChange = vi.fn();
     const onReshuffle = vi.fn();
     const onStaticLoopChange = vi.fn();
-    const debounce: PatternControlsDependencies["debounce"] = (callback) => () => {
-        queuedPatternChanges.push(callback);
+    const debounceCancel = vi.fn();
+    const debounce: PatternControlsDependencies["debounce"] = (callback) => {
+        const debounced = () => {
+            queuedPatternChanges.push(callback);
+        };
+        debounced.cancel = debounceCancel;
+        return debounced;
     };
     const dependencies: PatternControlsDependencies = {
         dom: {
@@ -117,6 +123,7 @@ function createFixture(): PatternControlsFixture {
 
     return {
         controller: createPatternControlsController(dependencies),
+        debounceCancel,
         flushDebouncedPatternChange: () => {
             queuedPatternChanges.splice(0).forEach((callback) => {
                 callback();
@@ -233,18 +240,21 @@ describe("pattern controls controller", () => {
         } = createFixture();
         controller.initialize();
 
+        // Click on the button is guarded because the container has radio inputs
         octaveShiftButtons
             .querySelector("button")
             ?.dispatchEvent(new Event("click", { bubbles: true }));
+        expect(setOctaveShift).not.toHaveBeenCalled();
+
+        // Only the radio change handler fires
         const shiftInput = octaveShiftButtons.querySelector("input");
         shiftInput?.dispatchEvent(new Event("change", { bubbles: true }));
         const rangeInput = octaveRangeButtons.querySelector("input");
         rangeInput?.dispatchEvent(new Event("change", { bubbles: true }));
-        expect(setOctaveShift).toHaveBeenCalledWith(-1);
-        expect(setOctaveShift).toHaveBeenLastCalledWith(1);
+        expect(setOctaveShift).toHaveBeenCalledWith(1);
         expect(setOctaveRange).toHaveBeenCalledWith(2);
-        expect(onPatternChange).toHaveBeenCalledTimes(3);
-        expect(onStaticLoopChange).toHaveBeenCalledTimes(3);
+        expect(onPatternChange).toHaveBeenCalledTimes(2);
+        expect(onStaticLoopChange).toHaveBeenCalledTimes(2);
         expect(octaveShiftButtons.querySelector("label")?.classList.contains("selected")).toBe(
             true,
         );
@@ -253,9 +263,9 @@ describe("pattern controls controller", () => {
         gateSlider.value = "0.75";
         gateSlider.dispatchEvent(new Event("input"));
         expect(gateValue.textContent).toBe("0.75");
-        expect(onPatternChange).toHaveBeenCalledTimes(3);
+        expect(onPatternChange).toHaveBeenCalledTimes(2);
         flushDebouncedPatternChange();
-        expect(onPatternChange).toHaveBeenCalledTimes(4);
+        expect(onPatternChange).toHaveBeenCalledTimes(3);
     });
 
     test("removes bindings on teardown and avoids duplicate initialization", () => {
@@ -323,5 +333,36 @@ describe("pattern controls controller", () => {
         expect(() => controller.setSelectedPatternDirection('down"]')).not.toThrow();
         expect(controller.getSelectedPatternDirection()).toBe("up");
         expect(patternButtons.querySelector("input[value='up']")?.checked).toBe(true);
+    });
+
+    test("cancels debounced rebuild when a committed change arrives after input", () => {
+        const {
+            controller,
+            debounceCancel,
+            flushDebouncedPatternChange,
+            notesInput,
+            onPatternChange,
+        } = createFixture();
+        controller.initialize();
+
+        // Simulate input → change sequence as dispatched by onNotesSelected
+        notesInput.value = "D4 F4 A4";
+        notesInput.dispatchEvent(new Event("input", { bubbles: true }));
+        notesInput.dispatchEvent(new Event("change", { bubbles: true }));
+
+        expect(debounceCancel).toHaveBeenCalledTimes(1);
+        expect(onPatternChange).toHaveBeenCalledOnce();
+
+        // Flushing queued debounced callbacks should not produce a second rebuild
+        flushDebouncedPatternChange();
+        expect(onPatternChange).toHaveBeenCalledOnce();
+    });
+
+    test("destroy cancels any pending debounced pattern change timer", () => {
+        const { controller, debounceCancel } = createFixture();
+        controller.initialize();
+        controller.destroy();
+
+        expect(debounceCancel).toHaveBeenCalledTimes(1);
     });
 });

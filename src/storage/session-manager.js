@@ -21,18 +21,29 @@
  * @template {(...args: never[]) => unknown} T
  * @param {T} func - Callback function to debounce.
  * @param {number} wait - Delay duration in milliseconds.
- * @returns {T} Debounced wrapper function.
+ * @returns {T & { cancel: () => void }} Debounced wrapper function with cancellation.
  */
 export function debounce(func, wait) {
+    /** @type {ReturnType<typeof setTimeout> | undefined} */
     let timeoutId;
-    return /** @type {T} */ (
-        function (...args) {
+    /**
+     * @this {unknown}
+     * @param {Parameters<T>} args - Invocation arguments.
+     * @returns {void}
+     */
+    const debounced = function (...args) {
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => {
+            func.apply(this, args);
+        }, wait);
+    };
+    debounced.cancel = () => {
+        if (timeoutId !== undefined) {
             clearTimeout(timeoutId);
-            timeoutId = setTimeout(() => {
-                func.apply(this, args);
-            }, wait);
+            timeoutId = undefined;
         }
-    );
+    };
+    return /** @type {T & { cancel: () => void }} */ (debounced);
 }
 
 /**
