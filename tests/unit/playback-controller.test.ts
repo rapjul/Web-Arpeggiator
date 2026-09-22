@@ -242,4 +242,49 @@ describe("playback controller", () => {
         secondContext.dispatchEvent(new Event("statechange"));
         expect(state.isPlaying).toBe(true);
     });
+
+    it("serializes playback start with pending recorder transition", async () => {
+        const fixture = createFixture();
+        let resolveTransition: () => void = () => {};
+        const pendingTransition = new Promise<void>((resolve) => {
+            resolveTransition = resolve;
+        });
+
+        const recorderManagerWithTransition = {
+            isRecording: false,
+            isStarting: true,
+            awaitPendingTransition: vi.fn(async () => {
+                await pendingTransition;
+                fixture.state.isPlaying = true;
+            }),
+            initRecorder: vi.fn(async () => {}),
+        };
+
+        const controller = createPlaybackController({
+            dom: { playStopButton: fixture.playStopButton },
+            state: fixture.state,
+            getTone: () => ({
+                getContext: () => ({ state: "running", rawContext: fixture.rawContext }),
+                getTransport: () => fixture.transport,
+            }),
+            getPattern: () => fixture.pattern,
+            getRecorderManager: () => recorderManagerWithTransition,
+            getVisualizer: () => fixture.visualizer,
+            startAudio: fixture.startAudio,
+            prepareForPlayback: fixture.prepareForPlayback,
+            createOrUpdatePattern: fixture.createOrUpdatePattern,
+            clearNoteStep: fixture.clearNoteStep,
+        });
+        controllers.push(controller);
+
+        const startPromise = controller.start();
+        await Promise.resolve();
+        expect(recorderManagerWithTransition.awaitPendingTransition).toHaveBeenCalled();
+        expect(fixture.transport.start).not.toHaveBeenCalled();
+
+        resolveTransition();
+        await startPromise;
+
+        expect(fixture.transport.start).not.toHaveBeenCalled();
+    });
 });

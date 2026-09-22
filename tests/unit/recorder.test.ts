@@ -1201,4 +1201,98 @@ describe("Recorder Manager Module", () => {
         expect(mockDom.exportControls.classList.contains("hidden")).toBe(true);
         expect(mockDom.recordButton.textContent).toBe("Record");
     });
+
+    it("retains decoded PCM for retry when WAV export fails", async () => {
+        const manager = createRecorderManager({
+            audio: mockAudio,
+            dom: mockDom,
+            state: mockState,
+            actions: mockActions,
+        });
+        const testBlob = new Blob([new Uint8Array(2048)], { type: "audio/wav" });
+        manager.setRecorderBlob(testBlob);
+        mockDom.realtimeExportWavCheck.checked = true;
+        mockDom.realtimeExportMp3Check.checked = false;
+        vi.mocked(audioBufferToWav).mockImplementationOnce(() => {
+            throw new Error("wav encode failed");
+        });
+
+        await manager.exportRealtime();
+        expect(mockContext.decodeAudioData).toHaveBeenCalledTimes(1);
+
+        // Retrying must reuse the cached decoded buffer without decoding again
+        await manager.exportRealtime();
+        expect(mockContext.decodeAudioData).toHaveBeenCalledTimes(1);
+    });
+
+    it("stops all destination stream tracks when graph connection throws during native init", async () => {
+        toneRecorderConstructorError = new Error("Tone.Recorder unavailable");
+        const originalSecureContext = window.isSecureContext;
+        const originalMediaRecorder = window.MediaRecorder;
+
+        const failingAudio = {
+            ...mockAudio,
+            recordingOutput: {
+                connect: vi.fn(() => {
+                    throw new Error("graph connection failure");
+                }),
+            },
+        };
+
+        class MockMediaRecorder {
+            addEventListener = vi.fn();
+            removeEventListener = vi.fn();
+        }
+
+        // @ts-expect-error mocking MediaRecorder
+        window.MediaRecorder = MockMediaRecorder;
+        window.isSecureContext = true;
+
+        try {
+            const manager = createRecorderManager({
+                audio: failingAudio,
+                dom: mockDom,
+                state: mockState,
+                actions: mockActions,
+            });
+
+            await manager.initRecorder();
+            expect(destinationStreamTracks[0].stop).toHaveBeenCalled();
+            expect(mockDom.recordButton.disabled).toBe(true);
+        } finally {
+            window.isSecureContext = originalSecureContext;
+            window.MediaRecorder = originalMediaRecorder;
+        }
+    });
+
+    it("exposes isStarting and awaitPendingTransition for transport coordination", async () => {
+        let resolveStart: () => void = () => {};
+        recorderStartPromise = new Promise<void>((resolve) => {
+            resolveStart = resolve;
+        });
+
+        const manager = createRecorderManager({
+            audio: mockAudio,
+            dom: mockDom,
+            state: mockState,
+            actions: mockActions,
+        });
+
+        const togglePromise = manager.toggleRecording();
+        expect(manager.isStarting).toBe(true);
+
+        let transitionFinished = false;
+        const awaitPromise = manager.awaitPendingTransition().then(() => {
+            transitionFinished = true;
+        });
+
+        expect(transitionFinished).toBe(false);
+        resolveStart();
+        await togglePromise;
+        await awaitPromise;
+
+        expect(transitionFinished).toBe(true);
+        expect(manager.isStarting).toBe(false);
+        expect(manager.isRecording).toBe(true);
+    });
 });

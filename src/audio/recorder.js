@@ -88,6 +88,8 @@ function formatEffectList(effectNames) {
  * @property {Function} exportRealtime - Export recorded blob as WAV/MP3.
  * @property {Function} exportOffline - Tone.Offline render + export.
  * @property {boolean} isRecording - Whether recording is active.
+ * @property {boolean} [isStarting] - Whether capture initialization is currently pending.
+ * @property {() => Promise<void>} [awaitPendingTransition] - Awaits in-flight transition.
  * @property {number} recordingStartTime - Timestamp when recording started.
  * @property {Function} setRecorderBlob - Sets liveRecordedWavBlob (called by event).
  * @property {Function} destroy - Stops capture and releases recorder-owned resources.
@@ -348,9 +350,9 @@ export function createRecorderManager(context) {
                 try {
                     const rawCtx = /** @type {AudioContext} */ (Tone.getContext().rawContext);
                     const dest = rawCtx.createMediaStreamDestination();
-                    audio.recordingOutput.connect(dest);
                     mediaStreamDestination = dest;
                     recordingTarget = dest;
+                    audio.recordingOutput.connect(dest);
                     recorder = new MediaRecorder(dest.stream);
                     recorderType = "MediaRecorder";
 
@@ -602,6 +604,7 @@ export function createRecorderManager(context) {
                     const wavBlob = audioBufferToWav(await decodeRecording());
                     downloadBlob(wavBlob, `${filename}.wav`);
                 } catch (error) {
+                    exportFailed = true;
                     console.error("WAV encoding failed:", error);
                     dom.recordStatus.textContent = "WAV encoding failed. See console.";
                     actions.showToast("WAV encoding failed.", "error");
@@ -919,6 +922,19 @@ export function createRecorderManager(context) {
         destroy,
         get isRecording() {
             return isActivelyRecording();
+        },
+        get isStarting() {
+            return recordingPhase === "starting";
+        },
+        /**
+         * Awaits any in-flight recording transition (starting or stopping).
+         *
+         * @returns {Promise<void>}
+         */
+        awaitPendingTransition: async () => {
+            if (activeTransitionPromise) {
+                await activeTransitionPromise;
+            }
         },
         get recordingStartTime() {
             return recordingStartTime;
