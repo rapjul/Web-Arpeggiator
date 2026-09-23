@@ -349,7 +349,8 @@ Web Arpeggiator/
 │   │   ├── 0013-workbox-custom-service-worker-caching.md
 │   │   ├── 0014-versioned-settings-snapshot-compatibility.md
 │   │   ├── 0015-shared-480-ppq-musical-timeline-contract.md
-│   │   └── 0016-reproducible-stochastic-pattern-semantics.md
+│   │   ├── 0016-reproducible-stochastic-pattern-semantics.md
+│   │   └── 0017-zero-stderr-test-runner-noise-and-diagnostic-log-assertion.md
 │   ├── architecture.md     # Module ownership, runtime flow, and deferred boundaries
 │   ├── development.md      # Local setup, commands, and test-runner guidance
 │   ├── improvements/       # Deferred, scoped follow-up plans
