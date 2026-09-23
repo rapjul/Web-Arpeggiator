@@ -283,6 +283,7 @@ export function createAudioEngine(context) {
      */
     function setSynth(type = "synth") {
         if (activeSynth) {
+            const now = typeof Tone.now === "function" ? Tone.now() : 0;
             const candidateEnvelopes = [
                 /** @type {*} */ (activeSynth).envelope,
                 /** @type {*} */ (activeSynth).modulationEnvelope,
@@ -295,13 +296,29 @@ export function createAudioEngine(context) {
             for (const env of candidateEnvelopes) {
                 if (env && typeof env.cancel === "function") {
                     try {
-                        env.cancel(Tone.now());
+                        env.cancel(now);
                     } catch {}
                 }
             }
             if (typeof activeSynth.triggerRelease === "function") {
                 try {
                     activeSynth.triggerRelease();
+                } catch {}
+            }
+            // Non-envelope synths (Tone.PluckSynth excitation and comb filter resonance)
+            const pluckSynth = /** @type {*} */ (activeSynth);
+            if (pluckSynth._noise && typeof pluckSynth._noise.stop === "function") {
+                try {
+                    pluckSynth._noise.stop(now);
+                } catch {}
+            }
+            if (
+                pluckSynth._lfcf?.resonance &&
+                typeof pluckSynth._lfcf.resonance.cancelScheduledValues === "function"
+            ) {
+                try {
+                    pluckSynth._lfcf.resonance.cancelScheduledValues(now);
+                    pluckSynth._lfcf.resonance.setValueAtTime(0, now);
                 } catch {}
             }
         }

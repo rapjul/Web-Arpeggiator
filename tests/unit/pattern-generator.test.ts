@@ -2,6 +2,7 @@
 
 import * as Tone from "tone";
 import { describe, expect, it, vi } from "vitest";
+import { ALLOWED_DIRECTIONS } from "@core/settings-contract.js";
 
 interface MockPatternInstance {
     values: string[];
@@ -241,23 +242,7 @@ describe("Pattern controller", () => {
             getSynth: () => null,
             getIsPlaying: () => false,
         });
-        const directions = [
-            "up",
-            "down",
-            "upDown",
-            "downUp",
-            "upDownRepeat",
-            "downUpRepeat",
-            "random",
-            "randomCycle",
-            "octaveCycle",
-            "octaveCycleReverse",
-            "octaveCyclePingPong",
-            "randomWalk",
-            "randomWalkDrunk",
-        ];
-
-        for (const direction of directions) {
+        for (const direction of ALLOWED_DIRECTIONS) {
             const pattern = controller.update({
                 ...baseSettings(),
                 direction,
@@ -583,7 +568,7 @@ describe("Pattern controller", () => {
             // Step 0 is unswung; Step 1 is swung with swingOffsetTicks > 0
             pattern.callback(0.0, "C4");
             pattern.callback(0.25, "E4");
-            expect(transport.scheduleOnce).toHaveBeenCalled();
+            expect(transport.scheduleOnce).toHaveBeenCalledWith(expect.any(Function), "93i");
             expect(scheduledEvents.size).toBe(1);
 
             // Stoppage / cancel clears pending transport events and cancels PluckSynth excitations

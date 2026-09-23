@@ -52,6 +52,27 @@ export {
  */
 
 /**
+ * Resolves the active Tone transport PPQ resolution.
+ *
+ * @param {*} [transport] - Active Tone.Transport instance.
+ * @returns {number} Transport pulses per quarter note.
+ */
+function getTransportPpq(transport) {
+    return typeof transport?.PPQ === "number" && transport.PPQ > 0 ? transport.PPQ : 192;
+}
+
+/**
+ * Converts timeline 480-PPQ ticks to transport ticks using active transport PPQ.
+ *
+ * @param {number} timelineTicks - Ticks at 480 PPQ.
+ * @param {number} transportPpq - Transport pulses per quarter note.
+ * @returns {number} Equivalent transport ticks.
+ */
+function timelineTicksToTransportTicks(timelineTicks, transportPpq) {
+    return Math.round((timelineTicks * transportPpq) / TICKS_PER_BEAT);
+}
+
+/**
  * Builds and owns the active timeline-backed Tone.Pattern. Every application dependency is
  * injected, keeping this scheduler independent of DOM and window globals.
  *
@@ -230,9 +251,11 @@ export function createPatternController({
             if (getIsPlaying()) {
                 const transport = Tone.getTransport();
                 const transportTicks = typeof transport?.ticks === "number" ? transport.ticks : 0;
-                const ppq =
-                    typeof transport?.PPQ === "number" && transport.PPQ > 0 ? transport.PPQ : 192;
-                const stepTransportTicks = (ppq * timeline.stepDurationTicks) / TICKS_PER_BEAT;
+                const ppq = getTransportPpq(transport);
+                const stepTransportTicks = timelineTicksToTransportTicks(
+                    timeline.stepDurationTicks,
+                    ppq,
+                );
                 if (stepTransportTicks > 0 && transportTicks > 0) {
                     occurrenceIndex = Math.ceil(transportTicks / stepTransportTicks);
                 }
@@ -293,11 +316,16 @@ export function createPatternController({
                             transport &&
                             typeof transport.scheduleOnce === "function"
                         ) {
+                            const ppq = getTransportPpq(transport);
+                            const transportTick = timelineTicksToTransportTicks(
+                                swungStartTick,
+                                ppq,
+                            );
                             const eventId = transport.scheduleOnce((attackTime) => {
                                 pendingTransportAttackIds.delete(eventId);
                                 activeNoteReleaseTime = attackTime + durationSeconds;
                                 triggerSynth(synth, note, attackTime, durationSeconds);
-                            }, `${swungStartTick}i`);
+                            }, `${transportTick}i`);
                             pendingTransportAttackIds.add(eventId);
                         } else {
                             activeNoteReleaseTime = scheduledTime + durationSeconds;

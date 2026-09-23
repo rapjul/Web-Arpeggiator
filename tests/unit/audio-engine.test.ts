@@ -73,6 +73,8 @@ vi.mock("tone", async () => {
         dampening = 4000;
         resonance = 0.8;
         attackNoise = 1.0;
+        _noise = { stop: vi.fn() };
+        _lfcf = { resonance: { cancelScheduledValues: vi.fn(), setValueAtTime: vi.fn() } };
         triggerAttack() {}
         triggerRelease() {}
         triggerAttackRelease() {}
@@ -91,6 +93,7 @@ vi.mock("tone", async () => {
     }
 
     return {
+        now: () => 0,
         Analyser: class extends MockNode {
             getValue() {
                 return new Float32Array(1024);
@@ -394,10 +397,13 @@ describe("Audio Engine Model Definitions", () => {
             expect(btn.disabled).toBe(true);
             expect(mockDom.waveformPluckOverlay.classList.contains("flex")).toBe(true);
 
-            // Basic Synth enables waveform buttons
+            // Basic Synth enables waveform buttons and silences previous pluck synth
             engine.setSynth("synth");
             expect(btn.disabled).toBe(false);
             expect(mockDom.waveformPluckOverlay.classList.contains("hidden")).toBe(true);
+            const pluck = engine.synths.pluckSynth as unknown as MockPluckSynth;
+            expect(pluck._noise.stop).toHaveBeenCalled();
+            expect(pluck._lfcf.resonance.cancelScheduledValues).toHaveBeenCalled();
 
             // Square wave displays duty cycle
             engine.currentWaveform = "square";
