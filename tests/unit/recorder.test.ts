@@ -201,6 +201,18 @@ describe("Recorder Manager Module", () => {
         expect(mockDom.recordStatus.textContent).toContain("Ready to record");
     });
 
+    it("safely handles concurrent initRecorder calls with promise locking", async () => {
+        const manager = createRecorderManager({
+            audio: mockAudio,
+            dom: mockDom,
+            state: mockState,
+            actions: mockActions,
+        });
+
+        await Promise.all([manager.initRecorder(), manager.initRecorder()]);
+        expect(mockAudio.reverb.connect).toHaveBeenCalledOnce();
+    });
+
     it("toggles recording state and updates button labels", async () => {
         const manager = createRecorderManager({
             audio: mockAudio,

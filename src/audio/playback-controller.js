@@ -9,7 +9,7 @@
 /**
  * Creates a playback coordinator around injected runtime accessors.
  *
- * @param {{dom: {playStopButton: HTMLButtonElement|null}, state: PlaybackState, getTone: () => {getContext: () => {state: string, rawContext: EventTarget|null}, getTransport: () => {start: () => void, stop: () => void}}, getPattern: () => {start: () => void, stop: () => void}|undefined, getSilenceActiveSynth: () => (() => void)|undefined, getRecorderManager: () => {isRecording: boolean, initRecorder: () => Promise<void>}|undefined, getVisualizer: () => {startUiLoop: () => void, stopUiLoop: () => void}|undefined, startAudio: () => Promise<void>, prepareForPlayback: () => void, createOrUpdatePattern: () => void, clearNoteStep: () => void}} dependencies - Playback dependencies.
+ * @param {{dom: {playStopButton: HTMLButtonElement|null}, state: PlaybackState, getTone: () => {getContext: () => {state: string, rawContext: EventTarget|null}, getTransport: () => {start: () => void, stop: () => void}}, getPattern: () => {start: (time?: number|string) => void, stop: () => void}|undefined, getSilenceActiveSynth: () => (() => void)|undefined, getRecorderManager: () => {isRecording: boolean, initRecorder: () => Promise<void>}|undefined, getVisualizer: () => {startUiLoop: () => void, stopUiLoop: () => void}|undefined, startAudio: () => Promise<void>, prepareForPlayback: () => void, createOrUpdatePattern: () => void, clearNoteStep: () => void}} dependencies - Playback dependencies.
  * @returns {{start: () => Promise<void>, stop: () => void, observeAudioContextState: () => void, destroy: () => void}}
  */
 export function createPlaybackController(dependencies) {
@@ -35,11 +35,11 @@ export function createPlaybackController(dependencies) {
         await startAudio();
         const recorderManager = getRecorderManager();
         if (recorderManager && !recorderManager.isRecording) {
-            await recorderManager.initRecorder();
+            void recorderManager.initRecorder();
         }
         createOrUpdatePattern();
         if (!state.isPlaying) {
-            getPattern()?.start();
+            getPattern()?.start(0);
             getTone().getTransport().start();
             const playStopButton = dom.playStopButton;
             if (playStopButton) {
@@ -59,7 +59,10 @@ export function createPlaybackController(dependencies) {
         // Silence any synth attacks pre-scheduled for the swing-offset window
         // before stopping the transport so they do not sound after stop.
         getSilenceActiveSynth()?.();
-        getTone().getTransport().stop();
+        const tone = getTone();
+        tone?.getTransport().stop();
+        // Cancel any queued draw frame callbacks on transport stop
+        /** @type {{Draw?: {cancel?: (time?: number) => void}}} */ (tone)?.Draw?.cancel?.(0);
         getPattern()?.stop();
         const playStopButton = dom.playStopButton;
         if (playStopButton) {

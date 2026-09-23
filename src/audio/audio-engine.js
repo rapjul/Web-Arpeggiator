@@ -282,10 +282,28 @@ export function createAudioEngine(context) {
      * @returns {void}
      */
     function setSynth(type = "synth") {
-        if (activeSynth && typeof activeSynth.triggerRelease === "function") {
-            try {
-                activeSynth.triggerRelease();
-            } catch {}
+        if (activeSynth) {
+            const candidateEnvelopes = [
+                /** @type {*} */ (activeSynth).envelope,
+                /** @type {*} */ (activeSynth).modulationEnvelope,
+                /** @type {*} */ (activeSynth).filterEnvelope,
+                /** @type {*} */ (activeSynth).voice0?.envelope,
+                /** @type {*} */ (activeSynth).voice0?.filterEnvelope,
+                /** @type {*} */ (activeSynth).voice1?.envelope,
+                /** @type {*} */ (activeSynth).voice1?.filterEnvelope,
+            ];
+            for (const env of candidateEnvelopes) {
+                if (env && typeof env.cancel === "function") {
+                    try {
+                        env.cancel(Tone.now());
+                    } catch {}
+                }
+            }
+            if (typeof activeSynth.triggerRelease === "function") {
+                try {
+                    activeSynth.triggerRelease();
+                } catch {}
+            }
         }
         activeSynth = synths[type] || synths.synth;
         // Apply current ADSR to new synth

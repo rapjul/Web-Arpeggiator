@@ -56,7 +56,7 @@ export {
  * injected, keeping this scheduler independent of DOM and window globals.
  *
  * @param {{getSynth: () => unknown, getIsPlaying: () => boolean, onPatternChange?: (pattern: object|null) => void, onStep?: (index: number) => void, logger?: Pick<Console, "error">}} context - Runtime callbacks.
- * @returns {{update: (settings: PatternSettings) => object|null, getPattern: () => object|null, getTimeline: () => import("@core/timeline.js").CompiledTimeline|null, dispose: () => void, silenceActiveSynth: () => void}} Pattern controller API.
+ * @returns {{update: (settings: PatternSettings) => object|null, getPattern: () => object|null, getTimeline: () => import("@core/timeline.js").CompiledTimeline|null, dispose: (options?: {silenceVoices?: boolean}) => void, silenceActiveSynth: () => void, cancelQueuedSynthEvents: (synthToCancel?: unknown, cancelTime?: number) => void}} Pattern controller API.
  */
 export function createPatternController({
     getSynth,
@@ -73,12 +73,43 @@ export function createPatternController({
     let currentSynth = null;
 
     /**
+     * Cancels any future queued envelope events on a synth without cutting
+     * currently active voice output.
+     *
+     * @param {unknown} [synthToCancel] - Candidate synth instance.
+     * @param {number} [cancelTime] - Time threshold after which to cancel events.
+     * @returns {void}
+     */
+    function cancelQueuedSynthEvents(synthToCancel, cancelTime) {
+        const synth = synthToCancel ?? getSynth();
+        if (!synth || typeof synth !== "object") return;
+        const now = cancelTime ?? Tone.now();
+        const candidateEnvelopes = [
+            /** @type {*} */ (synth).envelope,
+            /** @type {*} */ (synth).modulationEnvelope,
+            /** @type {*} */ (synth).filterEnvelope,
+            /** @type {*} */ (synth).voice0?.envelope,
+            /** @type {*} */ (synth).voice0?.filterEnvelope,
+            /** @type {*} */ (synth).voice1?.envelope,
+            /** @type {*} */ (synth).voice1?.filterEnvelope,
+        ];
+        for (const env of candidateEnvelopes) {
+            if (env && typeof env.cancel === "function") {
+                try {
+                    env.cancel(now);
+                } catch {}
+            }
+        }
+    }
+
+    /**
      * @param {unknown} [synthToSilence] - Synth instance to release.
      * @returns {void}
      */
     function silenceSynth(synthToSilence) {
         const synth = synthToSilence ?? getSynth();
         if (!synth || typeof synth !== "object") return;
+        cancelQueuedSynthEvents(synth);
         try {
             if (typeof (/** @type {*} */ (synth).triggerRelease) === "function") {
                 /** @type {*} */ (synth).triggerRelease();
@@ -88,7 +119,7 @@ export function createPatternController({
 
     /**
      * Cancels any pending scheduled synth attacks and releases active voices
-     * so that notes do not sound after transport stoppage or pattern replacement.
+     * so that notes do not sound after transport stoppage or instrument change.
      *
      * @returns {void}
      */
@@ -100,10 +131,25 @@ export function createPatternController({
         }
     }
 
-    /** @returns {void} Releases active synth voices and disposes the current pattern. */
-    function dispose() {
+    /**
+     * Disposes the current pattern scheduler.
+     *
+     * @param {{ silenceVoices?: boolean }} [options] - Whether to release active sounding voices.
+     * @returns {void}
+     */
+    function dispose({ silenceVoices = true } = {}) {
         if (pattern) {
-            silenceActiveSynth();
+            if (silenceVoices) {
+                silenceActiveSynth();
+            } else {
+                // Cancel future queued attacks from the replaced pattern without cutting off
+                // the active sounding note before the new pattern sequence takes over
+                cancelQueuedSynthEvents(currentSynth);
+                const active = getSynth();
+                if (active !== currentSynth) {
+                    cancelQueuedSynthEvents(active);
+                }
+            }
             try {
                 pattern.dispose();
             } catch {}
@@ -136,7 +182,7 @@ export function createPatternController({
                 { cycles: 1 },
             );
 
-            dispose();
+            dispose({ silenceVoices: !getIsPlaying() });
             if (timeline.events.length === 0) return null;
             currentTimeline = timeline;
             currentSynth = getSynth();
@@ -232,6 +278,7 @@ export function createPatternController({
         getTimeline: () => currentTimeline,
         dispose,
         silenceActiveSynth,
+        cancelQueuedSynthEvents,
     };
 }
 

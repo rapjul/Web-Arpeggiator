@@ -807,7 +807,13 @@ function initializeApp() {
         formatTime,
         startAudio,
         startPlayback,
-        onPatternStep: noteStepController.highlight,
+        onPatternStep: (index) => {
+            if (isFirstPlaybackStep && appState.isPlaying) {
+                isFirstPlaybackStep = false;
+                log("Audio playback started.");
+            }
+            noteStepController.highlight(index);
+        },
         onPatternChange: () => {},
         onToneLoaded: (tone) => {
             Tone = tone;
@@ -818,6 +824,8 @@ function initializeApp() {
         onContextReady: () => playbackController?.observeAudioContextState(),
         logger: console,
     });
+
+    let isFirstPlaybackStep = true;
 
     playbackController = createPlaybackController({
         dom: { playStopButton },
@@ -831,7 +839,10 @@ function initializeApp() {
         startAudio,
         prepareForPlayback: () => onboardingController.prepareForPlayback(),
         createOrUpdatePattern,
-        clearNoteStep: noteStepController.clear,
+        clearNoteStep: () => {
+            isFirstPlaybackStep = true;
+            noteStepController.clear();
+        },
     });
 
     // ==================================================================

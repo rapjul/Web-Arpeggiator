@@ -10,7 +10,7 @@ import {
     normalizeOfflineExportMode,
     normalizeOfflineExportTailSeconds,
 } from "./export-duration.js";
-import { getArpeggioNotes, normalizeNotesSequence } from "./pattern-core.js";
+import { CHROMATIC_PITCHES, getArpeggioNotes, normalizeNotesSequence } from "./pattern-core.js";
 import { DEFAULT_RANDOM_SEED, normalizeRandomSeed } from "./random-seed.js";
 import { DEFAULT_BPM, MAX_BPM, MIN_BPM } from "./timing-constants.js";
 
@@ -31,20 +31,7 @@ export const ALLOWED_DIRECTIONS = Object.freeze([
     "randomWalkDrunk",
 ]);
 export const ALLOWED_INTERVALS = Object.freeze(["64n", "32n", "16n", "8n", "4n", "2n"]);
-export const ALLOWED_ROOTS = Object.freeze([
-    "C",
-    "C#",
-    "D",
-    "D#",
-    "E",
-    "F",
-    "F#",
-    "G",
-    "G#",
-    "A",
-    "A#",
-    "B",
-]);
+export const ALLOWED_ROOTS = CHROMATIC_PITCHES;
 export const ALLOWED_SCALES = Object.freeze([
     "major",
     "minor",

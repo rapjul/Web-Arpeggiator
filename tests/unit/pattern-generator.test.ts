@@ -389,4 +389,56 @@ describe("Pattern controller", () => {
         expect(synth.triggerAttack).toHaveBeenNthCalledWith(3, "G4", expect.any(Number));
         expect(synth.triggerAttack).toHaveBeenNthCalledWith(4, "C4", expect.any(Number));
     });
+
+    it("cancels future queued envelope events without cutting sounding voice on live rebuild", () => {
+        const envelope = { cancel: vi.fn() };
+        const modulationEnvelope = { cancel: vi.fn() };
+        const synth = {
+            envelope,
+            modulationEnvelope,
+            triggerAttack: vi.fn(),
+            triggerRelease: vi.fn(),
+        };
+        const controller = createPatternController({
+            getSynth: () => synth,
+            getIsPlaying: () => true,
+        });
+
+        // Initial pattern build while playing
+        controller.update(baseSettings());
+
+        // Rebuild while playing (e.g. user changed BPM, swing, notes)
+        controller.update({ ...baseSettings(), bpm: 140 });
+
+        // During live update while playing, future envelope events are canceled
+        // but triggerRelease is NOT called, preserving the active note's release tail
+        expect(envelope.cancel).toHaveBeenCalled();
+        expect(modulationEnvelope.cancel).toHaveBeenCalled();
+        expect(synth.triggerRelease).not.toHaveBeenCalled();
+
+        // Stopping / explicit silence calls triggerRelease
+        controller.silenceActiveSynth();
+        expect(synth.triggerRelease).toHaveBeenCalledOnce();
+    });
+
+    it("cancels queued events across multi-voice and filter envelopes", () => {
+        const voice0Env = { cancel: vi.fn() };
+        const voice0FilterEnv = { cancel: vi.fn() };
+        const voice1Env = { cancel: vi.fn() };
+        const duoSynth = {
+            voice0: { envelope: voice0Env, filterEnvelope: voice0FilterEnv },
+            voice1: { envelope: voice1Env },
+            triggerRelease: vi.fn(),
+        };
+
+        const controller = createPatternController({
+            getSynth: () => duoSynth,
+            getIsPlaying: () => false,
+        });
+
+        controller.cancelQueuedSynthEvents(duoSynth, 1.5);
+        expect(voice0Env.cancel).toHaveBeenCalledWith(1.5);
+        expect(voice0FilterEnv.cancel).toHaveBeenCalledWith(1.5);
+        expect(voice1Env.cancel).toHaveBeenCalledWith(1.5);
+    });
 });

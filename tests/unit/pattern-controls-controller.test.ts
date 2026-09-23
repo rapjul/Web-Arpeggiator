@@ -55,6 +55,9 @@ function createFixture(): PatternControlsFixture {
         '<label class="pattern-btn" data-pattern="up"><input type="radio" name="pattern-direction" value="up" checked></label>',
         '<label class="pattern-btn" data-pattern="down"><input type="radio" name="pattern-direction" value="down"></label>',
         '<label class="pattern-btn" data-pattern="random"><input type="radio" name="pattern-direction" value="random"></label>',
+        '<label class="pattern-btn" data-pattern="randomCycle"><input type="radio" name="pattern-direction" value="randomCycle"></label>',
+        '<label class="pattern-btn" data-pattern="randomWalk"><input type="radio" name="pattern-direction" value="randomWalk"></label>',
+        '<label class="pattern-btn" data-pattern="randomWalkDrunk"><input type="radio" name="pattern-direction" value="randomWalkDrunk"></label>',
     ].join("");
     const reshufflePatternButton = document.createElement("button");
     const octaveShiftButtons = document.createElement("div");
@@ -364,5 +367,28 @@ describe("pattern controls controller", () => {
         controller.destroy();
 
         expect(debounceCancel).toHaveBeenCalledTimes(1);
+    });
+
+    test("enables reshuffle button for all stochastic directions and disables for deterministic ones", () => {
+        const { controller, reshufflePatternButton } = createFixture();
+        controller.initialize();
+
+        controller.setSelectedPatternDirection("up");
+        expect(reshufflePatternButton.disabled).toBe(true);
+
+        controller.setSelectedPatternDirection("random");
+        expect(reshufflePatternButton.disabled).toBe(false);
+
+        controller.setSelectedPatternDirection("randomCycle");
+        expect(reshufflePatternButton.disabled).toBe(false);
+
+        controller.setSelectedPatternDirection("randomWalk");
+        expect(reshufflePatternButton.disabled).toBe(false);
+
+        controller.setSelectedPatternDirection("randomWalkDrunk");
+        expect(reshufflePatternButton.disabled).toBe(false);
+
+        controller.setSelectedPatternDirection("down");
+        expect(reshufflePatternButton.disabled).toBe(true);
     });
 });

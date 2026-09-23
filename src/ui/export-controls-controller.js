@@ -8,6 +8,8 @@ import {
     formatEstimatedExportDuration,
     normalizeLoopCount,
     normalizeOfflineExportTailSeconds,
+    OFFLINE_EXPORT_MODE_SEAMLESS,
+    OFFLINE_EXPORT_MODE_TAIL,
 } from "@core/export-duration.js";
 import { exportMidiFile } from "@core/midi-export.js";
 import { compileTimeline, getTimelineEndTick, ticksToSeconds } from "@core/timeline.js";
@@ -56,14 +58,14 @@ export function createExportControlsController(dependencies) {
 
     function getSelectedOfflineExportMode() {
         return Array.from(offlineExportModeInputs).some(
-            (input) => input.checked && input.value === "seamless",
+            (input) => input.checked && input.value === OFFLINE_EXPORT_MODE_SEAMLESS,
         )
-            ? "seamless"
-            : "tail";
+            ? OFFLINE_EXPORT_MODE_SEAMLESS
+            : OFFLINE_EXPORT_MODE_TAIL;
     }
 
     function updateOfflineExportModeUi() {
-        const isTailMode = getSelectedOfflineExportMode() === "tail";
+        const isTailMode = getSelectedOfflineExportMode() === OFFLINE_EXPORT_MODE_TAIL;
         offlineExportTailControl?.classList.toggle("hidden", !isTailMode);
         if (offlineExportTailSecondsInput) offlineExportTailSecondsInput.disabled = !isTailMode;
     }
@@ -212,6 +214,7 @@ export function createExportControlsController(dependencies) {
     }
 
     function destroy() {
+        /** @type {{cancel?: () => void}} */ (requestStaticLoopRender).cancel?.();
         listenerController?.abort();
         listenerController = null;
     }

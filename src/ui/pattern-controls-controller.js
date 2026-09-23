@@ -4,6 +4,7 @@
  * @module pattern-controls-controller
  */
 
+import { isStochasticDirection } from "@core/pattern-core.js";
 import { setupKeyboardNavigation } from "@ui/a11y-navigation.js";
 
 /**
@@ -77,18 +78,9 @@ export function createPatternControlsController(dependencies) {
     const debouncedPatternChange = debounce(() => {
         if (isInitialized && pendingPatternChangeLifecycle === lifecycleId) onPatternChange();
     }, 50);
-    const stochasticDirections = new Set([
-        "random",
-        "randomCycle",
-        "randomWalk",
-        "randomWalkDrunk",
-    ]);
-
     function updateReshuffleButton() {
         if (reshufflePatternButton) {
-            reshufflePatternButton.disabled = !stochasticDirections.has(
-                getSelectedPatternDirection(),
-            );
+            reshufflePatternButton.disabled = !isStochasticDirection(getSelectedPatternDirection());
         }
     }
 
@@ -362,7 +354,6 @@ export function createPatternControlsController(dependencies) {
                 const target = /** @type {HTMLInputElement} */ (event.target);
                 if (target?.name !== "pattern-direction") return;
                 setSelectedPatternDirection(target.value);
-                updateReshuffleButton();
                 onPatternChange();
             },
             options,
@@ -379,7 +370,6 @@ export function createPatternControlsController(dependencies) {
                 const direction = button?.getAttribute("data-pattern");
                 if (!direction) return;
                 setSelectedPatternDirection(direction);
-                updateReshuffleButton();
                 onPatternChange();
             },
             options,

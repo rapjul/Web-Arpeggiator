@@ -7,9 +7,11 @@ function createFixture() {
     let contextState = "running";
     const rawContext = new EventTarget();
     const transport = { start: vi.fn(), stop: vi.fn() };
+    const draw = { cancel: vi.fn() };
     const tone = {
         getContext: () => ({ state: contextState, rawContext }),
         getTransport: () => transport,
+        Draw: draw,
     };
     const pattern = { start: vi.fn(), stop: vi.fn() };
     const silenceActiveSynth = vi.fn();
@@ -45,6 +47,7 @@ function createFixture() {
         },
         controller,
         createOrUpdatePattern,
+        draw,
         pattern,
         playStopButton,
         prepareForPlayback,
@@ -70,6 +73,7 @@ describe("playback controller", () => {
             clearNoteStep,
             controller,
             createOrUpdatePattern,
+            draw,
             pattern,
             playStopButton,
             prepareForPlayback,
@@ -86,7 +90,7 @@ describe("playback controller", () => {
         expect(startAudio).toHaveBeenCalledOnce();
         expect(recorder.initRecorder).toHaveBeenCalledOnce();
         expect(createOrUpdatePattern).toHaveBeenCalledOnce();
-        expect(pattern.start).toHaveBeenCalledOnce();
+        expect(pattern.start).toHaveBeenCalledWith(0);
         expect(transport.start).toHaveBeenCalledOnce();
         expect(state.isPlaying).toBe(true);
         expect(playStopButton.textContent).toBe("Stop Audio");
@@ -94,6 +98,7 @@ describe("playback controller", () => {
 
         controller.stop();
         expect(silenceActiveSynth).toHaveBeenCalledOnce();
+        expect(draw.cancel).toHaveBeenCalledWith(0);
         expect(pattern.stop).toHaveBeenCalledOnce();
         expect(transport.stop).toHaveBeenCalledOnce();
         expect(state.isPlaying).toBe(false);

@@ -106,6 +106,8 @@ export function createRecorderManager(context) {
     let liveRecordedWavBlob = null;
     let isRecording = false;
     let recordingStartTime = 0;
+    /** @type {Promise<void>|null} */
+    let initRecorderPromise = null;
 
     // ------------------------------------------------------------------
     // Helpers
@@ -141,52 +143,63 @@ export function createRecorderManager(context) {
      */
     async function initRecorder() {
         if (recorder) return;
+        if (initRecorderPromise) return initRecorderPromise;
 
-        // Try Tone.Recorder first (works in HTTP and Canvas contexts)
-        try {
-            recorder = new Tone.Recorder();
-            audio.reverb.connect(recorder);
-            recorderType = "ToneRecorder";
-            dom.recordStatus.textContent = "Ready to record (Tone.Recorder).";
-            actions.showToast("Recorder ready (Fallback)", "info");
-        } catch {
-            // Fall back to MediaRecorder (HTTPS only)
-            if (window.isSecureContext && typeof MediaRecorder !== "undefined") {
+        initRecorderPromise = (async () => {
+            try {
+                // Try Tone.Recorder first (works in HTTP and Canvas contexts)
                 try {
-                    const rawCtx = /** @type {AudioContext} */ (Tone.getContext().rawContext);
-                    const dest = rawCtx.createMediaStreamDestination();
-                    audio.reverb.connect(dest);
-                    recorder = new MediaRecorder(dest.stream);
-                    recorderType = "MediaRecorder";
-
-                    recorder.ondataavailable = (e) => {
-                        if (e.data.size > 0) recordedChunks.push(e.data);
-                    };
-                    recorder.onstop = () => {
-                        liveRecordedWavBlob = new Blob(recordedChunks, {
-                            type: "audio/webm",
-                        });
-                        recordedChunks = [];
-                        onRecordingStop();
-                    };
-
-                    dom.recordStatus.textContent = "Ready to record (MediaRecorder).";
-                    actions.showToast("Recorder ready (Native)", "success");
+                    recorder = new Tone.Recorder();
+                    audio.reverb.connect(recorder);
+                    recorderType = "ToneRecorder";
+                    dom.recordStatus.textContent = "Ready to record (Tone.Recorder).";
+                    actions.showToast("Recorder ready (Fallback)", "info");
                 } catch {
-                    recorder = null;
+                    // Fall back to MediaRecorder (HTTPS only)
+                    if (window.isSecureContext && typeof MediaRecorder !== "undefined") {
+                        try {
+                            const rawCtx = /** @type {AudioContext} */ (
+                                Tone.getContext().rawContext
+                            );
+                            const dest = rawCtx.createMediaStreamDestination();
+                            audio.reverb.connect(dest);
+                            recorder = new MediaRecorder(dest.stream);
+                            recorderType = "MediaRecorder";
+
+                            recorder.ondataavailable = (e) => {
+                                if (e.data.size > 0) recordedChunks.push(e.data);
+                            };
+                            recorder.onstop = () => {
+                                liveRecordedWavBlob = new Blob(recordedChunks, {
+                                    type: "audio/webm",
+                                });
+                                recordedChunks = [];
+                                onRecordingStop();
+                            };
+
+                            dom.recordStatus.textContent = "Ready to record (MediaRecorder).";
+                            actions.showToast("Recorder ready (Native)", "success");
+                        } catch {
+                            recorder = null;
+                        }
+                    }
+
+                    if (!recorder) {
+                        dom.recordButton.disabled = true;
+                        dom.recordStatus.textContent = "Recording not available on this device.";
+                        actions.showToast("Recording not supported.", "error");
+                    }
                 }
-            }
 
-            if (!recorder) {
-                dom.recordButton.disabled = true;
-                dom.recordStatus.textContent = "Recording not available on this device.";
-                actions.showToast("Recording not supported.", "error");
+                if (recorder) {
+                    dom.recordButton.disabled = false;
+                }
+            } finally {
+                initRecorderPromise = null;
             }
-        }
+        })();
 
-        if (recorder) {
-            dom.recordButton.disabled = false;
-        }
+        return initRecorderPromise;
     }
 
     // ------------------------------------------------------------------
