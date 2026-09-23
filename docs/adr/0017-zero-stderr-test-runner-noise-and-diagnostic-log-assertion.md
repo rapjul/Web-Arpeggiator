@@ -22,7 +22,7 @@ We need an enforced architectural testing standard that eliminates test runner `
 ## Decision Drivers
 
 - Maintain a clean, 100% signal-to-noise ratio in local `Vitest` runs and GitHub Actions `CI` pipelines.
-- Verify that defensive catch blocks and fallback paths properly record diagnostic diagnostics with the correct log level (`error` vs `warn`).
+- Verify that defensive catch blocks and fallback paths properly record diagnostics with the correct log level (`error` vs `warn`).
 - Establish consistent patterns for log interception, dependency injection, and spy cleanup across all unit test suites.
 - Provide unambiguous guidelines for human contributors and AI coding agents.
 
@@ -92,4 +92,5 @@ The standard defines the following mandatory requirements:
 - [ADR 0003: Defensive Input Validation and Edge-Case Testing Policy](./0003-defensive-input-validation-and-edge-case-testing-policy.md)
 - [ADR 0004: Strict Type Safety and Meaningful Behavioral Testing](./0004-strict-type-safety-and-meaningful-behavioral-testing.md)
 - [Vitest Configuration](../../vitest.config.ts)
-- [Architecture Guide](../../AGENTS.md)
+- [Architecture Guide](../architecture.md)
+- [AGENTS.md](../../AGENTS.md)

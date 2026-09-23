@@ -233,5 +233,11 @@ describe("Production DOM Parity Suite", () => {
             expect(btn.getAttribute("data-tooltip")).toBeTruthy();
             expect(btn.getAttribute("aria-label")).toBeTruthy();
         }
+
+        const reshuffleButton = document.getElementById(
+            "reshuffle-pattern",
+        ) as HTMLButtonElement | null;
+        expect(reshuffleButton).not.toBeNull();
+        expect(reshuffleButton?.getAttribute("aria-label")).toContain("Reshuffle Pattern");
     });
 });
