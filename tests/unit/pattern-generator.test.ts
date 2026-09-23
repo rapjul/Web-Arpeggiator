@@ -493,10 +493,11 @@ describe("Pattern controller", () => {
                 octaveRange: 2,
             });
 
-            // The envelope cancel call must be scheduled at or after the release, preserving it
+            // The envelope cancel call cancels future events at or after scheduledRelease
             expect(env.cancel).toHaveBeenCalledWith(scheduledRelease);
-            // Must not call immediate triggerRelease on the sounding voice
-            expect(synth.triggerRelease).toHaveBeenCalledTimes(1);
+            // Re-schedules the release at scheduledRelease so the sounding voice completes its gate
+            expect(synth.triggerRelease).toHaveBeenCalledTimes(2);
+            expect(synth.triggerRelease).toHaveBeenLastCalledWith(scheduledRelease);
         } finally {
             toneNowSpy.mockRestore();
         }
@@ -528,6 +529,7 @@ describe("Pattern controller", () => {
             setValueAtTime: vi.fn(),
         };
         const pluckSynth = {
+            resonance: 0.8,
             _noise: noise,
             _lfcf: { resonance },
             triggerAttack: vi.fn(),
@@ -577,6 +579,14 @@ describe("Pattern controller", () => {
             expect(noise.stop).toHaveBeenCalled();
             expect(resonance.cancelScheduledValues).toHaveBeenCalled();
             expect(resonance.setValueAtTime).toHaveBeenCalledWith(0, expect.any(Number));
+            expect(resonance.setValueAtTime).toHaveBeenCalledWith(0.8, expect.any(Number));
+
+            // Subsequent note triggers restore resonance at attack time
+            pattern.callback(0.5, "G4");
+            const [attackCallback] = Array.from(scheduledEvents.values());
+            expect(attackCallback).toBeDefined();
+            attackCallback?.(0.5);
+            expect(resonance.setValueAtTime).toHaveBeenCalledWith(0.8, 0.5);
         } finally {
             getTransportSpy.mockRestore();
         }

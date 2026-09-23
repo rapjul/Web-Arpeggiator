@@ -282,7 +282,8 @@ export function createAudioEngine(context) {
      * @returns {void}
      */
     function setSynth(type = "synth") {
-        if (activeSynth) {
+        const nextSynth = synths[type] || synths.synth;
+        if (activeSynth && activeSynth !== nextSynth) {
             const now = typeof Tone.now === "function" ? Tone.now() : 0;
             const candidateEnvelopes = [
                 /** @type {*} */ (activeSynth).envelope,
@@ -317,12 +318,20 @@ export function createAudioEngine(context) {
                 typeof pluckSynth._lfcf.resonance.cancelScheduledValues === "function"
             ) {
                 try {
+                    const configuredResonance =
+                        typeof pluckSynth._savedResonance === "number"
+                            ? pluckSynth._savedResonance
+                            : typeof pluckSynth.resonance === "number" && pluckSynth.resonance > 0
+                              ? pluckSynth.resonance
+                              : 0.9;
+                    pluckSynth._savedResonance = configuredResonance;
                     pluckSynth._lfcf.resonance.cancelScheduledValues(now);
                     pluckSynth._lfcf.resonance.setValueAtTime(0, now);
+                    pluckSynth._lfcf.resonance.setValueAtTime(configuredResonance, now + 0.05);
                 } catch {}
             }
         }
-        activeSynth = synths[type] || synths.synth;
+        activeSynth = nextSynth;
         // Apply current ADSR to new synth
         updateEnvelope();
 

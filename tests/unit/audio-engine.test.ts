@@ -407,8 +407,16 @@ describe("Audio Engine Model Definitions", () => {
 
             // Square wave displays duty cycle
             engine.currentWaveform = "square";
+            const basicSynth = engine.activeSynth as unknown as MockSynth;
+            const releaseSpy = vi.spyOn(basicSynth, "triggerRelease");
+            const envCancelSpy = vi.fn();
+            (basicSynth.envelope as unknown as { cancel: () => void }).cancel = envCancelSpy;
+            pluck._noise.stop.mockClear();
             engine.setSynth("synth");
             expect(mockDom.dutyControl.classList.contains("hidden")).toBe(false);
+            expect(releaseSpy).not.toHaveBeenCalled();
+            expect(envCancelSpy).not.toHaveBeenCalled();
+            expect(pluck._noise.stop).not.toHaveBeenCalled();
         });
 
         it("switches parameters visibility for fmSynth, amSynth, monoSynth, duoSynth, membraneSynth", () => {

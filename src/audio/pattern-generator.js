@@ -151,8 +151,16 @@ export function createPatternController({
         }
         if (typeof nonEnv._lfcf?.resonance?.cancelScheduledValues === "function") {
             try {
+                const configuredResonance =
+                    typeof nonEnv._savedResonance === "number"
+                        ? nonEnv._savedResonance
+                        : typeof nonEnv.resonance === "number" && nonEnv.resonance > 0
+                          ? nonEnv.resonance
+                          : 0.9;
+                nonEnv._savedResonance = configuredResonance;
                 nonEnv._lfcf.resonance.cancelScheduledValues(now);
                 nonEnv._lfcf.resonance.setValueAtTime(0, now);
+                nonEnv._lfcf.resonance.setValueAtTime(configuredResonance, now + 0.05);
             } catch {}
         }
     }
@@ -203,10 +211,21 @@ export function createPatternController({
                 // the active sounding note before the new pattern sequence takes over
                 const now = Tone.now();
                 const cancelFrom = activeNoteReleaseTime > now ? activeNoteReleaseTime : now;
-                cancelQueuedSynthEvents(currentSynth, cancelFrom);
+                const rescheduleRelease = (synthToCancel) => {
+                    cancelQueuedSynthEvents(synthToCancel, cancelFrom);
+                    if (
+                        cancelFrom > now &&
+                        typeof (/** @type {*} */ (synthToCancel)?.triggerRelease) === "function"
+                    ) {
+                        try {
+                            /** @type {*} */ (synthToCancel).triggerRelease(cancelFrom);
+                        } catch {}
+                    }
+                };
+                rescheduleRelease(currentSynth);
                 const active = getSynth();
                 if (active !== currentSynth) {
-                    cancelQueuedSynthEvents(active, cancelFrom);
+                    rescheduleRelease(active);
                 }
             }
             try {
@@ -377,6 +396,16 @@ function isTriggerableSynth(synth) {
  * @returns {void}
  */
 function triggerSynth(synth, note, time, durationSeconds) {
+    const nonEnv = /** @type {*} */ (synth);
+    if (
+        typeof nonEnv?._savedResonance === "number" &&
+        typeof nonEnv._lfcf?.resonance?.setValueAtTime === "function"
+    ) {
+        try {
+            nonEnv._lfcf.resonance.cancelScheduledValues(time);
+            nonEnv._lfcf.resonance.setValueAtTime(nonEnv._savedResonance, time);
+        } catch {}
+    }
     try {
         if (
             typeof synth.triggerAttack === "function" &&
