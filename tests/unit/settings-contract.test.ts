@@ -280,4 +280,27 @@ describe("settings contract", () => {
         });
         expect(normalizeSettingsHistory({ past: [], present: null, future: [] })).toBeNull();
     });
+
+    test("restores legacy presets lacking randomSeed to DEFAULT_RANDOM_SEED regardless of fallback seed", () => {
+        const workspaceFallback = {
+            ...DEFAULT_SETTINGS,
+            randomSeed: 0x12345678,
+        };
+        // Unversioned legacy snapshot without randomSeed must normalize to DEFAULT_RANDOM_SEED
+        const legacySnapshot = {
+            bpm: 130,
+            baseNotes: ["C4", "E4"],
+            direction: "random",
+        };
+        const normalizedLegacy = normalizeSettings(legacySnapshot, workspaceFallback);
+        expect(normalizedLegacy.randomSeed).toBe(DEFAULT_SETTINGS.randomSeed);
+
+        // Versioned snapshot (settingsVersion: 1) without randomSeed preserves workspace fallback for partial updates
+        const partialModernSnapshot = {
+            settingsVersion: 1,
+            bpm: 140,
+        };
+        const normalizedModern = normalizeSettings(partialModernSnapshot, workspaceFallback);
+        expect(normalizedModern.randomSeed).toBe(0x12345678);
+    });
 });

@@ -318,7 +318,12 @@ export function normalizeSettings(candidate, fallback = DEFAULT_SETTINGS, option
         settingsVersion: SETTINGS_SCHEMA_VERSION,
         bpm: normalizeNumber(source.bpm, fallback.bpm, ...SETTINGS_BOUNDS.bpm),
         swing: normalizeNumber(source.swing, fallback.swing, ...SETTINGS_BOUNDS.swing),
-        randomSeed: normalizeRandomSeed(source.randomSeed, fallback.randomSeed),
+        randomSeed: normalizeRandomSeed(
+            source.randomSeed,
+            !hasExplicitVersion && !Object.hasOwn(source, "randomSeed")
+                ? DEFAULT_RANDOM_SEED
+                : fallback.randomSeed,
+        ),
         postGain: normalizeNumber(source.postGain, fallback.postGain, ...SETTINGS_BOUNDS.postGain),
         baseNotes: normalizedNotes.length > 0 ? normalizedNotes : [...fallback.baseNotes],
         direction: normalizeAllowedValue(source.direction, ALLOWED_DIRECTIONS, fallback.direction),

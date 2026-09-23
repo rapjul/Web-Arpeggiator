@@ -572,4 +572,52 @@ describe("Settings Manager Domain Module", () => {
             consoleErrorSpy.mockRestore();
         }
     });
+
+    it("restores legacy presets lacking randomSeed to default seed instead of inheriting workspace seed", () => {
+        const mockDom = createMockDom();
+        const mockState = {
+            currentNotes: ["C4"],
+            currentOctaveShift: 0,
+            currentOctaveRange: 1,
+            currentWaveform: "sine",
+            activeSynth: { oscillator: { type: "sine" } },
+            randomSeed: 0xabcdef12,
+        };
+        const mockActions = {
+            getArpeggioNotes: () => ["C4"],
+            getSelectedPatternDirection: () => "up",
+            setSelectedPatternDirection: vi.fn(),
+            updateScaleQuantizeUi: vi.fn(),
+            updateScaleQuantizeToggleText: vi.fn(),
+            updateWaveformButtons: vi.fn(),
+            setSynth: vi.fn(),
+            updateEnvelope: vi.fn(),
+            updateButtonGroup: vi.fn(),
+            createOrUpdatePattern: vi.fn(),
+            updateEstimatedExportDuration: vi.fn(),
+            updateOfflineExportModeUi: vi.fn(),
+            showToast: vi.fn(),
+        };
+
+        const manager = createSettingsManager({
+            state: mockState as unknown as Parameters<typeof createSettingsManager>[0]["state"],
+            dom: mockDom as unknown as Parameters<typeof createSettingsManager>[0]["dom"],
+            actions: mockActions as unknown as Parameters<
+                typeof createSettingsManager
+            >[0]["actions"],
+            audio: {} as unknown as Parameters<typeof createSettingsManager>[0]["audio"],
+        });
+
+        // Legacy preset lacking settingsVersion and randomSeed
+        const legacyPreset = {
+            bpm: 128,
+            notes: "C4 E4 G4",
+            patternDirection: "randomWalk",
+        };
+
+        const result = manager.loadAllSettings(legacyPreset);
+        expect(result.ok).toBe(true);
+        expect(result.settings?.randomSeed).toBe(0x6d2b79f5);
+        expect(mockState.randomSeed).toBe(0x6d2b79f5);
+    });
 });
