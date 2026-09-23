@@ -37,7 +37,7 @@ Chosen option: "Compile one integer-tick timeline consumed by every musical outp
 
 The compiler applies swing to absolute event starts. Consumers that schedule compiled events must not apply Tone transport swing a second time. Each non-terminal gate is bounded by the next actual compiled attack, not by an assumed unswung interval. Callers choose an explicit terminal-gate policy: clip at the selected musical boundary for seamless loops, or preserve the final release for effects-tail exports.
 
-The public export range remains 1–100 cycles. Internal render work can request the additional cycles needed for seamless warm-up without changing that user-facing limit. Every consumer derives timing from a compiled timeline rather than independently calculating swing, gate, or event-boundary behavior.
+The public export range remains 1–100 cycles. Internal render work can request the additional cycles needed for seamless warm-up without changing that user-facing limit. Every consumer derives timing from a compiled timeline rather than independently calculating swing, gate, or event-boundary behavior. When live playback rebuilds an active pattern mid-stream, the live adapter calculates the occurrence index from transport ticks (`Math.ceil(transport.ticks / stepTicks)`) to synchronize with the next scheduled `Tone.Pattern` subdivision, preventing lag or tempo-induced drift. Active voices on the previously playing synthesizer are silenced before instrument handoff to eliminate orphan notes.
 
 ### Consequences
 
@@ -45,11 +45,11 @@ The public export range remains 1–100 cycles. Internal render work can request
 - Good, because edge cases such as full swing, fine subdivisions, empty patterns, and cycle boundaries have one testable implementation.
 - Good, because MIDI can serialize exact integer event timing without approximating browser scheduling.
 - Bad, because timeline changes require cross-output regression coverage rather than a local consumer-only test.
-- Neutral, because live playback still adapts compiled events to Tone.Pattern to retain the established transport lifecycle.
+- Neutral, because live playback still adapts compiled events to `Tone.Pattern` to retain the established transport lifecycle.
 
 ### Confirmation
 
-Unit tests cover interval resolution, BPM bounds, swing ordering, gate clipping, terminal-release preservation, empty patterns, cycle boundaries, and MIDI timing. Browser tests confirm the public playback and export workflows continue to operate through the same contract.
+Unit tests cover interval resolution, BPM bounds, swing ordering, gate clipping, terminal-release preservation, empty patterns, cycle boundaries, live tick-aligned rebuilds, synthesizer voice handover, and MIDI timing. Browser tests confirm the public playback and export workflows continue to operate through the same contract.
 
 ## More Information
 

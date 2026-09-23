@@ -346,7 +346,10 @@ Web Arpeggiator/
 │   │   ├── 0010-retryable-indexeddb-storage-recovery.md
 │   │   ├── 0011-playwright-browser-testing.md
 │   │   ├── 0012-observable-playwright-synchronization-and-artifact-validation.md
-│   │   └── 0013-workbox-custom-service-worker-caching.md
+│   │   ├── 0013-workbox-custom-service-worker-caching.md
+│   │   ├── 0014-versioned-settings-snapshot-compatibility.md
+│   │   ├── 0015-shared-480-ppq-musical-timeline-contract.md
+│   │   └── 0016-reproducible-stochastic-pattern-semantics.md
 │   ├── architecture.md     # Module ownership, runtime flow, and deferred boundaries
 │   ├── development.md      # Local setup, commands, and test-runner guidance
 │   ├── improvements/       # Deferred, scoped follow-up plans
