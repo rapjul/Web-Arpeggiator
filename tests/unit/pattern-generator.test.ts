@@ -1,5 +1,6 @@
 /** @file Unit tests for the injected Tone.Pattern scheduler. */
 
+import * as Tone from "tone";
 import { describe, expect, it, vi } from "vitest";
 
 interface MockPatternInstance {
@@ -119,10 +120,11 @@ describe("Pattern controller", () => {
             direction: "up",
         }) as unknown as MockPatternInstance;
 
-        pattern.index = 2;
+        pattern.callback(0, "C4");
+        pattern.callback(0.125, "E4");
         pattern.callback(0.25, "G4");
-        expect(synth.triggerAttack).toHaveBeenCalledWith("G4", 0.25);
-        expect(synth.triggerRelease).toHaveBeenCalledWith(0.34375);
+        expect(synth.triggerAttack).toHaveBeenLastCalledWith("G4", 0.25);
+        expect(synth.triggerRelease).toHaveBeenLastCalledWith(0.34375);
         expect(onStep).not.toHaveBeenCalled(); // guarded by getIsPlaying()
     });
 
@@ -316,5 +318,75 @@ describe("Pattern controller", () => {
         controller.silenceActiveSynth();
 
         expect(synth.triggerRelease).toHaveBeenCalledOnce();
+    });
+
+    it("advances the resumed occurrence to the next transport step using musical ticks", () => {
+        const synth = { triggerAttack: vi.fn(), triggerRelease: vi.fn() };
+        const transportSpy = vi.spyOn(Tone, "getTransport").mockReturnValue({
+            ticks: 72,
+            PPQ: 192,
+        } as unknown as ReturnType<typeof Tone.getTransport>);
+
+        try {
+            const controller = createPatternController({
+                getSynth: () => synth,
+                getIsPlaying: () => true,
+            });
+
+            // 16n interval with PPQ 192 = 48 ticks per step.
+            // At tick 72 (1.5 steps in), Math.ceil(72 / 48) = 2 (step 2, "G4")
+            const pattern = controller.update(baseSettings()) as unknown as MockPatternInstance;
+            pattern.callback(0.5, "ignored");
+
+            expect(synth.triggerAttack).toHaveBeenCalledWith("G4", expect.any(Number));
+        } finally {
+            transportSpy.mockRestore();
+        }
+    });
+
+    it("silences the previous synth when disposing after an instrument switch", () => {
+        const synthA = { triggerAttack: vi.fn(), triggerRelease: vi.fn() };
+        const synthB = { triggerAttack: vi.fn(), triggerRelease: vi.fn() };
+        let activeSynth: unknown = synthA;
+
+        const controller = createPatternController({
+            getSynth: () => activeSynth,
+            getIsPlaying: () => false,
+        });
+
+        controller.update(baseSettings());
+
+        // Instrument switch: getSynth now returns synthB before dispose/rebuild
+        activeSynth = synthB;
+        controller.dispose();
+
+        // Both the previously bound synth and the newly active synth are safely released
+        expect(synthA.triggerRelease).toHaveBeenCalledOnce();
+        expect(synthB.triggerRelease).toHaveBeenCalledOnce();
+    });
+
+    it("synchronizes stepIndex and cycleIndex across cycle boundaries without lagging", () => {
+        const synth = { triggerAttack: vi.fn(), triggerRelease: vi.fn() };
+        const onStep = vi.fn();
+        const isPlaying = true;
+        const controller = createPatternController({
+            getSynth: () => synth,
+            getIsPlaying: () => isPlaying,
+            onStep,
+        });
+
+        // 3 notes: "C4", "E4", "G4"
+        const pattern = controller.update(baseSettings()) as unknown as MockPatternInstance;
+
+        // Fire 4 steps (steps 0, 1, 2 of cycle 0, then step 0 of cycle 1)
+        pattern.callback(0, "ignored");
+        pattern.callback(0.125, "ignored");
+        pattern.callback(0.25, "ignored");
+        pattern.callback(0.375, "ignored");
+
+        expect(synth.triggerAttack).toHaveBeenNthCalledWith(1, "C4", expect.any(Number));
+        expect(synth.triggerAttack).toHaveBeenNthCalledWith(2, "E4", expect.any(Number));
+        expect(synth.triggerAttack).toHaveBeenNthCalledWith(3, "G4", expect.any(Number));
+        expect(synth.triggerAttack).toHaveBeenNthCalledWith(4, "C4", expect.any(Number));
     });
 });

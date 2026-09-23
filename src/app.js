@@ -48,7 +48,7 @@ import { FACTORY_PRESETS } from "./config/factory-presets.js";
 /** @typedef {{value: number}} NumericAudioParam */
 /** @typedef {{oscillator: {width: NumericAudioParam}, harmonicity: NumericAudioParam, modulationIndex: NumericAudioParam, filterEnvelope: {baseFrequency: number, octaves: number}, filter: {Q: NumericAudioParam}, vibratoAmount: NumericAudioParam, dampening: number, resonance: number, attackNoise: number, pitchDecay: number, octaves: number}} ActiveSynthLike */
 /** @typedef {{activeSynth: ActiveSynthLike, currentWaveform: string, setSynth: (type: string) => void, updateEnvelope: () => void, postGain: {volume: NumericAudioParam}, distortion: {wet: NumericAudioParam}, filter: {frequency: NumericAudioParam, Q: NumericAudioParam}, chorus: {wet: NumericAudioParam}, autoPanner: {wet: NumericAudioParam}, delay: {wet: NumericAudioParam}, reverb: {wet: NumericAudioParam}, createOfflineChain: (context: unknown, settings: unknown) => {offlineSynth: {triggerAttackRelease: (note: string, duration: number, time: number) => void}}}} AudioEngineLike */
-/** @typedef {{update: (settings: object) => object|null, getPattern: () => {start: () => void, stop: () => void}|null, getTimeline?: () => CompiledTimeline|null, dispose: () => void}} PatternControllerLike */
+/** @typedef {{update: (settings: object) => object|null, getPattern: () => {start: () => void, stop: () => void}|null, getTimeline?: () => CompiledTimeline|null, dispose: () => void, silenceActiveSynth?: () => void}} PatternControllerLike */
 /** @typedef {{isRecording: boolean, toggleRecording: () => Promise<void>, exportRealtime: () => Promise<void>, exportOffline: () => Promise<void>, initRecorder: () => Promise<void>}} RecorderManagerLike */
 /** @typedef {{currentMode: string, toggle: () => void, startUiLoop: () => void, stopUiLoop: () => void, onManualNoteAttack: () => void, onManualNoteRelease: () => void, updateStaticLoopMap: (buffer: unknown, markers: unknown) => void}} VisualizerLike */
 
@@ -1333,6 +1333,7 @@ function initializeApp() {
             membraneOctavesValue,
         },
         onSynthTypeChange: (type) => {
+            getPatternController()?.silenceActiveSynth();
             getAudioEngine()?.setSynth(type);
             createOrUpdatePattern();
         },

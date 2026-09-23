@@ -282,6 +282,11 @@ export function createAudioEngine(context) {
      * @returns {void}
      */
     function setSynth(type = "synth") {
+        if (activeSynth && typeof activeSynth.triggerRelease === "function") {
+            try {
+                activeSynth.triggerRelease();
+            } catch {}
+        }
         activeSynth = synths[type] || synths.synth;
         // Apply current ADSR to new synth
         updateEnvelope();

@@ -17,7 +17,12 @@ import {
     materializePatternSequence,
     quantizeToScale,
 } from "@core/pattern-core.js";
-import { compileTimeline, getTimelineStartTick, ticksToSeconds } from "@core/timeline.js";
+import {
+    TICKS_PER_BEAT,
+    compileTimeline,
+    getTimelineStartTick,
+    ticksToSeconds,
+} from "@core/timeline.js";
 import * as Tone from "tone";
 
 // Re-export pure domain helpers for backwards compatibility
@@ -64,6 +69,36 @@ export function createPatternController({
     let pattern = null;
     /** @type {import("@core/timeline.js").CompiledTimeline|null} */
     let currentTimeline = null;
+    /** @type {unknown} */
+    let currentSynth = null;
+
+    /**
+     * @param {unknown} [synthToSilence] - Synth instance to release.
+     * @returns {void}
+     */
+    function silenceSynth(synthToSilence) {
+        const synth = synthToSilence ?? getSynth();
+        if (!synth || typeof synth !== "object") return;
+        try {
+            if (typeof (/** @type {*} */ (synth).triggerRelease) === "function") {
+                /** @type {*} */ (synth).triggerRelease();
+            }
+        } catch {}
+    }
+
+    /**
+     * Cancels any pending scheduled synth attacks and releases active voices
+     * so that notes do not sound after transport stoppage or pattern replacement.
+     *
+     * @returns {void}
+     */
+    function silenceActiveSynth() {
+        const active = getSynth();
+        silenceSynth(currentSynth);
+        if (active !== currentSynth) {
+            silenceSynth(active);
+        }
+    }
 
     /** @returns {void} Releases active synth voices and disposes the current pattern. */
     function dispose() {
@@ -74,24 +109,9 @@ export function createPatternController({
             } catch {}
         }
         pattern = null;
+        currentSynth = null;
         currentTimeline = null;
         onPatternChange(null);
-    }
-
-    /**
-     * Cancels any pending scheduled synth attacks and releases active voices
-     * so that notes do not sound after transport stoppage or pattern replacement.
-     *
-     * @returns {void}
-     */
-    function silenceActiveSynth() {
-        const synth = getSynth();
-        if (!synth || typeof synth !== "object") return;
-        try {
-            if (typeof (/** @type {*} */ (synth).triggerRelease) === "function") {
-                /** @type {*} */ (synth).triggerRelease();
-            }
-        } catch {}
     }
 
     /**
@@ -119,14 +139,18 @@ export function createPatternController({
             dispose();
             if (timeline.events.length === 0) return null;
             currentTimeline = timeline;
+            currentSynth = getSynth();
 
             let occurrenceIndex = 0;
-            const stepDurationSeconds = ticksToSeconds(timeline.stepDurationTicks, timeline.bpm);
-            if (getIsPlaying() && stepDurationSeconds > 0) {
-                occurrenceIndex = Math.max(
-                    0,
-                    Math.floor(Tone.getTransport().seconds / stepDurationSeconds),
-                );
+            if (getIsPlaying()) {
+                const transport = Tone.getTransport();
+                const transportTicks = typeof transport?.ticks === "number" ? transport.ticks : 0;
+                const ppq =
+                    typeof transport?.PPQ === "number" && transport.PPQ > 0 ? transport.PPQ : 192;
+                const stepTransportTicks = (ppq * timeline.stepDurationTicks) / TICKS_PER_BEAT;
+                if (stepTransportTicks > 0 && transportTicks > 0) {
+                    occurrenceIndex = Math.ceil(transportTicks / stepTransportTicks);
+                }
             }
             let activeCycleIndex = -1;
             let activeSequence = { notes: timeline.resolvedNotes, map: timeline.sourceNoteMap };
@@ -145,10 +169,7 @@ export function createPatternController({
             }
             const patternInstance = new Tone.Pattern(
                 (time) => {
-                    const stepIndex =
-                        typeof patternInstance.index === "number"
-                            ? patternInstance.index % timeline.stepsPerCycle
-                            : occurrenceIndex % timeline.stepsPerCycle;
+                    const stepIndex = occurrenceIndex % timeline.stepsPerCycle;
                     const cycleIndex = Math.floor(occurrenceIndex / timeline.stepsPerCycle);
                     if (cycleIndex !== activeCycleIndex) {
                         activeSequence = liveCursor.nextCycle();
@@ -177,7 +198,7 @@ export function createPatternController({
                     const swingOffsetTicks = swungStartTick - rawStartTick;
                     occurrenceIndex += 1;
                     const scheduledTime = time + ticksToSeconds(swingOffsetTicks, timeline.bpm);
-                    const synth = getSynth();
+                    const synth = currentSynth ?? getSynth();
                     if (note && isTriggerableSynth(synth)) {
                         triggerSynth(
                             synth,
