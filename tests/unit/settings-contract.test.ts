@@ -8,6 +8,7 @@ import {
 } from "@core/settings-contract.js";
 import { describe, expect, test } from "vitest";
 import { FACTORY_PRESETS } from "@/config/factory-presets.js";
+import { DEFAULT_RANDOM_SEED } from "@core/random-seed.js";
 
 describe("settings contract", () => {
     test("provides the documented initial settings under a versioned schema", () => {
@@ -16,7 +17,7 @@ describe("settings contract", () => {
             bpm: 120,
             baseNotes: ["C4", "E4", "G4"],
             direction: "up",
-            randomSeed: 0x6d2b79f5,
+            randomSeed: DEFAULT_RANDOM_SEED,
             interval: "16n",
             scaleQuantize: true,
             synthType: "synth",

@@ -11,6 +11,7 @@ import {
     TICKS_PER_BEAT,
     ticksToSeconds,
 } from "@core/timeline.js";
+import { ALLOWED_DIRECTIONS } from "@core/settings-contract.js";
 
 const baseSettings = () => ({
     baseNotes: ["C4", "E4", "G4"],
@@ -175,22 +176,7 @@ describe("musical timeline", () => {
     });
 
     it("resolves every supported direction before scheduling", () => {
-        const directions = [
-            "up",
-            "down",
-            "upDown",
-            "downUp",
-            "upDownRepeat",
-            "downUpRepeat",
-            "random",
-            "octaveCycle",
-            "octaveCycleReverse",
-            "octaveCyclePingPong",
-            "randomWalk",
-            "randomWalkDrunk",
-        ];
-
-        for (const direction of directions) {
+        for (const direction of ALLOWED_DIRECTIONS) {
             const timeline = compileTimeline(
                 { ...baseSettings(), direction },
                 { cycles: 1, rng: () => 0.25 },

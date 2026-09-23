@@ -56,6 +56,8 @@ vi.mock("tone", async (importOriginal) => {
 });
 
 import { createPatternController } from "@audio/pattern-generator.js";
+import { ALLOWED_DIRECTIONS } from "@core/settings-contract.js";
+import { CHORD_DEFINITIONS } from "@core/chord-builder.js";
 
 describe("Production DOM Parity Suite", () => {
     let htmlContent: string;
@@ -107,58 +109,26 @@ describe("Production DOM Parity Suite", () => {
         const patternButtons = document.getElementById("pattern-buttons");
         expect(patternButtons).not.toBeNull();
 
-        const expectedDirections = [
-            "up",
-            "down",
-            "upDown",
-            "downUp",
-            "upDownRepeat",
-            "downUpRepeat",
-            "random",
-            "randomCycle",
-            "octaveCycle",
-            "octaveCycleReverse",
-            "octaveCyclePingPong",
-            "randomWalk",
-            "randomWalkDrunk",
-        ];
-
         const radios = patternButtons?.querySelectorAll<HTMLInputElement>(
             "input[name='pattern-direction']",
         );
         expect(radios?.length).toBe(13);
 
         const radioValues = Array.from(radios || []).map((r) => r.value);
-        expect(radioValues).toEqual(expectedDirections);
+        expect(radioValues).toEqual(ALLOWED_DIRECTIONS);
 
-        for (const dir of expectedDirections) {
+        for (const dir of ALLOWED_DIRECTIONS) {
             const span = patternButtons?.querySelector(`.pattern-btn[data-pattern="${dir}"]`);
             expect(span).not.toBeNull();
         }
     });
 
     it("materializes every DOM pattern direction into a timeline-backed Tone.Pattern", () => {
-        const expectedDirections = [
-            "up",
-            "down",
-            "upDown",
-            "downUp",
-            "upDownRepeat",
-            "downUpRepeat",
-            "random",
-            "randomCycle",
-            "octaveCycle",
-            "octaveCycleReverse",
-            "octaveCyclePingPong",
-            "randomWalk",
-            "randomWalkDrunk",
-        ];
-
         const radios = document.querySelectorAll<HTMLInputElement>(
             "input[name='pattern-direction']",
         );
 
-        for (const dir of expectedDirections) {
+        for (const dir of ALLOWED_DIRECTIONS) {
             // Uncheck all radios
             radios.forEach((r) => {
                 r.checked = false;
@@ -184,7 +154,7 @@ describe("Production DOM Parity Suite", () => {
         const chordButtonsContainer = document.getElementById("chord-buttons");
         expect(chordButtonsContainer).not.toBeNull();
 
-        const expectedChords = ["major", "minor", "dom7", "sus4", "power", "pentatonic"];
+        const expectedChords = Object.keys(CHORD_DEFINITIONS);
         const buttons = chordButtonsContainer?.querySelectorAll<HTMLButtonElement>(".chord-btn");
         expect(buttons?.length).toBe(6);
 

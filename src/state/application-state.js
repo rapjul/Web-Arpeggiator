@@ -5,6 +5,8 @@
  * @module state/application-state
  */
 
+import { DEFAULT_RANDOM_SEED } from "@core/random-seed.js";
+
 /**
  * @typedef {object} ApplicationStateAudioEngine
  * @property {object|null} activeSynth - The currently selected synth.
@@ -35,7 +37,7 @@ export function createApplicationState({ getAvailableAudioEngine }) {
     let currentNotes = ["C4", "E4", "G4"];
     let currentOctaveShift = 0;
     let currentOctaveRange = 2;
-    let randomSeed = 0x6d2b79f5;
+    let randomSeed = DEFAULT_RANDOM_SEED;
     let activeNote = null;
     let currentWaveform = "sine";
     let isAudioContextStarted = false;

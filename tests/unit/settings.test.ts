@@ -4,6 +4,7 @@
 
 import { createSettingsManager } from "@storage/settings-manager.js";
 import { describe, expect, it, vi } from "vitest";
+import { DEFAULT_RANDOM_SEED } from "@core/random-seed.js";
 
 describe("Settings Manager Domain Module", () => {
     const createMockDom = () => {
@@ -617,7 +618,7 @@ describe("Settings Manager Domain Module", () => {
 
         const result = manager.loadAllSettings(legacyPreset);
         expect(result.ok).toBe(true);
-        expect(result.settings?.randomSeed).toBe(0x6d2b79f5);
-        expect(mockState.randomSeed).toBe(0x6d2b79f5);
+        expect(result.settings?.randomSeed).toBe(DEFAULT_RANDOM_SEED);
+        expect(mockState.randomSeed).toBe(DEFAULT_RANDOM_SEED);
     });
 });

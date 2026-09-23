@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createApplicationState } from "@/state/application-state.js";
+import { DEFAULT_RANDOM_SEED } from "@core/random-seed.js";
 
 interface AudioEngineFixture {
     activeSynth: object | null;
@@ -22,7 +23,7 @@ describe("createApplicationState", () => {
         expect(state.currentNotes).toEqual(["C4", "E4", "G4"]);
         expect(state.currentOctaveShift).toBe(0);
         expect(state.currentOctaveRange).toBe(2);
-        expect(state.randomSeed).toBe(0x6d2b79f5);
+        expect(state.randomSeed).toBe(DEFAULT_RANDOM_SEED);
         expect(state.activeSynth).toBeNull();
         expect(state.currentWaveform).toBe("sine");
         expect(state.activeNote).toBeNull();
@@ -52,7 +53,7 @@ describe("createApplicationState", () => {
         expect(second.currentNotes).toEqual(["C4", "E4", "G4"]);
         expect(second.currentOctaveShift).toBe(0);
         expect(second.currentOctaveRange).toBe(2);
-        expect(second.randomSeed).toBe(0x6d2b79f5);
+        expect(second.randomSeed).toBe(DEFAULT_RANDOM_SEED);
         expect(second.activeNote).toBeNull();
         expect(second.isAudioContextStarted).toBe(false);
     });
