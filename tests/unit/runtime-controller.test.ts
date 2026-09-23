@@ -194,7 +194,7 @@ describe("audio runtime controller", () => {
         const { controller, createAudioEngine, state } = createFixture();
         await controller.startAudio();
 
-        controller.destroy();
+        await controller.destroy();
 
         expect(controller.getAudioEngine()).toBeUndefined();
         expect(state.isAudioContextStarted).toBe(false);
