@@ -104,4 +104,45 @@ describe("static loop renderer", () => {
         expect(updateStaticLoopMap).not.toHaveBeenCalled();
         expect(logger.error).toHaveBeenCalledWith("Static loop render failed:", error);
     });
+
+    it("returns early when Tone or AudioEngine is not available", async () => {
+        const updateStaticLoopMap = vi.fn();
+        const rendererWithoutTone = createStaticLoopRenderer({
+            isAudioContextStarted: () => true,
+            getTone: () => null,
+            getAudioEngine: () => ({ createOfflineChain: vi.fn() }),
+            getSettings: () => DEFAULT_SETTINGS,
+            updateStaticLoopMap,
+        });
+
+        await rendererWithoutTone.render();
+        expect(updateStaticLoopMap).not.toHaveBeenCalled();
+
+        const rendererWithoutEngine = createStaticLoopRenderer({
+            isAudioContextStarted: () => true,
+            getTone: () => ({ Offline: vi.fn() }),
+            getAudioEngine: () => undefined,
+            getSettings: () => DEFAULT_SETTINGS,
+            updateStaticLoopMap,
+        });
+
+        await rendererWithoutEngine.render();
+        expect(updateStaticLoopMap).not.toHaveBeenCalled();
+    });
+
+    it("returns early without rendering when notes produce an empty timeline", async () => {
+        const updateStaticLoopMap = vi.fn();
+        const tone = { Offline: vi.fn() };
+        const renderer = createStaticLoopRenderer({
+            isAudioContextStarted: () => true,
+            getTone: () => tone,
+            getAudioEngine: () => ({ createOfflineChain: vi.fn() }),
+            getSettings: () => ({ ...DEFAULT_SETTINGS, baseNotes: [] }),
+            updateStaticLoopMap,
+        });
+
+        await renderer.render();
+        expect(tone.Offline).not.toHaveBeenCalled();
+        expect(updateStaticLoopMap).not.toHaveBeenCalled();
+    });
 });

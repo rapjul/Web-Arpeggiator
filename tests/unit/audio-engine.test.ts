@@ -430,6 +430,7 @@ describe("Audio Engine Model Definitions", () => {
         });
 
         it("handles limiter instantiation failure gracefully and routes directly to destination", async () => {
+            const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
             const Tone = await import("tone");
             const originalLimiter = Tone.Limiter;
             try {
@@ -445,6 +446,12 @@ describe("Audio Engine Model Definitions", () => {
                     actions: mockActions,
                 });
                 expect(engine).toBeDefined();
+                expect(warnSpy).toHaveBeenCalledWith(
+                    expect.stringContaining(
+                        "Tone.Limiter failed, connecting to Destination directly.",
+                    ),
+                    expect.any(Error),
+                );
 
                 // Test offline chain without limiter
                 const chain = engine.createOfflineChain(
@@ -455,6 +462,7 @@ describe("Audio Engine Model Definitions", () => {
             } finally {
                 // @ts-expect-error restoring Limiter
                 Tone.Limiter = originalLimiter;
+                warnSpy.mockRestore();
             }
         });
 

@@ -441,4 +441,36 @@ describe("Pattern controller", () => {
         expect(voice0FilterEnv.cancel).toHaveBeenCalledWith(1.5);
         expect(voice1Env.cancel).toHaveBeenCalledWith(1.5);
     });
+
+    it("handles pattern creation error gracefully and logs via logger", () => {
+        const logger = { error: vi.fn() };
+        const controller = createPatternController({
+            getSynth: () => null,
+            getIsPlaying: () => false,
+            logger,
+        });
+
+        const validPattern = controller.update(baseSettings());
+        expect(validPattern).not.toBeNull();
+
+        const originalPattern = Tone.Pattern;
+        // @ts-expect-error mocking Pattern constructor throw
+        Tone.Pattern = class FailingPattern {
+            constructor() {
+                throw new Error("Tone.Pattern allocation failed");
+            }
+        };
+
+        try {
+            const fallback = controller.update({ ...baseSettings(), bpm: 150 });
+            expect(logger.error).toHaveBeenCalledWith(
+                "createOrUpdatePattern error",
+                expect.any(Error),
+            );
+            expect(fallback).toBeNull();
+        } finally {
+            // @ts-expect-error restore Pattern
+            Tone.Pattern = originalPattern;
+        }
+    });
 });

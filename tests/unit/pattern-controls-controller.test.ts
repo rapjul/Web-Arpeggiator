@@ -4,21 +4,28 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 type PatternControlsDependencies = Parameters<typeof createPatternControlsController>[0];
 
 interface PatternControlsFixture {
+    buildChordString: ReturnType<typeof vi.fn>;
+    chordButton: HTMLButtonElement;
     controller: ReturnType<typeof createPatternControlsController>;
     debounceCancel: ReturnType<typeof vi.fn>;
     flushDebouncedPatternChange: () => void;
     gateSlider: HTMLInputElement;
     gateValue: HTMLSpanElement;
+    generateRandomNotes: ReturnType<typeof vi.fn>;
     intervalSelect: HTMLSelectElement;
-    notesInput: HTMLInputElement;
     normalizeNotes: ReturnType<typeof vi.fn>;
+    notesInput: HTMLInputElement;
+    octaveRangeButtons: HTMLDivElement;
+    octaveShiftButtons: HTMLDivElement;
+    onClearActiveSoundStarter: ReturnType<typeof vi.fn>;
+    onNotesSelected: ReturnType<typeof vi.fn>;
     onPatternChange: ReturnType<typeof vi.fn>;
     onReshuffle: ReturnType<typeof vi.fn>;
     onStaticLoopChange: ReturnType<typeof vi.fn>;
     patternButtons: HTMLDivElement;
+    randomizeNotesButton: HTMLButtonElement;
     reshufflePatternButton: HTMLButtonElement;
-    octaveRangeButtons: HTMLDivElement;
-    octaveShiftButtons: HTMLDivElement;
+    resolveChordDefinition: ReturnType<typeof vi.fn>;
     scaleQuantizeToggle: HTMLInputElement;
     scaleQuantizeToggleStatus: HTMLSpanElement;
     scaleRootSelect: HTMLSelectElement;
@@ -26,6 +33,7 @@ interface PatternControlsFixture {
     setNotes: ReturnType<typeof vi.fn>;
     setOctaveRange: ReturnType<typeof vi.fn>;
     setOctaveShift: ReturnType<typeof vi.fn>;
+    showToast: ReturnType<typeof vi.fn>;
 }
 
 /**
@@ -60,6 +68,10 @@ function createFixture(): PatternControlsFixture {
         '<label class="pattern-btn" data-pattern="randomWalkDrunk"><input type="radio" name="pattern-direction" value="randomWalkDrunk"></label>',
     ].join("");
     const reshufflePatternButton = document.createElement("button");
+    const randomizeNotesButton = document.createElement("button");
+    const chordButton = document.createElement("button");
+    chordButton.className = "chord-btn";
+    chordButton.setAttribute("data-chord", "minor");
     const octaveShiftButtons = document.createElement("div");
     octaveShiftButtons.innerHTML =
         '<button class="octave-btn" data-shift="-1">-1</button><label class="octave-btn"><input type="radio" data-shift="1" value="1"></label>';
@@ -79,6 +91,8 @@ function createFixture(): PatternControlsFixture {
         octaveRangeButtons,
         patternButtons,
         reshufflePatternButton,
+        randomizeNotesButton,
+        chordButton,
     );
 
     const queuedPatternChanges: Array<() => void> = [];
@@ -89,6 +103,12 @@ function createFixture(): PatternControlsFixture {
     const onPatternChange = vi.fn();
     const onReshuffle = vi.fn();
     const onStaticLoopChange = vi.fn();
+    const onNotesSelected = vi.fn();
+    const onClearActiveSoundStarter = vi.fn();
+    const showToast = vi.fn();
+    const generateRandomNotes = vi.fn(() => ["C4", "Eb4", "G4", "Bb4"]);
+    const buildChordString = vi.fn(() => "C4 Eb4 G4");
+    const resolveChordDefinition = vi.fn(() => ({ name: "Minor" }));
     const debounceCancel = vi.fn();
     const debounce: PatternControlsDependencies["debounce"] = (callback) => {
         const debounced = () => {
@@ -110,9 +130,9 @@ function createFixture(): PatternControlsFixture {
             octaveShiftButtons,
             octaveRangeButtons,
             patternButtons,
-            randomizeNotesButton: null,
+            randomizeNotesButton,
             reshufflePatternButton,
-            chordButtons: document.querySelectorAll(".chord-btn"),
+            chordButtons: [chordButton] as unknown as NodeListOf<Element>,
         },
         normalizeNotes,
         setNotes,
@@ -121,10 +141,18 @@ function createFixture(): PatternControlsFixture {
         onPatternChange,
         onReshuffle,
         onStaticLoopChange,
+        onNotesSelected,
+        onClearActiveSoundStarter,
+        showToast,
+        generateRandomNotes,
+        buildChordString,
+        resolveChordDefinition,
         debounce,
     };
 
     return {
+        buildChordString,
+        chordButton,
         controller: createPatternControlsController(dependencies),
         debounceCancel,
         flushDebouncedPatternChange: () => {
@@ -134,16 +162,21 @@ function createFixture(): PatternControlsFixture {
         },
         gateSlider,
         gateValue,
+        generateRandomNotes,
         intervalSelect,
-        notesInput,
         normalizeNotes,
+        notesInput,
+        octaveRangeButtons,
+        octaveShiftButtons,
+        onClearActiveSoundStarter,
+        onNotesSelected,
         onPatternChange,
         onReshuffle,
         onStaticLoopChange,
-        octaveRangeButtons,
-        octaveShiftButtons,
         patternButtons,
+        randomizeNotesButton,
         reshufflePatternButton,
+        resolveChordDefinition,
         scaleQuantizeToggle,
         scaleQuantizeToggleStatus,
         scaleRootSelect,
@@ -151,6 +184,7 @@ function createFixture(): PatternControlsFixture {
         setNotes,
         setOctaveRange,
         setOctaveShift,
+        showToast,
     };
 }
 
@@ -390,5 +424,136 @@ describe("pattern controls controller", () => {
 
         controller.setSelectedPatternDirection("down");
         expect(reshufflePatternButton.disabled).toBe(true);
+    });
+
+    test("generates random notes and updates UI based on scale quantization mode", () => {
+        const {
+            controller,
+            generateRandomNotes,
+            onClearActiveSoundStarter,
+            onNotesSelected,
+            randomizeNotesButton,
+            scaleQuantizeToggle,
+            scaleRootSelect,
+            scaleTypeSelect,
+            showToast,
+        } = createFixture();
+        controller.initialize();
+
+        // 1. Quantized mode (Minor)
+        scaleQuantizeToggle.checked = true;
+        scaleTypeSelect.value = "minor";
+        scaleRootSelect.value = "C";
+
+        randomizeNotesButton.click();
+        expect(generateRandomNotes).toHaveBeenCalledWith("C", "minor");
+        expect(onClearActiveSoundStarter).toHaveBeenCalled();
+        expect(onNotesSelected).toHaveBeenCalledWith(["C4", "Eb4", "G4", "Bb4"]);
+        expect(showToast).toHaveBeenCalledWith("Randomized notes using C Minor!", "success");
+
+        // 2. Unquantized mode (Chromatic)
+        scaleQuantizeToggle.checked = false;
+        scaleTypeSelect.value = "chromatic";
+        randomizeNotesButton.click();
+        expect(generateRandomNotes).toHaveBeenCalledWith(expect.any(String), "chromatic");
+        expect(showToast).toHaveBeenCalledWith(
+            expect.stringContaining("Randomized notes using"),
+            "success",
+        );
+    });
+
+    test("builds and selects chords when chord buttons are clicked", () => {
+        const {
+            buildChordString,
+            chordButton,
+            controller,
+            onClearActiveSoundStarter,
+            onNotesSelected,
+            resolveChordDefinition,
+            scaleRootSelect,
+            showToast,
+        } = createFixture();
+        controller.initialize();
+
+        scaleRootSelect.value = "D";
+        chordButton.click();
+
+        expect(buildChordString).toHaveBeenCalledWith("minor", "D");
+        expect(resolveChordDefinition).toHaveBeenCalledWith("minor");
+        expect(onClearActiveSoundStarter).toHaveBeenCalled();
+        expect(onNotesSelected).toHaveBeenCalledWith(["C4", "Eb4", "G4"]);
+        expect(showToast).toHaveBeenCalledWith("Loaded D Minor chord!", "success");
+    });
+
+    test("handles button-only clicks for pattern direction without radio inputs", () => {
+        const { controller, onPatternChange, patternButtons } = createFixture();
+        // Replace container children with button-only markup
+        patternButtons.innerHTML = `
+            <button class="pattern-btn" data-pattern="up">Up</button>
+            <button class="pattern-btn" data-pattern="down">Down</button>
+            <div class="empty-target">No pattern</div>
+        `;
+        controller.initialize();
+
+        const downBtn = patternButtons.querySelector<HTMLButtonElement>('[data-pattern="down"]');
+        downBtn?.click();
+
+        expect(controller.getSelectedPatternDirection()).toBe("down");
+        expect(downBtn?.classList.contains("selected")).toBe(true);
+        expect(onPatternChange).toHaveBeenCalledOnce();
+
+        // Clicking element with no data-pattern does nothing
+        const emptyDiv = patternButtons.querySelector(".empty-target");
+        emptyDiv?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+        expect(onPatternChange).toHaveBeenCalledOnce();
+    });
+
+    test("handles button-only clicks for octave controls without radio inputs", () => {
+        const {
+            controller,
+            octaveRangeButtons,
+            octaveShiftButtons,
+            onPatternChange,
+            onStaticLoopChange,
+            setOctaveRange,
+            setOctaveShift,
+        } = createFixture();
+        // Replace with button-only markup
+        octaveShiftButtons.innerHTML = `
+            <button class="octave-btn" data-shift="-2">-2</button>
+            <button class="octave-btn" data-shift="2">2</button>
+        `;
+        octaveRangeButtons.innerHTML = `
+            <button class="octave-btn" data-range="1">1</button>
+            <button class="octave-btn" data-range="4">4</button>
+        `;
+        controller.initialize();
+
+        const shiftBtn = octaveShiftButtons.querySelector<HTMLButtonElement>('[data-shift="2"]');
+        shiftBtn?.click();
+        expect(setOctaveShift).toHaveBeenCalledWith(2);
+        expect(shiftBtn?.classList.contains("selected")).toBe(true);
+        expect(onPatternChange).toHaveBeenCalledTimes(1);
+        expect(onStaticLoopChange).toHaveBeenCalledTimes(1);
+
+        const rangeBtn = octaveRangeButtons.querySelector<HTMLButtonElement>('[data-range="4"]');
+        rangeBtn?.click();
+        expect(setOctaveRange).toHaveBeenCalledWith(4);
+        expect(rangeBtn?.classList.contains("selected")).toBe(true);
+        expect(onPatternChange).toHaveBeenCalledTimes(2);
+        expect(onStaticLoopChange).toHaveBeenCalledTimes(2);
+    });
+
+    test("falls back to C4 when notesInput change has whitespace only", () => {
+        const { controller, normalizeNotes, notesInput, onPatternChange, setNotes } =
+            createFixture();
+        controller.initialize();
+
+        normalizeNotes.mockReturnValueOnce([]);
+        notesInput.value = "   ";
+        notesInput.dispatchEvent(new Event("change"));
+
+        expect(setNotes).toHaveBeenCalledWith(["C4"]);
+        expect(onPatternChange).toHaveBeenCalledOnce();
     });
 });

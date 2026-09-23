@@ -88,6 +88,7 @@ function createFixture() {
     return {
         controller,
         duration,
+        exportButton,
         loopCountInput,
         logger,
         modeSeamlessInput,
@@ -103,6 +104,7 @@ function createFixture() {
         tailSecondsInput,
         toggleVisualizerButton,
         visualizer,
+        visualizerModeSelect,
     };
 }
 
@@ -234,5 +236,48 @@ describe("export controls controller", () => {
 
         expect(logger.error).toHaveBeenCalledWith("Failed to export MIDI pattern:", error);
         expect(showToast).toHaveBeenCalledWith("Failed to export MIDI pattern.", "error");
+    });
+
+    it("aborts action and warns when startAudio fails in startAndRun", async () => {
+        const { logger, recorder, recordButton, startAudio } = createFixture();
+        startAudio.mockRejectedValueOnce(new Error("AudioContext denied"));
+
+        recordButton.click();
+        await vi.waitFor(() => {
+            expect(logger.warn).toHaveBeenCalledWith(
+                "AudioContext failed to start on record click:",
+                expect.any(Error),
+            );
+            expect(recorder.toggleRecording).not.toHaveBeenCalled();
+        });
+    });
+
+    it("triggers realtime export, offline export, and visualizer controls on interaction", async () => {
+        const {
+            exportButton,
+            offlineExportButton,
+            recorder,
+            renderStaticLoop,
+            toggleVisualizerButton,
+            visualizer,
+            visualizerModeSelect,
+        } = createFixture();
+
+        exportButton.click();
+        await vi.waitFor(() => {
+            expect(recorder.exportRealtime).toHaveBeenCalledOnce();
+        });
+
+        offlineExportButton.click();
+        await vi.waitFor(() => {
+            expect(recorder.exportOffline).toHaveBeenCalledOnce();
+        });
+
+        toggleVisualizerButton.click();
+        expect(visualizer.toggle).toHaveBeenCalledOnce();
+
+        visualizerModeSelect.value = "loopMap";
+        visualizerModeSelect.dispatchEvent(new Event("change"));
+        expect(renderStaticLoop).toHaveBeenCalledOnce();
     });
 });

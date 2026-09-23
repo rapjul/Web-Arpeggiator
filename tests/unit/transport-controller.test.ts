@@ -41,6 +41,7 @@ function createFixture(): TransportFixture {
     const onStop = vi.fn();
     const onBpmChange = vi.fn();
     const onSwingChange = vi.fn();
+    const logger = { warn: vi.fn() };
     const pendingFrames = new Map<number, FrameRequestCallback>();
     const pendingTransportChanges: Array<() => void> = [];
     let nextFrameId = 1;
@@ -75,6 +76,7 @@ function createFixture(): TransportFixture {
         debounce: (callback) => () => {
             pendingTransportChanges.push(callback);
         },
+        logger,
     };
     const controller = createTransportController(dependencies);
     controllers.push(controller);
@@ -94,6 +96,7 @@ function createFixture(): TransportFixture {
                 callback();
             });
         },
+        logger,
         matchMedia,
         onStart,
         onStop,
@@ -137,6 +140,21 @@ describe("transport controller", () => {
         setIsPlaying(true);
         playStopButton.click();
         expect(onStop).toHaveBeenCalledOnce();
+    });
+
+    test("handles playback start rejection gracefully and warns via logger", async () => {
+        const { controller, onStart, playStopButton, logger } = createFixture();
+        onStart.mockRejectedValueOnce(new Error("Autoplay blocked"));
+        controller.initialize();
+
+        playStopButton.click();
+        await vi.waitFor(() => {
+            expect(onStart).toHaveBeenCalledOnce();
+            expect(logger.warn).toHaveBeenCalledWith(
+                "AudioContext failed to start from play button:",
+                expect.any(Error),
+            );
+        });
     });
 
     test("updates sticky styling on viewport changes and coalesces scroll work", () => {

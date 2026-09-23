@@ -107,6 +107,7 @@ describe("PWA controller", () => {
         expect(localController.getState().serviceWorkerError).toBe("disabled-in-development");
 
         window.history.replaceState({}, "", "/?pwa=true");
+        const consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
         const registrationError = new Error("registration denied");
         const brokenServiceWorker = createServiceWorkerApi(createRegistration(), {
             register: vi.fn().mockRejectedValue(registrationError),
@@ -114,6 +115,10 @@ describe("PWA controller", () => {
         const brokenController = initializePwa({ serviceWorker: brokenServiceWorker });
 
         await expect(brokenController.registerServiceWorker()).resolves.toBeNull();
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+            "Failed to register service worker:",
+            registrationError,
+        );
         expect(brokenController.getState()).toMatchObject({
             serviceWorkerError: "registration denied",
             serviceWorkerRegistered: false,

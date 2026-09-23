@@ -143,4 +143,98 @@ describe("workspace controller", () => {
         expect(onHistoryChange).toHaveBeenCalled();
         expect(controller.getStatus()).toMatchObject({ canUndo: true });
     });
+
+    it("supports undo, redo, and checking isAtDefault status", () => {
+        const { controller, settings } = createFixture();
+
+        expect(controller.getStatus().isAtDefault).toBe(true);
+
+        controller.applySettingsWithHistory({ ...settings(), bpm: 150 });
+        expect(settings().bpm).toBe(150);
+        expect(controller.getStatus().isAtDefault).toBe(false);
+        expect(controller.getStatus().canUndo).toBe(true);
+
+        controller.undoSettings();
+        expect(settings().bpm).toBe(120);
+        expect(controller.getStatus().canRedo).toBe(true);
+
+        controller.redoSettings();
+        expect(settings().bpm).toBe(150);
+
+        // Calling redo when no future states exist should not throw
+        controller.redoSettings();
+        expect(settings().bpm).toBe(150);
+    });
+
+    it("resets all settings back to default and shows toast notification", () => {
+        const { controller, settings, showToast } = createFixture();
+
+        controller.applySettingsWithHistory({ ...settings(), bpm: 180 });
+        expect(settings().bpm).toBe(180);
+
+        controller.resetAllSettings();
+        expect(settings().bpm).toBe(120);
+        expect(showToast).toHaveBeenCalledWith(
+            "Restored default settings. Undo is available.",
+            "info",
+        );
+    });
+
+    it("records discrete clicks on waveform, pattern, and octave button groups", () => {
+        const { clearActiveSoundStarterCard, onStaticLoopChange } = createFixture();
+
+        const patternBtn = document.createElement("button");
+        patternBtn.className = "pattern-btn";
+        const octaveShiftContainer = document.createElement("div");
+        octaveShiftContainer.id = "octave-shift-buttons";
+        const octaveShiftBtn = document.createElement("button");
+        octaveShiftContainer.appendChild(octaveShiftBtn);
+
+        const unrelatedBtn = document.createElement("button");
+        unrelatedBtn.className = "unrelated-btn";
+
+        document.body.append(patternBtn, octaveShiftContainer, unrelatedBtn);
+
+        // Clicking unrelated button does not trigger state change
+        unrelatedBtn.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+        expect(clearActiveSoundStarterCard).not.toHaveBeenCalled();
+
+        // Clicking pattern button triggers update
+        patternBtn.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+        expect(clearActiveSoundStarterCard).toHaveBeenCalledTimes(1);
+        expect(onStaticLoopChange).toHaveBeenCalledTimes(1);
+
+        // Clicking nested button in octave-shift container triggers update
+        octaveShiftBtn.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+        expect(clearActiveSoundStarterCard).toHaveBeenCalledTimes(2);
+        expect(onStaticLoopChange).toHaveBeenCalledTimes(2);
+    });
+
+    it("resolves the focused reset definition for controls and child elements", () => {
+        const { bpmInput, controller } = createFixture();
+
+        expect(controller.getFocusedResetDefinition(bpmInput)).toMatchObject({ name: "BPM" });
+        expect(controller.getFocusedResetDefinition(null)).toBeNull();
+        expect(controller.getFocusedResetDefinition(document.createElement("div"))).toBeNull();
+    });
+
+    it("excludes loop count and export duration controls from triggering static loop refresh", () => {
+        const { onStaticLoopChange } = createFixture();
+        onStaticLoopChange.mockClear();
+
+        const loopCountInput = document.createElement("input");
+        loopCountInput.id = "loop-count";
+        const tailSecondsInput = document.createElement("input");
+        tailSecondsInput.id = "offline-export-tail-seconds";
+        const exportModeInput = document.createElement("input");
+        exportModeInput.name = "offline-export-mode";
+
+        document.body.append(loopCountInput, tailSecondsInput, exportModeInput);
+
+        loopCountInput.dispatchEvent(new Event("input", { bubbles: true }));
+        tailSecondsInput.dispatchEvent(new Event("input", { bubbles: true }));
+        exportModeInput.dispatchEvent(new Event("input", { bubbles: true }));
+
+        expect(onStaticLoopChange).not.toHaveBeenCalled();
+    });
 });
