@@ -473,4 +473,127 @@ describe("Pattern controller", () => {
             Tone.Pattern = originalPattern;
         }
     });
+
+    it("preserves active note release during live pattern rebuild without premature release", () => {
+        const env = { cancel: vi.fn() };
+        const synth = {
+            envelope: env,
+            triggerAttack: vi.fn(),
+            triggerRelease: vi.fn(),
+        };
+        const controller = createPatternController({
+            getSynth: () => synth,
+            getIsPlaying: () => true,
+        });
+
+        const pattern = controller.update({
+            ...baseSettings(),
+            gate: 0.8,
+            interval: "4n",
+        }) as unknown as MockPatternInstance;
+
+        // Trigger note at audio time 1.0 with duration ~0.4s (release scheduled at ~1.4)
+        pattern.callback(1.0, "C4");
+        const scheduledRelease = synth.triggerRelease.mock.calls[0][0];
+        expect(scheduledRelease).toBeGreaterThan(1.0);
+
+        // Spy on Tone.now() returning 1.1 (the note is currently sounding)
+        const toneNowSpy = vi.spyOn(Tone, "now").mockReturnValue(1.1);
+        try {
+            // Live rebuild while sounding
+            controller.update({
+                ...baseSettings(),
+                gate: 0.8,
+                interval: "4n",
+                octaveRange: 2,
+            });
+
+            // The envelope cancel call must be scheduled at or after the release, preserving it
+            expect(env.cancel).toHaveBeenCalledWith(scheduledRelease);
+            // Must not call immediate triggerRelease on the sounding voice
+            expect(synth.triggerRelease).toHaveBeenCalledTimes(1);
+        } finally {
+            toneNowSpy.mockRestore();
+        }
+    });
+
+    it("immediately silences sounding voice when rebuild compiles to an empty notes sequence", () => {
+        const synth = {
+            triggerAttack: vi.fn(),
+            triggerRelease: vi.fn(),
+        };
+        const controller = createPatternController({
+            getSynth: () => synth,
+            getIsPlaying: () => true,
+        });
+
+        const pattern = controller.update(baseSettings()) as unknown as MockPatternInstance;
+        pattern.callback(1.0, "C4");
+
+        // Rebuild with empty notes
+        const result = controller.update({ ...baseSettings(), baseNotes: [] });
+        expect(result).toBeNull();
+        expect(synth.triggerRelease).toHaveBeenCalled();
+    });
+
+    it("cancels queued PluckSynth excitations and pending transport swing attacks", () => {
+        const noise = { stop: vi.fn() };
+        const resonance = {
+            cancelScheduledValues: vi.fn(),
+            setValueAtTime: vi.fn(),
+        };
+        const pluckSynth = {
+            _noise: noise,
+            _lfcf: { resonance },
+            triggerAttack: vi.fn(),
+            triggerRelease: vi.fn(),
+        };
+
+        const scheduledEvents = new Map<number, (time: number) => void>();
+        let nextEventId = 101;
+        const transport = {
+            clear: vi.fn((id: number) => {
+                scheduledEvents.delete(id);
+            }),
+            scheduleOnce: vi.fn((cb: (time: number) => void, _time: string) => {
+                const id = nextEventId++;
+                scheduledEvents.set(id, cb);
+                return id;
+            }),
+            ticks: 0,
+            PPQ: 192,
+        };
+
+        const getTransportSpy = vi.spyOn(Tone, "getTransport").mockReturnValue(
+            // @ts-expect-error partial transport mock
+            transport,
+        );
+
+        try {
+            const controller = createPatternController({
+                getSynth: () => pluckSynth,
+                getIsPlaying: () => true,
+            });
+
+            const pattern = controller.update({
+                ...baseSettings(),
+                swing: 1,
+            }) as unknown as MockPatternInstance;
+
+            // Step 0 is unswung; Step 1 is swung with swingOffsetTicks > 0
+            pattern.callback(0.0, "C4");
+            pattern.callback(0.25, "E4");
+            expect(transport.scheduleOnce).toHaveBeenCalled();
+            expect(scheduledEvents.size).toBe(1);
+
+            // Stoppage / cancel clears pending transport events and cancels PluckSynth excitations
+            controller.silenceActiveSynth();
+            expect(transport.clear).toHaveBeenCalled();
+            expect(noise.stop).toHaveBeenCalled();
+            expect(resonance.cancelScheduledValues).toHaveBeenCalled();
+            expect(resonance.setValueAtTime).toHaveBeenCalledWith(0, expect.any(Number));
+        } finally {
+            getTransportSpy.mockRestore();
+        }
+    });
 });

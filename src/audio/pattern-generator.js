@@ -71,6 +71,26 @@ export function createPatternController({
     let currentTimeline = null;
     /** @type {unknown} */
     let currentSynth = null;
+    /** @type {Set<number>} */
+    const pendingTransportAttackIds = new Set();
+    let activeNoteReleaseTime = 0;
+
+    /**
+     * Clears any attacks scheduled on the transport for future swing offsets.
+     *
+     * @returns {void}
+     */
+    function clearPendingTransportAttacks() {
+        const transport = Tone.getTransport();
+        if (transport && typeof transport.clear === "function") {
+            for (const eventId of pendingTransportAttackIds) {
+                try {
+                    transport.clear(eventId);
+                } catch {}
+            }
+        }
+        pendingTransportAttackIds.clear();
+    }
 
     /**
      * Cancels any future queued envelope events on a synth without cutting
@@ -81,6 +101,7 @@ export function createPatternController({
      * @returns {void}
      */
     function cancelQueuedSynthEvents(synthToCancel, cancelTime) {
+        clearPendingTransportAttacks();
         const synth = synthToCancel ?? getSynth();
         if (!synth || typeof synth !== "object") return;
         const now = cancelTime ?? Tone.now();
@@ -99,6 +120,19 @@ export function createPatternController({
                     env.cancel(now);
                 } catch {}
             }
+        }
+        // Non-envelope synths (e.g. Tone.PluckSynth excitation and comb resonance)
+        const nonEnv = /** @type {*} */ (synth);
+        if (typeof nonEnv._noise?.stop === "function") {
+            try {
+                nonEnv._noise.stop(now);
+            } catch {}
+        }
+        if (typeof nonEnv._lfcf?.resonance?.cancelScheduledValues === "function") {
+            try {
+                nonEnv._lfcf.resonance.cancelScheduledValues(now);
+                nonEnv._lfcf.resonance.setValueAtTime(0, now);
+            } catch {}
         }
     }
 
@@ -124,6 +158,7 @@ export function createPatternController({
      * @returns {void}
      */
     function silenceActiveSynth() {
+        activeNoteReleaseTime = 0;
         const active = getSynth();
         silenceSynth(currentSynth);
         if (active !== currentSynth) {
@@ -138,16 +173,19 @@ export function createPatternController({
      * @returns {void}
      */
     function dispose({ silenceVoices = true } = {}) {
+        clearPendingTransportAttacks();
         if (pattern) {
             if (silenceVoices) {
                 silenceActiveSynth();
             } else {
                 // Cancel future queued attacks from the replaced pattern without cutting off
                 // the active sounding note before the new pattern sequence takes over
-                cancelQueuedSynthEvents(currentSynth);
+                const now = Tone.now();
+                const cancelFrom = activeNoteReleaseTime > now ? activeNoteReleaseTime : now;
+                cancelQueuedSynthEvents(currentSynth, cancelFrom);
                 const active = getSynth();
                 if (active !== currentSynth) {
-                    cancelQueuedSynthEvents(active);
+                    cancelQueuedSynthEvents(active, cancelFrom);
                 }
             }
             try {
@@ -182,8 +220,9 @@ export function createPatternController({
                 { cycles: 1 },
             );
 
-            dispose({ silenceVoices: !getIsPlaying() });
-            if (timeline.events.length === 0) return null;
+            const hasEvents = timeline.events.length > 0;
+            dispose({ silenceVoices: !getIsPlaying() || !hasEvents });
+            if (!hasEvents) return null;
             currentTimeline = timeline;
             currentSynth = getSynth();
 
@@ -246,12 +285,24 @@ export function createPatternController({
                     const scheduledTime = time + ticksToSeconds(swingOffsetTicks, timeline.bpm);
                     const synth = currentSynth ?? getSynth();
                     if (note && isTriggerableSynth(synth)) {
-                        triggerSynth(
-                            synth,
-                            note,
-                            scheduledTime,
-                            ticksToSeconds(durationTicks, timeline.bpm),
-                        );
+                        const durationSeconds = ticksToSeconds(durationTicks, timeline.bpm);
+                        const transport = Tone.getTransport();
+                        if (
+                            getIsPlaying() &&
+                            swingOffsetTicks > 0 &&
+                            transport &&
+                            typeof transport.scheduleOnce === "function"
+                        ) {
+                            const eventId = transport.scheduleOnce((attackTime) => {
+                                pendingTransportAttackIds.delete(eventId);
+                                activeNoteReleaseTime = attackTime + durationSeconds;
+                                triggerSynth(synth, note, attackTime, durationSeconds);
+                            }, `${swungStartTick}i`);
+                            pendingTransportAttackIds.add(eventId);
+                        } else {
+                            activeNoteReleaseTime = scheduledTime + durationSeconds;
+                            triggerSynth(synth, note, scheduledTime, durationSeconds);
+                        }
                     }
 
                     Tone.Draw.schedule(() => {
