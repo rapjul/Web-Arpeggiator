@@ -51,7 +51,7 @@ export {
  * injected, keeping this scheduler independent of DOM and window globals.
  *
  * @param {{getSynth: () => unknown, getIsPlaying: () => boolean, onPatternChange?: (pattern: object|null) => void, onStep?: (index: number) => void, logger?: Pick<Console, "error">}} context - Runtime callbacks.
- * @returns {{update: (settings: PatternSettings) => object|null, getPattern: () => object|null, getTimeline: () => import("@core/timeline.js").CompiledTimeline|null, dispose: () => void}} Pattern controller API.
+ * @returns {{update: (settings: PatternSettings) => object|null, getPattern: () => object|null, getTimeline: () => import("@core/timeline.js").CompiledTimeline|null, dispose: () => void, silenceActiveSynth: () => void}} Pattern controller API.
  */
 export function createPatternController({
     getSynth,
@@ -65,8 +65,10 @@ export function createPatternController({
     /** @type {import("@core/timeline.js").CompiledTimeline|null} */
     let currentTimeline = null;
 
+    /** @returns {void} Releases active synth voices and disposes the current pattern. */
     function dispose() {
         if (pattern) {
+            silenceActiveSynth();
             try {
                 pattern.dispose();
             } catch {}
@@ -74,6 +76,22 @@ export function createPatternController({
         pattern = null;
         currentTimeline = null;
         onPatternChange(null);
+    }
+
+    /**
+     * Cancels any pending scheduled synth attacks and releases active voices
+     * so that notes do not sound after transport stoppage or pattern replacement.
+     *
+     * @returns {void}
+     */
+    function silenceActiveSynth() {
+        const synth = getSynth();
+        if (!synth || typeof synth !== "object") return;
+        try {
+            if (typeof (/** @type {*} */ (synth).triggerRelease) === "function") {
+                /** @type {*} */ (synth).triggerRelease();
+            }
+        } catch {}
     }
 
     /**
@@ -103,6 +121,13 @@ export function createPatternController({
             currentTimeline = timeline;
 
             let occurrenceIndex = 0;
+            const stepDurationSeconds = ticksToSeconds(timeline.stepDurationTicks, timeline.bpm);
+            if (getIsPlaying() && stepDurationSeconds > 0) {
+                occurrenceIndex = Math.max(
+                    0,
+                    Math.floor(Tone.getTransport().seconds / stepDurationSeconds),
+                );
+            }
             let activeCycleIndex = -1;
             let activeSequence = { notes: timeline.resolvedNotes, map: timeline.sourceNoteMap };
             const liveCursor = createPatternSequenceCursor(settings.baseNotes, {
@@ -112,6 +137,12 @@ export function createPatternController({
                 quantize: settings.quantize,
                 randomSeed: timeline.randomSeed,
             });
+            // Fast-forward the cursor to the active cycle when resuming mid-playback
+            const resumeCycleIndex = Math.floor(occurrenceIndex / timeline.stepsPerCycle);
+            for (let i = 0; i <= resumeCycleIndex; i++) {
+                activeSequence = liveCursor.nextCycle();
+                activeCycleIndex = i;
+            }
             const patternInstance = new Tone.Pattern(
                 (time) => {
                     const stepIndex =
@@ -156,7 +187,9 @@ export function createPatternController({
                         );
                     }
 
-                    Tone.Draw.schedule(() => onStep(sourceNoteIndex), scheduledTime);
+                    Tone.Draw.schedule(() => {
+                        if (getIsPlaying()) onStep(sourceNoteIndex);
+                    }, scheduledTime);
                 },
                 timeline.resolvedNotes,
                 "up",
@@ -177,6 +210,7 @@ export function createPatternController({
         getPattern: () => pattern,
         getTimeline: () => currentTimeline,
         dispose,
+        silenceActiveSynth,
     };
 }
 

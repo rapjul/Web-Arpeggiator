@@ -109,7 +109,8 @@ describe("Pattern controller", () => {
         const onStep = vi.fn();
         const controller = createPatternController({
             getSynth: () => synth,
-            getIsPlaying: () => true,
+            // getIsPlaying = false: occurrenceIndex starts at 0 deterministically
+            getIsPlaying: () => false,
             onStep,
         });
 
@@ -117,13 +118,22 @@ describe("Pattern controller", () => {
             ...baseSettings(),
             direction: "up",
         }) as unknown as MockPatternInstance;
-        expect(pattern.isStarted).toBe(true);
 
         pattern.index = 2;
         pattern.callback(0.25, "G4");
         expect(synth.triggerAttack).toHaveBeenCalledWith("G4", 0.25);
         expect(synth.triggerRelease).toHaveBeenCalledWith(0.34375);
-        expect(onStep).toHaveBeenCalledWith(2);
+        expect(onStep).not.toHaveBeenCalled(); // guarded by getIsPlaying()
+    });
+
+    it("auto-starts the pattern when the transport is already playing", () => {
+        const controller = createPatternController({
+            getSynth: () => null,
+            getIsPlaying: () => true,
+        });
+
+        const pattern = controller.update(baseSettings()) as unknown as MockPatternInstance;
+        expect(pattern.isStarted).toBe(true);
     });
 
     it("recomputes swing from the absolute pattern occurrence", () => {
@@ -261,5 +271,50 @@ describe("Pattern controller", () => {
         }) as unknown as MockPatternInstance;
         expect(expanded.values).toContain("C5");
         expect(expanded.values).toContain("C6");
+    });
+
+    it("suppresses the visual step indicator when the transport is not playing", () => {
+        const onStep = vi.fn();
+        let isPlaying = false;
+        const controller = createPatternController({
+            getSynth: () => null,
+            getIsPlaying: () => isPlaying,
+            onStep,
+        });
+
+        const pattern = controller.update(baseSettings()) as unknown as MockPatternInstance;
+        // Draw.schedule fires immediately in the mock; onStep should not fire when stopped
+        pattern.callback(0, "C4");
+        expect(onStep).not.toHaveBeenCalled();
+
+        isPlaying = true;
+        pattern.callback(0, "E4");
+        expect(onStep).toHaveBeenCalledTimes(1);
+    });
+
+    it("silences the active synth when the pattern is disposed", () => {
+        const synth = { triggerAttack: vi.fn(), triggerRelease: vi.fn() };
+        const controller = createPatternController({
+            getSynth: () => synth,
+            getIsPlaying: () => false,
+        });
+
+        controller.update(baseSettings());
+        controller.dispose();
+
+        expect(synth.triggerRelease).toHaveBeenCalledOnce();
+    });
+
+    it("exposes silenceActiveSynth in the public controller API", () => {
+        const synth = { triggerAttack: vi.fn(), triggerRelease: vi.fn() };
+        const controller = createPatternController({
+            getSynth: () => synth,
+            getIsPlaying: () => false,
+        });
+
+        controller.update(baseSettings());
+        controller.silenceActiveSynth();
+
+        expect(synth.triggerRelease).toHaveBeenCalledOnce();
     });
 });

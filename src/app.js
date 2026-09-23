@@ -824,6 +824,8 @@ function initializeApp() {
         state: appState,
         getTone: () => audioRuntimeController?.getTone(),
         getPattern: () => audioRuntimeController?.getPatternController()?.getPattern(),
+        getSilenceActiveSynth: () =>
+            audioRuntimeController?.getPatternController()?.silenceActiveSynth,
         getRecorderManager,
         getVisualizer,
         startAudio,

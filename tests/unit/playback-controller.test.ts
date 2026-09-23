@@ -12,6 +12,7 @@ function createFixture() {
         getTransport: () => transport,
     };
     const pattern = { start: vi.fn(), stop: vi.fn() };
+    const silenceActiveSynth = vi.fn();
     const recorder = { isRecording: false, initRecorder: vi.fn(async () => {}) };
     const visualizer = { startUiLoop: vi.fn(), stopUiLoop: vi.fn() };
     const state = { isAudioContextStarted: false, isPlaying: false };
@@ -27,6 +28,7 @@ function createFixture() {
         state,
         getTone: () => tone,
         getPattern: () => pattern,
+        getSilenceActiveSynth: () => silenceActiveSynth,
         getRecorderManager: () => recorder,
         getVisualizer: () => visualizer,
         startAudio,
@@ -48,6 +50,7 @@ function createFixture() {
         prepareForPlayback,
         rawContext,
         recorder,
+        silenceActiveSynth,
         startAudio,
         state,
         transport,
@@ -71,6 +74,7 @@ describe("playback controller", () => {
             playStopButton,
             prepareForPlayback,
             recorder,
+            silenceActiveSynth,
             startAudio,
             state,
             transport,
@@ -89,12 +93,27 @@ describe("playback controller", () => {
         expect(visualizer.startUiLoop).toHaveBeenCalledOnce();
 
         controller.stop();
+        expect(silenceActiveSynth).toHaveBeenCalledOnce();
         expect(pattern.stop).toHaveBeenCalledOnce();
         expect(transport.stop).toHaveBeenCalledOnce();
         expect(state.isPlaying).toBe(false);
         expect(playStopButton.textContent).toBe("Restart Audio");
         expect(visualizer.stopUiLoop).toHaveBeenCalledOnce();
         expect(clearNoteStep).toHaveBeenCalledOnce();
+    });
+
+    it("silences the active synth before stopping the transport on stop", async () => {
+        const { controller, silenceActiveSynth, state, transport } = createFixture();
+        state.isAudioContextStarted = true;
+        state.isPlaying = true;
+
+        const callOrder: string[] = [];
+        silenceActiveSynth.mockImplementation(() => callOrder.push("silence"));
+        transport.stop.mockImplementation(() => callOrder.push("transport.stop"));
+
+        controller.stop();
+
+        expect(callOrder).toEqual(["silence", "transport.stop"]);
     });
 
     it("stops playback when the raw AudioContext becomes suspended", async () => {
