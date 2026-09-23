@@ -165,7 +165,7 @@ Web Arpeggiator writes note events on MIDI Channel 1 (Channel Index 0):
 The timeline compiler uses integer ticks at 480 PPQ:
 
 - Each supported interval maps to a fixed step length from 30 ticks (`64n`) through 960 ticks (`2n`).
-- Pattern directions and scale quantization are materialized into one resolved cycle before events are emitted.
+- For deterministic pattern directions, notes and scale quantization are materialized into one resolved cycle before repeating across cycles. For stochastic directions (`random`, `randomCycle`, `randomWalk`, `randomWalkDrunk`), each cycle is drawn sequentially from the seeded pseudo-random stream (with `randomWalkDrunk` generating 16 steps per cycle).
 - Swing is applied to event start ticks using the same 8th-note subdivision model as Tone.Transport, then Tone transport swing remains `0` for consumers of the compiled events.
 - Each event retains `sourceNoteIndex`, `sourceStepIndex`, `cycleIndex`, and `stepIndex`, allowing the UI and exports to refer back to the authored pattern.
 - MIDI converts absolute event starts and ends into delta-time VLQs and emits Note-Off before Note-On when events share a tick.

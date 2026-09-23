@@ -361,12 +361,17 @@ Web Arpeggiator/
 │   │   ├── audio-utils.js  # WAV/MP3 encoding, PCM conversions, download helpers
 │   │   ├── chord-builder.js # Scale-aware chord note construction
 │   │   ├── export-duration.js # Offline export duration calculation & formatting
+│   │   ├── export-metadata.js # Versioned offline audio metadata encoder & binary reader
 │   │   ├── input-filters.js# Keyboard note & numeric input filtering
 │   │   ├── meter-utils.js  # Audio meter decibel & percentage calculations
 │   │   ├── midi-export.js  # Standard MIDI File (.mid) binary encoder
 │   │   ├── pattern-core.js # Core note transformations, directions, quantization math
+│   │   ├── random-seed.js  # Unsigned 32-bit PRNG and seed normalization
 │   │   ├── randomizer.js   # Musical scale-quantized randomizer
+│   │   ├── settings-contract.js # Canonical schema, bounds, and settings snapshot normalization
 │   │   ├── settings-history.js # Persistent snapshot history for arpeggiator settings
+│   │   ├── timeline.js     # Pure 480-PPQ musical timeline compiler
+│   │   ├── timing-constants.js # Shared transport bounds and timing limits
 │   │   ├── url-preset.js   # URL query parameter preset serialization
 │   │   └── visualizer-math.js # Signal processing & FFT peak detection helpers
 │   ├── audio/              # Web Audio / Tone.js synthesis and scheduling

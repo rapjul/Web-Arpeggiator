@@ -42,7 +42,7 @@ The directions have these stable semantics:
 - **Random Walk** retains its seeded adjacent-note position across cycle boundaries.
 - **Drunkard's Walk** retains that continuous state and occasionally makes reflected two- or three-note leaps.
 
-Reshuffle Pattern is the only user action that chooses a new seed. A compiled timeline materializes the exact finite `scheduledNotes` it will consume. Offline metadata stores both that rendered sequence and its seed; MIDI stores the seed in a sequencer-specific meta event while retaining self-contained note events for standard players.
+Reshuffle Pattern is the only user action that chooses a new seed. A compiled timeline materializes the exact finite `scheduledNotes` it will consume. Offline audio metadata preserves the full multi-cycle rendered sequence in `pattern.renderedNotes` alongside the legacy single-cycle sequence in `pattern.scheduledNotes` and the seed in `settings.randomSeed`; MIDI stores the seed in a sequencer-specific meta event while retaining self-contained note events for standard players.
 
 ### Consequences
 
