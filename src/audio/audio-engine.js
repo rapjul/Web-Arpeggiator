@@ -282,7 +282,56 @@ export function createAudioEngine(context) {
      * @returns {void}
      */
     function setSynth(type = "synth") {
-        activeSynth = synths[type] || synths.synth;
+        const nextSynth = synths[type] || synths.synth;
+        if (activeSynth && activeSynth !== nextSynth) {
+            const now = typeof Tone.now === "function" ? Tone.now() : 0;
+            const candidateEnvelopes = [
+                /** @type {*} */ (activeSynth).envelope,
+                /** @type {*} */ (activeSynth).modulationEnvelope,
+                /** @type {*} */ (activeSynth).filterEnvelope,
+                /** @type {*} */ (activeSynth).voice0?.envelope,
+                /** @type {*} */ (activeSynth).voice0?.filterEnvelope,
+                /** @type {*} */ (activeSynth).voice1?.envelope,
+                /** @type {*} */ (activeSynth).voice1?.filterEnvelope,
+            ];
+            for (const env of candidateEnvelopes) {
+                if (env && typeof env.cancel === "function") {
+                    try {
+                        env.cancel(now);
+                    } catch {}
+                }
+            }
+            if (typeof activeSynth.triggerRelease === "function") {
+                try {
+                    activeSynth.triggerRelease();
+                } catch {}
+            }
+            // Non-envelope synths (Tone.PluckSynth excitation and comb filter resonance)
+            const pluckSynth = /** @type {*} */ (activeSynth);
+            if (pluckSynth._noise && typeof pluckSynth._noise.stop === "function") {
+                try {
+                    pluckSynth._noise.stop(now);
+                } catch {}
+            }
+            if (
+                pluckSynth._lfcf?.resonance &&
+                typeof pluckSynth._lfcf.resonance.cancelScheduledValues === "function"
+            ) {
+                try {
+                    const configuredResonance =
+                        typeof pluckSynth._savedResonance === "number"
+                            ? pluckSynth._savedResonance
+                            : typeof pluckSynth.resonance === "number" && pluckSynth.resonance > 0
+                              ? pluckSynth.resonance
+                              : 0.9;
+                    pluckSynth._savedResonance = configuredResonance;
+                    pluckSynth._lfcf.resonance.cancelScheduledValues(now);
+                    pluckSynth._lfcf.resonance.setValueAtTime(0, now);
+                    pluckSynth._lfcf.resonance.setValueAtTime(configuredResonance, now + 0.05);
+                } catch {}
+            }
+        }
+        activeSynth = nextSynth;
         // Apply current ADSR to new synth
         updateEnvelope();
 

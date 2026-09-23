@@ -4,25 +4,26 @@
  * @module pattern-controls-controller
  */
 
+import { isStochasticDirection } from "@core/pattern-core.js";
 import { setupKeyboardNavigation } from "@ui/a11y-navigation.js";
 
 /**
  * @typedef {object} PatternControlsControllerDependencies
- * @property {{notesInput: HTMLInputElement, intervalSelect: HTMLSelectElement, gateSlider: HTMLInputElement, gateValue: HTMLElement|null, scaleQuantizeToggle: HTMLInputElement, scaleQuantizeToggleStatus: HTMLElement|null, scaleTypeSelect: HTMLSelectElement, scaleRootSelect: HTMLSelectElement, octaveShiftButtons: HTMLElement, octaveRangeButtons: HTMLElement, patternButtons: HTMLElement, randomizeNotesButton: HTMLElement|null, chordButtons: NodeListOf<Element>}} dom
+ * @property {{notesInput: HTMLInputElement, intervalSelect: HTMLSelectElement, gateSlider: HTMLInputElement, gateValue: HTMLElement|null, scaleQuantizeToggle: HTMLInputElement, scaleQuantizeToggleStatus: HTMLElement|null, scaleTypeSelect: HTMLSelectElement, scaleRootSelect: HTMLSelectElement, octaveShiftButtons: HTMLElement, octaveRangeButtons: HTMLElement, patternButtons: HTMLElement, randomizeNotesButton: HTMLElement|null, reshufflePatternButton?: HTMLButtonElement|null, chordButtons: NodeListOf<Element>}} dom
  * @property {(notes: string[]) => string[]} normalizeNotes
  * @property {(notes: string[]) => void} setNotes
  * @property {(value: number) => void} setOctaveShift
  * @property {(value: number) => void} setOctaveRange
  * @property {() => void} onPatternChange
- * @property {() => void} onEstimatedDurationChange
  * @property {() => void} onStaticLoopChange
+ * @property {() => void} [onReshuffle]
  * @property {(notes: string[]) => void} [onNotesSelected]
  * @property {() => void} [onClearActiveSoundStarter]
  * @property {(message: string, type?: "success"|"info"|"error") => void} [showToast]
  * @property {(root: string, scale: string) => string[]} [generateRandomNotes]
  * @property {(chordType: string, root: string) => string} [buildChordString]
  * @property {(chordType: string) => {name: string}} [resolveChordDefinition]
- * @property {(callback: () => void, wait: number) => () => void} debounce
+ * @property {(callback: () => void, wait: number) => (() => void) & { cancel: () => void }} debounce
  */
 
 /**
@@ -40,8 +41,8 @@ export function createPatternControlsController(dependencies) {
         setOctaveShift,
         setOctaveRange,
         onPatternChange,
-        onEstimatedDurationChange,
         onStaticLoopChange,
+        onReshuffle,
         onNotesSelected,
         onClearActiveSoundStarter,
         showToast,
@@ -62,6 +63,7 @@ export function createPatternControlsController(dependencies) {
         octaveRangeButtons,
         patternButtons,
         randomizeNotesButton,
+        reshufflePatternButton,
         chordButtons = [],
         scaleQuantizeToggleStatus,
     } = dom;
@@ -76,6 +78,11 @@ export function createPatternControlsController(dependencies) {
     const debouncedPatternChange = debounce(() => {
         if (isInitialized && pendingPatternChangeLifecycle === lifecycleId) onPatternChange();
     }, 50);
+    function updateReshuffleButton() {
+        if (reshufflePatternButton) {
+            reshufflePatternButton.disabled = !isStochasticDirection(getSelectedPatternDirection());
+        }
+    }
 
     /** @param {HTMLElement} container @param {string} attribute @param {number} fallback */
     function handleOctaveChange(container, attribute, fallback) {
@@ -94,6 +101,7 @@ export function createPatternControlsController(dependencies) {
     /** @param {HTMLElement} container @param {string} attribute */
     function handleOctaveClick(container, attribute) {
         return (event) => {
+            if (container.querySelector("input[type='radio']")) return;
             if (!(event.target instanceof Element)) return;
             const target = event.target.closest("button, label");
             const button =
@@ -153,6 +161,7 @@ export function createPatternControlsController(dependencies) {
         patternButtons.querySelectorAll(".pattern-btn, button").forEach((button) => {
             button.classList.toggle("selected", button === selectedButton);
         });
+        updateReshuffleButton();
     }
 
     /**
@@ -260,6 +269,8 @@ export function createPatternControlsController(dependencies) {
         notesInput.addEventListener(
             "change",
             () => {
+                pendingPatternChangeLifecycle = 0;
+                debouncedPatternChange.cancel();
                 const raw = notesInput.value.trim().split(/\s+/).filter(Boolean);
                 const normalized = normalizeNotes(raw);
                 const nextNotes = normalized.length > 0 ? normalized : raw.length ? raw : ["C4"];
@@ -274,7 +285,8 @@ export function createPatternControlsController(dependencies) {
             () => {
                 const nextNotes = notesInput.value.trim().split(/\s+/).filter(Boolean);
                 setNotes(nextNotes.length > 0 ? nextNotes : ["C4"]);
-                onEstimatedDurationChange();
+                pendingPatternChangeLifecycle = lifecycleId;
+                debouncedPatternChange();
             },
             options,
         );
@@ -363,9 +375,12 @@ export function createPatternControlsController(dependencies) {
             options,
         );
         initializePatternActions(options);
+        reshufflePatternButton?.addEventListener("click", () => onReshuffle?.(), options);
+        updateReshuffleButton();
     }
 
     function destroy() {
+        debouncedPatternChange.cancel();
         listenerController?.abort();
         keyboardNavigationCleanups.forEach((cleanup) => {
             cleanup();

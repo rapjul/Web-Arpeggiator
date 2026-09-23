@@ -5,6 +5,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 let lastOfflinePatternValues: string[] = [];
+let lastOfflineAttackTimes: number[] = [];
 let lastOfflineRenderDuration = 0;
 let lastOfflineTransportStopAt: number | null = null;
 let lastSeamlessStartFrame = 0;
@@ -64,18 +65,6 @@ vi.mock("tone", async () => {
             }
             dispose() {}
         },
-        Pattern: class MockPattern {
-            interval = "16n";
-            constructor(
-                _callback: (time: number, note: string) => void,
-                values: string[],
-                _pattern: string,
-            ) {
-                lastOfflinePatternValues = values;
-            }
-            start() {}
-            dispose() {}
-        },
         getContext: () => mockContext,
         now: () => 1.0,
         Time: (_t: string) => ({
@@ -129,6 +118,7 @@ describe("Recorder Manager Module", () => {
 
     beforeEach(() => {
         lastOfflinePatternValues = [];
+        lastOfflineAttackTimes = [];
         lastOfflineRenderDuration = 0;
         lastOfflineTransportStopAt = null;
         lastSeamlessStartFrame = 0;
@@ -160,7 +150,10 @@ describe("Recorder Manager Module", () => {
             synths: {} as unknown as RecorderAudio["synths"],
             createOfflineChain: vi.fn(() => ({
                 offlineSynth: {
-                    triggerAttack: vi.fn(),
+                    triggerAttack: vi.fn((note: string, time: number) => {
+                        lastOfflinePatternValues.push(note);
+                        lastOfflineAttackTimes.push(time);
+                    }),
                     triggerRelease: vi.fn(),
                 } as unknown as ReturnType<RecorderAudio["createOfflineChain"]>["offlineSynth"],
             })),
@@ -206,6 +199,18 @@ describe("Recorder Manager Module", () => {
         await manager.initRecorder();
         expect(mockAudio.reverb.connect).toHaveBeenCalled();
         expect(mockDom.recordStatus.textContent).toContain("Ready to record");
+    });
+
+    it("safely handles concurrent initRecorder calls with promise locking", async () => {
+        const manager = createRecorderManager({
+            audio: mockAudio,
+            dom: mockDom,
+            state: mockState,
+            actions: mockActions,
+        });
+
+        await Promise.all([manager.initRecorder(), manager.initRecorder()]);
+        expect(mockAudio.reverb.connect).toHaveBeenCalledOnce();
     });
 
     it("toggles recording state and updates button labels", async () => {
@@ -319,6 +324,63 @@ describe("Recorder Manager Module", () => {
         expect(lastOfflineTransportStopAt).toBe(0.75);
     });
 
+    it("extends a zero-tail render far enough to preserve the final swung gate", async () => {
+        const manager = createRecorderManager({
+            audio: mockAudio,
+            dom: mockDom,
+            state: mockState,
+            actions: mockActions,
+        });
+        mockActions.getAllSettings = vi.fn(() => ({
+            bpm: 120,
+            swing: 1,
+            notes: ["C4", "E4", "G4"],
+            direction: "up",
+            interval: "16n",
+            gateRatio: 1,
+            loopCount: 1,
+            offlineExportMode: "tail",
+            offlineExportTailSeconds: 0,
+        }));
+
+        await manager.exportOffline();
+
+        expect(lastOfflineTransportStopAt).toBeCloseTo((400 + 120) / 480 / 2);
+        expect(lastOfflineRenderDuration).toBeCloseTo((400 + 120) / 480 / 2);
+    });
+
+    it("rejects a seamless export that ends at a different swing phase", async () => {
+        const Tone = await import("tone");
+        const manager = createRecorderManager({
+            audio: mockAudio,
+            dom: mockDom,
+            state: mockState,
+            actions: mockActions,
+        });
+        mockActions.getAllSettings = vi.fn(() => ({
+            bpm: 120,
+            swing: 1,
+            notes: ["C4", "E4", "G4"],
+            direction: "up",
+            interval: "16n",
+            gateRatio: 1,
+            loopCount: 1,
+            offlineExportMode: "seamless",
+            envRelease: 1,
+            delayMix: 0,
+            reverbMix: 0,
+            chorusMix: 0,
+            autoPanMix: 0,
+        }));
+
+        await manager.exportOffline();
+
+        expect(Tone.Offline).not.toHaveBeenCalled();
+        expect(mockDom.offlineExportStatus.textContent).toContain(
+            "Cannot generate a seamless loop with Swing",
+        );
+    });
+
     it("warms, crops, and exports seamless loops from one settings snapshot", async () => {
         const manager = createRecorderManager({
             audio: mockAudio,
@@ -362,6 +424,20 @@ describe("Recorder Manager Module", () => {
                 pattern: expect.objectContaining({
                     scheduledNotes: ["C4", "E4", "G4"],
                     stepsPerLoop: 3,
+                    renderedNotes: [
+                        "C4",
+                        "E4",
+                        "G4",
+                        "C4",
+                        "E4",
+                        "G4",
+                        "C4",
+                        "E4",
+                        "G4",
+                        "C4",
+                        "E4",
+                        "G4",
+                    ],
                 }),
                 export: expect.objectContaining({
                     mode: "seamless",
@@ -414,11 +490,17 @@ describe("Recorder Manager Module", () => {
             autoPanMix: 0,
         }));
 
-        await manager.exportOffline();
+        const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+        try {
+            await manager.exportOffline();
 
-        expect(createSeamlessLoopAudioBuffer).not.toHaveBeenCalled();
-        expect(audioBufferToWav).not.toHaveBeenCalled();
-        expect(mockActions.showToast).toHaveBeenCalledWith("Offline render failed.", "error");
+            expect(createSeamlessLoopAudioBuffer).not.toHaveBeenCalled();
+            expect(audioBufferToWav).not.toHaveBeenCalled();
+            expect(mockActions.showToast).toHaveBeenCalledWith("Offline render failed.", "error");
+            expect(errorSpy).toHaveBeenCalledWith("Offline rendering failed:", expect.any(Error));
+        } finally {
+            errorSpy.mockRestore();
+        }
     });
 
     it("rejects unaligned chorus and auto-pan before offline rendering", async () => {
@@ -551,10 +633,16 @@ describe("Recorder Manager Module", () => {
         expect(mockActions.showToast).toHaveBeenCalledWith("Export complete!", "success");
 
         // Error during offline render
+        const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
         const Tone = await import("tone");
         vi.spyOn(Tone, "Offline").mockRejectedValueOnce(new Error("Offline render crash"));
-        await manager.exportOffline();
-        expect(mockActions.showToast).toHaveBeenCalledWith("Offline render failed.", "error");
+        try {
+            await manager.exportOffline();
+            expect(mockActions.showToast).toHaveBeenCalledWith("Offline render failed.", "error");
+            expect(errorSpy).toHaveBeenCalledWith("Offline rendering failed:", expect.any(Error));
+        } finally {
+            errorSpy.mockRestore();
+        }
     });
 
     it("handles real-time export with only WAV format selected and decode failures", async () => {
@@ -575,6 +663,7 @@ describe("Recorder Manager Module", () => {
         expect(mockActions.showToast).toHaveBeenCalledWith("Export complete!", "success");
 
         // MP3 decode failure
+        const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
         mockActions.showToast.mockClear();
         mockDom.realtimeExportWavCheck.checked = false;
         mockDom.realtimeExportMp3Check.checked = true;
@@ -582,8 +671,13 @@ describe("Recorder Manager Module", () => {
         vi.spyOn(Tone.getContext(), "decodeAudioData").mockRejectedValueOnce(
             new Error("Decode failed"),
         );
-        await manager.exportRealtime();
-        expect(mockActions.showToast).toHaveBeenCalledWith("MP3 encoding failed.", "error");
+        try {
+            await manager.exportRealtime();
+            expect(mockActions.showToast).toHaveBeenCalledWith("MP3 encoding failed.", "error");
+            expect(errorSpy).toHaveBeenCalledWith("MP3 encoding failed:", expect.any(Error));
+        } finally {
+            errorSpy.mockRestore();
+        }
     });
 
     it("auto-starts audio and playback when recording begins from stopped state", async () => {
@@ -632,5 +726,57 @@ describe("Recorder Manager Module", () => {
             "Offline generation failed! No audio was created.",
             "error",
         );
+    });
+
+    it("handles WAV encoding errors during realtime export gracefully and re-enables export button", async () => {
+        const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+        const { audioBufferToWav } = await import("@core/audio-utils.js");
+        vi.mocked(audioBufferToWav).mockImplementationOnce(() => {
+            throw new Error("WAV encoding crashed");
+        });
+
+        const manager = createRecorderManager({
+            audio: mockAudio,
+            dom: mockDom,
+            state: mockState,
+            actions: mockActions,
+        });
+
+        manager.setRecorderBlob(new Blob([new Uint8Array(2000)]));
+        mockDom.realtimeExportWavCheck.checked = true;
+        mockDom.realtimeExportMp3Check.checked = false;
+        mockDom.exportButton.disabled = true;
+
+        await manager.exportRealtime();
+
+        expect(errorSpy).toHaveBeenCalledWith("WAV encoding failed:", expect.any(Error));
+        expect(mockDom.exportButton.disabled).toBe(false);
+        expect(mockDom.exportButton.textContent).toBe("Export Files");
+        expect(mockActions.showToast).toHaveBeenCalledWith("WAV encoding failed.", "error");
+        errorSpy.mockRestore();
+    });
+
+    it("handles MP3 encoding errors during realtime export gracefully", async () => {
+        const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+        const { audioBufferToMp3Blob } = await import("@core/audio-utils.js");
+        vi.mocked(audioBufferToMp3Blob).mockRejectedValueOnce(new Error("MP3 failed"));
+
+        const manager = createRecorderManager({
+            audio: mockAudio,
+            dom: mockDom,
+            state: mockState,
+            actions: mockActions,
+        });
+
+        manager.setRecorderBlob(new Blob([new Uint8Array(2000)]));
+        mockDom.realtimeExportWavCheck.checked = false;
+        mockDom.realtimeExportMp3Check.checked = true;
+
+        await manager.exportRealtime();
+
+        expect(errorSpy).toHaveBeenCalledWith("MP3 encoding failed:", expect.any(Error));
+        expect(mockDom.recordStatus.textContent).toContain("MP3 encoding failed. See console.");
+        expect(mockActions.showToast).toHaveBeenCalledWith("MP3 encoding failed.", "error");
+        errorSpy.mockRestore();
     });
 });

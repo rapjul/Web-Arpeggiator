@@ -4,6 +4,7 @@
 
 import { createSettingsManager } from "@storage/settings-manager.js";
 import { describe, expect, it, vi } from "vitest";
+import { DEFAULT_RANDOM_SEED } from "@core/random-seed.js";
 
 describe("Settings Manager Domain Module", () => {
     const createMockDom = () => {
@@ -371,11 +372,20 @@ describe("Settings Manager Domain Module", () => {
             audio: {} as unknown as Parameters<typeof createSettingsManager>[0]["audio"],
         });
 
-        manager.loadAllSettings({ bpm: 120 });
-        expect(mockActions.showToast).toHaveBeenCalledWith(
-            expect.stringContaining("Error loading preset"),
-            "error",
-        );
+        const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+        try {
+            manager.loadAllSettings({ bpm: 120 });
+            expect(mockActions.showToast).toHaveBeenCalledWith(
+                expect.stringContaining("Error loading preset"),
+                "error",
+            );
+            expect(consoleErrorSpy).toHaveBeenCalledWith(
+                "Failed to parse preset:",
+                expect.any(Error),
+            );
+        } finally {
+            consoleErrorSpy.mockRestore();
+        }
     });
 
     it("handles legacy string-formatted note sequences in loadAllSettings", () => {
@@ -439,5 +449,176 @@ describe("Settings Manager Domain Module", () => {
         });
         expect(mockDom.notesInput.value).toBe("C4 E4 G4");
         expect(mockState.currentNotes).toEqual(["C4", "E4", "G4"]);
+    });
+
+    it("updates scaleQuantize toggle according to settings payload", () => {
+        const mockDom = createMockDom();
+        const mockActions = {
+            getArpeggioNotes: () => ["C4"],
+            getSelectedPatternDirection: () => "up",
+            setSelectedPatternDirection: vi.fn(),
+            updateScaleQuantizeUi: vi.fn(),
+            updateScaleQuantizeToggleText: vi.fn(),
+            updateWaveformButtons: vi.fn(),
+            setSynth: vi.fn(),
+            updateButtonGroup: vi.fn(),
+            createOrUpdatePattern: vi.fn(),
+            showToast: vi.fn(),
+        };
+
+        const manager = createSettingsManager({
+            state: { currentNotes: ["C4"] } as unknown as Parameters<
+                typeof createSettingsManager
+            >[0]["state"],
+            dom: mockDom as unknown as Parameters<typeof createSettingsManager>[0]["dom"],
+            actions: mockActions as unknown as Parameters<
+                typeof createSettingsManager
+            >[0]["actions"],
+            audio: {
+                filter: { frequency: { value: 0 }, Q: { value: 0 } },
+                delay: { wet: { value: 0 } },
+                reverb: { wet: { value: 0 } },
+                postGain: { volume: { value: 0 } },
+            } as unknown as Parameters<typeof createSettingsManager>[0]["audio"],
+        });
+
+        manager.loadAllSettings({
+            scaleType: "major",
+            scaleQuantize: true,
+        });
+        expect(mockDom.scaleQuantizeToggle.checked).toBe(true);
+
+        manager.loadAllSettings({
+            scaleType: "chromatic",
+            scaleQuantize: false,
+        });
+        expect(mockDom.scaleQuantizeToggle.checked).toBe(false);
+    });
+
+    it("falls back to alert when loadAllSettings encounters error and showToast is unavailable", () => {
+        const mockDom = createMockDom();
+        const mockActions = {
+            getArpeggioNotes: () => ["C4"],
+            getSelectedPatternDirection: () => "up",
+            setSelectedPatternDirection: () => {},
+            updateScaleQuantizeUi: () => {},
+            updateScaleQuantizeToggleText: () => {},
+            updateWaveformButtons: () => {},
+            setSynth: () => {},
+            updateButtonGroup: () => {},
+            createOrUpdatePattern: () => {
+                throw new Error("Invalid pattern");
+            },
+            // showToast is omitted
+        };
+
+        const originalAlert = window.alert;
+        const alertSpy = vi.fn();
+        window.alert = alertSpy;
+        const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+        try {
+            const manager = createSettingsManager({
+                state: {} as unknown as Parameters<typeof createSettingsManager>[0]["state"],
+                dom: mockDom as unknown as Parameters<typeof createSettingsManager>[0]["dom"],
+                actions: mockActions as unknown as Parameters<
+                    typeof createSettingsManager
+                >[0]["actions"],
+                audio: {} as unknown as Parameters<typeof createSettingsManager>[0]["audio"],
+            });
+
+            const result = manager.loadAllSettings({ bpm: 120 });
+            expect(result.ok).toBe(false);
+            expect(alertSpy).toHaveBeenCalledWith(
+                "Error loading preset. File may be corrupt or from an older version.",
+            );
+        } finally {
+            window.alert = originalAlert;
+            consoleErrorSpy.mockRestore();
+        }
+    });
+
+    it("suppresses error toast and alert for UnsupportedSettingsVersion error", () => {
+        const mockDom = createMockDom();
+        const toastSpy = vi.fn();
+        const mockActions = {
+            getArpeggioNotes: () => ["C4"],
+            getSelectedPatternDirection: () => "up",
+            setSelectedPatternDirection: () => {},
+            updateScaleQuantizeUi: () => {},
+            updateScaleQuantizeToggleText: () => {},
+            updateWaveformButtons: () => {},
+            setSynth: () => {},
+            updateButtonGroup: () => {},
+            createOrUpdatePattern: () => {},
+            showToast: toastSpy,
+        };
+
+        const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+        try {
+            const manager = createSettingsManager({
+                state: {} as unknown as Parameters<typeof createSettingsManager>[0]["state"],
+                dom: mockDom as unknown as Parameters<typeof createSettingsManager>[0]["dom"],
+                actions: mockActions as unknown as Parameters<
+                    typeof createSettingsManager
+                >[0]["actions"],
+                audio: {} as unknown as Parameters<typeof createSettingsManager>[0]["audio"],
+            });
+
+            // Passing settingsVersion 999 causes normalizeSettings to throw UnsupportedSettingsVersionError
+            const result = manager.loadAllSettings({ settingsVersion: 999 });
+            expect(result.ok).toBe(false);
+            expect(toastSpy).not.toHaveBeenCalled();
+        } finally {
+            consoleErrorSpy.mockRestore();
+        }
+    });
+
+    it("restores legacy presets lacking randomSeed to default seed instead of inheriting workspace seed", () => {
+        const mockDom = createMockDom();
+        const mockState = {
+            currentNotes: ["C4"],
+            currentOctaveShift: 0,
+            currentOctaveRange: 1,
+            currentWaveform: "sine",
+            activeSynth: { oscillator: { type: "sine" } },
+            randomSeed: 0xabcdef12,
+        };
+        const mockActions = {
+            getArpeggioNotes: () => ["C4"],
+            getSelectedPatternDirection: () => "up",
+            setSelectedPatternDirection: vi.fn(),
+            updateScaleQuantizeUi: vi.fn(),
+            updateScaleQuantizeToggleText: vi.fn(),
+            updateWaveformButtons: vi.fn(),
+            setSynth: vi.fn(),
+            updateEnvelope: vi.fn(),
+            updateButtonGroup: vi.fn(),
+            createOrUpdatePattern: vi.fn(),
+            updateEstimatedExportDuration: vi.fn(),
+            updateOfflineExportModeUi: vi.fn(),
+            showToast: vi.fn(),
+        };
+
+        const manager = createSettingsManager({
+            state: mockState as unknown as Parameters<typeof createSettingsManager>[0]["state"],
+            dom: mockDom as unknown as Parameters<typeof createSettingsManager>[0]["dom"],
+            actions: mockActions as unknown as Parameters<
+                typeof createSettingsManager
+            >[0]["actions"],
+            audio: {} as unknown as Parameters<typeof createSettingsManager>[0]["audio"],
+        });
+
+        // Legacy preset lacking settingsVersion and randomSeed
+        const legacyPreset = {
+            bpm: 128,
+            notes: "C4 E4 G4",
+            patternDirection: "randomWalk",
+        };
+
+        const result = manager.loadAllSettings(legacyPreset);
+        expect(result.ok).toBe(true);
+        expect(result.settings?.randomSeed).toBe(DEFAULT_RANDOM_SEED);
+        expect(mockState.randomSeed).toBe(DEFAULT_RANDOM_SEED);
     });
 });

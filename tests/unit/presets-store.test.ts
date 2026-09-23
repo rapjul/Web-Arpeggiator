@@ -260,6 +260,23 @@ describe("Presets Store Domain Module", () => {
             const latest = await loadLatest();
             expect(latest).toBeNull();
         });
+
+        it("returns null and filters out corrupted preset records from list", async () => {
+            mockStoreData.set("corrupt-rec", {
+                id: "corrupt-rec",
+                name: "Corrupted",
+                settings: { settingsVersion: "invalid-version-schema" } as unknown as Record<
+                    string,
+                    unknown
+                >,
+            });
+
+            const single = await get("corrupt-rec");
+            expect(single).toBeNull();
+
+            const all = await list();
+            expect(all.some((r) => r.id === "corrupt-rec")).toBe(false);
+        });
     });
 
     describe("Last Session persistence", () => {

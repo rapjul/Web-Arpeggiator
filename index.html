@@ -804,12 +804,12 @@
                                     value="random"
                                     class="sr-only peer"
                                     data-pattern="random"
-                                    aria-label="Completely random note selection on every step"
+                                    aria-label="Random note selection on every step, with repeats allowed"
                                 />
                                 <span
                                     class="pattern-btn has-custom-tooltip"
                                     data-pattern="random"
-                                    data-tooltip="Completely random note selection on every step"
+                                    data-tooltip="Random note selection on every step, with repeats allowed"
                                     data-placement="top"
                                 >
                                     <svg
@@ -819,7 +819,7 @@
                                         xmlns="http://www.w3.org/2000/svg"
                                         aria-hidden="true"
                                     >
-                                        <title>Random</title>
+                                        <title>Random Step</title>
                                         <path
                                             d="M2 2 l8 14 2.57.00 L18 2 l2.5 0.0 8.0 14 1.01.0"
                                             stroke-linecap="round"
@@ -827,8 +827,36 @@
                                         />
                                     </svg>
                                     <span class="text-xs font-medium">
-                                        Random
+                                        Random Step
                                     </span>
+                                </span>
+                            </label>
+                            <label class="cursor-pointer">
+                                <input
+                                    type="radio"
+                                    name="pattern-direction"
+                                    value="randomCycle"
+                                    class="sr-only peer"
+                                    data-pattern="randomCycle"
+                                    aria-label="Randomize every note once before starting a new cycle"
+                                />
+                                <span
+                                    class="pattern-btn has-custom-tooltip"
+                                    data-pattern="randomCycle"
+                                    data-tooltip="Randomize every note once before starting a new cycle"
+                                    data-placement="top"
+                                >
+                                    <svg
+                                        class="stroke-current"
+                                        fill="none"
+                                        viewBox="0 0 32 32"
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        aria-hidden="true"
+                                    >
+                                        <title>Random Cycle</title>
+                                        <path d="M3 8h5c8 0 8 16 16 16h5 M24 20l5 4-5 4 M3 24h5c8 0 8-16 16-16h5 M24 4l5 4-5 4" stroke-linecap="round" stroke-linejoin="round" />
+                                    </svg>
+                                    <span class="text-xs font-medium">Random Cycle</span>
                                 </span>
                             </label>
                             <label class="cursor-pointer">
@@ -993,7 +1021,7 @@
                                         xmlns="http://www.w3.org/2000/svg"
                                         aria-hidden="true"
                                     >
-                                        <title>Random Walk (Drunkard)</title>
+                                        <title>Drunkard's Walk</title>
                                         <path
                                             d="M2 16 Q8 2, 12 7 T22 4 T30 24"
                                             stroke-linecap="round"
@@ -1008,6 +1036,15 @@
                                 </span>
                             </label>
                         </fieldset>
+                        <button
+                            id="reshuffle-pattern"
+                            type="button"
+                            disabled
+                            class="w-full rounded-md border border-gray-600 bg-gray-800 px-3 py-2 text-xs font-semibold text-blue-300 transition hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
+                            aria-label="Reshuffle Pattern: generate a new random pattern sequence"
+                        >
+                            Reshuffle Pattern
+                        </button>
                     </div>
                     <!-- END Selection: Pattern Direction -->
 

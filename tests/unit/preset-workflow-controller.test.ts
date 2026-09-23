@@ -5,7 +5,19 @@ import { createPresetWorkflowController } from "@ui/preset-workflow-controller.j
 
 const controllers: Array<ReturnType<typeof createPresetWorkflowController>> = [];
 
-function createFixture() {
+interface CreateFixtureOptions {
+    confirm?: (message: string) => boolean;
+    getPresetStore?: () => unknown;
+    navigatorRef?: { clipboard?: { writeText: (value: string) => Promise<void> } };
+    search?: string;
+}
+
+/**
+ * Creates a complete DOM and controller fixture for testing preset workflows.
+ *
+ * @param {CreateFixtureOptions} [options] - Optional overrides for navigator, confirm, and store.
+ */
+function createFixture(options: CreateFixtureOptions = {}) {
     const sharePresetButton = document.createElement("button");
     const savePresetButton = document.createElement("button");
     const savePresetToBrowserButton = document.createElement("button");
@@ -49,7 +61,7 @@ function createFixture() {
     );
 
     let settings = { ...DEFAULT_SETTINGS };
-    const store = {
+    const defaultStore = {
         save: vi.fn(async () => ({ id: "saved-1" })),
         get: vi.fn(async () => ({ id: "saved-1", name: "Saved", settings })),
         loadLatest: vi.fn(async () => ({ id: "saved-1", name: "Saved", settings })),
@@ -67,6 +79,7 @@ function createFixture() {
     const showStorageRecovery = vi.fn();
     const hideStorageRecovery = vi.fn();
     const showToast = vi.fn();
+    const logger = { warn: vi.fn(), error: vi.fn() };
     const reader = new FileReader();
     let fileContents = "";
     vi.spyOn(reader, "readAsText").mockImplementation(() => {
@@ -76,6 +89,14 @@ function createFixture() {
         });
         reader.dispatchEvent(new Event("load"));
     });
+    const windowRef = {
+        location: {
+            origin: "https://example.test",
+            pathname: "/",
+            search: options.search ?? "",
+        },
+    };
+    const store = options.getPresetStore ? options.getPresetStore() : defaultStore;
     const controller = createPresetWorkflowController({
         dom: {
             sharePresetButton,
@@ -89,14 +110,12 @@ function createFixture() {
             presetNameInput,
             savedPresetSelect,
         },
-        windowRef: {
-            location: { origin: "https://example.test", pathname: "/", search: "" },
-        },
-        navigatorRef: { clipboard },
+        windowRef,
+        navigatorRef: options.navigatorRef ?? { clipboard },
         fileReaderFactory: () => reader,
-        confirm: () => true,
+        confirm: options.confirm ?? (() => true),
         factoryPresets: FACTORY_PRESETS,
-        getPresetStore: () => store,
+        getPresetStore: () => store as ReturnType<typeof defaultStore.get>,
         getAllSettings: () => settings,
         applySettingsWithHistory,
         generateFilename: () => "arpeggio",
@@ -105,12 +124,14 @@ function createFixture() {
         showStorageRecovery,
         hideStorageRecovery,
         showToast,
+        logger,
     });
     controller.initialize();
     controllers.push(controller);
 
     return {
         applySettingsWithHistory,
+        clearSavedPresetButton,
         clipboard,
         controller,
         deleteSavedPresetButton,
@@ -120,17 +141,31 @@ function createFixture() {
         futureConfirm,
         futureOverlay,
         hideStorageRecovery,
+        loadPresetButton,
         loadPresetInput,
         loadSavedPresetButton,
-        sharePresetButton,
+        logger,
+        presetNameInput,
+        refreshSavedPresetList,
+        savePresetButton,
+        savePresetToBrowserButton,
         savedPresetSelect,
         setActiveSoundStarterCard,
+        settings: () => settings,
+        sharePresetButton,
         showStorageRecovery,
         showToast,
-        store,
+        store: defaultStore,
+        windowRef,
     };
 }
 
+/**
+ * Dispatches a synthetic file import event with the given contents.
+ *
+ * @param {ReturnType<typeof createFixture>} fixture - Test fixture.
+ * @param {string} contents - Text contents of the mock file.
+ */
 function dispatchFileImport(fixture: ReturnType<typeof createFixture>, contents: string) {
     fixture.fileContents(contents);
     const file = new File([contents], "preset.json", { type: "application/json" });
@@ -139,6 +174,13 @@ function dispatchFileImport(fixture: ReturnType<typeof createFixture>, contents:
         value: [file],
     });
     fixture.loadPresetInput.dispatchEvent(new Event("change", { bubbles: true }));
+}
+
+/** Flushes microtask queue. */
+async function flushPromises() {
+    for (let i = 0; i < 10; i++) {
+        await Promise.resolve();
+    }
 }
 
 describe("preset workflow controller", () => {
@@ -163,6 +205,14 @@ describe("preset workflow controller", () => {
 
         dispatchFileImport(fixture, "not-json");
         expect(fixture.showToast).toHaveBeenCalledWith("Failed to load preset.", "error");
+        expect(fixture.logger.error).toHaveBeenCalledWith(
+            "Failed to copy share link:",
+            expect.any(Error),
+        );
+        expect(fixture.logger.error).toHaveBeenCalledWith(
+            "Failed to load preset:",
+            expect.any(Error),
+        );
     });
 
     it("opens compatible loading for future versions and saves factory selections safely", async () => {
@@ -200,5 +250,264 @@ describe("preset workflow controller", () => {
         fixture.deleteSavedPresetButton.click();
         await Promise.resolve();
         expect(fixture.showStorageRecovery).toHaveBeenCalled();
+        expect(fixture.logger.error).toHaveBeenCalledWith(
+            "Failed to delete saved preset:",
+            expect.any(Error),
+        );
+    });
+
+    it("copies share URL to clipboard on success", async () => {
+        const fixture = createFixture();
+        fixture.sharePresetButton.click();
+        await Promise.resolve();
+
+        expect(fixture.clipboard.writeText).toHaveBeenCalledWith(
+            expect.stringContaining("https://example.test/?"),
+        );
+        expect(fixture.showToast).toHaveBeenCalledWith(
+            "Share link copied to clipboard!",
+            "success",
+        );
+    });
+
+    it("reports failure when clipboard API is completely missing from navigator", async () => {
+        const fixture = createFixture({ navigatorRef: {} });
+        fixture.sharePresetButton.click();
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(fixture.logger.error).toHaveBeenCalledWith(
+            "Failed to copy share link:",
+            expect.any(Error),
+        );
+        expect(fixture.showToast).toHaveBeenCalledWith(
+            expect.stringContaining("Failed to copy link. Generated URL:"),
+            "error",
+        );
+    });
+
+    it("loads preset from URL search parameters when valid changes exist", () => {
+        const fixture = createFixture({ search: "?bpm=140" });
+        fixture.controller.loadPresetFromUrl();
+
+        expect(fixture.applySettingsWithHistory).toHaveBeenCalledWith(
+            expect.objectContaining({ bpm: 140 }),
+        );
+        expect(fixture.showToast).toHaveBeenCalledWith("Preset loaded from URL link!", "success");
+    });
+
+    it("ignores loadPresetFromUrl when URL parameters match current settings or are empty", () => {
+        const fixture = createFixture({ search: "" });
+        fixture.controller.loadPresetFromUrl();
+
+        expect(fixture.applySettingsWithHistory).not.toHaveBeenCalled();
+    });
+
+    it("downloads preset and saves to browser storage on save button click", async () => {
+        const originalCreateObjectURL = URL.createObjectURL;
+        const originalRevokeObjectURL = URL.revokeObjectURL;
+        URL.createObjectURL = vi.fn(() => "blob:https://example.test/mock-blob");
+        URL.revokeObjectURL = vi.fn();
+        try {
+            const fixture = createFixture();
+            fixture.savePresetButton.click();
+            await flushPromises();
+
+            expect(URL.createObjectURL).toHaveBeenCalled();
+            expect(fixture.store.save).toHaveBeenCalled();
+            expect(fixture.refreshSavedPresetList).toHaveBeenCalledWith("saved-1");
+            expect(fixture.hideStorageRecovery).toHaveBeenCalled();
+            expect(fixture.showToast).toHaveBeenCalledWith("Preset saved!", "success");
+        } finally {
+            URL.createObjectURL = originalCreateObjectURL;
+            URL.revokeObjectURL = originalRevokeObjectURL;
+        }
+    });
+
+    it("shows storage recovery if store save fails during file download save", async () => {
+        const originalCreateObjectURL = URL.createObjectURL;
+        const originalRevokeObjectURL = URL.revokeObjectURL;
+        URL.createObjectURL = vi.fn(() => "blob:https://example.test/mock-blob");
+        URL.revokeObjectURL = vi.fn();
+        try {
+            const fixture = createFixture();
+            fixture.store.save.mockRejectedValueOnce(new Error("IndexedDB quota exceeded"));
+            fixture.savePresetButton.click();
+            await flushPromises();
+
+            expect(fixture.showStorageRecovery).toHaveBeenCalled();
+            expect(fixture.logger.warn).toHaveBeenCalledWith(
+                "Failed to save preset to browser storage:",
+                expect.any(Error),
+            );
+            expect(fixture.showToast).toHaveBeenCalledWith(
+                "Preset downloaded, but browser save failed.",
+                "info",
+            );
+        } finally {
+            URL.createObjectURL = originalCreateObjectURL;
+            URL.revokeObjectURL = originalRevokeObjectURL;
+        }
+    });
+
+    it("saves preset to browser storage when savePresetToBrowserButton is clicked", async () => {
+        const fixture = createFixture();
+        fixture.presetNameInput.value = "My Custom Synth";
+        fixture.savePresetToBrowserButton.click();
+        await flushPromises();
+
+        expect(fixture.store.save).toHaveBeenCalledWith(
+            expect.anything(),
+            expect.objectContaining({ name: "My Custom Synth", source: "save" }),
+        );
+        expect(fixture.showToast).toHaveBeenCalledWith("Preset saved to browser!", "success");
+    });
+
+    it("handles browser save failure when savePresetToBrowserButton is clicked", async () => {
+        const fixture = createFixture();
+        fixture.store.save.mockRejectedValueOnce(new Error("Save failed"));
+        fixture.savePresetToBrowserButton.click();
+        await flushPromises();
+
+        expect(fixture.showToast).toHaveBeenCalledWith("Browser save failed.", "error");
+    });
+
+    it("loads non-factory saved preset from browser storage", async () => {
+        const fixture = createFixture();
+        fixture.savedPresetSelect.value = "saved-1";
+        fixture.loadSavedPresetButton.click();
+        await flushPromises();
+
+        expect(fixture.store.get).toHaveBeenCalledWith("saved-1");
+        expect(fixture.applySettingsWithHistory).toHaveBeenCalled();
+        expect(fixture.showToast).toHaveBeenCalledWith(
+            "Loaded saved preset from browser storage.",
+            "success",
+        );
+    });
+
+    it("shows info toast when no saved preset record is found in browser storage", async () => {
+        const fixture = createFixture();
+        const option = document.createElement("option");
+        option.value = "nonexistent-id";
+        fixture.savedPresetSelect.appendChild(option);
+        fixture.savedPresetSelect.value = "nonexistent-id";
+        fixture.store.get.mockResolvedValueOnce(null);
+        fixture.loadSavedPresetButton.click();
+        await flushPromises();
+
+        expect(fixture.showToast).toHaveBeenCalledWith("No saved preset found yet.", "info");
+    });
+
+    it("shows error toast when saved preset has incompatible version", async () => {
+        const fixture = createFixture();
+        fixture.savedPresetSelect.value = "saved-1";
+        fixture.applySettingsWithHistory.mockReturnValueOnce({ ok: false });
+        fixture.loadSavedPresetButton.click();
+        await flushPromises();
+
+        expect(fixture.showToast).toHaveBeenCalledWith(
+            "Saved preset requires a newer version of Web Arpeggiator.",
+            "error",
+        );
+    });
+
+    it("handles error when store.get throws while loading saved preset", async () => {
+        const fixture = createFixture();
+        fixture.savedPresetSelect.value = "saved-1";
+        fixture.store.get.mockRejectedValueOnce(new Error("Corrupt IDB"));
+        fixture.loadSavedPresetButton.click();
+        await flushPromises();
+
+        expect(fixture.logger.error).toHaveBeenCalledWith(
+            "Failed to load saved preset:",
+            expect.any(Error),
+        );
+        expect(fixture.showStorageRecovery).toHaveBeenCalled();
+        expect(fixture.showToast).toHaveBeenCalledWith("Failed to load saved preset.", "error");
+    });
+
+    it("clears saved presets when user confirms", async () => {
+        const fixture = createFixture({ confirm: () => true });
+        fixture.clearSavedPresetButton.click();
+        await flushPromises();
+
+        expect(fixture.store.clear).toHaveBeenCalled();
+        expect(fixture.refreshSavedPresetList).toHaveBeenCalled();
+        expect(fixture.showToast).toHaveBeenCalledWith("Saved browser presets cleared.", "success");
+    });
+
+    it("aborts clearing saved presets when user cancels confirmation", async () => {
+        const fixture = createFixture({ confirm: () => false });
+        fixture.clearSavedPresetButton.click();
+        await flushPromises();
+
+        expect(fixture.store.clear).not.toHaveBeenCalled();
+    });
+
+    it("handles error when store.clear throws", async () => {
+        const fixture = createFixture({ confirm: () => true });
+        fixture.store.clear.mockRejectedValueOnce(new Error("IDB clear error"));
+        fixture.clearSavedPresetButton.click();
+        await flushPromises();
+
+        expect(fixture.logger.error).toHaveBeenCalledWith(
+            "Failed to clear saved presets:",
+            expect.any(Error),
+        );
+        expect(fixture.showStorageRecovery).toHaveBeenCalled();
+        expect(fixture.showToast).toHaveBeenCalledWith("Failed to clear saved presets.", "error");
+    });
+
+    it("shows info toast when deleting with no preset selected", () => {
+        const fixture = createFixture();
+        fixture.savedPresetSelect.value = "";
+        fixture.deleteSavedPresetButton.click();
+
+        expect(fixture.showToast).toHaveBeenCalledWith("No saved preset selected.", "info");
+    });
+
+    it("clicks hidden file input when loadPresetButton is clicked", () => {
+        const fixture = createFixture();
+        const clickSpy = vi.spyOn(fixture.loadPresetInput, "click");
+        fixture.loadPresetButton.click();
+
+        expect(clickSpy).toHaveBeenCalled();
+    });
+
+    it("imports valid file, applies settings, and automatically saves to browser storage", async () => {
+        const fixture = createFixture();
+        dispatchFileImport(fixture, JSON.stringify({ bpm: 130 }));
+        await Promise.resolve();
+
+        expect(fixture.applySettingsWithHistory).toHaveBeenCalledWith({ bpm: 130 });
+        expect(fixture.store.save).toHaveBeenCalledWith(
+            expect.anything(),
+            expect.objectContaining({ name: "preset.json", source: "import" }),
+        );
+        expect(fixture.showToast).toHaveBeenCalledWith("Preset loaded!", "success");
+    });
+
+    it("shows storage recovery when store is unavailable during file import", async () => {
+        const fixture = createFixture({ getPresetStore: () => undefined });
+        dispatchFileImport(fixture, JSON.stringify({ bpm: 130 }));
+        await Promise.resolve();
+
+        expect(fixture.showStorageRecovery).toHaveBeenCalled();
+    });
+
+    it("handles file import with null file or non-object result", () => {
+        const fixture = createFixture();
+        fixture.loadPresetInput.dispatchEvent(new Event("change", { bubbles: true }));
+
+        expect(fixture.applySettingsWithHistory).not.toHaveBeenCalled();
+    });
+
+    it("cleans up event listeners and future preset dialog on destroy", () => {
+        const fixture = createFixture();
+        fixture.controller.destroy();
+        fixture.sharePresetButton.click();
+
+        expect(fixture.clipboard.writeText).not.toHaveBeenCalled();
     });
 });

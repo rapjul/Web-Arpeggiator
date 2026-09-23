@@ -462,17 +462,28 @@ describe("Audio Utils Domain Module", () => {
         });
 
         it("rejects when encoding encounters an unhandled error", async () => {
-            const badBuffer = {
-                numberOfChannels: 1,
-                sampleRate: 44100,
-                length: 100,
-                duration: 0.1,
-                getChannelData: () => {
-                    throw new Error("Corrupt channel data");
-                },
-            } as unknown as AudioBuffer;
+            const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+            try {
+                const badBuffer = {
+                    numberOfChannels: 1,
+                    sampleRate: 44100,
+                    length: 100,
+                    duration: 0.1,
+                    getChannelData: () => {
+                        throw new Error("Corrupt channel data");
+                    },
+                } as unknown as AudioBuffer;
 
-            await expect(audioBufferToMp3Blob(badBuffer)).rejects.toThrow("Corrupt channel data");
+                await expect(audioBufferToMp3Blob(badBuffer)).rejects.toThrow(
+                    "Corrupt channel data",
+                );
+                expect(consoleErrorSpy).toHaveBeenCalledWith(
+                    "Error during MP3 encoding:",
+                    expect.any(Error),
+                );
+            } finally {
+                consoleErrorSpy.mockRestore();
+            }
         });
 
         it("triggers background idle load with requestIdleCallback when available", () => {

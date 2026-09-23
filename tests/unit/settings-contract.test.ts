@@ -8,6 +8,7 @@ import {
 } from "@core/settings-contract.js";
 import { describe, expect, test } from "vitest";
 import { FACTORY_PRESETS } from "@/config/factory-presets.js";
+import { DEFAULT_RANDOM_SEED } from "@core/random-seed.js";
 
 describe("settings contract", () => {
     test("provides the documented initial settings under a versioned schema", () => {
@@ -16,6 +17,7 @@ describe("settings contract", () => {
             bpm: 120,
             baseNotes: ["C4", "E4", "G4"],
             direction: "up",
+            randomSeed: DEFAULT_RANDOM_SEED,
             interval: "16n",
             scaleQuantize: true,
             synthType: "synth",
@@ -219,6 +221,20 @@ describe("settings contract", () => {
         });
     });
 
+    test("accepts random cycles and normalizes unsigned random seeds", () => {
+        expect(
+            normalizeSettings({ direction: "randomCycle", randomSeed: 4294967295 }),
+        ).toMatchObject({
+            direction: "randomCycle",
+            randomSeed: 4294967295,
+        });
+        expect(normalizeSettings({ randomSeed: -1 }).randomSeed).toBe(0);
+        expect(normalizeSettings({ randomSeed: Number.NaN }).randomSeed).toBe(
+            DEFAULT_SETTINGS.randomSeed,
+        );
+        expect(normalizeSettings({}).randomSeed).toBe(DEFAULT_SETTINGS.randomSeed);
+    });
+
     test("returns a detached default snapshot for a corrupted import", () => {
         const settings = normalizeSettings(["not", "a", "settings", "record"]);
 
@@ -264,5 +280,28 @@ describe("settings contract", () => {
             future: [{ settingsVersion: 1, bpm: 120, baseNotes: ["E4"] }],
         });
         expect(normalizeSettingsHistory({ past: [], present: null, future: [] })).toBeNull();
+    });
+
+    test("restores legacy presets lacking randomSeed to DEFAULT_RANDOM_SEED regardless of fallback seed", () => {
+        const workspaceFallback = {
+            ...DEFAULT_SETTINGS,
+            randomSeed: 0x12345678,
+        };
+        // Unversioned legacy snapshot without randomSeed must normalize to DEFAULT_RANDOM_SEED
+        const legacySnapshot = {
+            bpm: 130,
+            baseNotes: ["C4", "E4"],
+            direction: "random",
+        };
+        const normalizedLegacy = normalizeSettings(legacySnapshot, workspaceFallback);
+        expect(normalizedLegacy.randomSeed).toBe(DEFAULT_SETTINGS.randomSeed);
+
+        // Versioned snapshot (settingsVersion: 1) without randomSeed preserves workspace fallback for partial updates
+        const partialModernSnapshot = {
+            settingsVersion: 1,
+            bpm: 140,
+        };
+        const normalizedModern = normalizeSettings(partialModernSnapshot, workspaceFallback);
+        expect(normalizedModern.randomSeed).toBe(0x12345678);
     });
 });

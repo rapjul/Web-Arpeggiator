@@ -201,4 +201,64 @@ describe("effects controls controller", () => {
         filterCutoffSlider.dispatchEvent(new Event("input"));
         expect(onFilterCutoffChange).toHaveBeenCalledOnce();
     });
+
+    test("operates safely when value labels and optional mix sliders are null", () => {
+        const postGainSlider = createSlider("-6");
+        const filterCutoffSlider = createSlider("1500");
+        const filterResonanceSlider = createSlider("2.0");
+        const delayMixSlider = createSlider("0.2");
+        const reverbMixSlider = createSlider("0.3");
+        const onPostGainChange = vi.fn();
+        const onFilterCutoffChange = vi.fn();
+
+        const controller = createEffectsControlsController({
+            dom: {
+                postGainSlider,
+                postGainValue: null,
+                filterCutoffSlider,
+                filterCutoffValue: null,
+                filterResonanceSlider,
+                filterResonanceValue: null,
+                driveMixSlider: null,
+                driveMixValue: null,
+                chorusMixSlider: null,
+                chorusMixValue: null,
+                autoPanMixSlider: null,
+                autoPanMixValue: null,
+                delayMixSlider,
+                delayMixValue: null,
+                reverbMixSlider,
+                reverbMixValue: null,
+            },
+            formatPostGain: (v) => v,
+            onPostGainChange,
+            onFilterCutoffChange,
+            onFilterResonanceChange: vi.fn(),
+            onDriveMixChange: vi.fn(),
+            onChorusMixChange: vi.fn(),
+            onAutoPanMixChange: vi.fn(),
+            onDelayMixChange: vi.fn(),
+            onReverbMixChange: vi.fn(),
+        });
+
+        controller.initialize();
+        postGainSlider.dispatchEvent(new Event("input"));
+        expect(onPostGainChange).toHaveBeenCalledWith(-6);
+
+        filterCutoffSlider.dispatchEvent(new Event("input"));
+        expect(onFilterCutoffChange).toHaveBeenCalledWith(1500);
+
+        controller.destroy();
+    });
+
+    test("safely handles destroy calls when not initialized or called multiple times", () => {
+        const { controller } = createFixture();
+
+        expect(() => {
+            controller.destroy();
+            controller.initialize();
+            controller.destroy();
+            controller.destroy();
+        }).not.toThrow();
+    });
 });

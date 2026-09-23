@@ -3,19 +3,34 @@ import { createPlaybackController } from "@audio/playback-controller.js";
 
 const controllers: Array<ReturnType<typeof createPlaybackController>> = [];
 
-function createFixture() {
+/**
+ * Creates a configured playback test fixture with mocks.
+ *
+ * @param {object} [options] - Fixture options.
+ * @param {boolean} [options.hasButton=true] - Whether to include playStopButton.
+ * @param {boolean} [options.hasRecorder=true] - Whether recorderManager is provided.
+ * @param {boolean} [options.isRecording=false] - Whether recorder is already recording.
+ * @returns {object} Fixture utilities and mocks.
+ */
+function createFixture(
+    options: { hasButton?: boolean; hasRecorder?: boolean; isRecording?: boolean } = {},
+) {
+    const { hasButton = true, hasRecorder = true, isRecording = false } = options;
     let contextState = "running";
-    const rawContext = new EventTarget();
+    let rawContext: EventTarget | null = new EventTarget();
     const transport = { start: vi.fn(), stop: vi.fn() };
+    const draw = { cancel: vi.fn() };
     const tone = {
         getContext: () => ({ state: contextState, rawContext }),
         getTransport: () => transport,
+        Draw: draw,
     };
     const pattern = { start: vi.fn(), stop: vi.fn() };
-    const recorder = { isRecording: false, initRecorder: vi.fn(async () => {}) };
+    const silenceActiveSynth = vi.fn();
+    const recorder = hasRecorder ? { isRecording, initRecorder: vi.fn(async () => {}) } : undefined;
     const visualizer = { startUiLoop: vi.fn(), stopUiLoop: vi.fn() };
     const state = { isAudioContextStarted: false, isPlaying: false };
-    const playStopButton = document.createElement("button");
+    const playStopButton = hasButton ? document.createElement("button") : null;
     const startAudio = vi.fn(async () => {
         state.isAudioContextStarted = true;
     });
@@ -27,6 +42,7 @@ function createFixture() {
         state,
         getTone: () => tone,
         getPattern: () => pattern,
+        getSilenceActiveSynth: () => silenceActiveSynth,
         getRecorderManager: () => recorder,
         getVisualizer: () => visualizer,
         startAudio,
@@ -43,11 +59,16 @@ function createFixture() {
         },
         controller,
         createOrUpdatePattern,
+        draw,
         pattern,
         playStopButton,
         prepareForPlayback,
         rawContext,
         recorder,
+        setRawContext: (ctx: EventTarget | null) => {
+            rawContext = ctx;
+        },
+        silenceActiveSynth,
         startAudio,
         state,
         transport,
@@ -67,10 +88,12 @@ describe("playback controller", () => {
             clearNoteStep,
             controller,
             createOrUpdatePattern,
+            draw,
             pattern,
             playStopButton,
             prepareForPlayback,
             recorder,
+            silenceActiveSynth,
             startAudio,
             state,
             transport,
@@ -80,21 +103,37 @@ describe("playback controller", () => {
         await controller.start();
         expect(prepareForPlayback).toHaveBeenCalledOnce();
         expect(startAudio).toHaveBeenCalledOnce();
-        expect(recorder.initRecorder).toHaveBeenCalledOnce();
+        expect(recorder?.initRecorder).toHaveBeenCalledOnce();
         expect(createOrUpdatePattern).toHaveBeenCalledOnce();
-        expect(pattern.start).toHaveBeenCalledOnce();
+        expect(pattern.start).toHaveBeenCalledWith(0);
         expect(transport.start).toHaveBeenCalledOnce();
         expect(state.isPlaying).toBe(true);
-        expect(playStopButton.textContent).toBe("Stop Audio");
+        expect(playStopButton?.textContent).toBe("Stop Audio");
         expect(visualizer.startUiLoop).toHaveBeenCalledOnce();
 
         controller.stop();
+        expect(silenceActiveSynth).toHaveBeenCalledOnce();
+        expect(draw.cancel).toHaveBeenCalledWith(0);
         expect(pattern.stop).toHaveBeenCalledOnce();
         expect(transport.stop).toHaveBeenCalledOnce();
         expect(state.isPlaying).toBe(false);
-        expect(playStopButton.textContent).toBe("Restart Audio");
+        expect(playStopButton?.textContent).toBe("Restart Audio");
         expect(visualizer.stopUiLoop).toHaveBeenCalledOnce();
         expect(clearNoteStep).toHaveBeenCalledOnce();
+    });
+
+    it("silences the active synth before stopping the transport on stop", async () => {
+        const { controller, silenceActiveSynth, state, transport } = createFixture();
+        state.isAudioContextStarted = true;
+        state.isPlaying = true;
+
+        const callOrder: string[] = [];
+        silenceActiveSynth.mockImplementation(() => callOrder.push("silence"));
+        transport.stop.mockImplementation(() => callOrder.push("transport.stop"));
+
+        controller.stop();
+
+        expect(callOrder).toEqual(["silence", "transport.stop"]);
     });
 
     it("stops playback when the raw AudioContext becomes suspended", async () => {
@@ -104,9 +143,103 @@ describe("playback controller", () => {
         controller.observeAudioContextState();
 
         contextState("suspended");
-        rawContext.dispatchEvent(new Event("statechange"));
+        rawContext?.dispatchEvent(new Event("statechange"));
 
         expect(state.isPlaying).toBe(false);
         expect(transport.stop).toHaveBeenCalledOnce();
+    });
+
+    it("skips prepareForPlayback and recorder init when already started and recording", async () => {
+        const { controller, prepareForPlayback, recorder, state } = createFixture({
+            isRecording: true,
+        });
+        state.isAudioContextStarted = true;
+
+        await controller.start();
+
+        expect(prepareForPlayback).not.toHaveBeenCalled();
+        expect(recorder?.initRecorder).not.toHaveBeenCalled();
+    });
+
+    it("ignores start calls when playback is already active", async () => {
+        const { controller, pattern, state, transport, visualizer } = createFixture();
+        state.isAudioContextStarted = true;
+        state.isPlaying = true;
+
+        await controller.start();
+
+        expect(pattern.start).not.toHaveBeenCalled();
+        expect(transport.start).not.toHaveBeenCalled();
+        expect(visualizer.startUiLoop).not.toHaveBeenCalled();
+    });
+
+    it("ignores stop calls when playback is already inactive", async () => {
+        const { clearNoteStep, controller, draw, pattern, silenceActiveSynth, state, transport } =
+            createFixture();
+        state.isPlaying = false;
+
+        controller.stop();
+
+        expect(silenceActiveSynth).not.toHaveBeenCalled();
+        expect(draw.cancel).not.toHaveBeenCalled();
+        expect(pattern.stop).not.toHaveBeenCalled();
+        expect(transport.stop).not.toHaveBeenCalled();
+        expect(clearNoteStep).not.toHaveBeenCalled();
+    });
+
+    it("safely starts and stops when playStopButton and recorder are omitted", async () => {
+        const { controller, state } = createFixture({
+            hasButton: false,
+            hasRecorder: false,
+        });
+
+        await controller.start();
+        expect(state.isPlaying).toBe(true);
+
+        controller.stop();
+        expect(state.isPlaying).toBe(false);
+    });
+
+    it("manages AudioContext observation transitions, running state changes, and destroy", () => {
+        const { contextState, controller, rawContext, setRawContext, state, transport } =
+            createFixture();
+        state.isPlaying = true;
+
+        // Calling observeAudioContextState binds to rawContext
+        controller.observeAudioContextState();
+
+        // Idempotent call with the same context
+        controller.observeAudioContextState();
+
+        // State change to "running" should not stop playback
+        contextState("running");
+        rawContext?.dispatchEvent(new Event("statechange"));
+        expect(state.isPlaying).toBe(true);
+        expect(transport.stop).not.toHaveBeenCalled();
+
+        // Null rawContext should safely be ignored
+        setRawContext(null);
+        controller.observeAudioContextState();
+
+        // Switching to a new rawContext unbinds old context and binds new one
+        const secondContext = new EventTarget();
+        setRawContext(secondContext);
+        controller.observeAudioContextState();
+
+        // Dispatching on old context should now do nothing
+        contextState("suspended");
+        rawContext?.dispatchEvent(new Event("statechange"));
+        expect(state.isPlaying).toBe(true);
+
+        // Dispatching suspended on secondContext stops playback
+        secondContext.dispatchEvent(new Event("statechange"));
+        expect(state.isPlaying).toBe(false);
+        expect(transport.stop).toHaveBeenCalledOnce();
+
+        // Destroy unbinds listeners cleanly
+        state.isPlaying = true;
+        controller.destroy();
+        secondContext.dispatchEvent(new Event("statechange"));
+        expect(state.isPlaying).toBe(true);
     });
 });

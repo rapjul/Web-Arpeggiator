@@ -1,0 +1,283 @@
+import { describe, expect, it } from "vitest";
+import {
+    compileTimeline,
+    createCyclicRenderEvents,
+    getIntervalTicks,
+    getSwingPhaseCycleCount,
+    isSwingPhaseAligned,
+    getTimelineEndTick,
+    getTimelineStartTick,
+    getSwingOffsetTicks,
+    TICKS_PER_BEAT,
+    ticksToSeconds,
+} from "@core/timeline.js";
+import { ALLOWED_DIRECTIONS } from "@core/settings-contract.js";
+
+const baseSettings = () => ({
+    baseNotes: ["C4", "E4", "G4"],
+    direction: "up",
+    octaveRange: 1,
+    octaveShift: 0,
+    interval: "16n",
+    gateRatio: 0.8,
+    bpm: 120,
+    swing: 0,
+    scaleQuantize: false,
+    scaleRoot: "C",
+    scaleType: "major",
+});
+
+describe("musical timeline", () => {
+    it("uses the shared 480-PPQ interval and second conversions", () => {
+        expect(getIntervalTicks("16n")).toBe(120);
+        expect(getIntervalTicks("unsupported")).toBe(120);
+        expect(ticksToSeconds(TICKS_PER_BEAT, 120)).toBe(0.5);
+        expect(ticksToSeconds(TICKS_PER_BEAT, 1)).toBe(1.5);
+    });
+
+    it("keeps swung gates behind the next actual attack across cycle boundaries", () => {
+        const timeline = compileTimeline(
+            { ...baseSettings(), swing: 1, gateRatio: 1 },
+            { cycles: 2 },
+        );
+        timeline.events.slice(0, -1).forEach((event, index) => {
+            expect(event.startTick + event.durationTicks).toBeLessThanOrEqual(
+                timeline.events[index + 1].startTick,
+            );
+        });
+        expect(
+            timeline.events.map(({ startTick, durationTicks }) => [startTick, durationTicks]),
+        ).toEqual([
+            [0, 120],
+            [233, 120],
+            [400, 73],
+            [473, 7],
+            [480, 120],
+            [713, 7],
+        ]);
+    });
+
+    it("preserves only the terminal gate when requested for an effects tail", () => {
+        const clipped = compileTimeline(
+            { ...baseSettings(), swing: 1, gateRatio: 1 },
+            { cycles: 1, terminalGatePolicy: "clip" },
+        );
+        const preserved = compileTimeline(
+            { ...baseSettings(), swing: 1, gateRatio: 1 },
+            { cycles: 1, terminalGatePolicy: "preserve" },
+        );
+        expect(clipped.events.at(-1)?.durationTicks).toBe(1);
+        expect(preserved.events.at(-1)?.durationTicks).toBe(120);
+        expect(getTimelineEndTick(clipped)).toBe(360);
+        expect(getTimelineEndTick(preserved)).toBe(520);
+    });
+
+    it("repeats selected swung timing through seamless warm-up", () => {
+        const selected = compileTimeline(
+            { ...baseSettings(), swing: 1, gateRatio: 1 },
+            { cycles: 1, terminalGatePolicy: "clip" },
+        );
+        const preRollTicks = selected.cycleDurationTicks * 3;
+        const renderedEvents = createCyclicRenderEvents(selected, preRollTicks);
+
+        expect(renderedEvents.map((event) => event.startTick)).toEqual([
+            0, 233, 359, 360, 593, 719, 720, 953, 1079, 1080, 1313, 1439,
+        ]);
+        expect(renderedEvents.slice(-3).map((event) => event.pitch)).toEqual(
+            selected.scheduledNotes,
+        );
+    });
+
+    it("materializes seeded stochastic cycles instead of freezing the first cycle", () => {
+        const timeline = compileTimeline(
+            { ...baseSettings(), direction: "randomCycle", randomSeed: 1234 },
+            { cycles: 2 },
+        );
+        const first = timeline.scheduledNotes.slice(0, timeline.stepsPerCycle);
+        const second = timeline.scheduledNotes.slice(timeline.stepsPerCycle);
+        expect([...first].sort()).toEqual(["C4", "E4", "G4"]);
+        expect([...second].sort()).toEqual(["C4", "E4", "G4"]);
+        expect(second).not.toEqual(first);
+        expect(
+            compileTimeline(
+                { ...baseSettings(), direction: "randomCycle", randomSeed: 1234 },
+                { cycles: 2 },
+            ).scheduledNotes,
+        ).toEqual(timeline.scheduledNotes);
+    });
+
+    it("matches Tone's default 8th-note swing shape at integer ticks", () => {
+        expect(getSwingOffsetTicks(0, 1)).toBe(0);
+        expect(getSwingOffsetTicks(240, 1)).toBe(160);
+        expect(getSwingOffsetTicks(120, 0.5)).toBe(57);
+        expect(getSwingOffsetTicks(120, 0)).toBe(0);
+    });
+
+    it("requires a whole swing phase before a timeline can repeat seamlessly", () => {
+        const oneCycle = compileTimeline({ ...baseSettings(), swing: 1 }, { cycles: 1 });
+        const alignedCycles = compileTimeline({ ...baseSettings(), swing: 1 }, { cycles: 4 });
+
+        expect(isSwingPhaseAligned(oneCycle.musicalDurationTicks, oneCycle.swing)).toBe(false);
+        expect(isSwingPhaseAligned(alignedCycles.musicalDurationTicks, alignedCycles.swing)).toBe(
+            true,
+        );
+        expect(isSwingPhaseAligned(oneCycle.musicalDurationTicks, 0)).toBe(true);
+        expect(getSwingPhaseCycleCount(oneCycle.cycleDurationTicks, oneCycle.swing)).toBe(4);
+        expect(getSwingPhaseCycleCount(oneCycle.cycleDurationTicks, 0)).toBe(1);
+    });
+
+    it("compiles resolved notes, source identity, gate, and trailing musical duration", () => {
+        const timeline = compileTimeline(baseSettings(), { cycles: 2 });
+
+        expect(timeline.stepsPerCycle).toBe(3);
+        expect(timeline.stepDurationTicks).toBe(120);
+        expect(timeline.cycleDurationTicks).toBe(360);
+        expect(timeline.musicalDurationTicks).toBe(720);
+        expect(timeline.resolvedNotes).toEqual(["C4", "E4", "G4"]);
+        expect(timeline.events).toHaveLength(6);
+        expect(timeline.events[0]).toMatchObject({
+            pitch: "C4",
+            startTick: 0,
+            durationTicks: 96,
+            sourceNoteIndex: 0,
+            sourceStepIndex: 0,
+            cycleIndex: 0,
+            stepIndex: 0,
+        });
+        expect(timeline.events[3]).toMatchObject({
+            pitch: "C4",
+            startTick: 360,
+            cycleIndex: 1,
+            stepIndex: 0,
+        });
+    });
+
+    it("reuses a resolved sequence and permits internal warm-up cycles", () => {
+        const source = compileTimeline(
+            { ...baseSettings(), direction: "random" },
+            { cycles: 1, rng: () => 0 },
+        );
+        const render = compileTimeline(
+            { ...baseSettings(), direction: "random" },
+            {
+                cycles: 101,
+                maxCycles: 101,
+                resolvedNotes: source.resolvedNotes,
+                sourceNoteMap: source.sourceNoteMap,
+            },
+        );
+
+        expect(render.resolvedNotes).toEqual(source.resolvedNotes);
+        expect(render.sourceNoteMap).toEqual(source.sourceNoteMap);
+        expect(render.cycles).toBe(101);
+        expect(compileTimeline({ ...baseSettings(), loopCount: 101 }, { cycles: 101 }).cycles).toBe(
+            100,
+        );
+    });
+
+    it("resolves every supported direction before scheduling", () => {
+        for (const direction of ALLOWED_DIRECTIONS) {
+            const timeline = compileTimeline(
+                { ...baseSettings(), direction },
+                { cycles: 1, rng: () => 0.25 },
+            );
+            expect(timeline.events.length).toBeGreaterThan(0);
+            expect(timeline.events.map((event) => event.pitch)).toEqual(timeline.resolvedNotes);
+        }
+    });
+
+    it("applies octave expansion and scale quantization before timing", () => {
+        const timeline = compileTimeline({
+            ...baseSettings(),
+            baseNotes: ["D#4"],
+            octaveRange: 2,
+            octaveShift: 1,
+            scaleQuantize: true,
+            scaleRoot: "C",
+            scaleType: "major",
+        });
+
+        expect(timeline.resolvedNotes).toEqual(["D5", "D6"]);
+        expect(timeline.events.map((event) => event.sourceNoteIndex)).toEqual([0, 0]);
+    });
+
+    it("bounds a swung gate before the next event can release a newer note", () => {
+        const timeline = compileTimeline({
+            ...baseSettings(),
+            baseNotes: ["C4", "E4", "G4", "B4"],
+            interval: "16n",
+            gateRatio: 1,
+            swing: 1,
+        });
+
+        timeline.events.forEach((event, index) => {
+            const nextStart =
+                timeline.events[index + 1]?.startTick ?? timeline.musicalDurationTicks;
+            expect(event.startTick + event.durationTicks).toBeLessThanOrEqual(nextStart);
+        });
+    });
+
+    it("keeps swung events ordered and inside the musical boundary", () => {
+        const timeline = compileTimeline({
+            ...baseSettings(),
+            baseNotes: ["C4", "E4", "G4", "B4"],
+            interval: "32n",
+            swing: 1,
+        });
+
+        expect(
+            timeline.events.every(
+                (event, index) =>
+                    index === 0 || event.startTick >= timeline.events[index - 1].startTick,
+            ),
+        ).toBe(true);
+        expect(timeline.events.at(-1)?.startTick).toBeLessThan(timeline.musicalDurationTicks);
+    });
+
+    it("uses the normalized interval for unsupported input", () => {
+        const timeline = compileTimeline({ ...baseSettings(), interval: "invalid" });
+
+        expect(timeline.interval).toBe("16n");
+    });
+
+    it("keeps empty patterns empty without inventing a fallback note", () => {
+        const timeline = compileTimeline({ ...baseSettings(), baseNotes: [] }, { cycles: 4 });
+
+        expect(timeline.events).toEqual([]);
+        expect(timeline.stepsPerCycle).toBe(0);
+        expect(timeline.cycleDurationTicks).toBe(0);
+        expect(timeline.musicalDurationTicks).toBe(0);
+    });
+
+    it("preserves Tone.js 8th-note swing offsets for 16th notes without step truncation", () => {
+        expect(getTimelineStartTick(2, 120, 1)).toBe(400);
+        expect(getTimelineStartTick(1, 120, 1)).toBe(233);
+        expect(getTimelineStartTick(3, 120, 1)).toBe(473);
+
+        const timeline = compileTimeline({
+            ...baseSettings(),
+            baseNotes: ["C4", "E4", "G4", "B4"],
+            interval: "16n",
+            swing: 1,
+        });
+
+        expect(timeline.events.map((event) => event.startTick)).toEqual([0, 233, 400, 473]);
+    });
+
+    it("maintains non-decreasing event starts across all supported intervals and swing values", () => {
+        const intervals = ["64n", "32n", "16n", "8n", "4n", "2n"];
+        for (const interval of intervals) {
+            const stepTicks = getIntervalTicks(interval);
+            for (let swingInt = 0; swingInt <= 20; swingInt += 1) {
+                const swing = swingInt / 20;
+                let prevStart = -1;
+                const stepsToCheck = Math.max(8, Math.ceil((TICKS_PER_BEAT * 4) / stepTicks));
+                for (let step = 0; step <= stepsToCheck; step += 1) {
+                    const start = getTimelineStartTick(step, stepTicks, swing);
+                    expect(start).toBeGreaterThanOrEqual(prevStart);
+                    prevStart = start;
+                }
+            }
+        }
+    });
+});

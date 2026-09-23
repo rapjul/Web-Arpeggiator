@@ -12,6 +12,8 @@ Web Arpeggiator is an interactive music tool that generates flowing musical patt
 
 The application separates pure music logic (`src/core/`), Tone.js synthesis and scheduling (`src/audio/`), browser persistence (`src/storage/`), DOM rendering and interaction (`src/ui/`), and shared application state (`src/state/`). `src/app.js` remains the composition root for factory composition, settings wiring, and cross-feature callbacks. See the [Architecture Guide](./docs/architecture.md) for the detailed module ownership map, runtime flow, and source layout.
 
+Playback, previews, offline audio, and MIDI exports share the 480-PPQ musical timeline compiler, so note resolution, swing, gate lengths, and event boundaries remain consistent across outputs.
+
 The custom PWA worker uses Vite PWA's `injectManifest` build integration and Workbox for revisioned precaching, request routing, stale-precache cleanup, and bounded runtime caches. Vite PWA generates `manifest.webmanifest` from the manifest configuration in `vite.config.js` during each production build. The composed PWA controller retains ownership of registration, update UI, and cache-control messages. Documents and manifests are network-first when online, with the precached app shell as the offline navigation fallback. Verbose diagnostics and the Audio is ready toast are development-only.
 
 ## Features
@@ -24,7 +26,7 @@ The custom PWA worker uses Vite PWA's `injectManifest` build integration and Wor
 
 ### 🎼 Patterns
 
-- **11 Pattern Directions**: Up, Down, Up-Down, Down-Up, Random, Octave Cycle, Random Walk, and more
+- **13 Pattern Directions**: Up, Down, Up-Down, Down-Up, Random Step, Random Cycle, Octave Cycle, Random Walk, and more
 - **Configurable Notes**: Define any note sequence (e.g., "C4 E4 G4")
 - **Octave Control**: Shift by -3 to +3 octaves or expand across 1-5 octaves
 - **Tempo Control**: 40-240 BPM with swing adjustment
@@ -107,11 +109,13 @@ Use spaces to separate multiple notes: `C4 E4 G4`
 | **Down-Up**                | Down then up (skip endpoint)           |
 | **Up-Down (Repeated)**     | Up then down (include endpoint)        |
 | **Down-Up (Repeated)**     | Down then up (include endpoint)        |
-| **Random**                 | Random selection each step             |
+| **Random Step**            | Seeded random selection each step       |
+| **Random Cycle**           | Every note once in seeded shuffled order |
 | **Octave Cycle**           | Each note across 3 octaves, ascending  |
 | **Octave Cycle Reverse**   | Each note across 3 octaves, descending |
 | **Octave Cycle Ping-Pong** | Octave cycle with reversal             |
-| **Random Walk**            | Constrained random (adjacent notes)    |
+| **Random Walk**            | Continuous seeded adjacent movement     |
+| **Drunkard's Walk**        | Continuous local movement with occasional leaps |
 
 For detailed pattern descriptions, see [Pattern Directions Guide](./docs/pattern-directions.md).
 
@@ -126,9 +130,9 @@ For detailed pattern descriptions, see [Pattern Directions Guide](./docs/pattern
 
 ### Offline Audio Export
 
-- Select **Seamless loop (WAV)** for audio cropped to the exact requested musical duration. The renderer warms the synth and enabled effects before the exported cycle boundary, then preserves the cropped PCM samples unchanged.
-- Seamless loop checks active Chorus and Auto-pan against the selected Pattern cycles. If their LFO phase cannot return to its starting point, change the cycle count, disable the effect, or use **Include effects tail**.
-- Select **Include effects tail** to retain a conventional cold start and append 0–10 seconds of delay and reverb decay after the selected pattern cycles. It defaults to 2 seconds for compatibility with existing presets.
+- Select **Seamless loop (WAV)** for audio cropped to the exact requested musical duration. The renderer repeats the selected event timeline, including swung starts and gate lengths, before the exported cycle boundary, then preserves the cropped PCM samples unchanged.
+- Seamless loop checks swing, active Chorus, and Auto-pan against the selected Pattern cycles. If a timing or LFO phase cannot return to its starting point, change the cycle count, disable the setting or effect, or use **Include effects tail**.
+- Select **Include effects tail** to retain a conventional cold start, wait for the final scheduled gate to end, and then append 0–10 seconds of delay and reverb decay. It defaults to 2 seconds for compatibility with existing presets.
 - MP3 can be exported from either mode for listening and sharing. It includes gapless delay/padding metadata for compatible players, but only WAV has the sample-exact seamless-loop guarantee.
 - Both modes render offline without real-time variations and support 1-100 pattern cycles.
 - Offline WAV and MP3 files embed a versioned full settings snapshot, the exact materialized note sequence, and render timing. See [audio export metadata](./docs/audio-export-metadata.md) for the recovery format.
@@ -199,7 +203,7 @@ Example: With C Major selected, the note "C#4" becomes "D4"
 - **[AGENTS.md](./AGENTS.md)**: AI-agent instructions, architecture rules, and technical reference
 - **[Architecture Guide](./docs/architecture.md)**: Module ownership, runtime flow, and deferred architecture work
 - **[Development and Testing Guide](./docs/development.md)**: Local setup, commands, test ownership, and browser-test rules
-- **[Pattern Directions Guide](./docs/pattern-directions.md)**: Visual and descriptive guide to all 12 pattern types
+- **[Pattern Directions Guide](./docs/pattern-directions.md)**: Visual and descriptive guide to all 13 pattern types
 - **[Standard MIDI Specification & Implementation Guide](./docs/midi-specification.md)**: Technical reference for SMF Format 0 binary encoding and external MIDI standards
 
 ## Testing

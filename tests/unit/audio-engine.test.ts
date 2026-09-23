@@ -73,6 +73,8 @@ vi.mock("tone", async () => {
         dampening = 4000;
         resonance = 0.8;
         attackNoise = 1.0;
+        _noise = { stop: vi.fn() };
+        _lfcf = { resonance: { cancelScheduledValues: vi.fn(), setValueAtTime: vi.fn() } };
         triggerAttack() {}
         triggerRelease() {}
         triggerAttackRelease() {}
@@ -91,6 +93,7 @@ vi.mock("tone", async () => {
     }
 
     return {
+        now: () => 0,
         Analyser: class extends MockNode {
             getValue() {
                 return new Float32Array(1024);
@@ -394,15 +397,26 @@ describe("Audio Engine Model Definitions", () => {
             expect(btn.disabled).toBe(true);
             expect(mockDom.waveformPluckOverlay.classList.contains("flex")).toBe(true);
 
-            // Basic Synth enables waveform buttons
+            // Basic Synth enables waveform buttons and silences previous pluck synth
             engine.setSynth("synth");
             expect(btn.disabled).toBe(false);
             expect(mockDom.waveformPluckOverlay.classList.contains("hidden")).toBe(true);
+            const pluck = engine.synths.pluckSynth as unknown as MockPluckSynth;
+            expect(pluck._noise.stop).toHaveBeenCalled();
+            expect(pluck._lfcf.resonance.cancelScheduledValues).toHaveBeenCalled();
 
             // Square wave displays duty cycle
             engine.currentWaveform = "square";
+            const basicSynth = engine.activeSynth as unknown as MockSynth;
+            const releaseSpy = vi.spyOn(basicSynth, "triggerRelease");
+            const envCancelSpy = vi.fn();
+            (basicSynth.envelope as unknown as { cancel: () => void }).cancel = envCancelSpy;
+            pluck._noise.stop.mockClear();
             engine.setSynth("synth");
             expect(mockDom.dutyControl.classList.contains("hidden")).toBe(false);
+            expect(releaseSpy).not.toHaveBeenCalled();
+            expect(envCancelSpy).not.toHaveBeenCalled();
+            expect(pluck._noise.stop).not.toHaveBeenCalled();
         });
 
         it("switches parameters visibility for fmSynth, amSynth, monoSynth, duoSynth, membraneSynth", () => {
@@ -430,6 +444,7 @@ describe("Audio Engine Model Definitions", () => {
         });
 
         it("handles limiter instantiation failure gracefully and routes directly to destination", async () => {
+            const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
             const Tone = await import("tone");
             const originalLimiter = Tone.Limiter;
             try {
@@ -445,6 +460,12 @@ describe("Audio Engine Model Definitions", () => {
                     actions: mockActions,
                 });
                 expect(engine).toBeDefined();
+                expect(warnSpy).toHaveBeenCalledWith(
+                    expect.stringContaining(
+                        "Tone.Limiter failed, connecting to Destination directly.",
+                    ),
+                    expect.any(Error),
+                );
 
                 // Test offline chain without limiter
                 const chain = engine.createOfflineChain(
@@ -455,6 +476,7 @@ describe("Audio Engine Model Definitions", () => {
             } finally {
                 // @ts-expect-error restoring Limiter
                 Tone.Limiter = originalLimiter;
+                warnSpy.mockRestore();
             }
         });
 

@@ -377,4 +377,113 @@ describe("synth controls controller", () => {
         envAttackSlider.dispatchEvent(new Event("input"));
         expect(onEnvelopeChange).toHaveBeenCalledOnce();
     });
+
+    test("updates selected class on waveform buttons via updateWaveformButtons", () => {
+        const { controller, waveformButtons } = createFixture();
+        waveformButtons.innerHTML = `
+            <button class="waveform-btn selected" data-wave="sine"><span>Sine</span></button>
+            <button class="waveform-btn" data-wave="sawtooth"><span>Saw</span></button>
+        `;
+        const sineBtn = waveformButtons.querySelector('[data-wave="sine"]');
+        const sawBtn = waveformButtons.querySelector('[data-wave="sawtooth"]');
+
+        expect(sineBtn?.classList.contains("selected")).toBe(true);
+        expect(sawBtn?.classList.contains("selected")).toBe(false);
+
+        controller.updateWaveformButtons("sawtooth");
+
+        expect(sineBtn?.classList.contains("selected")).toBe(false);
+        expect(sawBtn?.classList.contains("selected")).toBe(true);
+    });
+
+    test("ignores clicks in waveform container that are not on waveform buttons", () => {
+        const { controller, onWaveformChange, waveformButtons } = createFixture();
+        controller.initialize();
+
+        waveformButtons.dispatchEvent(new Event("click"));
+        expect(onWaveformChange).not.toHaveBeenCalled();
+    });
+
+    test("defaults to sine waveform when clicked button lacks data-wave attribute", () => {
+        const { controller, onWaveformChange, waveformButtons } = createFixture();
+        const unlabelledBtn = document.createElement("button");
+        unlabelledBtn.className = "waveform-btn";
+        waveformButtons.appendChild(unlabelledBtn);
+        controller.initialize();
+
+        unlabelledBtn.dispatchEvent(new Event("click", { bubbles: true }));
+        expect(onWaveformChange).toHaveBeenCalledWith("sine");
+    });
+
+    test("handles null sliders and null value labels safely", () => {
+        const synthTypeSelect = document.createElement("select");
+        const waveformButtons = document.createElement("div");
+        const sliderWithoutLabel = createSlider("0.35");
+        const onHarmonicityChange = vi.fn();
+
+        const controller = createSynthControlsController({
+            dom: {
+                synthTypeSelect,
+                waveformButtons,
+                envAttackSlider: null as unknown as HTMLInputElement,
+                envAttackValue: null,
+                envDecaySlider: null as unknown as HTMLInputElement,
+                envDecayValue: null,
+                envSustainSlider: null as unknown as HTMLInputElement,
+                envSustainValue: null,
+                envReleaseSlider: null as unknown as HTMLInputElement,
+                envReleaseValue: null,
+                harmonicitySlider: sliderWithoutLabel,
+                harmonicityValue: null, // null value label
+                modIndexSlider: null as unknown as HTMLInputElement,
+                modIndexValue: null,
+                dutySlider: null as unknown as HTMLInputElement,
+                dutyValue: null,
+                monoCutoffSlider: null,
+                monoCutoffValue: null,
+                monoOctavesSlider: null,
+                monoOctavesValue: null,
+                monoQSlider: null,
+                monoQValue: null,
+                duoHarmSlider: null,
+                duoHarmValue: null,
+                duoVibratoSlider: null,
+                duoVibratoValue: null,
+                pluckDampeningSlider: null,
+                pluckDampeningValue: null,
+                pluckResonanceSlider: null,
+                pluckResonanceValue: null,
+                pluckNoiseSlider: null,
+                pluckNoiseValue: null,
+                membranePitchDecaySlider: null,
+                membranePitchDecayValue: null,
+                membraneOctavesSlider: null,
+                membraneOctavesValue: null,
+            },
+            onSynthTypeChange: vi.fn(),
+            onWaveformChange: vi.fn(),
+            onEnvelopeChange: vi.fn(),
+            onHarmonicityChange,
+            onModIndexChange: vi.fn(),
+            onDutyChange: vi.fn(),
+            onMonoCutoffChange: vi.fn(),
+            onMonoOctavesChange: vi.fn(),
+            onMonoQChange: vi.fn(),
+            onDuoHarmonicityChange: vi.fn(),
+            onDuoVibratoChange: vi.fn(),
+            onPluckDampeningChange: vi.fn(),
+            onPluckResonanceChange: vi.fn(),
+            onPluckNoiseChange: vi.fn(),
+            onMembranePitchDecayChange: vi.fn(),
+            onMembraneOctavesChange: vi.fn(),
+        });
+
+        // Initialize should not throw even if most sliders are null
+        controller.initialize();
+        sliderWithoutLabel.dispatchEvent(new Event("input"));
+        expect(onHarmonicityChange).toHaveBeenCalledWith(0.35);
+
+        // Teardown should also be safe
+        controller.destroy();
+    });
 });

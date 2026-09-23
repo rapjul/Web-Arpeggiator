@@ -1,4 +1,4 @@
-import { dismissOnboarding, expect, test } from "./fixtures/app";
+import { dismissOnboarding, expect, startAudio, test } from "./fixtures/app";
 
 const sliderGuidance = [
     ["post-gain", "Master output volume"],
@@ -40,7 +40,8 @@ const patternTooltips = [
     ["downUp", "Descending then ascending"],
     ["upDownRepeat", "repeating apex"],
     ["downUpRepeat", "repeating apex"],
-    ["random", "random note selection"],
+    ["random", "Random note selection"],
+    ["randomCycle", "Randomize every note once"],
     ["octaveCycle", "across 3 ascending octaves, repeated twice"],
     ["octaveCycleReverse", "across 3 descending octaves, repeated twice"],
     ["octaveCyclePingPong", "alternating ascending and descending"],
@@ -80,6 +81,7 @@ test("updates the offline export duration estimate from public pattern controls"
     pwaPage: page,
 }) => {
     await dismissOnboarding(page);
+    await startAudio(page);
 
     const notes = page.locator("#notes");
     const bpm = page.locator("#bpm");
@@ -100,7 +102,6 @@ test("updates the offline export duration estimate from public pattern controls"
     );
 
     await notes.fill("C4 E4 G4 B4");
-    await notes.dispatchEvent("change");
     await expect(duration).toHaveText(
         "3 Pattern cycles at ~1.00s each + 2.0s effects tail. Export duration: ~5.0 seconds",
     );

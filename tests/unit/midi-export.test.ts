@@ -8,6 +8,71 @@ import {
     uint16ToBytes,
     uint32ToBytes,
 } from "@core/midi-export.js";
+import { compileTimeline } from "@core/timeline.js";
+
+function readVariableLengthQuantity(bytes: Uint8Array, start: number) {
+    let value = 0;
+    let index = start;
+    do {
+        value = (value << 7) | (bytes[index] & 0x7f);
+    } while (bytes[index++] & 0x80);
+    return { value, nextIndex: index };
+}
+
+function readNoteEvents(bytes: Uint8Array) {
+    const trackLength = (bytes[18] << 24) | (bytes[19] << 16) | (bytes[20] << 8) | bytes[21];
+    const events = [];
+    let index = 22;
+    let absoluteTick = 0;
+    const end = index + trackLength;
+
+    while (index < end) {
+        const delta = readVariableLengthQuantity(bytes, index);
+        absoluteTick += delta.value;
+        index = delta.nextIndex;
+        const status = bytes[index++];
+
+        if (status === 0xff) {
+            index += 1;
+            const metaLength = readVariableLengthQuantity(bytes, index);
+            index = metaLength.nextIndex + metaLength.value;
+            continue;
+        }
+
+        if (status === 0x90 || status === 0x80) {
+            events.push({
+                type: status === 0x90 ? "on" : "off",
+                tick: absoluteTick,
+                note: bytes[index],
+            });
+            index += 2;
+        }
+    }
+
+    return events;
+}
+
+function readTempo(bytes: Uint8Array) {
+    for (let index = 0; index < bytes.length - 5; index += 1) {
+        if (bytes[index] === 0xff && bytes[index + 1] === 0x51 && bytes[index + 2] === 0x03) {
+            return (bytes[index + 3] << 16) | (bytes[index + 4] << 8) | bytes[index + 5];
+        }
+    }
+    return 0;
+}
+
+function readSequencerMetadata(bytes: Uint8Array) {
+    for (let index = 0; index < bytes.length - 3; index += 1) {
+        if (bytes[index] !== 0xff || bytes[index + 1] !== 0x7f) continue;
+        const length = readVariableLengthQuantity(bytes, index + 2);
+        const payload = bytes.slice(length.nextIndex, length.nextIndex + length.value);
+        return JSON.parse(new TextDecoder().decode(payload)) as {
+            application: string;
+            randomSeed: number;
+        };
+    }
+    return null;
+}
 
 describe("MIDI Export Domain Module", () => {
     test("noteNameToMidiNumber accurately converts scientific pitch notation to standard MIDI numbers", () => {
@@ -202,6 +267,38 @@ describe("MIDI Export Domain Module", () => {
         expect(bytes60[tempoIdx60 + 5]).toBe(0x40);
     });
 
+    test("keeps direct and precompiled MIDI tempos inside the 40-240 BPM contract", () => {
+        expect(readTempo(createMidiFileBytes({ notes: ["C4"], bpm: 40 }))).toBe(1_500_000);
+        expect(readTempo(createMidiFileBytes({ notes: ["C4"], bpm: 240 }))).toBe(250_000);
+        for (const bpm of [1, 7, 0, Number.NaN, Number.POSITIVE_INFINITY]) {
+            expect(readTempo(createMidiFileBytes({ notes: ["C4"], bpm }))).toBe(
+                Number.isFinite(bpm) ? 1_500_000 : 500_000,
+            );
+        }
+
+        const timeline = compileTimeline({ baseNotes: ["C4"], bpm: 120 }, { cycles: 1 });
+        expect(readTempo(createMidiFileBytes({ timeline: { ...timeline, bpm: 1 } }))).toBe(
+            1_500_000,
+        );
+    });
+
+    test("embeds the normalized random seed as sequencer-specific metadata", () => {
+        expect(
+            readSequencerMetadata(
+                createMidiFileBytes({ notes: ["C4", "E4", "G4"], randomSeed: 42 }),
+            ),
+        ).toEqual({ application: "Web Arpeggiator", randomSeed: 42 });
+
+        const timeline = compileTimeline(
+            { baseNotes: ["C4"], randomSeed: 987654321 },
+            { cycles: 1 },
+        );
+        expect(readSequencerMetadata(createMidiFileBytes({ timeline }))).toEqual({
+            application: "Web Arpeggiator",
+            randomSeed: 987654321,
+        });
+    });
+
     test("supports all interval subdivisions correctly", () => {
         const intervals = ["64n", "32n", "16n", "8n", "4n", "2n"] as const;
         intervals.forEach((interval) => {
@@ -213,6 +310,73 @@ describe("MIDI Export Domain Module", () => {
             });
             expect(bytes instanceof Uint8Array).toBe(true);
             expect(bytes.length).toBeGreaterThan(25);
+        });
+    });
+
+    test("serializes the shared timeline's absolute note timing", () => {
+        const timeline = compileTimeline(
+            {
+                baseNotes: ["C4", "E4"],
+                direction: "up",
+                interval: "8n",
+                gateRatio: 0.5,
+                bpm: 120,
+                swing: 0,
+            },
+            { cycles: 2 },
+        );
+        const bytes = createMidiFileBytes({ timeline });
+        const actual = readNoteEvents(bytes);
+        const expected = timeline.events
+            .flatMap((event) => [
+                { type: "on", tick: event.startTick, note: noteNameToMidiNumber(event.pitch) },
+                {
+                    type: "off",
+                    tick: event.startTick + event.durationTicks,
+                    note: noteNameToMidiNumber(event.pitch),
+                },
+            ])
+            .sort((left, right) => {
+                const tickDelta = left.tick - right.tick;
+                if (tickDelta !== 0) return tickDelta;
+                return (left.type === "off" ? 0 : 1) - (right.type === "off" ? 0 : 1);
+            });
+
+        expect(actual).toEqual(expected);
+    });
+
+    test("preserves the configured terminal gate for direct MIDI exports", () => {
+        const settings = {
+            baseNotes: ["C4", "E4", "G4"],
+            interval: "16n",
+            gateRatio: 1,
+            swing: 1,
+        };
+        const directEvents = readNoteEvents(
+            createMidiFileBytes({
+                notes: settings.baseNotes,
+                interval: settings.interval,
+                gateRatio: settings.gateRatio,
+                swing: settings.swing,
+                loopCount: 1,
+            }),
+        );
+        const clippedTimeline = compileTimeline(settings, { cycles: 1 });
+        const suppliedEvents = readNoteEvents(createMidiFileBytes({ timeline: clippedTimeline }));
+
+        expect(directEvents.findLast((event) => event.type === "off" && event.note === 67)).toEqual(
+            {
+                type: "off",
+                tick: 520,
+                note: 67,
+            },
+        );
+        expect(
+            suppliedEvents.findLast((event) => event.type === "off" && event.note === 67),
+        ).toEqual({
+            type: "off",
+            tick: 360,
+            note: 67,
         });
     });
 });

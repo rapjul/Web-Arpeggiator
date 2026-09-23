@@ -2,6 +2,8 @@
 
 This document provides a technical overview of the Standard MIDI File (SMF 1.0) binary format and details how Web Arpeggiator implements native, zero-dependency MIDI export in [`../src/core/midi-export.js`](../src/core/midi-export.js).
 
+MIDI is one output of the shared musical timeline in [`../src/core/timeline.js`](../src/core/timeline.js). Playback, loop previews, offline audio, and MIDI therefore use the same materialized note sequence and absolute event timing.
+
 ---
 
 ## 1. Official Standards & Specifications
@@ -40,8 +42,9 @@ Web Arpeggiator generates **Standard MIDI File Format 0** (`.mid`) files. Format
 |  - Events Stream:                                           |
 |      1. Time Signature Meta Event (4/4)                     |
 |      2. Set Tempo Meta Event (Microseconds per beat)        |
-|      3. Sequenced Note-On & Note-Off Events with Delays     |
-|      4. End of Track Meta Event                             |
+|      3. Web Arpeggiator Sequencer-Specific Metadata         |
+|      4. Sequenced Note-On & Note-Off Events with Delays     |
+|      5. End of Track Meta Event                             |
 +-------------------------------------------------------------+
 ```
 
@@ -116,7 +119,17 @@ $$\mu s/\text{beat} = \frac{60{,}000{,}000}{120} = 500{,}000\text{ (Hex: 0x07A12
 [Delta-Time: 0x00] 0xFF 0x51 0x03 0x07 0xA1 0x20
 ```
 
-#### 3. End of Track (`0x2F`)
+#### 3. Sequencer-Specific Metadata (`0x7F`)
+
+Stores a compact UTF-8 JSON payload identifying Web Arpeggiator and the normalized `randomSeed` used to materialize the pattern:
+
+```json
+{"application":"Web Arpeggiator","randomSeed":1831565813}
+```
+
+Sequencers that do not recognize this application-specific metadata can safely ignore it. The resolved MIDI notes remain self-contained, while seed-aware importers can recover the exact reproducibility setting.
+
+#### 4. End of Track (`0x2F`)
 
 Signals the termination of the track chunk:
 
@@ -144,14 +157,22 @@ Web Arpeggiator writes note events on MIDI Channel 1 (Channel Index 0):
 [Delta-Time: Note Duration (VLQ)] 0x80 [Note Number: 0-127] [Release Velocity: 0x40]
 ```
 
-- The delta-time before the Note-Off event matches the note duration in ticks:
-  $$\text{noteDurationTicks} = \text{round}(\text{stepDurationTicks} \times \text{gateRatio})$$
-- The subsequent Note-On uses a delta time matching the rest duration:
-  $$\text{restDurationTicks} = \text{stepDurationTicks} - \text{noteDurationTicks}$$
+- The Note-Off absolute tick is the compiled event start plus its effective gate duration. The duration is bounded by the next event start so a long gate cannot release after a later note has begun.
+- Delta times are calculated after all absolute events are sorted. With swing enabled, the next Note-On delta reflects the compiled swing offset rather than assuming a fixed rest duration.
+
+### 3.5. Shared Timeline Timing Contract
+
+The timeline compiler uses integer ticks at 480 PPQ:
+
+- Each supported interval maps to a fixed step length from 30 ticks (`64n`) through 960 ticks (`2n`).
+- For deterministic pattern directions, notes and scale quantization are materialized into one resolved cycle before repeating across cycles. For stochastic directions (`random`, `randomCycle`, `randomWalk`, `randomWalkDrunk`), each cycle is drawn sequentially from the seeded pseudo-random stream (with `randomWalkDrunk` generating 16 steps per cycle).
+- Swing is applied to event start ticks using the same 8th-note subdivision model as Tone.Transport, then Tone transport swing remains `0` for consumers of the compiled events.
+- Each event retains `sourceNoteIndex`, `sourceStepIndex`, `cycleIndex`, and `stepIndex`, allowing the UI and exports to refer back to the authored pattern.
+- MIDI converts absolute event starts and ends into delta-time VLQs and emits Note-Off before Note-On when events share a tick.
 
 ---
 
-### 3.5. Pitch to MIDI Note Number Mapping
+### 3.6. Pitch to MIDI Note Number Mapping
 
 MIDI assigns note number $60$ to Middle C ($C4$). The conversion formula for scientific pitch notation is:
 

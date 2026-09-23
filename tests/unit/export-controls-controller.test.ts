@@ -73,7 +73,6 @@ function createFixture() {
             visualizerModeSelect,
         },
         getSettings: () => settings,
-        getCurrentNotes: () => ({ notes: settings.baseNotes, octaveRange: 2, octaveShift: 0 }),
         getRecorderManager: () => recorder,
         getVisualizer: () => visualizer,
         startAudio,
@@ -89,6 +88,7 @@ function createFixture() {
     return {
         controller,
         duration,
+        exportButton,
         loopCountInput,
         logger,
         modeSeamlessInput,
@@ -97,12 +97,14 @@ function createFixture() {
         recorder,
         recordButton,
         renderStaticLoop,
+        settings,
         showToast,
         startAudio,
         tailControl,
         tailSecondsInput,
         toggleVisualizerButton,
         visualizer,
+        visualizerModeSelect,
     };
 }
 
@@ -136,6 +138,22 @@ describe("export controls controller", () => {
         expect(controller.updateEstimatedExportDuration).toBeTypeOf("function");
     });
 
+    it("includes a swung terminal release in the tail-duration estimate", () => {
+        const { controller, duration, settings } = createFixture();
+        Object.assign(settings, {
+            swing: 1,
+            gateRatio: 1,
+            loopCount: 1,
+            octaveRange: 1,
+            offlineExportMode: "tail",
+            offlineExportTailSeconds: 0,
+        });
+
+        controller.updateEstimatedExportDuration();
+
+        expect(duration.textContent).toContain("Export duration: ~0.5 seconds");
+    });
+
     it("starts recording and rendering exports only after audio activation", async () => {
         const { offlineExportButton, recorder, recordButton, startAudio } = createFixture();
 
@@ -164,6 +182,36 @@ describe("export controls controller", () => {
         preview.controller.destroy();
     });
 
+    it("preserves the terminal MIDI gate when compiling from the export controls", () => {
+        const { midiButton, settings } = createFixture();
+        Object.assign(settings, {
+            baseNotes: ["C4", "E4", "G4"],
+            interval: "16n",
+            gateRatio: 1,
+            swing: 1,
+            loopCount: 1,
+            octaveRange: 1,
+        });
+        vi.mocked(exportMidiFile).mockClear();
+
+        midiButton.click();
+
+        expect(exportMidiFile).toHaveBeenCalledWith(
+            expect.objectContaining({
+                timeline: expect.objectContaining({
+                    events: expect.arrayContaining([
+                        expect.objectContaining({
+                            pitch: "G4",
+                            startTick: 400,
+                            durationTicks: 120,
+                        }),
+                    ]),
+                }),
+            }),
+            "arpeggio.mid",
+        );
+    });
+
     it("reports export action failures without unhandled rejections", async () => {
         const { logger, recorder, recordButton } = createFixture();
         recorder.toggleRecording.mockRejectedValueOnce(new Error("recorder failed"));
@@ -188,5 +236,48 @@ describe("export controls controller", () => {
 
         expect(logger.error).toHaveBeenCalledWith("Failed to export MIDI pattern:", error);
         expect(showToast).toHaveBeenCalledWith("Failed to export MIDI pattern.", "error");
+    });
+
+    it("aborts action and warns when startAudio fails in startAndRun", async () => {
+        const { logger, recorder, recordButton, startAudio } = createFixture();
+        startAudio.mockRejectedValueOnce(new Error("AudioContext denied"));
+
+        recordButton.click();
+        await vi.waitFor(() => {
+            expect(logger.warn).toHaveBeenCalledWith(
+                "AudioContext failed to start on record click:",
+                expect.any(Error),
+            );
+            expect(recorder.toggleRecording).not.toHaveBeenCalled();
+        });
+    });
+
+    it("triggers realtime export, offline export, and visualizer controls on interaction", async () => {
+        const {
+            exportButton,
+            offlineExportButton,
+            recorder,
+            renderStaticLoop,
+            toggleVisualizerButton,
+            visualizer,
+            visualizerModeSelect,
+        } = createFixture();
+
+        exportButton.click();
+        await vi.waitFor(() => {
+            expect(recorder.exportRealtime).toHaveBeenCalledOnce();
+        });
+
+        offlineExportButton.click();
+        await vi.waitFor(() => {
+            expect(recorder.exportOffline).toHaveBeenCalledOnce();
+        });
+
+        toggleVisualizerButton.click();
+        expect(visualizer.toggle).toHaveBeenCalledOnce();
+
+        visualizerModeSelect.value = "loopMap";
+        visualizerModeSelect.dispatchEvent(new Event("change"));
+        expect(renderStaticLoop).toHaveBeenCalledOnce();
     });
 });

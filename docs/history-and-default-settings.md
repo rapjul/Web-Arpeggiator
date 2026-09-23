@@ -17,6 +17,7 @@ The settings below are included in every history snapshot. Reset All Defaults re
 | Output gain | -6 dB. |
 | Notes | C4 E4 G4. |
 | Pattern direction | Up. |
+| Random pattern seed | 1831565813. |
 | Note duration | 16n. |
 | Gate length | 0.80. |
 | Octave shift | 0. |
@@ -25,7 +26,7 @@ The settings below are included in every history snapshot. Reset All Defaults re
 | Offline export mode | Include effects tail. |
 | Offline effects tail | 2.0 seconds. |
 
-The generated octave-expanded notes are included in snapshots as derived data; they are not a separate control. With the default notes and two octave layers, the generated pattern contains C4, C5, E4, E5, G4, and G5.
+The generated octave-expanded notes are included in snapshots as derived data; they are not a separate control. With the default notes and two octave layers, the generated pattern contains C4, C5, E4, E5, G4, and G5. Reshuffle Pattern is the only action that generates a new random seed. Presets, history, sessions, URLs, and exports preserve and restore the seed.
 
 ### Scale
 

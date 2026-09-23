@@ -26,7 +26,8 @@ function cloneSettings(settings) {
 /**
  * @typedef {object} OfflineExportMetadataOptions
  * @property {Record<string, unknown>} settings - Complete serialized application settings snapshot.
- * @property {string[]} patternNotes - Exact note sequence scheduled for the render.
+ * @property {string[]} patternNotes - One materialized pattern cycle for version-1 compatibility.
+ * @property {string[]} [renderedNotes] - Exact note sequence scheduled across the render.
  * @property {{exportMode: string, loopCount: number, musicalDuration: number, preRollCycles: number, preRollDuration: number, tailDuration: number, renderDuration: number}} exportDuration - Calculated timing window for the render.
  * @property {number} sampleRate - Frames per second in the exported buffer.
  * @property {number} channelCount - Audio channels in the exported buffer.
@@ -35,9 +36,10 @@ function cloneSettings(settings) {
 
 /**
  * Creates the self-contained settings record embedded in every offline WAV and
- * MP3 export. `patternNotes` preserves the materialized sequence, including
- * randomized directions, while `settings` is the source of truth for future
- * restoration into the interface.
+ * MP3 export. `patternNotes` keeps the version-1 repeating-cycle contract,
+ * while `renderedNotes` preserves the complete materialized sequence,
+ * including randomized directions. `settings` remains the source of truth for
+ * future restoration into the interface.
  *
  * @param {OfflineExportMetadataOptions} options - Offline render details.
  * @returns {object} Versioned, JSON-compatible export metadata.
@@ -45,11 +47,14 @@ function cloneSettings(settings) {
 export function createOfflineExportMetadata({
     settings,
     patternNotes,
+    renderedNotes,
     exportDuration,
     sampleRate,
     channelCount,
     frameCount,
 }) {
+    const safePatternNotes = Array.isArray(patternNotes) ? patternNotes : [];
+    const safeRenderedNotes = Array.isArray(renderedNotes) ? renderedNotes : safePatternNotes;
     return {
         schema: OFFLINE_EXPORT_METADATA_SCHEMA,
         version: OFFLINE_EXPORT_METADATA_VERSION,
@@ -68,8 +73,9 @@ export function createOfflineExportMetadata({
             frameCount,
         },
         pattern: {
-            scheduledNotes: Array.isArray(patternNotes) ? [...patternNotes] : [],
-            stepsPerLoop: Array.isArray(patternNotes) ? patternNotes.length : 0,
+            scheduledNotes: [...safePatternNotes],
+            stepsPerLoop: safePatternNotes.length,
+            renderedNotes: [...safeRenderedNotes],
         },
         settings: cloneSettings(settings),
     };

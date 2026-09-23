@@ -5,6 +5,8 @@
  * @module state/application-state
  */
 
+import { DEFAULT_RANDOM_SEED } from "@core/random-seed.js";
+
 /**
  * @typedef {object} ApplicationStateAudioEngine
  * @property {object|null} activeSynth - The currently selected synth.
@@ -17,6 +19,7 @@
  * @property {string[]} currentNotes - Current base note sequence.
  * @property {number} currentOctaveShift - Current octave transposition.
  * @property {number} currentOctaveRange - Current number of octave layers.
+ * @property {number} randomSeed - Seed used by reproducible stochastic patterns.
  * @property {object|null} activeSynth - Active synth owned by the audio engine.
  * @property {string} currentWaveform - Current waveform selection.
  * @property {string|null} activeNote - Current manually active keyboard note.
@@ -34,6 +37,7 @@ export function createApplicationState({ getAvailableAudioEngine }) {
     let currentNotes = ["C4", "E4", "G4"];
     let currentOctaveShift = 0;
     let currentOctaveRange = 2;
+    let randomSeed = DEFAULT_RANDOM_SEED;
     let activeNote = null;
     let currentWaveform = "sine";
     let isAudioContextStarted = false;
@@ -62,6 +66,12 @@ export function createApplicationState({ getAvailableAudioEngine }) {
         },
         set currentOctaveRange(value) {
             currentOctaveRange = value;
+        },
+        get randomSeed() {
+            return randomSeed;
+        },
+        set randomSeed(value) {
+            randomSeed = value;
         },
         get activeSynth() {
             return getAvailableAudioEngine()?.activeSynth || null;

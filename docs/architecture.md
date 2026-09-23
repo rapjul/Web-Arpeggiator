@@ -16,6 +16,7 @@ The root retains the integration callbacks needed to connect focused modules to 
 
 - Pattern transformation, scale quantization, randomization, and chord construction.
 - Settings validation, merging, history snapshots, and URL preset serialization.
+- The shared 480-PPQ musical timeline compiler used by playback, previews, offline audio, and MIDI.
 - Audio encoding helpers, MIDI generation, duration calculations, input filtering, and visualizer math.
 
 ### Audio
@@ -23,11 +24,17 @@ The root retains the integration callbacks needed to connect focused modules to 
 `src/audio/` contains Tone.js synthesis and scheduling plus audio lifecycle orchestration:
 
 - `audio-engine.js` owns the live signal chain and synthesis parameters.
-- `pattern-generator.js` owns transport-synchronized pattern scheduling.
-- `recorder.js` owns real-time recording and offline audio encoding/rendering.
+- `pattern-generator.js` owns transport-synchronized scheduling from compiled timeline events.
+- `recorder.js` owns real-time recording and offline audio encoding/rendering from the same timeline.
 - `runtime-controller.js` owns deferred Tone loading, runtime construction, pending settings, and partial-runtime cleanup.
 - `playback-controller.js` owns transport start/stop and suspended AudioContext recovery.
-- `static-loop-renderer.js` owns one-cycle offline rendering used by visualizer previews.
+- `static-loop-renderer.js` owns offline rendering for visualizer previews and repeats a pattern through a complete swing phase when required to close the Loop Map boundary.
+
+### Shared Musical Timeline
+
+`src/core/timeline.js` is the timing boundary shared by every musical output. It materializes the selected pattern once, assigns each event an absolute integer tick position at 480 PPQ, applies the configured swing offset, bounds each gate before the next event, and preserves the authored-note/source-step mapping. [ADR 0015](./adr/0015-shared-480-ppq-musical-timeline-contract.md) records this cross-output timing contract.
+
+Live playback adapts that timeline to `Tone.Pattern` so the existing transport lifecycle remains intact. Static previews and offline audio schedule the compiled events directly. MIDI converts the same absolute starts and ends into delta-time events. These consumers keep Tone transport swing disabled when the timeline has already applied swing, preventing double timing offsets. [ADR 0016](./adr/0016-reproducible-stochastic-pattern-semantics.md) defines the seeded stochastic-pattern behavior that the timeline materializes.
 
 ### Storage
 
@@ -73,6 +80,17 @@ playback-controller / UI controllers
 ```
 
 Settings changes flow from DOM controllers through injected callbacks into the settings manager and live audio graph. Workspace history and autosave observe document changes without owning the settings schema.
+
+Musical settings flow into `compileTimeline` before they reach an output boundary:
+
+```text
+settings + pattern direction
+            ↓
+     core/timeline.js
+       ↙      ↓       ↘
+ live Tone   offline   MIDI SMF
+ playback    audio     export
+```
 
 ## Source Layout
 

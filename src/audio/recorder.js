@@ -23,7 +23,13 @@ import {
     OFFLINE_EXPORT_MODE_SEAMLESS,
 } from "@core/export-duration.js";
 import { createOfflineExportMetadata } from "@core/export-metadata.js";
-import { materializePatternSequence } from "@core/pattern-core.js";
+import {
+    compileTimeline,
+    createCyclicRenderEvents,
+    getTimelineEndTick,
+    isSwingPhaseAligned,
+    ticksToSeconds,
+} from "@core/timeline.js";
 
 const DEFAULT_OFFLINE_SAMPLE_RATE = 44100;
 
@@ -75,6 +81,7 @@ function formatEffectList(effectNames) {
  * @param {Function} context.actions.formatTime             - Time formatting helper.
  * @param {Function} [context.actions.startAudio]           - Start Web Audio context helper.
  * @param {Function} [context.actions.startPlayback]        - Start transport playback helper.
+ * @param {Function} [context.actions.getTimeline]          - Current shared compiled timeline.
  * @typedef {object} RecorderManager
  * @property {Function} initRecorder - Creates recorder instance (lazy, called once).
  * @property {Function} toggleRecording - Start/stop recording.
@@ -99,6 +106,8 @@ export function createRecorderManager(context) {
     let liveRecordedWavBlob = null;
     let isRecording = false;
     let recordingStartTime = 0;
+    /** @type {Promise<void>|null} */
+    let initRecorderPromise = null;
 
     // ------------------------------------------------------------------
     // Helpers
@@ -134,52 +143,63 @@ export function createRecorderManager(context) {
      */
     async function initRecorder() {
         if (recorder) return;
+        if (initRecorderPromise) return initRecorderPromise;
 
-        // Try Tone.Recorder first (works in HTTP and Canvas contexts)
-        try {
-            recorder = new Tone.Recorder();
-            audio.reverb.connect(recorder);
-            recorderType = "ToneRecorder";
-            dom.recordStatus.textContent = "Ready to record (Tone.Recorder).";
-            actions.showToast("Recorder ready (Fallback)", "info");
-        } catch {
-            // Fall back to MediaRecorder (HTTPS only)
-            if (window.isSecureContext && typeof MediaRecorder !== "undefined") {
+        initRecorderPromise = (async () => {
+            try {
+                // Try Tone.Recorder first (works in HTTP and Canvas contexts)
                 try {
-                    const rawCtx = /** @type {AudioContext} */ (Tone.getContext().rawContext);
-                    const dest = rawCtx.createMediaStreamDestination();
-                    audio.reverb.connect(dest);
-                    recorder = new MediaRecorder(dest.stream);
-                    recorderType = "MediaRecorder";
-
-                    recorder.ondataavailable = (e) => {
-                        if (e.data.size > 0) recordedChunks.push(e.data);
-                    };
-                    recorder.onstop = () => {
-                        liveRecordedWavBlob = new Blob(recordedChunks, {
-                            type: "audio/webm",
-                        });
-                        recordedChunks = [];
-                        onRecordingStop();
-                    };
-
-                    dom.recordStatus.textContent = "Ready to record (MediaRecorder).";
-                    actions.showToast("Recorder ready (Native)", "success");
+                    recorder = new Tone.Recorder();
+                    audio.reverb.connect(recorder);
+                    recorderType = "ToneRecorder";
+                    dom.recordStatus.textContent = "Ready to record (Tone.Recorder).";
+                    actions.showToast("Recorder ready (Fallback)", "info");
                 } catch {
-                    recorder = null;
+                    // Fall back to MediaRecorder (HTTPS only)
+                    if (window.isSecureContext && typeof MediaRecorder !== "undefined") {
+                        try {
+                            const rawCtx = /** @type {AudioContext} */ (
+                                Tone.getContext().rawContext
+                            );
+                            const dest = rawCtx.createMediaStreamDestination();
+                            audio.reverb.connect(dest);
+                            recorder = new MediaRecorder(dest.stream);
+                            recorderType = "MediaRecorder";
+
+                            recorder.ondataavailable = (e) => {
+                                if (e.data.size > 0) recordedChunks.push(e.data);
+                            };
+                            recorder.onstop = () => {
+                                liveRecordedWavBlob = new Blob(recordedChunks, {
+                                    type: "audio/webm",
+                                });
+                                recordedChunks = [];
+                                onRecordingStop();
+                            };
+
+                            dom.recordStatus.textContent = "Ready to record (MediaRecorder).";
+                            actions.showToast("Recorder ready (Native)", "success");
+                        } catch {
+                            recorder = null;
+                        }
+                    }
+
+                    if (!recorder) {
+                        dom.recordButton.disabled = true;
+                        dom.recordStatus.textContent = "Recording not available on this device.";
+                        actions.showToast("Recording not supported.", "error");
+                    }
                 }
-            }
 
-            if (!recorder) {
-                dom.recordButton.disabled = true;
-                dom.recordStatus.textContent = "Recording not available on this device.";
-                actions.showToast("Recording not supported.", "error");
+                if (recorder) {
+                    dom.recordButton.disabled = false;
+                }
+            } finally {
+                initRecorderPromise = null;
             }
-        }
+        })();
 
-        if (recorder) {
-            dom.recordButton.disabled = false;
-        }
+        return initRecorderPromise;
     }
 
     // ------------------------------------------------------------------
@@ -367,43 +387,49 @@ export function createRecorderManager(context) {
         const settings = actions.getAllSettings();
         const filename = actions.generateFilename(false, settings, "audio");
 
-        const { notes: patternNotes } = materializePatternSequence(
-            settings.baseNotes || settings.notes,
-            {
-                direction: settings.direction,
-                octaveRange: settings.octaveRange,
-                octaveShift: settings.octaveShift,
-                quantize: {
-                    enabled: settings.scaleQuantize,
-                    root: settings.scaleRoot,
-                    scale: settings.scaleType,
-                },
-            },
-        );
-        const exportDuration = calculateOfflineExportDuration({
-            loopCount: settings.loopCount,
-            stepsPerLoop: patternNotes.length,
-            interval: settings.interval,
-            bpm: settings.bpm,
-            exportMode: settings.offlineExportMode,
-            tailSeconds: settings.offlineExportTailSeconds,
-            envRelease: settings.envRelease,
-            delayMix: settings.delayMix,
-            reverbMix: settings.reverbMix,
-            chorusMix: settings.chorusMix,
-            autoPanMix: settings.autoPanMix,
-        });
+        const baseTimeline = compileTimeline(settings, { cycles: 1 });
+        const calculateExportDuration = (terminalDuration) =>
+            calculateOfflineExportDuration({
+                loopCount: settings.loopCount,
+                stepsPerLoop: baseTimeline.events.length,
+                interval: settings.interval,
+                bpm: settings.bpm,
+                exportMode: settings.offlineExportMode,
+                tailSeconds: settings.offlineExportTailSeconds,
+                envRelease: settings.envRelease,
+                delayMix: settings.delayMix,
+                reverbMix: settings.reverbMix,
+                chorusMix: settings.chorusMix,
+                autoPanMix: settings.autoPanMix,
+                terminalDuration,
+            });
+        let exportDuration = calculateExportDuration();
         const isSeamlessExport = exportDuration.exportMode === OFFLINE_EXPORT_MODE_SEAMLESS;
+        const selectedTimeline = compileTimeline(settings, {
+            cycles: exportDuration.loopCount,
+            terminalGatePolicy: isSeamlessExport ? "clip" : "preserve",
+        });
+        if (!isSeamlessExport) {
+            exportDuration = calculateExportDuration(
+                ticksToSeconds(getTimelineEndTick(selectedTimeline), selectedTimeline.bpm),
+            );
+        }
         const seamlessModulation = getSeamlessModulationCompatibility({
             bpm: settings.bpm,
             musicalDuration: exportDuration.musicalDuration,
             chorusMix: settings.chorusMix,
             autoPanMix: settings.autoPanMix,
         });
+        const incompatibleSeamlessComponents = [
+            ...(!isSwingPhaseAligned(selectedTimeline.musicalDurationTicks, selectedTimeline.swing)
+                ? ["Swing"]
+                : []),
+            ...seamlessModulation.incompatibleEffects,
+        ];
 
-        if (isSeamlessExport && !seamlessModulation.isCompatible) {
-            const effectLabel = formatEffectList(seamlessModulation.incompatibleEffects);
-            const message = `Cannot generate a seamless loop with ${effectLabel}: change Pattern cycles, disable it, or use Include effects tail.`;
+        if (isSeamlessExport && incompatibleSeamlessComponents.length > 0) {
+            const componentLabel = formatEffectList(incompatibleSeamlessComponents);
+            const message = `Cannot generate a seamless loop with ${componentLabel}: change Pattern cycles, disable it, or use Include effects tail.`;
             dom.offlineExportStatus.textContent = message;
             actions.showToast(message, "error");
             dom.offlineExportButton.disabled = false;
@@ -425,6 +451,14 @@ export function createRecorderManager(context) {
         const patternStopTime = isSeamlessExport
             ? exportDuration.preRollDuration + exportDuration.musicalDuration
             : exportDuration.musicalDuration;
+        const patternNotes = selectedTimeline.resolvedNotes;
+        const renderedNotes = selectedTimeline.scheduledNotes;
+        const renderEvents = isSeamlessExport
+            ? createCyclicRenderEvents(
+                  selectedTimeline,
+                  exportDuration.preRollCycles * selectedTimeline.cycleDurationTicks,
+              )
+            : selectedTimeline.events;
 
         dom.offlineExportStatus.textContent = isSeamlessExport
             ? "Generating seamless WAV-ready audio... please wait."
@@ -433,33 +467,25 @@ export function createRecorderManager(context) {
         try {
             const toneAudioBuffer = await Tone.Offline(
                 async (offlineContext) => {
-                    offlineContext.transport.bpm.value = settings.bpm;
-                    offlineContext.transport.swing = settings.swing;
+                    offlineContext.transport.bpm.value = selectedTimeline.bpm;
+                    offlineContext.transport.swing = 0;
 
                     // Recreate the synth + effects graph using the shared audio engine helper
                     const { offlineSynth } = audio.createOfflineChain(offlineContext, settings);
 
-                    // --- Pattern for offline ---
-                    const gateLength = settings.gateRatio * exportDuration.intervalInSeconds;
-
-                    const offlinePattern = new Tone.Pattern(
-                        (time, note) => {
-                            // Split triggerAttackRelease to ensure exact scheduling reference time is used
-                            if (
-                                typeof offlineSynth.triggerAttack === "function" &&
-                                typeof offlineSynth.triggerRelease === "function"
-                            ) {
-                                offlineSynth.triggerAttack(note, time);
-                                offlineSynth.triggerRelease(time + gateLength);
-                            } else {
-                                offlineSynth.triggerAttackRelease(note, gateLength, time);
-                            }
-                        },
-                        patternNotes,
-                        "up",
-                    );
-                    offlinePattern.interval = settings.interval;
-                    offlinePattern.start(0);
+                    renderEvents.forEach((event) => {
+                        const time = ticksToSeconds(event.startTick, selectedTimeline.bpm);
+                        const duration = ticksToSeconds(event.durationTicks, selectedTimeline.bpm);
+                        if (
+                            typeof offlineSynth.triggerAttack === "function" &&
+                            typeof offlineSynth.triggerRelease === "function"
+                        ) {
+                            offlineSynth.triggerAttack(event.pitch, time);
+                            offlineSynth.triggerRelease(time + duration);
+                        } else {
+                            offlineSynth.triggerAttackRelease(event.pitch, duration, time);
+                        }
+                    });
 
                     offlineContext.transport.start(0);
                     offlineContext.transport.stop(patternStopTime);
@@ -499,7 +525,11 @@ export function createRecorderManager(context) {
             const exportMetadata = createOfflineExportMetadata({
                 settings,
                 patternNotes,
-                exportDuration,
+                renderedNotes,
+                exportDuration: {
+                    ...exportDuration,
+                    renderDuration: offlineRenderDuration,
+                },
                 sampleRate: exportBuffer.sampleRate,
                 channelCount: exportBuffer.numberOfChannels,
                 frameCount: exportBuffer.length,
