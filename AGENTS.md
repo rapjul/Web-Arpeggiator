@@ -357,7 +357,8 @@ Web Arpeggiator/
 │   │   ├── 0016-reproducible-stochastic-pattern-semantics.md
 │   │   ├── 0017-zero-stderr-test-runner-noise-and-diagnostic-log-assertion.md
 │   │   ├── 0018-awaited-recording-lifecycle-and-bounded-audio-resource-ownership.md
-│   │   └── 0019-recommended-effects-tail-strategy.md
+│   │   ├── 0019-recommended-effects-tail-strategy.md
+│   │   └── 0020-bounded-audio-startup-latency-and-lifecycle-benchmarking.md
 │   ├── architecture.md     # Module ownership, runtime flow, and deferred boundaries
 │   ├── development.md      # Local setup, commands, and test-runner guidance
 │   ├── improvements/       # Deferred, scoped follow-up plans
@@ -378,6 +379,7 @@ Web Arpeggiator/
 │   │   ├── randomizer.js   # Musical scale-quantized randomizer
 │   │   ├── settings-contract.js # Canonical schema, bounds, and settings snapshot normalization
 │   │   ├── settings-history.js # Persistent snapshot history for arpeggiator settings
+│   │   ├── telemetry.js    # Performance API startup telemetry and waterfall profiling
 │   │   ├── timeline.js     # Pure 480-PPQ musical timeline compiler
 │   │   ├── timing-constants.js # Shared transport bounds and timing limits
 │   │   ├── url-preset.js   # URL query parameter preset serialization
