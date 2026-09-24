@@ -111,9 +111,9 @@ Powered by `Tone.getTransport()`:
 - Captures live audio output during performance
 - Supports parameter changes during recording
 - Dual recorder system:
-    - **`MediaRecorder`** (preferred on HTTPS): Native browser API
-    - **`Tone.Recorder`** (fallback): Works in all contexts including HTTP/Canvas
-- Capture readiness is awaited before playback begins. Recorder teardown releases graph connections, browser streams, and transient decoded PCM; see [ADR 0018](./docs/adr/0018-awaited-recording-lifecycle-and-bounded-audio-resource-ownership.md).
+    - **`Tone.Recorder`** (primary): Attempted first and works in all supported contexts including HTTP/Canvas
+    - **`MediaRecorder`** (secure-context fallback): Used when Tone recorder construction fails
+- Capture readiness is awaited before playback begins. Recording taps the final monitored signal after post gain and limiting, falling back to post gain without a limiter. Recorder teardown releases graph connections, browser streams, and transient decoded PCM; see [ADR 0018](./docs/adr/0018-awaited-recording-lifecycle-and-bounded-audio-resource-ownership.md).
 
 #### Offline Audio Export
 
@@ -480,8 +480,8 @@ createController({ showToast });
 
 ### HTTPS vs HTTP
 
-- **HTTPS**: Full functionality including `MediaRecorder`
-- **HTTP/Canvas**: Real-time recording uses `Tone.Recorder` fallback
+- **HTTPS**: `Tone.Recorder` is attempted first, with native `MediaRecorder` available when Tone recorder construction fails
+- **HTTP/Canvas**: Real-time recording uses `Tone.Recorder`
 - Offline export works in all contexts
 
 ### Mobile Considerations

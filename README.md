@@ -123,12 +123,11 @@ For detailed pattern descriptions, see [Pattern Directions Guide](./docs/pattern
 
 ### Real-Time Recording
 
-- Records live audio during playback
+- Records the final monitored output after master gain and limiting
 - Changes to parameters are captured in real-time
-- Use on HTTPS for best browser compatibility
-- Falls back to `Tone.Recorder` on HTTP or non-HTTPS contexts
+- Uses `Tone.Recorder` first, with native `MediaRecorder` as a secure-context fallback when Tone recorder construction fails
 - Waits for the selected recorder backend to be ready before playback begins, preserving the first scheduled note
-- Keeps the raw take for repeat exports while releasing decoded conversion data after successful export; see [ADR 0018](./docs/adr/0018-awaited-recording-lifecycle-and-bounded-audio-resource-ownership.md)
+- Keeps the raw take for repeat exports while retaining decoded PCM only after a failed conversion; successful export, replacement, and teardown release it. See [ADR 0018](./docs/adr/0018-awaited-recording-lifecycle-and-bounded-audio-resource-ownership.md)
 
 ### Offline Audio Export
 
@@ -223,8 +222,8 @@ See the [Development and Testing Guide](./docs/development.md) for local setup, 
 
 ### HTTPS vs HTTP
 
-- **HTTPS**: Full functionality with `MediaRecorder` for real-time recording
-- **HTTP/Canvas**: Real-time recording uses `Tone.Recorder` fallback; offline export works everywhere
+- **HTTPS**: `Tone.Recorder` is used first; native `MediaRecorder` is available when Tone recorder construction fails
+- **HTTP/Canvas**: Real-time recording uses `Tone.Recorder`; offline export works everywhere
 
 ### Mobile
 
@@ -281,8 +280,8 @@ See the [Development and Testing Guide](./docs/development.md) for local setup, 
 
 ### Recording Doesn't Work?
 
-- HTTPS contexts use `MediaRecorder` (most reliable)
-- HTTP contexts fall back to `Tone.Recorder` (still works)
+- `Tone.Recorder` is attempted first in supported contexts
+- HTTPS can fall back to native `MediaRecorder` if Tone recorder construction fails
 - If browser denies permission, check privacy settings
 
 ### Preset Won't Load?
