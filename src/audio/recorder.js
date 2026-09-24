@@ -562,6 +562,7 @@ export function createRecorderManager(context) {
             } catch (error) {
                 if (recordingPhase === "starting") {
                     recordingPhase = "idle";
+                    resetRecorderBackend();
                     if (!isDestroyed) {
                         actions.stopUiLoop();
                         restoreIdleUi();

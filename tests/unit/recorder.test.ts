@@ -1401,6 +1401,98 @@ describe("Recorder Manager Module", () => {
         }
     });
 
+    it("resets a native backend after capture startup fails so the next take can succeed", async () => {
+        toneRecorderConstructorError = new Error("Tone.Recorder unavailable");
+        const originalSecureContext = window.isSecureContext;
+        const originalMediaRecorder = window.MediaRecorder;
+
+        type NativeEvent = { error?: Error };
+        type EventListener = (event?: NativeEvent) => void;
+        type MockMediaRecorderInstance = {
+            ondataavailable: ((event: { data: Blob }) => void) | null;
+            onstop: (() => void) | null;
+            onerror: ((event: { error: Error }) => void) | null;
+            start: ReturnType<typeof vi.fn>;
+            stop: ReturnType<typeof vi.fn>;
+            addEventListener: ReturnType<typeof vi.fn>;
+            removeEventListener: ReturnType<typeof vi.fn>;
+            dispatch: (event: string, detail?: NativeEvent) => void;
+        };
+        const instances: MockMediaRecorderInstance[] = [];
+
+        class MockMediaRecorder {
+            ondataavailable: MockMediaRecorderInstance["ondataavailable"] = null;
+            onstop: MockMediaRecorderInstance["onstop"] = null;
+            onerror: MockMediaRecorderInstance["onerror"] = null;
+            listeners: Record<string, EventListener[]> = {};
+            start = vi.fn(() => {
+                if (this === instances[0] && this.start.mock.calls.length === 1) {
+                    const event = { error: new Error("native start failed") };
+                    this.onerror?.(event);
+                    this.dispatch("error", event);
+                    return;
+                }
+                this.dispatch("start");
+            });
+            stop = vi.fn(() => {
+                this.onstop?.();
+            });
+            addEventListener = vi.fn((event: string, listener: EventListener) => {
+                this.listeners[event] ??= [];
+                this.listeners[event].push(listener);
+            });
+            removeEventListener = vi.fn((event: string, listener: EventListener) => {
+                this.listeners[event] = (this.listeners[event] ?? []).filter(
+                    (registeredListener) => registeredListener !== listener,
+                );
+            });
+            constructor() {
+                instances.push(this);
+            }
+            dispatch(event: string, detail: NativeEvent = {}) {
+                this.listeners[event]?.forEach((listener) => listener(detail));
+            }
+        }
+
+        // @ts-expect-error mocking browser MediaRecorder
+        window.MediaRecorder = MockMediaRecorder;
+        window.isSecureContext = true;
+
+        try {
+            const manager = createRecorderManager({
+                audio: mockAudio,
+                dom: mockDom,
+                state: mockState,
+                actions: mockActions,
+            });
+
+            await expect(manager.toggleRecording()).rejects.toThrow("native start failed");
+            expect(instances).toHaveLength(1);
+            expect(instances[0].onerror).toBeNull();
+            expect(mockActions.showToast).toHaveBeenCalledWith(
+                "Recording failed to start.",
+                "error",
+            );
+            expect(mockActions.showToast).not.toHaveBeenCalledWith("Recording failed.", "error");
+
+            await manager.toggleRecording();
+            expect(instances).toHaveLength(2);
+            expect(manager.isRecording).toBe(true);
+            await manager.toggleRecording();
+
+            expect(manager.isRecording).toBe(false);
+            expect(mockDom.recordStatus.textContent).toContain("Ready to export");
+            expect(mockActions.showToast).not.toHaveBeenCalledWith(
+                "Recording failed to stop.",
+                "error",
+            );
+            await manager.destroy();
+        } finally {
+            window.isSecureContext = originalSecureContext;
+            window.MediaRecorder = originalMediaRecorder;
+        }
+    });
+
     it("handles WAV encoding errors during realtime export gracefully and re-enables export button", async () => {
         const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
         const { audioBufferToWav } = await import("@core/audio-utils.js");
