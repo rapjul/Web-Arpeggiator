@@ -49,7 +49,13 @@ export function parsePcmWav(bytes: Uint8Array): ParsedWav {
         }
         offset = payloadOffset + length + (length % 2);
     }
-    if (!channels || !sampleRate || bitsPerSample !== 16 || !dataLength) {
+    if (
+        !channels ||
+        !sampleRate ||
+        bitsPerSample !== 16 ||
+        !dataLength ||
+        dataLength % (channels * 2) !== 0
+    ) {
         throw new Error("Expected 16-bit PCM WAV data.");
     }
 

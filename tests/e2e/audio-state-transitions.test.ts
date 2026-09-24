@@ -1,5 +1,29 @@
 import { captureDownload, expect, parsePcmWav, startAudio, test } from "./fixtures/app";
 
+function createMonoPcmWav(dataLength: number): Uint8Array {
+    const paddedDataLength = dataLength + (dataLength % 2);
+    const bytes = new Uint8Array(44 + paddedDataLength);
+    const view = new DataView(bytes.buffer);
+    const writeAscii = (offset: number, value: string) => {
+        bytes.set(new TextEncoder().encode(value), offset);
+    };
+
+    writeAscii(0, "RIFF");
+    view.setUint32(4, bytes.length - 8, true);
+    writeAscii(8, "WAVE");
+    writeAscii(12, "fmt ");
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, 1, true);
+    view.setUint32(24, 44_100, true);
+    view.setUint32(28, 88_200, true);
+    view.setUint16(32, 2, true);
+    view.setUint16(34, 16, true);
+    writeAscii(36, "data");
+    view.setUint32(40, dataLength, true);
+    return bytes;
+}
+
 async function startRecording(page: import("@playwright/test").Page): Promise<void> {
     await page.locator("#record-button").click();
     await expect(page.locator("#record-button")).toHaveClass(/recording/);
@@ -15,6 +39,11 @@ async function stopRecording(page: import("@playwright/test").Page): Promise<voi
 async function waitForRecordedAudio(page: import("@playwright/test").Page): Promise<void> {
     await expect(page.locator("#record-button")).toHaveText(/Stop Recording \(00:0[12]\./);
 }
+
+test("rejects WAV chunks that end inside a PCM frame", async () => {
+    expect(() => parsePcmWav(createMonoPcmWav(3))).toThrow("Expected 16-bit PCM WAV data.");
+    expect(parsePcmWav(createMonoPcmWav(2)).durationSeconds).toBeCloseTo(1 / 44_100);
+});
 
 test("transitions transport and recording through their public controls", async ({
     pwaPage: page,
