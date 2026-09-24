@@ -763,6 +763,52 @@ describe("Recorder Manager Module", () => {
         expect(mockDom.recordButton.disabled).toBe(false);
     });
 
+    it("hides previous export controls while replacement capture is pending", async () => {
+        let resolveStart: () => void = () => {};
+        recorderStartPromise = new Promise((resolve) => {
+            resolveStart = resolve;
+        });
+        const manager = createRecorderManager({
+            audio: mockAudio,
+            dom: mockDom,
+            state: mockState,
+            actions: mockActions,
+        });
+        manager.setRecorderBlob(new Blob([new Uint8Array(2048)]));
+        mockDom.exportControls.classList.remove("hidden");
+
+        const startPromise = manager.toggleRecording();
+        await vi.waitFor(() => {
+            expect(mockDom.exportControls.classList.contains("hidden")).toBe(true);
+        });
+        expect(manager.isStarting).toBe(true);
+        expect(manager.isRecording).toBe(false);
+
+        resolveStart();
+        await startPromise;
+        await manager.destroy();
+    });
+
+    it("keeps exports hidden when replacement capture startup fails", async () => {
+        recorderStartError = new Error("replacement recorder failed");
+        const manager = createRecorderManager({
+            audio: mockAudio,
+            dom: mockDom,
+            state: mockState,
+            actions: mockActions,
+        });
+        manager.setRecorderBlob(new Blob([new Uint8Array(2048)]));
+        mockDom.exportControls.classList.remove("hidden");
+
+        await expect(manager.toggleRecording()).rejects.toThrow("replacement recorder failed");
+
+        expect(mockDom.exportControls.classList.contains("hidden")).toBe(true);
+        expect(mockActions.showToast).toHaveBeenCalledWith("Recording failed to start.", "error");
+        await manager.exportRealtime();
+        expect(mockActions.showToast).toHaveBeenCalledWith("No recording found.", "error");
+        await manager.destroy();
+    });
+
     it("ignores a second toggle while playback startup is still pending", async () => {
         let notifyPlaybackStarted = () => {};
         let resolvePlayback: () => void = () => {};

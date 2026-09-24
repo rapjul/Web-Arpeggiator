@@ -526,6 +526,7 @@ export function createRecorderManager(context) {
 
                 liveRecordedWavBlob = null;
                 decodedRecording = null;
+                dom.exportControls.classList.add("hidden");
 
                 if (recorderType === "MediaRecorder") recordedChunks = [];
                 await startCapture();
