@@ -722,6 +722,7 @@ function initializeApp() {
         onStartOverlay: async () => {
             await startAudio();
             loadPresetFromUrl();
+            await startPlayback();
         },
         logger: console,
     });
@@ -753,6 +754,8 @@ function initializeApp() {
         },
     });
     const { updateKeyboardControlUi } = keyboardControls;
+
+    let isFirstPlaybackStep = true;
 
     audioRuntimeController = createAudioRuntimeController({
         dom: {
@@ -837,6 +840,10 @@ function initializeApp() {
         startAudio,
         startPlayback,
         onPatternStep: (index) => {
+            if (isFirstPlaybackStep && appState.isPlaying) {
+                isFirstPlaybackStep = false;
+                log("Audio playback started.");
+            }
             noteStepController.highlight(index);
         },
         onPatternChange: () => {},
@@ -863,12 +870,11 @@ function initializeApp() {
         prepareForPlayback: () => onboardingController.prepareForPlayback(),
         createOrUpdatePattern,
         clearNoteStep: () => {
+            isFirstPlaybackStep = true;
             noteStepController.clear();
         },
-        onPlaybackStart: () => {
-            log("Audio playback started.");
-        },
         onPlaybackStop: () => {
+            isFirstPlaybackStep = true;
             log("Audio playback stopped.");
         },
     });

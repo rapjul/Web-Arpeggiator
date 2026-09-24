@@ -49,7 +49,6 @@ test("applies URL preset controls before and after audio activation", async ({ p
     await expect(page.locator("#filter-cutoff")).toHaveValue("3700");
 
     await dismissOnboarding(page);
-    await page.locator("#play-stop").click();
     await expect(page.locator("#play-stop")).toHaveText("Stop Audio");
     await expect(page.locator("#synth-type")).toHaveValue("fmSynth");
     await expect(page.locator("#bpm")).toHaveValue("155");

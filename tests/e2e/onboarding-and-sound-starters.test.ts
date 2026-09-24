@@ -79,6 +79,21 @@ test("shows the simple overlay for returning visitors and URL presets", async ({
     await expect(page.locator("#notes")).toHaveValue("D4 F4 A4");
 });
 
+test("starts audio playback immediately when clicking the returning visitor start overlay", async ({
+    pwaPage: page,
+}) => {
+    await page.evaluate(() => localStorage.setItem("webArpHasVisited", "true"));
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.locator("#start-overlay")).toBeVisible();
+    await expect(page.locator("#start-button")).toHaveText("Start and Enable Audio");
+
+    page.on("console", (msg) => console.log("BROWSER_LOG:", msg.text()));
+    await page.locator("#start-button").click();
+    await expect(page.locator("#start-overlay")).toBeHidden();
+    await expect(page.locator("#play-stop")).toHaveText("Stop Audio");
+    await page.waitForTimeout(500);
+});
+
 test("synchronizes a selected factory preset with its sound starter card", async ({
     pwaPage: page,
 }) => {
