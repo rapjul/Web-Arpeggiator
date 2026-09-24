@@ -1,8 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
     calculateStartupWaterfall,
+    clearMark,
     clearStartupProfiler,
+    getMeasure,
     hasMark,
+    hasMeasure,
     isProfilingEnabled,
     isSearchParamEnabled,
     logStartupWaterfall,
@@ -205,6 +208,92 @@ describe("core/startup-profiler", () => {
         clearStartupProfiler();
 
         expect(hasMark(STARTUP_MARKS.USER_START_GESTURE)).toBe(false);
+    });
+
+    it("clears individual performance marks via clearMark", () => {
+        mark(STARTUP_MARKS.USER_START_GESTURE);
+        mark(STARTUP_MARKS.FIRST_STEP_EXECUTED);
+
+        expect(hasMark(STARTUP_MARKS.USER_START_GESTURE)).toBe(true);
+        expect(hasMark(STARTUP_MARKS.FIRST_STEP_EXECUTED)).toBe(true);
+
+        clearMark(STARTUP_MARKS.USER_START_GESTURE);
+
+        expect(hasMark(STARTUP_MARKS.USER_START_GESTURE)).toBe(false);
+        expect(hasMark(STARTUP_MARKS.FIRST_STEP_EXECUTED)).toBe(true);
+    });
+
+    it("safely handles clearMark when performance.clearMarks throws", () => {
+        const originalClear = performance.clearMarks;
+        performance.clearMarks = vi.fn().mockImplementation(() => {
+            throw new Error("Clear error");
+        });
+
+        expect(() => clearMark(STARTUP_MARKS.USER_START_GESTURE)).not.toThrow();
+        performance.clearMarks = originalClear;
+    });
+
+    it("verifies and retrieves measures via hasMeasure and getMeasure", () => {
+        expect(hasMeasure(STARTUP_MEASURES.TOTAL_COLD_START)).toBe(false);
+        expect(getMeasure(STARTUP_MEASURES.TOTAL_COLD_START)).toBeNull();
+
+        mark(STARTUP_MARKS.USER_START_GESTURE);
+        mark(STARTUP_MARKS.FIRST_STEP_EXECUTED);
+        const created = measure(
+            STARTUP_MEASURES.TOTAL_COLD_START,
+            STARTUP_MARKS.USER_START_GESTURE,
+            STARTUP_MARKS.FIRST_STEP_EXECUTED,
+        );
+
+        expect(hasMeasure(STARTUP_MEASURES.TOTAL_COLD_START)).toBe(true);
+        const retrieved = getMeasure(STARTUP_MEASURES.TOTAL_COLD_START);
+        expect(retrieved).not.toBeNull();
+        expect(retrieved?.name).toBe(STARTUP_MEASURES.TOTAL_COLD_START);
+        expect(retrieved?.duration).toBe(created?.duration);
+    });
+
+    it("safely handles hasMeasure and getMeasure when getEntriesByName throws", () => {
+        const originalGetEntries = performance.getEntriesByName;
+        performance.getEntriesByName = vi.fn().mockImplementation(() => {
+            throw new Error("Entries error");
+        });
+
+        expect(hasMeasure("test-measure")).toBe(false);
+        expect(getMeasure("test-measure")).toBeNull();
+        performance.getEntriesByName = originalGetEntries;
+    });
+
+    it("preserves existing TOTAL_COLD_START measure and avoids recomputing on subsequent calls", () => {
+        mark(STARTUP_MARKS.USER_START_GESTURE);
+        mark(STARTUP_MARKS.FIRST_STEP_EXECUTED);
+        const firstMeasure = measure(
+            STARTUP_MEASURES.TOTAL_COLD_START,
+            STARTUP_MARKS.USER_START_GESTURE,
+            STARTUP_MARKS.FIRST_STEP_EXECUTED,
+        );
+        expect(firstMeasure).not.toBeNull();
+
+        // Simulate subsequent step execution or warm restart
+        mark(STARTUP_MARKS.FIRST_STEP_EXECUTED);
+        const secondMeasure = measure(
+            STARTUP_MEASURES.TOTAL_COLD_START,
+            STARTUP_MARKS.USER_START_GESTURE,
+            STARTUP_MARKS.FIRST_STEP_EXECUTED,
+        );
+
+        // Must return the existing initial cold-start measure, not a recomputed one
+        expect(secondMeasure?.duration).toBe(firstMeasure?.duration);
+        expect(secondMeasure?.startTime).toBe(firstMeasure?.startTime);
+
+        // In waterfall calculation, the initial cold start step is preserved
+        const waterfall = calculateStartupWaterfall();
+        const coldStartStep = waterfall.find(
+            (step) => step.measureName === STARTUP_MEASURES.TOTAL_COLD_START,
+        );
+        expect(coldStartStep).toBeDefined();
+        expect(coldStartStep?.durationMs).toBe(
+            Math.round((firstMeasure?.duration ?? 0) * 100) / 100,
+        );
     });
 
     it("disables mark, measure, and logging when profiling is disabled", () => {

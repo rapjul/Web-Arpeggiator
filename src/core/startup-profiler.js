@@ -136,6 +136,63 @@ export function hasMark(name) {
 }
 
 /**
+ * Safely clears a specific performance mark from the performance buffer.
+ *
+ * @param {string} name - Name of the mark to clear.
+ * @returns {void}
+ */
+export function clearMark(name) {
+    if (typeof performance !== "undefined" && typeof performance.clearMarks === "function") {
+        try {
+            performance.clearMarks(name);
+        } catch {
+            // Environments with restricted or mocked performance APIs fail gracefully.
+        }
+    }
+}
+
+/**
+ * Checks whether a specific performance measure exists in the performance buffer.
+ *
+ * @param {string} name - Name of the measure to verify.
+ * @returns {boolean} Whether the measure has been recorded.
+ */
+export function hasMeasure(name) {
+    if (!isProfilingEnabled()) return false;
+
+    if (typeof performance !== "undefined" && typeof performance.getEntriesByName === "function") {
+        try {
+            return performance.getEntriesByName(name, "measure").length > 0;
+        } catch {
+            return false;
+        }
+    }
+    return false;
+}
+
+/**
+ * Retrieves the most recent performance measure for a given name if it exists.
+ *
+ * @param {string} name - Name of the measure to retrieve.
+ * @returns {PerformanceMeasure|null} The measure or null if missing/failed.
+ */
+export function getMeasure(name) {
+    if (!isProfilingEnabled()) return null;
+
+    if (typeof performance !== "undefined" && typeof performance.getEntriesByName === "function") {
+        try {
+            const entries = performance.getEntriesByName(name, "measure");
+            return entries.length > 0
+                ? /** @type {PerformanceMeasure} */ (entries[entries.length - 1])
+                : null;
+        } catch {
+            return null;
+        }
+    }
+    return null;
+}
+
+/**
  * Safely creates a performance measure between two marks if both exist.
  *
  * @param {string} name - Name of the measure to create.
@@ -145,6 +202,10 @@ export function hasMark(name) {
  */
 export function measure(name, startMark, endMark) {
     if (!isProfilingEnabled()) return null;
+
+    if (name === STARTUP_MEASURES.TOTAL_COLD_START && hasMeasure(name)) {
+        return getMeasure(name);
+    }
 
     if (
         typeof performance !== "undefined" &&

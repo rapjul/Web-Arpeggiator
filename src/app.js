@@ -17,7 +17,13 @@ import {
 } from "@core/pattern-core.js";
 import { generateRandomNotes } from "@core/randomizer.js";
 import { DEFAULT_SETTINGS, mergeSettings } from "@core/settings-contract.js";
-import { hasMark, logStartupWaterfall, mark, STARTUP_MARKS } from "@core/startup-profiler.js";
+import {
+    clearMark,
+    hasMark,
+    logStartupWaterfall,
+    mark,
+    STARTUP_MARKS,
+} from "@core/startup-profiler.js";
 import { PRESET_URL_KEYS } from "@core/url-preset.js";
 import { initializePwa } from "@pwa/pwa.js";
 import { presetStore } from "@storage/presets-store.js";
@@ -116,9 +122,13 @@ function startAudio() {
         mark(STARTUP_MARKS.USER_START_GESTURE);
     }
     if (!audioRuntimeController) {
+        clearMark(STARTUP_MARKS.USER_START_GESTURE);
         return Promise.reject(new Error("Audio runtime is not initialized."));
     }
-    return audioRuntimeController.startAudio();
+    return audioRuntimeController.startAudio().catch((error) => {
+        clearMark(STARTUP_MARKS.USER_START_GESTURE);
+        throw error;
+    });
 }
 
 /** @returns {void} Delegates the current duration estimate to export controls. */
@@ -722,6 +732,7 @@ function initializeApp() {
         },
         onStartFromScratch: async () => {
             await startAudio();
+            clearMark(STARTUP_MARKS.USER_START_GESTURE);
             loadPresetFromUrl();
         },
         onStartOverlay: async () => {
