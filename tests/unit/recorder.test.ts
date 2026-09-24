@@ -17,7 +17,9 @@ let recorderStartError: Error | null = null;
 let recorderStopError: Error | null = null;
 let toneRecorderConstructorError: Error | null = null;
 let destinationStreamTracks: { stop: ReturnType<typeof vi.fn> }[] = [];
-const recorderDispose = vi.fn();
+const recorderDispose = vi.fn(() => {
+    recorderLifecycle.push("dispose");
+});
 
 vi.mock("@core/audio-utils.js", () => ({
     audioBufferToMp3Blob: vi.fn(async () => new Blob(["MP3"], { type: "audio/mp3" })),
@@ -1040,6 +1042,7 @@ describe("Recorder Manager Module", () => {
 
         expect(recorderDispose).toHaveBeenCalled();
         expect(manager.isRecording).toBe(false);
+        expect(recorderLifecycle.filter((entry) => entry === "recording-stop")).toHaveLength(1);
     });
 
     it("serializes destroy with an in-flight start transition and stops before disposal", async () => {
@@ -1064,6 +1067,9 @@ describe("Recorder Manager Module", () => {
 
         expect(recorderDispose).toHaveBeenCalled();
         expect(manager.isRecording).toBe(false);
+        expect(recorderLifecycle.indexOf("recording-stop")).toBeLessThan(
+            recorderLifecycle.indexOf("dispose"),
+        );
     });
 
     it("handles unexpected mid-capture MediaRecorder errors without advertising export readiness", async () => {
