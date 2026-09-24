@@ -10,22 +10,23 @@ test.describe("Audio Playback Startup Latency", () => {
         pwaPage: page,
     }) => {
         await page.goto("/?perf=true");
-        // Dismiss first-visit onboarding to get to initial clean state
-        await page.locator("#quick-start-scratch").click();
-        await expect(page.locator("#quick-start-overlay")).toBeHidden();
-        await expect(page.locator("#play-stop")).toHaveText("Start Audio");
+        // First-visit onboarding modal is visible on cold page
+        await expect(page.locator("#quick-start-overlay")).toBeVisible();
+        const firstStarterCard = page.locator(".sound-starter-card").first();
+        await expect(firstStarterCard).toBeVisible();
 
-        // Clear any previous marks from initial page setup
+        // Clear any previous marks from initial page script evaluation
         await page.evaluate(() => {
             performance.clearMarks();
             performance.clearMeasures();
         });
 
-        // Trigger cold start
+        // Trigger cold start directly from preset card before runtime initialization
         const startTime = Date.now();
-        await page.locator("#play-stop").click();
+        await firstStarterCard.click();
 
-        // Await transport running and first note step indicator active
+        // Await onboarding closed, transport running, and first note step indicator active
+        await expect(page.locator("#quick-start-overlay")).toBeHidden();
         await expect(page.locator("#play-stop")).toHaveText("Stop Audio");
         await expect(page.locator("#note-step-indicator .note-step-pip.active")).toHaveCount(1);
 
@@ -38,7 +39,6 @@ test.describe("Audio Playback Startup Latency", () => {
                 duration: entry.duration,
             }));
         });
-        console.log("PROFILER MEASURES:", JSON.stringify(profilerMeasures));
 
         const coldStartMeasure = profilerMeasures.find((m) => m.name === "audio:total-cold-start");
         const transportMeasure = profilerMeasures.find(
@@ -55,8 +55,8 @@ test.describe("Audio Playback Startup Latency", () => {
 
         expect(transportMeasure).toBeDefined();
         if (transportMeasure) {
-            // Once transport starts, first note should trigger well under 500ms
-            expect(transportMeasure.duration).toBeLessThan(500);
+            // Once transport starts, first note should trigger well under 150ms
+            expect(transportMeasure.duration).toBeLessThan(150);
         }
     });
 
@@ -101,19 +101,22 @@ test.describe("Audio Playback Startup Latency", () => {
         const transportMeasure = profilerMeasures.find(
             (m) => m.name === "audio:transport-to-first-note",
         );
+        expect(transportMeasure).toBeDefined();
         if (transportMeasure) {
-            expect(transportMeasure.duration).toBeLessThan(500);
+            expect(transportMeasure.duration).toBeLessThan(150);
         }
     });
 
     test("measures cold-start audio latency after idle dwell time (simulating user reading page)", async ({
         pwaPage: page,
     }) => {
+        await page.addInitScript(() => {
+            localStorage.setItem("webArpHasVisited", "true");
+        });
         await page.goto("/?perf=true");
-        // Dismiss first-visit onboarding to reach clean idle state
-        await page.locator("#quick-start-scratch").click();
-        await expect(page.locator("#quick-start-overlay")).toBeHidden();
-        await expect(page.locator("#play-stop")).toHaveText("Start Audio");
+
+        const startButton = page.locator("#start-button");
+        await expect(startButton).toBeVisible();
 
         // Wait 3 seconds to simulate user reading the page before clicking
         await page.waitForTimeout(3000);
@@ -126,8 +129,9 @@ test.describe("Audio Playback Startup Latency", () => {
 
         // Trigger cold start after idle dwell time
         const startTime = Date.now();
-        await page.locator("#play-stop").click();
+        await startButton.click();
 
+        await expect(page.locator("#start-overlay")).toBeHidden();
         await expect(page.locator("#play-stop")).toHaveText("Stop Audio");
         await expect(page.locator("#note-step-indicator .note-step-pip.active")).toHaveCount(1);
 
@@ -144,9 +148,10 @@ test.describe("Audio Playback Startup Latency", () => {
         const transportMeasure = profilerMeasures.find(
             (m) => m.name === "audio:transport-to-first-note",
         );
+        expect(transportMeasure).toBeDefined();
         if (transportMeasure) {
-            // Must start promptly without elapsed-tick scheduling delay
-            expect(transportMeasure.duration).toBeLessThan(500);
+            // Must start promptly without elapsed-tick scheduling delay (< 150ms)
+            expect(transportMeasure.duration).toBeLessThan(150);
         }
     });
 

@@ -87,11 +87,9 @@ test("starts audio playback immediately when clicking the returning visitor star
     await expect(page.locator("#start-overlay")).toBeVisible();
     await expect(page.locator("#start-button")).toHaveText("Start and Enable Audio");
 
-    page.on("console", (msg) => console.log("BROWSER_LOG:", msg.text()));
     await page.locator("#start-button").click();
     await expect(page.locator("#start-overlay")).toBeHidden();
     await expect(page.locator("#play-stop")).toHaveText("Stop Audio");
-    await page.waitForTimeout(500);
 });
 
 test("synchronizes a selected factory preset with its sound starter card", async ({
