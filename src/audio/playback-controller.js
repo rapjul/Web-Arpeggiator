@@ -9,7 +9,7 @@
 /**
  * Creates a playback coordinator around injected runtime accessors.
  *
- * @param {{dom: {playStopButton: HTMLButtonElement|null}, state: PlaybackState, getTone: () => {getContext: () => {state: string, rawContext: EventTarget|null}, getTransport: () => {start: () => void, stop: () => void}}, getPattern: () => {start: (time?: number|string) => void, stop: () => void}|undefined, getSilenceActiveSynth: () => (() => void)|undefined, getRecorderManager: () => {isRecording: boolean, isStarting?: boolean, awaitPendingTransition?: () => Promise<void>, initRecorder: () => Promise<void>}|undefined, getVisualizer: () => {startUiLoop: () => void, stopUiLoop: () => void}|undefined, startAudio: () => Promise<void>, prepareForPlayback: () => void, createOrUpdatePattern: () => void, clearNoteStep: () => void}} dependencies - Playback dependencies.
+ * @param {{dom: {playStopButton: HTMLButtonElement|null}, state: PlaybackState, getTone: () => {getContext: () => {state: string, rawContext: EventTarget|null}, getTransport: () => {start: () => void, stop: () => void}}, getPattern: () => {start: (time?: number|string) => void, stop: () => void}|undefined, getSilenceActiveSynth: () => (() => void)|undefined, getRecorderManager: () => {isRecording: boolean, isStarting?: boolean, awaitPendingTransition?: () => Promise<void>, initRecorder: () => Promise<void>}|undefined, getVisualizer: () => {startUiLoop: () => void, stopUiLoop: () => void}|undefined, startAudio: () => Promise<void>, prepareForPlayback: () => void, createOrUpdatePattern: () => void, clearNoteStep: () => void, onPlaybackStart?: () => void, onPlaybackStop?: () => void}} dependencies - Playback dependencies.
  * @returns {{start: () => Promise<void>, stop: () => void, observeAudioContextState: () => void, destroy: () => void}}
  */
 export function createPlaybackController(dependencies) {
@@ -25,6 +25,8 @@ export function createPlaybackController(dependencies) {
         prepareForPlayback,
         createOrUpdatePattern,
         clearNoteStep,
+        onPlaybackStart,
+        onPlaybackStop,
     } = dependencies;
     let observedRawAudioContext = null;
     let audioContextStateListener = null;
@@ -44,7 +46,7 @@ export function createPlaybackController(dependencies) {
                 if (state.isPlaying) return;
             }
             if (!recorderManager.isRecording) {
-                await recorderManager.initRecorder();
+                void recorderManager.initRecorder();
             }
         }
         createOrUpdatePattern();
@@ -60,6 +62,7 @@ export function createPlaybackController(dependencies) {
             }
             state.isPlaying = true;
             getVisualizer()?.startUiLoop();
+            onPlaybackStart?.();
         }
     }
 
@@ -84,6 +87,7 @@ export function createPlaybackController(dependencies) {
         state.isPlaying = false;
         getVisualizer()?.stopUiLoop();
         clearNoteStep();
+        onPlaybackStop?.();
     }
 
     /** @returns {void} Binds recovery to the current raw AudioContext. */
