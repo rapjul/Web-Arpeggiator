@@ -156,6 +156,7 @@ test.describe("Audio Playback Startup Latency", () => {
     });
 
     test("verifies warm restart latency is instantaneous (< 300ms)", async ({ pwaPage: page }) => {
+        await page.goto("/?perf=true");
         // Dismiss onboarding
         await page.locator("#quick-start-scratch").click();
         await expect(page.locator("#quick-start-overlay")).toBeHidden();
@@ -182,10 +183,12 @@ test.describe("Audio Playback Startup Latency", () => {
         // Warm restart must take less than 300ms
         expect(restartDurationMs).toBeLessThan(300);
 
-        // Confirm audio:total-cold-start was not computed against the start-from-scratch gesture
+        // Confirm profiling was active (recorded transport measure) while audio:total-cold-start
+        // was not computed against the start-from-scratch gesture
         const measures = await page.evaluate(() => {
             return performance.getEntriesByType("measure").map((e) => e.name);
         });
+        expect(measures).toContain("audio:transport-to-first-note");
         expect(measures).not.toContain("audio:total-cold-start");
     });
 

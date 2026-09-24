@@ -18,7 +18,7 @@ function createFixture(
     const { hasButton = true, hasRecorder = true, isRecording = false } = options;
     let contextState = "running";
     let rawContext: EventTarget | null = new EventTarget();
-    const transport = { start: vi.fn(), stop: vi.fn() };
+    const transport = { position: 120, start: vi.fn(), stop: vi.fn() };
     const draw = { cancel: vi.fn() };
     const tone = {
         getContext: () => ({ state: contextState, rawContext }),
@@ -114,18 +114,21 @@ describe("playback controller", () => {
         expect(recorder?.initRecorder).toHaveBeenCalledOnce();
         expect(createOrUpdatePattern).toHaveBeenCalledOnce();
         expect(pattern.start).toHaveBeenCalledWith(0);
-        expect(transport.start).toHaveBeenCalledOnce();
+        expect(transport.start).toHaveBeenCalledWith(undefined, 0);
+        expect(transport.position).toBe(0);
         expect(state.isPlaying).toBe(true);
         expect(playStopButton?.textContent).toBe("Stop Audio");
         expect(visualizer.startUiLoop).toHaveBeenCalledOnce();
         expect(onPlaybackStart).toHaveBeenCalledOnce();
         expect(onPlaybackStop).not.toHaveBeenCalled();
 
+        transport.position = 480;
         controller.stop();
         expect(silenceActiveSynth).toHaveBeenCalledOnce();
         expect(draw.cancel).toHaveBeenCalledWith(0);
         expect(pattern.stop).toHaveBeenCalledOnce();
         expect(transport.stop).toHaveBeenCalledOnce();
+        expect(transport.position).toBe(0);
         expect(state.isPlaying).toBe(false);
         expect(playStopButton?.textContent).toBe("Restart Audio");
         expect(visualizer.stopUiLoop).toHaveBeenCalledOnce();
@@ -332,7 +335,7 @@ describe("playback controller", () => {
 
         await controller.start();
         expect(slowInitRecorder).toHaveBeenCalledOnce();
-        expect(fixture.transport.start).toHaveBeenCalledOnce();
+        expect(fixture.transport.start).toHaveBeenCalledWith(undefined, 0);
         expect(fixture.state.isPlaying).toBe(true);
 
         resolveInit();
@@ -342,8 +345,8 @@ describe("playback controller", () => {
     it("schedules and starts transport before invoking recorder pre-warming", async () => {
         const callOrder: string[] = [];
         const fixture = createFixture();
-        fixture.transport.start = vi.fn(() => {
-            callOrder.push("transport.start");
+        fixture.transport.start = vi.fn((_time, offset) => {
+            callOrder.push(`transport.start:${String(offset)}`);
         });
         const syncRecorder = {
             isRecording: false,
@@ -370,6 +373,7 @@ describe("playback controller", () => {
         controllers.push(controller);
 
         await controller.start();
-        expect(callOrder).toEqual(["transport.start", "initRecorder"]);
+        expect(callOrder).toEqual(["transport.start:0", "initRecorder"]);
+        expect(fixture.transport.start).toHaveBeenCalledWith(undefined, 0);
     });
 });
