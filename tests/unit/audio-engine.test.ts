@@ -468,6 +468,8 @@ describe("Audio Engine Model Definitions", () => {
                     actions: mockActions,
                 });
                 expect(engine).toBeDefined();
+                expect(engine.limiter).toBeUndefined();
+                expect(engine.recordingOutput).toBe(engine.postGain);
                 expect(warnSpy).toHaveBeenCalledWith(
                     expect.stringContaining(
                         "Tone.Limiter failed, connecting to Destination directly.",

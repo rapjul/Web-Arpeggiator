@@ -16,10 +16,54 @@ let recorderStopPromise: Promise<void> | null = null;
 let recorderStartError: Error | null = null;
 let recorderStopError: Error | null = null;
 let toneRecorderConstructorError: Error | null = null;
-let destinationStreamTracks: { stop: ReturnType<typeof vi.fn> }[] = [];
+let mediaTrackStop = vi.fn();
+let destinationStreamTracks: { stop: ReturnType<typeof vi.fn> }[] = [{ stop: mediaTrackStop }];
 const recorderDispose = vi.fn(() => {
     recorderLifecycle.push("dispose");
 });
+let nativeMediaRecorder: FakeMediaRecorder | null = null;
+
+class FakeMediaRecorder extends EventTarget {
+    state: RecordingState = "inactive";
+    ondataavailable: ((event: BlobEvent) => void) | null = null;
+    onerror: ((event: Event) => void) | null = null;
+    onstop: ((event: Event) => void) | null = null;
+
+    constructor(_stream: MediaStream) {
+        super();
+        nativeMediaRecorder = this;
+    }
+
+    start() {
+        this.state = "recording";
+    }
+
+    stop() {
+        this.state = "inactive";
+    }
+
+    emitStart() {
+        this.dispatchEvent(new Event("start"));
+    }
+
+    emitData(blob: Blob) {
+        const event = Object.assign(new Event("dataavailable"), { data: blob }) as BlobEvent;
+        this.ondataavailable?.(event);
+        this.dispatchEvent(event);
+    }
+
+    emitError(error: Error) {
+        const event = Object.assign(new Event("error"), { error });
+        this.onerror?.(event);
+        this.dispatchEvent(event);
+    }
+
+    emitStop() {
+        const event = new Event("stop");
+        this.onstop?.(event);
+        this.dispatchEvent(event);
+    }
+}
 
 vi.mock("@core/audio-utils.js", () => ({
     audioBufferToMp3Blob: vi.fn(async () => new Blob(["MP3"], { type: "audio/mp3" })),
@@ -154,7 +198,9 @@ describe("Recorder Manager Module", () => {
         recorderStartError = null;
         recorderStopError = null;
         toneRecorderConstructorError = null;
-        destinationStreamTracks = [{ stop: vi.fn() }];
+        mediaTrackStop = vi.fn();
+        destinationStreamTracks = [{ stop: mediaTrackStop }];
+        nativeMediaRecorder = null;
         vi.clearAllMocks();
         const createEl = (tag = "div") => document.createElement(tag);
         mockDom = {
@@ -181,6 +227,7 @@ describe("Recorder Manager Module", () => {
             } as unknown as RecorderAudio["reverb"],
             recordingOutput: {
                 connect: vi.fn(),
+                disconnect: vi.fn(),
             } as unknown as RecorderAudio["recordingOutput"],
             synths: {} as unknown as RecorderAudio["synths"],
             createOfflineChain: vi.fn(() => ({
@@ -223,6 +270,7 @@ describe("Recorder Manager Module", () => {
 
     afterEach(() => {
         vi.restoreAllMocks();
+        vi.unstubAllGlobals();
     });
 
     it("initializes recorder and attaches to audio graph", async () => {
@@ -876,6 +924,90 @@ describe("Recorder Manager Module", () => {
         expect(mockActions.startPlayback).toHaveBeenCalledOnce();
         expect(manager.isRecording).toBe(false);
         expect(recorderDispose).toHaveBeenCalled();
+    });
+
+    it("waits for native MediaRecorder readiness and stores its stopped capture", async () => {
+        toneRecorderConstructorError = new Error("Tone.Recorder unavailable");
+        vi.stubGlobal("isSecureContext", true);
+        vi.stubGlobal("MediaRecorder", FakeMediaRecorder);
+        const manager = createRecorderManager({
+            audio: mockAudio,
+            dom: mockDom,
+            state: mockState,
+            actions: mockActions,
+        });
+
+        await manager.initRecorder();
+        expect(mockDom.recordStatus.textContent).toContain("MediaRecorder");
+
+        const startRecording = manager.toggleRecording();
+        await Promise.resolve();
+        expect(mockActions.startPlayback).not.toHaveBeenCalled();
+
+        nativeMediaRecorder?.emitStart();
+        await startRecording;
+        expect(mockActions.startPlayback).toHaveBeenCalledOnce();
+
+        const stopRecording = manager.toggleRecording();
+        nativeMediaRecorder?.emitData(new Blob([new Uint8Array(2048)], { type: "audio/webm" }));
+        nativeMediaRecorder?.emitStop();
+        await stopRecording;
+
+        expect(manager.isRecording).toBe(false);
+        await manager.exportRealtime();
+        expect(audioBufferToWav).toHaveBeenCalledOnce();
+    });
+
+    it("restores the idle UI when native MediaRecorder startup or stop fails", async () => {
+        toneRecorderConstructorError = new Error("Tone.Recorder unavailable");
+        vi.stubGlobal("isSecureContext", true);
+        vi.stubGlobal("MediaRecorder", FakeMediaRecorder);
+        const manager = createRecorderManager({
+            audio: mockAudio,
+            dom: mockDom,
+            state: mockState,
+            actions: mockActions,
+        });
+
+        await manager.initRecorder();
+        const failedStart = manager.toggleRecording();
+        nativeMediaRecorder?.emitError(new Error("native start failed"));
+        await expect(failedStart).rejects.toThrow("native start failed");
+        expect(mockActions.startPlayback).not.toHaveBeenCalled();
+        expect(mockDom.recordButton.textContent).toBe("Record");
+
+        const successfulStart = manager.toggleRecording();
+        await vi.waitFor(() => expect(nativeMediaRecorder?.state).toBe("recording"));
+        nativeMediaRecorder?.emitStart();
+        await successfulStart;
+
+        const failedStop = manager.toggleRecording();
+        nativeMediaRecorder?.emitError(new Error("native stop failed"));
+        await expect(failedStop).rejects.toThrow("native stop failed");
+        expect(manager.isRecording).toBe(false);
+        expect(mockDom.recordButton.textContent).toBe("Record");
+    });
+
+    it("releases native recorder streams and ignores late events after teardown", async () => {
+        toneRecorderConstructorError = new Error("Tone.Recorder unavailable");
+        vi.stubGlobal("isSecureContext", true);
+        vi.stubGlobal("MediaRecorder", FakeMediaRecorder);
+        const manager = createRecorderManager({
+            audio: mockAudio,
+            dom: mockDom,
+            state: mockState,
+            actions: mockActions,
+        });
+
+        await manager.initRecorder();
+        await manager.destroy();
+        nativeMediaRecorder?.emitData(new Blob([new Uint8Array(2048)], { type: "audio/webm" }));
+        nativeMediaRecorder?.emitStop();
+        await manager.exportRealtime();
+
+        expect(mediaTrackStop).toHaveBeenCalledOnce();
+        expect(mockAudio.recordingOutput.disconnect).toHaveBeenCalledOnce();
+        expect(mockActions.showToast).not.toHaveBeenCalledWith("No recording found.", "error");
     });
 
     it("restores the idle UI when recorder startup fails", async () => {
