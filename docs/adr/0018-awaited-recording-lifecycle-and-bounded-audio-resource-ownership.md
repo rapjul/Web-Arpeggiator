@@ -45,8 +45,10 @@ The raw recorded blob remains available until a replacement take or teardown. De
 only when a WAV or MP3 conversion fails, allowing a retry without a redundant decode; a successful
 export, new blob, or teardown releases it. `destroy()` awaits in-flight start or stop transitions and
 active real-time exports, stops active capture, disconnects graph targets, disposes Tone recorders,
-stops native stream tracks, clears handlers and chunks, and drops retained blobs and buffers. Runtime
-teardown awaits that operation before it disposes the audio engine.
+stops native stream tracks, clears handlers and chunks, and drops retained blobs and buffers. The
+runtime controller waits for in-flight audio startup before disposal and queues new `startAudio()`
+requests until teardown completes. Runtime teardown awaits recorder cleanup before disposing the
+audio engine.
 
 ### Consequences
 
@@ -55,6 +57,7 @@ teardown awaits that operation before it disposes the audio engine.
 - Good, because asynchronous backend errors contain failure without advertising corrupt takes.
 - Good, because active exports are isolated from new recording takes.
 - Good, because an already-started export can finish before teardown releases its dependencies.
+- Good, because startup cannot report success for a runtime that teardown is about to dispose.
 - Good, because UI recovery cannot accidentally replace the primary operational failure.
 - Good, because long decoded recordings do not survive successful export unnecessarily.
 - Bad, because recorder clients must await lifecycle operations and teardown.
@@ -64,8 +67,8 @@ teardown awaits that operation before it disposes the audio engine.
 
 Unit tests exercise deferred and rejected starts, stop and playback cleanup failures, native fallback
 events, transition reentrancy, late events, retry-cache release, export completion during teardown,
-and recorder teardown. Browser tests fail on page errors or unhandled rejections and inspect real
-WAV/MP3 artifacts rather than only their container headers.
+runtime restart during teardown, and recorder teardown. Browser tests fail on page errors or
+unhandled rejections and inspect real WAV/MP3 artifacts rather than only their container headers.
 
 ## More Information
 

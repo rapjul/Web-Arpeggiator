@@ -72,6 +72,8 @@ export function createAudioRuntimeController(dependencies) {
     let audioModulesPromise = null;
     let audioRuntimePromise = null;
     let audioStartPromise = null;
+    /** @type {Promise<void>|null} */
+    let audioDestroyPromise = null;
 
     /**
      * Loads Tone and Tone-dependent modules only when explicitly requested.
@@ -248,6 +250,7 @@ export function createAudioRuntimeController(dependencies) {
      * @returns {Promise<void>}
      */
     async function startAudio() {
+        if (audioDestroyPromise) await audioDestroyPromise;
         if (state.isAudioContextStarted && Tone?.getContext().state === "running") return;
 
         if (!audioStartPromise) {
@@ -303,7 +306,32 @@ export function createAudioRuntimeController(dependencies) {
     }
 
     /** @returns {Promise<void>} Releases partially or fully built runtime resources. */
-    async function destroy() {
+    function destroy() {
+        if (audioDestroyPromise) return audioDestroyPromise;
+
+        const destroyPromise = destroyRuntime();
+        /** @type {Promise<void>} */
+        let trackedDestroyPromise;
+        trackedDestroyPromise = destroyPromise.finally(() => {
+            if (audioDestroyPromise === trackedDestroyPromise) {
+                audioDestroyPromise = null;
+            }
+        });
+        audioDestroyPromise = trackedDestroyPromise;
+        return trackedDestroyPromise;
+    }
+
+    /** @returns {Promise<void>} Waits for startup, then releases runtime resources. */
+    async function destroyRuntime() {
+        const pendingStartPromise = audioStartPromise;
+        if (pendingStartPromise) {
+            try {
+                await pendingStartPromise;
+            } catch (error) {
+                logger.warn?.("Audio startup failed during runtime teardown:", error);
+            }
+        }
+
         visualizer?.destroy();
         try {
             await recorderManager?.destroy?.();

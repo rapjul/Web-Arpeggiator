@@ -206,6 +206,37 @@ describe("audio runtime controller", () => {
         expect(state.isAudioContextStarted).toBe(true);
     });
 
+    it("waits for teardown before restarting audio and shares concurrent destroy", async () => {
+        const { controller, createAudioEngine, recorder, state } = createFixture();
+        await controller.startAudio();
+
+        let resolveRecorderDestroy: () => void = () => {};
+        const recorderDestroyPending = new Promise<void>((resolve) => {
+            resolveRecorderDestroy = resolve;
+        });
+        recorder.destroy.mockImplementationOnce(() => recorderDestroyPending);
+
+        const destroyPromise = controller.destroy();
+        expect(recorder.destroy).toHaveBeenCalledOnce();
+        expect(controller.destroy()).toBe(destroyPromise);
+
+        let restartFinished = false;
+        const restartPromise = controller.startAudio().then(() => {
+            restartFinished = true;
+        });
+        await Promise.resolve();
+
+        expect(restartFinished).toBe(false);
+        expect(createAudioEngine).toHaveBeenCalledOnce();
+
+        resolveRecorderDestroy();
+        await Promise.all([destroyPromise, restartPromise]);
+
+        expect(createAudioEngine).toHaveBeenCalledTimes(2);
+        expect(controller.getAudioEngine()).toBeDefined();
+        expect(state.isAudioContextStarted).toBe(true);
+    });
+
     it("exposes getters for tone, pattern controller, recorder manager, and visualizer", async () => {
         const { controller, tone, pattern, recorder, visualizer } = createFixture();
 
