@@ -33,6 +33,9 @@ describe("core/startup-profiler", () => {
         expect(isSearchParamEnabled("?other=1&perf=true&mode=full")).toBe(true);
         expect(isSearchParamEnabled("")).toBe(false);
         expect(isSearchParamEnabled("?perf=false")).toBe(false);
+        expect(isSearchParamEnabled("?notperf=true")).toBe(false);
+        expect(isSearchParamEnabled("?debug=trueish")).toBe(false);
+        expect(isSearchParamEnabled("?superf=true")).toBe(false);
         expect(isSearchParamEnabled(null as unknown as string)).toBe(false);
     });
 

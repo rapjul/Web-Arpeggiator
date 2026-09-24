@@ -17,7 +17,7 @@ import {
 } from "@core/pattern-core.js";
 import { generateRandomNotes } from "@core/randomizer.js";
 import { DEFAULT_SETTINGS, mergeSettings } from "@core/settings-contract.js";
-import { logStartupWaterfall, mark, STARTUP_MARKS } from "@core/startup-profiler.js";
+import { hasMark, logStartupWaterfall, mark, STARTUP_MARKS } from "@core/startup-profiler.js";
 import { PRESET_URL_KEYS } from "@core/url-preset.js";
 import { initializePwa } from "@pwa/pwa.js";
 import { presetStore } from "@storage/presets-store.js";
@@ -100,6 +100,7 @@ function hasOscillatorWidth(oscillator) {
 
 // --- Application State ---
 let Tone;
+let appState = null;
 let audioRuntimeController = null;
 let playbackController = null;
 let exportControlsController = null;
@@ -111,7 +112,9 @@ let presetWorkflowController = null;
  * @returns {Promise<void>}
  */
 function startAudio() {
-    mark(STARTUP_MARKS.USER_START_GESTURE);
+    if (!appState?.isAudioContextStarted && !hasMark(STARTUP_MARKS.USER_START_GESTURE)) {
+        mark(STARTUP_MARKS.USER_START_GESTURE);
+    }
     if (!audioRuntimeController) {
         return Promise.reject(new Error("Audio runtime is not initialized."));
     }
@@ -358,7 +361,7 @@ function initializeApp() {
     }
 
     // --- App State Object (for injected modules) ---
-    const appState = createApplicationState({ getAvailableAudioEngine });
+    appState = createApplicationState({ getAvailableAudioEngine });
 
     // --- Pattern Helpers ---
 

@@ -40,9 +40,9 @@ export const STARTUP_MEASURES = Object.freeze({
 });
 
 /**
- * Determines whether local startup profiling is active.
- *
-/** @type {boolean|null} */
+ * Test override for startup profiling enablement.
+ * @type {boolean|null}
+ */
 let profilingOverride = null;
 
 /**
@@ -58,12 +58,21 @@ export function setProfilingOverride(enabled) {
 /**
  * Evaluates whether a search query string contains profiling activation flags.
  *
+ * Requires exact `perf=true` or `debug=true` key-value pairs to prevent
+ * unintentional activation from substrings like `?notperf=true`.
+ *
  * @param {string} search - URL search query string.
  * @returns {boolean} Whether flags are present.
  */
 export function isSearchParamEnabled(search) {
-    if (typeof search !== "string") return false;
-    return search.includes("perf=true") || search.includes("debug=true");
+    if (typeof search !== "string" || search.length === 0) return false;
+    try {
+        const normalized = search.startsWith("?") ? search : `?${search}`;
+        const params = new URLSearchParams(normalized);
+        return params.get("perf") === "true" || params.get("debug") === "true";
+    } catch {
+        return false;
+    }
 }
 
 /**
@@ -270,10 +279,3 @@ export function clearStartupProfiler() {
         // Restricted environments fail gracefully.
     }
 }
-
-/**
- * Backwards-compatible alias for clearStartupProfiler.
- *
- * @returns {void}
- */
-export const clearStartupTelemetry = clearStartupProfiler;

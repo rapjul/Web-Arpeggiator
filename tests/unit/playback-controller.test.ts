@@ -338,4 +338,38 @@ describe("playback controller", () => {
         resolveInit();
         await Promise.resolve();
     });
+
+    it("schedules and starts transport before invoking recorder pre-warming", async () => {
+        const callOrder: string[] = [];
+        const fixture = createFixture();
+        fixture.transport.start = vi.fn(() => {
+            callOrder.push("transport.start");
+        });
+        const syncRecorder = {
+            isRecording: false,
+            isStarting: false,
+            initRecorder: vi.fn(async () => {
+                callOrder.push("initRecorder");
+            }),
+        };
+        const controller = createPlaybackController({
+            dom: { playStopButton: fixture.playStopButton },
+            state: fixture.state,
+            getTone: () => ({
+                getContext: () => ({ state: "running", rawContext: fixture.rawContext }),
+                getTransport: () => fixture.transport,
+            }),
+            getPattern: () => fixture.pattern,
+            getRecorderManager: () => syncRecorder,
+            getVisualizer: () => fixture.visualizer,
+            startAudio: fixture.startAudio,
+            prepareForPlayback: fixture.prepareForPlayback,
+            createOrUpdatePattern: fixture.createOrUpdatePattern,
+            clearNoteStep: fixture.clearNoteStep,
+        });
+        controllers.push(controller);
+
+        await controller.start();
+        expect(callOrder).toEqual(["transport.start", "initRecorder"]);
+    });
 });

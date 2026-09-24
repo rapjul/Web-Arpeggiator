@@ -47,9 +47,6 @@ export function createPlaybackController(dependencies) {
                 }
                 if (state.isPlaying) return;
             }
-            if (!recorderManager.isRecording) {
-                void recorderManager.initRecorder();
-            }
         }
         createOrUpdatePattern();
         if (!state.isPlaying) {
@@ -71,6 +68,9 @@ export function createPlaybackController(dependencies) {
             state.isPlaying = true;
             getVisualizer()?.startUiLoop();
             onPlaybackStart?.();
+        }
+        if (recorderManager && !recorderManager.isRecording) {
+            void recorderManager.initRecorder();
         }
     }
 
