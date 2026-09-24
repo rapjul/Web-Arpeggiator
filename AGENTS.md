@@ -572,6 +572,7 @@ When modifying the codebase:
 5. **Validate Presets**: Ensure all parameters save/load correctly
 6. **Check Responsive Design**: Test on mobile and desktop
 7. **Update Documentation**: Keep `AGENTS.md` and `README.md` synchronized with changes
+8. **Markdown Document Formatting**: All Markdown files (`*.md`) follow soft-wrapping standards without hard-wrapped column limits (`max_line_length = off`), preserving each paragraph as a single continuous line
 
 ## Version History
 

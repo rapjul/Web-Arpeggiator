@@ -19,6 +19,9 @@ tab_width = 4
 indent_style = tab
 indent_size = 4
 tab_width = 4
+
+[*.md]
+max_line_length = off
 trim_trailing_whitespace = false
 
 # JSON and SVG files benefit from 2 spaces for better readability and do not require a final newline.
