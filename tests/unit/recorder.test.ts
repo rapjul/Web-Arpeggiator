@@ -1461,7 +1461,9 @@ describe("Recorder Manager Module", () => {
                 instances.push(this);
             }
             dispatch(event: string, detail: NativeEvent = {}) {
-                this.listeners[event]?.forEach((listener) => listener(detail));
+                this.listeners[event]?.forEach((listener) => {
+                    listener(detail);
+                });
             }
         }
 
