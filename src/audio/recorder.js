@@ -295,6 +295,11 @@ export function createRecorderManager(context) {
      * @returns {void}
      */
     function resetRecorderBackend() {
+        if (recorderType === "MediaRecorder" && recorder) {
+            recorder.ondataavailable = null;
+            recorder.onstop = null;
+            recorder.onerror = null;
+        }
         disconnectRecordingTarget();
         try {
             recorder?.dispose?.();
