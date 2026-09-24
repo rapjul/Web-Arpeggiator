@@ -379,7 +379,7 @@ Web Arpeggiator/
 │   │   ├── randomizer.js   # Musical scale-quantized randomizer
 │   │   ├── settings-contract.js # Canonical schema, bounds, and settings snapshot normalization
 │   │   ├── settings-history.js # Persistent snapshot history for arpeggiator settings
-│   │   ├── telemetry.js    # Performance API startup telemetry and waterfall profiling
+│   │   ├── startup-profiler.js # Local performance profiling and startup waterfall diagnostics
 │   │   ├── timeline.js     # Pure 480-PPQ musical timeline compiler
 │   │   ├── timing-constants.js # Shared transport bounds and timing limits
 │   │   ├── url-preset.js   # URL query parameter preset serialization

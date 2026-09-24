@@ -4,14 +4,14 @@
  * @module audio/playback-controller
  */
 
-import { mark, STARTUP_MARKS } from "@core/telemetry.js";
+import { mark, STARTUP_MARKS } from "@core/startup-profiler.js";
 
 /** @typedef {{isAudioContextStarted: boolean, isPlaying: boolean}} PlaybackState */
 
 /**
  * Creates a playback coordinator around injected runtime accessors.
  *
- * @param {{dom: {playStopButton: HTMLButtonElement|null}, state: PlaybackState, getTone: () => {getContext: () => {state: string, rawContext: EventTarget|null}, getTransport: () => {start: () => void, stop: () => void}}, getPattern: () => {start: (time?: number|string) => void, stop: () => void}|undefined, getSilenceActiveSynth: () => (() => void)|undefined, getRecorderManager: () => {isRecording: boolean, isStarting?: boolean, awaitPendingTransition?: () => Promise<void>, initRecorder: () => Promise<void>}|undefined, getVisualizer: () => {startUiLoop: () => void, stopUiLoop: () => void}|undefined, startAudio: () => Promise<void>, prepareForPlayback: () => void, createOrUpdatePattern: () => void, clearNoteStep: () => void, onPlaybackStart?: () => void, onPlaybackStop?: () => void}} dependencies - Playback dependencies.
+ * @param {{dom: {playStopButton: HTMLButtonElement|null}, state: PlaybackState, getTone: () => {getContext: () => {state: string, rawContext: EventTarget|null}, getTransport: () => {position?: number|string, start: (time?: number|string, offset?: number|string) => void, stop: () => void}}, getPattern: () => {start: (time?: number|string) => void, stop: () => void}|undefined, getSilenceActiveSynth: () => (() => void)|undefined, getRecorderManager: () => {isRecording: boolean, isStarting?: boolean, awaitPendingTransition?: () => Promise<void>, initRecorder: () => Promise<void>}|undefined, getVisualizer: () => {startUiLoop: () => void, stopUiLoop: () => void}|undefined, startAudio: () => Promise<void>, prepareForPlayback: () => void, createOrUpdatePattern: () => void, clearNoteStep: () => void, onPlaybackStart?: () => void, onPlaybackStop?: () => void}} dependencies - Playback dependencies.
  * @returns {{start: () => Promise<void>, stop: () => void, observeAudioContextState: () => void, destroy: () => void}}
  */
 export function createPlaybackController(dependencies) {
@@ -53,9 +53,14 @@ export function createPlaybackController(dependencies) {
         }
         createOrUpdatePattern();
         if (!state.isPlaying) {
+            const tone = getTone();
+            const transport = tone?.getTransport();
+            if (transport) {
+                transport.position = 0;
+            }
             getPattern()?.start(0);
             mark(STARTUP_MARKS.TRANSPORT_STARTING);
-            getTone().getTransport().start();
+            transport?.start(undefined, 0);
             const playStopButton = dom.playStopButton;
             if (playStopButton) {
                 playStopButton.textContent = "Stop Audio";
@@ -76,7 +81,11 @@ export function createPlaybackController(dependencies) {
         // before stopping the transport so they do not sound after stop.
         getSilenceActiveSynth()?.();
         const tone = getTone();
-        tone?.getTransport().stop();
+        const transport = tone?.getTransport();
+        transport?.stop();
+        if (transport) {
+            transport.position = 0;
+        }
         // Cancel any queued draw frame callbacks on transport stop
         /** @type {{Draw?: {cancel?: (time?: number) => void}}} */ (tone)?.Draw?.cancel?.(0);
         getPattern()?.stop();

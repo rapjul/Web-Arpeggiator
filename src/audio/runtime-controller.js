@@ -33,7 +33,7 @@
  * @property {{error?: (...args: unknown[]) => void, warn?: (...args: unknown[]) => void}} [logger]
  */
 
-import { mark, STARTUP_MARKS } from "@core/telemetry.js";
+import { mark, STARTUP_MARKS } from "@core/startup-profiler.js";
 
 /**
  * Creates a deferred audio runtime controller.
@@ -271,6 +271,12 @@ export function createAudioRuntimeController(dependencies) {
                         mark(STARTUP_MARKS.CONTEXT_RESUMING);
                         await Tone.start();
                         mark(STARTUP_MARKS.CONTEXT_RESUMED);
+                    }
+                    const initialTransport =
+                        typeof Tone?.getTransport === "function" ? Tone.getTransport() : null;
+                    initialTransport?.stop?.();
+                    if (initialTransport) {
+                        initialTransport.position = 0;
                     }
                     await initializeAudioRuntime();
                     state.isAudioContextStarted = true;

@@ -53,9 +53,9 @@ Web Arpeggiator enforces strict startup latency budgets documented in [ADR 0020]
 - **Warm Restart**: Under 300ms from user interaction until the first note step indicator highlights.
 - **Subsystem Execution**: Isolated engine construction, 100-cycle timeline compilation, and settings snapshot hydration finish in single-digit to low tens of milliseconds.
 
-### Inspecting Startup Telemetry in DevTools
+### Inspecting Startup Profiler in DevTools
 
-During local development with `bun run dev`, the application records high-resolution Web Performance API marks and logs a waterfall breakdown table to the browser console as soon as the first note sounds:
+During local development with `bun run dev`, the application records high-resolution Web Performance API marks and logs a waterfall breakdown table to the browser console as soon as the first note sounds (or in production when opening with `?perf=true`):
 
 ```javascript
 // Query recorded performance measures in Chrome DevTools Console:
@@ -64,10 +64,10 @@ console.table(performance.getEntriesByType("measure").map((m) => ({ Name: m.name
 
 ### Running Latency Benchmarks
 
-To run the subsystem algorithmic benchmarks in `Vitest`:
+To run the dedicated subsystem performance benchmarks in `Vitest`:
 
 ```bash
-bun run test:unit tests/unit/audio-startup-benchmarks.test.ts
+bun run test:perf
 ```
 
 To run the Playwright browser latency suite:

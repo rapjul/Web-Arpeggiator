@@ -1,11 +1,17 @@
 /**
- * Performance telemetry utilities using the standard Web Performance API.
+ * Local performance profiling utilities using the standard Web Performance API.
  *
  * Provides high-resolution microsecond marks and duration measures across
  * audio module loading, context resumption, graph creation, settings application,
  * and first audible note playback.
  *
- * @module core/telemetry
+ * Privacy and performance guarantee:
+ * Zero network requests, zero remote analytics, and zero external tracking.
+ * All marks are stored strictly in local browser memory.
+ * Profiling is active during development and automated tests, and in production
+ * only when explicitly opted into via URL query parameters (?perf=true or ?debug=true).
+ *
+ * @module core/startup-profiler
  */
 
 /** Canonical performance mark identifiers for the audio startup lifecycle. */
@@ -34,12 +40,64 @@ export const STARTUP_MEASURES = Object.freeze({
 });
 
 /**
- * Safely creates a performance mark if supported by the runtime environment.
+ * Determines whether local startup profiling is active.
+ *
+/** @type {boolean|null} */
+let profilingOverride = null;
+
+/**
+ * Overrides profiling enablement for testing environments.
+ *
+ * @param {boolean|null} enabled - True/false to force enablement, or null to reset.
+ * @returns {void}
+ */
+export function setProfilingOverride(enabled) {
+    profilingOverride = enabled;
+}
+
+/**
+ * Evaluates whether a search query string contains profiling activation flags.
+ *
+ * @param {string} search - URL search query string.
+ * @returns {boolean} Whether flags are present.
+ */
+export function isSearchParamEnabled(search) {
+    if (typeof search !== "string") return false;
+    return search.includes("perf=true") || search.includes("debug=true");
+}
+
+/**
+ * Determines whether local startup profiling is active.
+ *
+ * Enabled automatically during development and automated testing.
+ * In production builds, profiling is completely inactive unless explicitly
+ * requested via URL query parameters (?perf=true or ?debug=true).
+ *
+ * @returns {boolean} Whether performance profiling is enabled.
+ */
+export function isProfilingEnabled() {
+    if (typeof profilingOverride === "boolean") {
+        return profilingOverride;
+    }
+
+    const env = /** @type {Record<string, unknown>} */ (import.meta.env);
+    const isDevOrTest = Boolean(import.meta.env.DEV || env?.MODE === "test");
+
+    if (typeof window === "undefined") {
+        return isDevOrTest;
+    }
+    return Boolean(isDevOrTest || isSearchParamEnabled(window.location.search));
+}
+
+/**
+ * Safely creates a performance mark if profiling is enabled and supported by the runtime.
  *
  * @param {string} name - Name of the performance mark.
  * @returns {void}
  */
 export function mark(name) {
+    if (!isProfilingEnabled()) return;
+
     if (typeof performance !== "undefined" && typeof performance.mark === "function") {
         try {
             performance.mark(name);
@@ -56,6 +114,8 @@ export function mark(name) {
  * @returns {boolean} Whether the mark has been recorded.
  */
 export function hasMark(name) {
+    if (!isProfilingEnabled()) return false;
+
     if (typeof performance !== "undefined" && typeof performance.getEntriesByName === "function") {
         try {
             return performance.getEntriesByName(name, "mark").length > 0;
@@ -75,6 +135,8 @@ export function hasMark(name) {
  * @returns {PerformanceMeasure|null} The created measure or null if skipped/failed.
  */
 export function measure(name, startMark, endMark) {
+    if (!isProfilingEnabled()) return null;
+
     if (
         typeof performance !== "undefined" &&
         typeof performance.measure === "function" &&
@@ -104,6 +166,8 @@ export function measure(name, startMark, endMark) {
  * @returns {WaterfallStep[]} Formatted waterfall entries for present measures.
  */
 export function calculateStartupWaterfall() {
+    if (!isProfilingEnabled()) return [];
+
     /** @type {Array<[string, string, string]>} */
     const measureConfigs = [
         [
@@ -163,6 +227,8 @@ export function calculateStartupWaterfall() {
  * @returns {WaterfallStep[]} The computed steps.
  */
 export function logStartupWaterfall(logger = console) {
+    if (!isProfilingEnabled()) return [];
+
     const waterfall = calculateStartupWaterfall();
     if (waterfall.length === 0) return waterfall;
 
@@ -186,7 +252,7 @@ export function logStartupWaterfall(logger = console) {
  *
  * @returns {void}
  */
-export function clearStartupTelemetry() {
+export function clearStartupProfiler() {
     if (typeof performance === "undefined") return;
 
     try {
@@ -204,3 +270,10 @@ export function clearStartupTelemetry() {
         // Restricted environments fail gracefully.
     }
 }
+
+/**
+ * Backwards-compatible alias for clearStartupProfiler.
+ *
+ * @returns {void}
+ */
+export const clearStartupTelemetry = clearStartupProfiler;

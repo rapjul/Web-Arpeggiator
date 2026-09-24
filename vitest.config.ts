@@ -17,7 +17,7 @@ export default mergeConfig(
         test: {
             globals: true,
             environment: "happy-dom",
-            include: ["tests/unit/**/*.test.ts"],
+            include: ["tests/unit/**/*.test.ts", "tests/perf/**/*.test.ts"],
             coverage: {
                 provider: "v8",
                 reporter: ["text", "json-summary", "lcov", "cobertura", "html"],

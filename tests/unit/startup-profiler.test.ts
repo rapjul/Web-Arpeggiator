@@ -1,26 +1,53 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
     calculateStartupWaterfall,
-    clearStartupTelemetry,
+    clearStartupProfiler,
     hasMark,
+    isProfilingEnabled,
+    isSearchParamEnabled,
     logStartupWaterfall,
     mark,
     measure,
+    setProfilingOverride,
     STARTUP_MARKS,
     STARTUP_MEASURES,
-} from "../../src/core/telemetry.js";
+} from "../../src/core/startup-profiler.js";
 
-describe("core/telemetry", () => {
+describe("core/startup-profiler", () => {
     beforeEach(() => {
-        clearStartupTelemetry();
+        clearStartupProfiler();
     });
 
     afterEach(() => {
-        clearStartupTelemetry();
+        clearStartupProfiler();
         vi.restoreAllMocks();
     });
 
-    it("records performance marks safely", () => {
+    it("detects profiling as enabled in test environment", () => {
+        expect(isProfilingEnabled()).toBe(true);
+    });
+
+    it("evaluates URL query strings for profiling activation flags", () => {
+        expect(isSearchParamEnabled("?perf=true")).toBe(true);
+        expect(isSearchParamEnabled("?debug=true")).toBe(true);
+        expect(isSearchParamEnabled("?other=1&perf=true&mode=full")).toBe(true);
+        expect(isSearchParamEnabled("")).toBe(false);
+        expect(isSearchParamEnabled("?perf=false")).toBe(false);
+        expect(isSearchParamEnabled(null as unknown as string)).toBe(false);
+    });
+
+    it("allows overriding profiling status for testing", () => {
+        setProfilingOverride(false);
+        expect(isProfilingEnabled()).toBe(false);
+
+        setProfilingOverride(true);
+        expect(isProfilingEnabled()).toBe(true);
+
+        setProfilingOverride(null);
+        expect(isProfilingEnabled()).toBe(true);
+    });
+
+    it("records performance marks safely when enabled", () => {
         expect(hasMark(STARTUP_MARKS.USER_START_GESTURE)).toBe(false);
         mark(STARTUP_MARKS.USER_START_GESTURE);
         expect(hasMark(STARTUP_MARKS.USER_START_GESTURE)).toBe(true);
@@ -161,7 +188,7 @@ describe("core/telemetry", () => {
         expect(mockLogger.log).not.toHaveBeenCalled();
     });
 
-    it("clears all recorded marks and measures on clearStartupTelemetry", () => {
+    it("clears all recorded marks and measures on clearStartupProfiler", () => {
         mark(STARTUP_MARKS.USER_START_GESTURE);
         mark(STARTUP_MARKS.FIRST_STEP_EXECUTED);
         measure(
@@ -172,8 +199,23 @@ describe("core/telemetry", () => {
 
         expect(hasMark(STARTUP_MARKS.USER_START_GESTURE)).toBe(true);
 
-        clearStartupTelemetry();
+        clearStartupProfiler();
 
         expect(hasMark(STARTUP_MARKS.USER_START_GESTURE)).toBe(false);
+    });
+
+    it("disables mark, measure, and logging when profiling is disabled", () => {
+        try {
+            setProfilingOverride(false);
+
+            expect(isProfilingEnabled()).toBe(false);
+            mark("test-disabled-mark");
+            expect(hasMark("test-disabled-mark")).toBe(false);
+            expect(measure("m", "a", "b")).toBeNull();
+            expect(calculateStartupWaterfall()).toEqual([]);
+            expect(logStartupWaterfall()).toEqual([]);
+        } finally {
+            setProfilingOverride(null);
+        }
     });
 });

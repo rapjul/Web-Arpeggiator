@@ -1,20 +1,20 @@
 /**
  * Subsystem benchmarks verifying execution budgets for audio startup,
- * timeline compilation, settings hydration, and telemetry overhead.
+ * timeline compilation, settings hydration, and profiler overhead.
  *
- * @module tests/unit/audio-startup-benchmarks
+ * @module tests/perf/audio-startup-benchmarks
  */
 
 import { describe, expect, it, vi } from "vitest";
 import { createAudioEngine } from "../../src/audio/audio-engine.js";
 import { mergeSettings } from "../../src/core/settings-contract.js";
 import {
-    clearStartupTelemetry,
+    clearStartupProfiler,
     mark,
     measure,
     STARTUP_MARKS,
     STARTUP_MEASURES,
-} from "../../src/core/telemetry.js";
+} from "../../src/core/startup-profiler.js";
 import { compileTimeline } from "../../src/core/timeline.js";
 
 vi.mock("tone", async () => {
@@ -228,8 +228,8 @@ describe("Audio Startup Subsystem Benchmarks", () => {
         expect(durationMs).toBeLessThan(100);
     });
 
-    it("verifies telemetry mark/measure overhead is sub-microsecond per call", () => {
-        clearStartupTelemetry();
+    it("verifies profiler mark/measure overhead is sub-microsecond per call", () => {
+        clearStartupProfiler();
         const iterations = 1000;
         const start = performance.now();
 
@@ -241,13 +241,13 @@ describe("Audio Startup Subsystem Benchmarks", () => {
                 STARTUP_MARKS.MODULES_LOADING,
                 STARTUP_MARKS.MODULES_LOADED,
             );
-            clearStartupTelemetry();
+            clearStartupProfiler();
         }
 
         const totalMs = performance.now() - start;
         const avgPerIterationMs = totalMs / iterations;
 
-        // Telemetry overhead should be under 0.1ms (100 microseconds) per cycle
+        // Profiler overhead should be under 0.1ms (100 microseconds) per cycle
         expect(avgPerIterationMs).toBeLessThan(0.1);
     });
 

@@ -39,8 +39,8 @@ Playback onset is strictly decoupled from capture readiness:
 - [ADR 0018](./0018-awaited-recording-lifecycle-and-bounded-audio-resource-ownership.md) mandates awaiting backend readiness *only* when the user explicitly begins a real-time recording take (`startRealtimeCapture`).
 - For normal playback (`startAudio` and `playbackController.start`), the recorder backend is triggered via background pre-warming (`void recorderManager.initRecorder()`), ensuring transport scheduling and synth attack are never held hostage by media stream allocation or recorder fallback probing.
 
-### 2. High-Resolution Lifecycle Telemetry
-The core module [`src/core/telemetry.js`](../../src/core/telemetry.js) manages standard microsecond-accurate Web Performance API markers across audio initialization:
+### 2. High-Resolution Local Startup Profiling and Hybrid Privacy Guard
+The core module [`src/core/startup-profiler.js`](../../src/core/startup-profiler.js) manages standard microsecond-accurate Web Performance API markers across audio initialization:
 - `audio:user-start-gesture`: Moment the user clicks "Start Audio", "Start and Enable Audio", or a sound starter card.
 - `audio:modules-loading` / `audio:modules-loaded`: Dynamic ES module importing of `Tone.js` and audio submodules.
 - `audio:context-resuming` / `audio:context-resumed`: Asynchronous `Tone.start()` / `AudioContext.resume()` execution.
@@ -49,21 +49,24 @@ The core module [`src/core/telemetry.js`](../../src/core/telemetry.js) manages s
 - `audio:transport-starting`: Scheduler kickoff and `Tone.Transport.start()`.
 - `audio:first-step-executed`: First note step processed and audible, synchronizing with the first active step pip indicator.
 
-In Vite development mode (`import.meta.env.DEV`), `logStartupWaterfall()` outputs a structured diagnostic table (`console.table`) detailing the millisecond duration of each phase.
+To preserve user privacy and prevent tracking concerns, profiling is strictly local (zero network calls, zero analytics). It runs during development (`import.meta.env.DEV`) and automated tests (`import.meta.env.MODE === "test"`). In production, it is completely inactive by default, but can be enabled on-demand for field debugging via `?perf=true` or `?debug=true` in the URL query string.
+
+In Vite development mode, `logStartupWaterfall()` outputs a structured diagnostic table (`console.table`) detailing the millisecond duration of each phase.
 
 ### 3. Latency Budgets & Automated Verification
 - **Cold Start Budget**: Under **2500ms** in headless browser `CI` (typically 400–800ms on desktop hardware). Verified by `tests/e2e/playback-startup-latency.test.ts`.
 - **Warm Restart Budget**: Under **300ms** from clicking "Restart Audio" until the first step pip activates. Verified by `tests/e2e/playback-startup-latency.test.ts`.
-- **Subsystem Algorithmic Budgets**: Pure domain computations (100-cycle 480-PPQ timeline compilation < 100ms, 500 settings snapshot mergers < 100ms, telemetry overhead < 0.1ms per cycle). Verified by `tests/unit/audio-startup-benchmarks.test.ts`.
+- **Subsystem Algorithmic Budgets**: Pure domain computations (100-cycle 480-PPQ timeline compilation < 100ms, 500 settings snapshot mergers < 100ms, profiler overhead < 0.1ms per cycle). Verified by `tests/perf/audio-startup-benchmarks.test.ts`.
 
 ### Consequences
 
 - Good, because users experience immediate musical response when interacting with the app.
 - Good, because background pre-warming guarantees that real-time recording remains ready without penalizing transport latency.
 - Good, because granular Performance API measures enable instant debugging of any startup bottleneck in Chrome DevTools without code edits.
+- Good, because the hybrid privacy guard guarantees zero overhead and zero tracking in production by default while allowing real-device debugging with `?perf=true`.
 - Good, because regressions like PR #67 commit `e492f81` are caught automatically by continuous integration before merging.
 - Neutral, because developers must preserve the non-blocking pattern when adding new audio features or synthesizers.
 
 ### Confirmation
 
-Automated `Playwright` E2E tests in [`tests/e2e/playback-startup-latency.test.ts`](../../tests/e2e/playback-startup-latency.test.ts) assert wall-clock and `PerformanceMeasure` durations against the defined budgets. Unit benchmarks in [`tests/unit/audio-startup-benchmarks.test.ts`](../../tests/unit/audio-startup-benchmarks.test.ts) assert execution bounds on isolated engine construction and timeline algorithms.
+Automated `Playwright` E2E tests in [`tests/e2e/playback-startup-latency.test.ts`](../../tests/e2e/playback-startup-latency.test.ts) assert wall-clock and `PerformanceMeasure` durations against the defined budgets. Dedicated performance benchmarks in [`tests/perf/audio-startup-benchmarks.test.ts`](../../tests/perf/audio-startup-benchmarks.test.ts) assert execution bounds on isolated engine construction and timeline algorithms.
