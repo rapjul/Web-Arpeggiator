@@ -13,7 +13,7 @@ import {
     OFFLINE_EXPORT_MODE_TAIL,
 } from "@core/export-duration.js";
 import { exportMidiFile } from "@core/midi-export.js";
-import { compileTimeline, getTimelineEndTick, ticksToSeconds } from "@core/timeline.js";
+import { compileTimeline, getTimelineTerminalEndSeconds } from "@core/timeline.js";
 
 /** @typedef {import("@core/settings-contract.js").ArpeggiatorSettings} ArpeggiatorSettings */
 /** @typedef {import("@core/timeline.js").CompiledTimeline} CompiledTimeline */
@@ -91,7 +91,7 @@ export function createExportControlsController(dependencies) {
                   })
                 : null;
         const terminalDuration = selectedTimeline
-            ? ticksToSeconds(getTimelineEndTick(selectedTimeline), selectedTimeline.bpm)
+            ? getTimelineTerminalEndSeconds(selectedTimeline)
             : undefined;
         offlineExportDuration.textContent = formatEstimatedExportDuration({
             loopCount: settings.loopCount,
@@ -102,6 +102,7 @@ export function createExportControlsController(dependencies) {
             tailMode: settings.offlineExportTailMode,
             tailSeconds: settings.offlineExportTailSeconds,
             envRelease: settings.envRelease,
+            synthType: settings.synthType,
             delayMix: settings.delayMix,
             reverbMix: settings.reverbMix,
             chorusMix: settings.chorusMix,

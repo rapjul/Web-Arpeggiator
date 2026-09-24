@@ -1393,7 +1393,10 @@ function initializeApp() {
             synthControlsController.updateWaveformButtons(appState.currentWaveform);
             getAudioEngine()?.setSynth(synthTypeSelect.value);
         },
-        onEnvelopeChange: debouncedUpdateEnvelope,
+        onEnvelopeChange: () => {
+            debouncedUpdateEnvelope();
+            updateEstimatedExportDuration();
+        },
         onHarmonicityChange: debouncedSetHarmonicity,
         onModIndexChange: debouncedSetModIndex,
         onDutyChange: debouncedSetDuty,
@@ -1502,13 +1505,20 @@ function initializeApp() {
         onChorusMixChange: (value) => {
             const audioEngine = getAudioEngine();
             if (audioEngine?.chorus) audioEngine.chorus.wet.value = value;
+            updateEstimatedExportDuration();
         },
         onAutoPanMixChange: (value) => {
             const audioEngine = getAudioEngine();
             if (audioEngine?.autoPanner) audioEngine.autoPanner.wet.value = value;
         },
-        onDelayMixChange: debouncedSetDelayMix,
-        onReverbMixChange: debouncedSetReverbMix,
+        onDelayMixChange: (value) => {
+            debouncedSetDelayMix(value);
+            updateEstimatedExportDuration();
+        },
+        onReverbMixChange: (value) => {
+            debouncedSetReverbMix(value);
+            updateEstimatedExportDuration();
+        },
     });
     effectsControlsController.initialize();
 

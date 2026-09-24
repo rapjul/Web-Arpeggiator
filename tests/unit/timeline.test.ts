@@ -8,6 +8,7 @@ import {
     getTimelineEndTick,
     getTimelineStartTick,
     getSwingOffsetTicks,
+    getTimelineTerminalEndSeconds,
     TICKS_PER_BEAT,
     ticksToSeconds,
 } from "@core/timeline.js";
@@ -70,6 +71,8 @@ describe("musical timeline", () => {
         expect(preserved.events.at(-1)?.durationTicks).toBe(120);
         expect(getTimelineEndTick(clipped)).toBe(360);
         expect(getTimelineEndTick(preserved)).toBe(520);
+        expect(getTimelineTerminalEndSeconds(clipped)).toBeCloseTo(0.375);
+        expect(getTimelineTerminalEndSeconds(preserved)).toBeCloseTo(ticksToSeconds(520, 120));
     });
 
     it("repeats selected swung timing through seamless warm-up", () => {

@@ -468,6 +468,77 @@ describe("Recorder Manager Module", () => {
         );
     });
 
+    it("appends a custom tail after the final swung gate", async () => {
+        const manager = createRecorderManager({
+            audio: mockAudio,
+            dom: mockDom,
+            state: mockState,
+            actions: mockActions,
+        });
+        mockActions.getAllSettings = vi.fn(() => ({
+            bpm: 120,
+            swing: 1,
+            notes: ["C4", "E4", "G4"],
+            direction: "up",
+            interval: "16n",
+            gateRatio: 1,
+            loopCount: 1,
+            offlineExportMode: "tail",
+            offlineExportTailMode: "custom",
+            offlineExportTailSeconds: 2,
+        }));
+
+        await manager.exportOffline();
+
+        expect(lastOfflineRenderDuration).toBeCloseTo((400 + 120) / 480 / 2 + 2);
+    });
+
+    it("names Auto exports with their resolved tail duration", async () => {
+        const manager = createRecorderManager({
+            audio: mockAudio,
+            dom: mockDom,
+            state: mockState,
+            actions: mockActions,
+        });
+        const settings = {
+            bpm: 120,
+            swing: 0,
+            notes: ["C4", "E4", "G4"],
+            direction: "up",
+            interval: "16n",
+            gateRatio: 0.8,
+            loopCount: 1,
+            synthType: "synth",
+            offlineExportMode: "tail",
+            offlineExportTailMode: "auto",
+            offlineExportTailSeconds: 2,
+            envRelease: 0.5,
+            delayMix: 0.2,
+            reverbMix: 0.3,
+            chorusMix: 0,
+            autoPanMix: 0,
+        };
+        mockActions.getAllSettings = vi.fn(() => settings);
+
+        await manager.exportOffline();
+
+        expect(mockActions.generateFilename).toHaveBeenCalledWith(
+            false,
+            { ...settings, offlineExportTailSeconds: 4.5 },
+            "audio",
+        );
+        expect(lastOfflineRenderDuration).toBeCloseTo(4.875);
+        expect(audioBufferToWav).toHaveBeenCalledWith(
+            expect.anything(),
+            expect.objectContaining({
+                export: expect.objectContaining({
+                    renderDurationSeconds: 4.875,
+                    tailDurationSeconds: 4.5,
+                }),
+            }),
+        );
+    });
+
     it("warms, crops, and exports seamless loops from one settings snapshot", async () => {
         const manager = createRecorderManager({
             audio: mockAudio,

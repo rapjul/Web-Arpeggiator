@@ -20,6 +20,7 @@ import {
     calculateSeamlessRenderFrameWindow,
     getSeamlessModulationCompatibility,
     OFFLINE_EXPORT_MODE_SEAMLESS,
+    OFFLINE_EXPORT_TAIL_MODE_AUTO,
 } from "@core/export-duration.js";
 import { createOfflineExportMetadata } from "@core/export-metadata.js";
 import {
@@ -744,8 +745,6 @@ export function createRecorderManager(context) {
         dom.offlineExportButton.textContent = "Generating...";
 
         const settings = actions.getAllSettings();
-        const filename = actions.generateFilename(false, settings, "audio");
-
         const baseTimeline = compileTimeline(settings, { cycles: 1 });
         const calculateExportDuration = (terminalDuration) =>
             calculateOfflineExportDuration({
@@ -757,6 +756,7 @@ export function createRecorderManager(context) {
                 tailMode: settings.offlineExportTailMode,
                 tailSeconds: settings.offlineExportTailSeconds,
                 envRelease: settings.envRelease,
+                synthType: settings.synthType,
                 delayMix: settings.delayMix,
                 reverbMix: settings.reverbMix,
                 chorusMix: settings.chorusMix,
@@ -774,6 +774,14 @@ export function createRecorderManager(context) {
                 ticksToSeconds(getTimelineEndTick(selectedTimeline), selectedTimeline.bpm),
             );
         }
+        const filenameSettings =
+            !isSeamlessExport && exportDuration.tailMode === OFFLINE_EXPORT_TAIL_MODE_AUTO
+                ? {
+                      ...settings,
+                      offlineExportTailSeconds: Number(exportDuration.tailDuration.toFixed(1)),
+                  }
+                : settings;
+        const filename = actions.generateFilename(false, filenameSettings, "audio");
         const seamlessModulation = getSeamlessModulationCompatibility({
             bpm: settings.bpm,
             musicalDuration: exportDuration.musicalDuration,

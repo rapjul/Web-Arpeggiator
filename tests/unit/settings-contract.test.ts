@@ -249,6 +249,8 @@ describe("settings contract", () => {
         const settings = normalizeSettings({ baseNotes: ["D4", "F#4"], octaveRange: 2 });
 
         expect(settings.settingsVersion).toBe(SETTINGS_SCHEMA_VERSION);
+        expect(settings.offlineExportTailMode).toBe("custom");
+        expect(settings.offlineExportTailSeconds).toBe(2);
         expect(settings.notes).toEqual(["D4", "D5", "Gb4", "Gb5"]);
     });
 

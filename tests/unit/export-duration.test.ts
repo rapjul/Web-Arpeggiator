@@ -63,6 +63,14 @@ describe("Export Duration", () => {
         expect(normalizeOfflineExportTailMode(undefined, OFFLINE_EXPORT_TAIL_MODE_CUSTOM)).toBe(
             OFFLINE_EXPORT_TAIL_MODE_CUSTOM,
         );
+        expect(normalizeOfflineExportTailMode(null)).toBe(OFFLINE_EXPORT_TAIL_MODE_AUTO);
+        expect(normalizeOfflineExportTailMode(123)).toBe(OFFLINE_EXPORT_TAIL_MODE_AUTO);
+        expect(normalizeOfflineExportTailMode(true)).toBe(OFFLINE_EXPORT_TAIL_MODE_AUTO);
+        expect(normalizeOfflineExportTailMode(false)).toBe(OFFLINE_EXPORT_TAIL_MODE_AUTO);
+        expect(normalizeOfflineExportTailMode({})).toBe(OFFLINE_EXPORT_TAIL_MODE_AUTO);
+        expect(normalizeOfflineExportTailMode([], OFFLINE_EXPORT_TAIL_MODE_CUSTOM)).toBe(
+            OFFLINE_EXPORT_TAIL_MODE_CUSTOM,
+        );
         expect(normalizeOfflineExportTailSeconds(undefined)).toBe(
             DEFAULT_OFFLINE_EXPORT_TAIL_SECONDS,
         );
@@ -117,17 +125,17 @@ describe("Export Duration", () => {
         ).toBe(recommended);
     });
 
-    it("caps an automatic recommendation at the supported ten-second tail", () => {
+    it("caps a reachable automatic recommendation at the supported ten-second tail", () => {
         expect(
             calculateOfflineExportDuration({
                 loopCount: 1,
                 stepsPerLoop: 1,
                 interval: "16n",
-                bpm: 120,
+                bpm: 40,
                 exportMode: OFFLINE_EXPORT_MODE_TAIL,
                 tailMode: OFFLINE_EXPORT_TAIL_MODE_AUTO,
-                envRelease: 12,
-                delayMix: 0,
+                envRelease: 5,
+                delayMix: 0.5,
                 reverbMix: 0,
                 chorusMix: 0,
             }),
@@ -136,6 +144,81 @@ describe("Export Duration", () => {
             tailWasCapped: true,
             tailMode: OFFLINE_EXPORT_TAIL_MODE_AUTO,
         });
+    });
+
+    it("uses Pluck Synth's physical-model release instead of the ADSR setting", () => {
+        expect(
+            calculateRecommendedTailSeconds({
+                bpm: 120,
+                envRelease: 5,
+                synthType: "pluckSynth",
+                delayMix: 0,
+                reverbMix: 0,
+                chorusMix: 0,
+            }),
+        ).toBe(1);
+    });
+
+    it("appends a tail after a preserved terminal gate", () => {
+        expect(
+            calculateOfflineExportDuration({
+                loopCount: 1,
+                stepsPerLoop: 1,
+                interval: "16n",
+                bpm: 120,
+                exportMode: OFFLINE_EXPORT_MODE_TAIL,
+                tailMode: OFFLINE_EXPORT_TAIL_MODE_CUSTOM,
+                tailSeconds: 2,
+                terminalEventEndSeconds: 0.25,
+            }),
+        ).toMatchObject({
+            musicalDuration: 0.125,
+            exportDuration: 2.25,
+            renderDuration: 2.25,
+        });
+
+        // Negative/invalid terminalEventEndSeconds falls back to musicalDuration
+        expect(
+            calculateOfflineExportDuration({
+                loopCount: 1,
+                stepsPerLoop: 1,
+                interval: "16n",
+                bpm: 120,
+                exportMode: OFFLINE_EXPORT_MODE_TAIL,
+                tailMode: OFFLINE_EXPORT_TAIL_MODE_CUSTOM,
+                tailSeconds: 2,
+                terminalEventEndSeconds: 0.05,
+            }),
+        ).toMatchObject({
+            musicalDuration: 0.125,
+            exportDuration: 2.125,
+            renderDuration: 2.125,
+        });
+        expect(
+            calculateOfflineExportDuration({
+                loopCount: 1,
+                stepsPerLoop: 1,
+                interval: "16n",
+                bpm: 120,
+                exportMode: OFFLINE_EXPORT_MODE_TAIL,
+                tailMode: OFFLINE_EXPORT_TAIL_MODE_CUSTOM,
+                tailSeconds: 2,
+                terminalEventEndSeconds: Number.NaN,
+            }),
+        ).toMatchObject({
+            musicalDuration: 0.125,
+            exportDuration: 2.125,
+            renderDuration: 2.125,
+        });
+        expect(
+            calculateRecommendedTailSeconds({
+                bpm: 120,
+                envRelease: -1,
+                delayMix: 0,
+                reverbMix: 0,
+                chorusMix: 0,
+            }),
+        ).toBe(0);
     });
 
     it("adds a configurable effects tail only to tail exports", () => {
@@ -339,11 +422,14 @@ describe("Export Duration", () => {
                 loopCount: 1,
                 stepsPerLoop: 1,
                 interval: "16n",
-                bpm: 120,
+                bpm: 40,
                 exportMode: OFFLINE_EXPORT_MODE_TAIL,
                 tailMode: OFFLINE_EXPORT_TAIL_MODE_AUTO,
-                envRelease: 12,
+                envRelease: 5,
+                delayMix: 0.5,
             }),
-        ).toContain("Auto effects tail: 10.0s");
+        ).toBe(
+            "1 Pattern cycle at ~0.38s each + Auto effects tail: 10.0s. Export duration: ~10.4 seconds. Auto estimate is 12.5s and is capped at 10s.",
+        );
     });
 });
