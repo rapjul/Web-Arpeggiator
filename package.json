@@ -22,6 +22,7 @@
     "test:unit": "vitest run tests/unit",
     "test:perf": "vitest run tests/perf",
     "test:coverage": "vitest run --coverage",
+    "test:coverage:ci": "vitest run --coverage tests/unit",
     "test:watch": "vitest tests/unit",
     "test:e2e": "playwright install chromium && playwright test",
     "test": "bun run test:unit && bun run test:perf",

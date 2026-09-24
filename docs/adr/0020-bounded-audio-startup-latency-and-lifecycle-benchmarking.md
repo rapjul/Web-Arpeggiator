@@ -63,11 +63,11 @@ In Vite development mode, `logStartupWaterfall()` outputs a structured diagnosti
 
 ### 4. Latency Budgets & Automated Verification
 - **Immediate Cold Start Budget**: Under **2500ms** in headless browser `CI` (typically 400–800ms on desktop hardware) when triggering playback immediately upon page load (such as clicking "Start and Enable Audio" on `#start-overlay`). Verified by `tests/e2e/playback-startup-latency.test.ts`.
-- **Dwell Time Cold Start Budget**: Under **2500ms** total wall-clock and under **500ms** from transport start to first note when initiating playback after idle page dwell time (such as 3+ seconds of reading before clicking "Start Audio"). Verified by `tests/e2e/playback-startup-latency.test.ts`.
+- **Dwell Time Cold Start Budget**: Under **2500ms** total wall-clock and under **150ms** from transport start to first note when initiating playback after idle page dwell time (such as 3+ seconds of reading before clicking "Start and Enable Audio"). Verified by `tests/e2e/playback-startup-latency.test.ts`.
 - **Transport-to-First-Note Phase Budget**: Under **150ms** (`audio:transport-to-first-note`) across both immediate and idle dwell starts, ensuring the scheduler processes tick 0 without boundary skip delay.
 - **Warm Restart Budget**: Under **300ms** from clicking "Restart Audio" until the first step pip activates. Verified by `tests/e2e/playback-startup-latency.test.ts`.
 - **Concurrent Capture Non-Interference**: Background recorder pre-warming executes concurrently without delaying playback onset, verified by headless recorder concurrency tests in `tests/e2e/playback-startup-latency.test.ts`.
-- **Subsystem Algorithmic Budgets**: Pure domain computations (100-cycle 480-PPQ timeline compilation < 100ms, 500 settings snapshot mergers < 100ms, profiler overhead < 0.1ms per cycle). Verified by `tests/perf/audio-startup-benchmarks.test.ts`.
+- **Subsystem Algorithmic Budgets**: Pure domain computations (100-cycle 480-PPQ timeline compilation < 100ms, 500 settings snapshot mergers < 100ms, profiler overhead < 0.25ms per cycle; isolated engine benchmarks bound synchronous object allocation and wiring loops, while end-to-end Web Audio / Tone.js initialization is verified by Playwright). Verified by `tests/perf/audio-startup-benchmarks.test.ts`.
 
 ### Consequences
 
