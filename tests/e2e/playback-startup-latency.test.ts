@@ -12,7 +12,7 @@ test.describe("Audio Playback Startup Latency", () => {
         await page.goto("/?perf=true");
         // First-visit onboarding modal is visible on cold page
         await expect(page.locator("#quick-start-overlay")).toBeVisible();
-        const firstStarterCard = page.locator(".sound-starter-card").first();
+        const firstStarterCard = page.locator("#quick-start-overlay .sound-starter-card").first();
         await expect(firstStarterCard).toBeVisible();
 
         // Clear any previous marks from initial page script evaluation
@@ -181,6 +181,12 @@ test.describe("Audio Playback Startup Latency", () => {
 
         // Warm restart must take less than 300ms
         expect(restartDurationMs).toBeLessThan(300);
+
+        // Confirm audio:total-cold-start was not computed against the start-from-scratch gesture
+        const measures = await page.evaluate(() => {
+            return performance.getEntriesByType("measure").map((e) => e.name);
+        });
+        expect(measures).not.toContain("audio:total-cold-start");
     });
 
     test("confirms background recorder pre-warming does not delay transport startup", async ({

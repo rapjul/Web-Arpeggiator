@@ -25,6 +25,7 @@ For module ownership, composition boundaries, and the deferred `app.js` follow-u
 ```bash
 bun run test:unit
 bun run test:coverage
+bun run test:perf
 bun run test:e2e
 bun run test:all
 ```
@@ -36,6 +37,7 @@ bun run format:check
 bun run lint
 bun run typecheck
 bun run test:coverage
+bun run test:perf
 bun run build
 bun run test:e2e
 ```
