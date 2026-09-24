@@ -115,6 +115,10 @@ export function createRecorderManager(context) {
     let mediaStopResolver = null;
     let mediaStopRejecter = null;
     let activeTransitionPromise = null;
+    /** @type {Promise<void>|null} */
+    let activeExportPromise = null;
+    /** @type {Promise<void>|null} */
+    let activeDestroyPromise = null;
     let activeMediaRecorderError = null;
     let isExporting = false;
     let isDestroyed = false;
@@ -585,7 +589,28 @@ export function createRecorderManager(context) {
      *
      * @returns {Promise<void>}
      */
-    async function exportRealtime() {
+    function exportRealtime() {
+        if (activeExportPromise) return activeExportPromise;
+
+        const exportPromise = exportRealtimeInternal();
+        /** @type {Promise<void>} */
+        let trackedExportPromise;
+        trackedExportPromise = exportPromise.finally(() => {
+            if (activeExportPromise === trackedExportPromise) {
+                activeExportPromise = null;
+            }
+        });
+        activeExportPromise = trackedExportPromise;
+        return trackedExportPromise;
+    }
+
+    /**
+     * Performs the real-time recording conversion and download.
+     *
+     * @returns {Promise<void>}
+     */
+    async function exportRealtimeInternal() {
+        if (isDestroyed) return;
         if (!liveRecordedWavBlob) {
             actions.showToast("No recording found.", "error");
             return;
@@ -633,11 +658,13 @@ export function createRecorderManager(context) {
                 } catch (error) {
                     exportFailed = true;
                     console.error("WAV encoding failed:", error);
-                    dom.recordStatus.textContent = "WAV encoding failed. See console.";
-                    actions.showToast("WAV encoding failed.", "error");
+                    if (!isDestroyed) {
+                        dom.recordStatus.textContent = "WAV encoding failed. See console.";
+                        actions.showToast("WAV encoding failed.", "error");
+                    }
                     return;
                 }
-                actions.showToast("Exported WAV file!", "info");
+                if (!isDestroyed) actions.showToast("Exported WAV file!", "info");
 
                 if (dom.realtimeExportMp3Check.checked) {
                     await new Promise((resolve) => setTimeout(resolve, 300));
@@ -645,30 +672,40 @@ export function createRecorderManager(context) {
             }
 
             if (dom.realtimeExportMp3Check.checked) {
-                dom.recordStatus.textContent = "Encoding MP3... (this may take a moment)";
-                actions.showToast("Encoding MP3...", "info");
+                if (!isDestroyed) {
+                    dom.recordStatus.textContent = "Encoding MP3... (this may take a moment)";
+                    actions.showToast("Encoding MP3...", "info");
+                }
                 try {
                     const audioBuffer = await decodeRecording();
                     const mp3Blob = await audioBufferToMp3Blob(audioBuffer);
                     downloadBlob(mp3Blob, `${filename}.mp3`);
 
-                    dom.recordStatus.textContent = "Export complete!";
-                    actions.showToast("Exported MP3 file!", "success");
+                    if (!isDestroyed) {
+                        dom.recordStatus.textContent = "Export complete!";
+                        actions.showToast("Exported MP3 file!", "success");
+                    }
                 } catch (e) {
                     exportFailed = true;
                     console.error("MP3 encoding failed:", e);
-                    dom.recordStatus.textContent = "MP3 encoding failed. See console.";
-                    actions.showToast("MP3 encoding failed.", "error");
+                    if (!isDestroyed) {
+                        dom.recordStatus.textContent = "MP3 encoding failed. See console.";
+                        actions.showToast("MP3 encoding failed.", "error");
+                    }
                 }
             } else if (dom.realtimeExportWavCheck.checked) {
-                dom.recordStatus.textContent = "Export complete!";
-                actions.showToast("Export complete!", "success");
+                if (!isDestroyed) {
+                    dom.recordStatus.textContent = "Export complete!";
+                    actions.showToast("Export complete!", "success");
+                }
             }
         } finally {
             isExporting = false;
-            dom.exportButton.disabled = false;
-            dom.exportButton.textContent = "Export Files";
-            dom.recordButton.disabled = false;
+            if (!isDestroyed) {
+                dom.exportButton.disabled = false;
+                dom.exportButton.textContent = "Export Files";
+                dom.recordButton.disabled = false;
+            }
             if (!exportFailed && liveRecordedWavBlob === currentExportBlob) {
                 decodedRecording = null;
             }
@@ -891,15 +928,32 @@ export function createRecorderManager(context) {
      *
      * @returns {Promise<void>}
      */
-    async function destroy() {
-        if (isDestroyed) return;
+    function destroy() {
+        if (activeDestroyPromise) return activeDestroyPromise;
         isDestroyed = true;
+        activeDestroyPromise = destroyRecorderResources();
+        return activeDestroyPromise;
+    }
 
+    /**
+     * Waits for owned asynchronous work, then releases recorder resources.
+     *
+     * @returns {Promise<void>}
+     */
+    async function destroyRecorderResources() {
         if (activeTransitionPromise) {
             try {
                 await activeTransitionPromise;
             } catch (error) {
                 console.warn("In-flight recorder transition failed during destruction:", error);
+            }
+        }
+
+        if (activeExportPromise) {
+            try {
+                await activeExportPromise;
+            } catch (error) {
+                console.warn("In-flight real-time export failed during destruction:", error);
             }
         }
 

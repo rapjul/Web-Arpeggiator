@@ -957,10 +957,11 @@ describe("Recorder Manager Module", () => {
         manager.setRecorderBlob(new Blob([new Uint8Array(2048)], { type: "audio/wav" }));
 
         await manager.destroy();
+        const toastCount = mockActions.showToast.mock.calls.length;
         await manager.exportRealtime();
 
         expect(recorderDispose).toHaveBeenCalledOnce();
-        expect(mockActions.showToast).toHaveBeenCalledWith("No recording found.", "error");
+        expect(mockActions.showToast).toHaveBeenCalledTimes(toastCount);
     });
 
     it("preserves a Tone recording when playback startup fails", async () => {
@@ -1246,6 +1247,58 @@ describe("Recorder Manager Module", () => {
         exportResolve();
         await exportPromise;
         expect(mockDom.recordButton.disabled).toBe(false);
+    });
+
+    it("waits for an active real-time export before destruction without stale UI updates", async () => {
+        const manager = createRecorderManager({
+            audio: mockAudio,
+            dom: mockDom,
+            state: mockState,
+            actions: mockActions,
+        });
+        const { downloadBlob } = await import("@core/audio-utils.js");
+        manager.setRecorderBlob(new Blob([new Uint8Array(2048)], { type: "audio/wav" }));
+        mockDom.realtimeExportWavCheck.checked = true;
+        mockDom.realtimeExportMp3Check.checked = false;
+
+        let resolveDecode: (buffer: AudioBuffer) => void = () => {};
+        vi.mocked(mockContext.decodeAudioData).mockImplementationOnce(
+            async () =>
+                await new Promise<AudioBuffer>((resolve) => {
+                    resolveDecode = resolve;
+                }),
+        );
+
+        const exportPromise = manager.exportRealtime();
+        expect(mockDom.recordStatus.textContent).toBe("Exporting WAV...");
+        expect(mockDom.exportButton.disabled).toBe(true);
+
+        let destroyFinished = false;
+        const destroyPromise = manager.destroy().then(() => {
+            destroyFinished = true;
+        });
+        let repeatedDestroyFinished = false;
+        const repeatedDestroyPromise = manager.destroy().then(() => {
+            repeatedDestroyFinished = true;
+        });
+        await Promise.resolve();
+        expect(destroyFinished).toBe(false);
+        expect(repeatedDestroyFinished).toBe(false);
+
+        resolveDecode({
+            duration: 1.0,
+            sampleRate: 44100,
+            numberOfChannels: 2,
+            getChannelData: () => new Float32Array(44100),
+        } as unknown as AudioBuffer);
+        await Promise.all([exportPromise, destroyPromise, repeatedDestroyPromise]);
+
+        expect(downloadBlob).toHaveBeenCalledOnce();
+        expect(destroyFinished).toBe(true);
+        expect(repeatedDestroyFinished).toBe(true);
+        expect(mockDom.recordStatus.textContent).toBe("Exporting WAV...");
+        expect(mockDom.exportButton.disabled).toBe(true);
+        expect(mockActions.showToast).toHaveBeenCalledOnce();
     });
 
     it("disposes and resets backend when stopCapture rejects during toggleRecording", async () => {
