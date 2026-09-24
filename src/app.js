@@ -17,6 +17,7 @@ import {
 } from "@core/pattern-core.js";
 import { generateRandomNotes } from "@core/randomizer.js";
 import { DEFAULT_SETTINGS, mergeSettings } from "@core/settings-contract.js";
+import { logStartupWaterfall, mark, STARTUP_MARKS } from "@core/telemetry.js";
 import { PRESET_URL_KEYS } from "@core/url-preset.js";
 import { initializePwa } from "@pwa/pwa.js";
 import { presetStore } from "@storage/presets-store.js";
@@ -110,6 +111,7 @@ let presetWorkflowController = null;
  * @returns {Promise<void>}
  */
 function startAudio() {
+    mark(STARTUP_MARKS.USER_START_GESTURE);
     if (!audioRuntimeController) {
         return Promise.reject(new Error("Audio runtime is not initialized."));
     }
@@ -842,7 +844,11 @@ function initializeApp() {
         onPatternStep: (index) => {
             if (isFirstPlaybackStep && appState.isPlaying) {
                 isFirstPlaybackStep = false;
+                mark(STARTUP_MARKS.FIRST_STEP_EXECUTED);
                 log("Audio playback started.");
+                if (DEBUG) {
+                    logStartupWaterfall(console);
+                }
             }
             noteStepController.highlight(index);
         },

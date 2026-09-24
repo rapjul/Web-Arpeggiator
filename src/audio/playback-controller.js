@@ -4,6 +4,8 @@
  * @module audio/playback-controller
  */
 
+import { mark, STARTUP_MARKS } from "@core/telemetry.js";
+
 /** @typedef {{isAudioContextStarted: boolean, isPlaying: boolean}} PlaybackState */
 
 /**
@@ -52,6 +54,7 @@ export function createPlaybackController(dependencies) {
         createOrUpdatePattern();
         if (!state.isPlaying) {
             getPattern()?.start(0);
+            mark(STARTUP_MARKS.TRANSPORT_STARTING);
             getTone().getTransport().start();
             const playStopButton = dom.playStopButton;
             if (playStopButton) {
