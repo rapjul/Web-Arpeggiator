@@ -119,7 +119,7 @@ Powered by `Tone.getTransport()`:
 
 - **Seamless loop (WAV)**: Repeats the selected event timeline before the selected cycles to establish envelope, delay, and reverb state; preserves swung starts and gate lengths, then crops the WAV to the exact musical sample count without altering the PCM boundary.
 - Seamless loop validates swing, Chorus, and Auto-pan phase alignment across the requested Pattern cycles. When active swing or a modulation effect cannot return to its starting phase, users must adjust the cycle count, disable the setting or effect, or choose Include effects tail.
-- **Include effects tail**: Preserves a cold start, waits for the final scheduled gate to end, and then appends 0–10 seconds of effects decay; legacy presets default to this mode with a 2-second tail.
+- **Include effects tail**: Preserves a cold start and waits for the final scheduled gate to end. Auto estimates active synth and decaying-effect release, capped at 10 seconds; `PluckSynth` uses its fixed one-second physical-model release; Custom appends the selected 0–10 second duration; legacy settings use the prior explicit 2-second tail.
 - Both modes use `Tone.Offline`, support 1-100 pattern cycles, and avoid real-time timing variation. MP3 includes gapless delay/padding metadata for compatible players, but WAV remains the sample-exact format.
 - Offline WAV and MP3 exports embed a versioned settings snapshot, materialized pattern sequence, and render timing. The binary layouts and future import contract are documented in [`docs/audio-export-metadata.md`](./docs/audio-export-metadata.md).
 
@@ -356,7 +356,8 @@ Web Arpeggiator/
 │   │   ├── 0015-shared-480-ppq-musical-timeline-contract.md
 │   │   ├── 0016-reproducible-stochastic-pattern-semantics.md
 │   │   ├── 0017-zero-stderr-test-runner-noise-and-diagnostic-log-assertion.md
-│   │   └── 0018-awaited-recording-lifecycle-and-bounded-audio-resource-ownership.md
+│   │   ├── 0018-awaited-recording-lifecycle-and-bounded-audio-resource-ownership.md
+│   │   └── 0019-recommended-effects-tail-strategy.md
 │   ├── architecture.md     # Module ownership, runtime flow, and deferred boundaries
 │   ├── development.md      # Local setup, commands, and test-runner guidance
 │   ├── improvements/       # Deferred, scoped follow-up plans
