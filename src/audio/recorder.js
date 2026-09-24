@@ -262,12 +262,18 @@ export function createRecorderManager(context) {
         } finally {
             if (blob && !isDestroyed) {
                 finalizeRecordingStop(blob);
+                dom.recordStatus.textContent =
+                    "Playback failed to start. Partial recording is ready to export.";
+                actions.showToast("Playback failed to start.", "error");
             } else {
                 recordingPhase = "idle";
                 if (!isDestroyed) {
                     actions.stopUiLoop();
                     restoreIdleUi();
                     dom.exportControls.classList.add("hidden");
+                    dom.recordStatus.textContent =
+                        "Playback failed to start. No recording was saved.";
+                    actions.showToast("Playback failed to start.", "error");
                 }
             }
         }

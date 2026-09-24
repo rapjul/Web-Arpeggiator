@@ -977,6 +977,10 @@ describe("Recorder Manager Module", () => {
 
         await expect(manager.toggleRecording()).rejects.toThrow("playback failed");
         expect(manager.isRecording).toBe(false);
+        expect(mockDom.recordStatus.textContent).toBe(
+            "Playback failed to start. Partial recording is ready to export.",
+        );
+        expect(mockActions.showToast).toHaveBeenCalledWith("Playback failed to start.", "error");
 
         mockDom.realtimeExportWavCheck.checked = true;
         await manager.exportRealtime();
@@ -1142,6 +1146,13 @@ describe("Recorder Manager Module", () => {
             expect(mockDom.exportControls.classList.contains("hidden")).toBe(true);
             expect(mockDom.recordButton.textContent).toBe("Record");
             expect(mockDom.recordStatus.textContent).not.toContain("Ready to export");
+            expect(mockDom.recordStatus.textContent).toBe(
+                "Playback failed to start. No recording was saved.",
+            );
+            expect(mockActions.showToast).toHaveBeenCalledWith(
+                "Playback failed to start.",
+                "error",
+            );
             expect(warnSpy).toHaveBeenCalledWith(
                 "Failed to stop recorder during recovery:",
                 expect.any(Error),
