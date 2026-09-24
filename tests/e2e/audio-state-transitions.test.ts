@@ -1,4 +1,28 @@
-import { captureDownload, expect, startAudio, test } from "./fixtures/app";
+import { captureDownload, expect, parsePcmWav, startAudio, test } from "./fixtures/app";
+
+function createMonoPcmWav(dataLength: number): Uint8Array {
+    const paddedDataLength = dataLength + (dataLength % 2);
+    const bytes = new Uint8Array(44 + paddedDataLength);
+    const view = new DataView(bytes.buffer);
+    const writeAscii = (offset: number, value: string) => {
+        bytes.set(new TextEncoder().encode(value), offset);
+    };
+
+    writeAscii(0, "RIFF");
+    view.setUint32(4, bytes.length - 8, true);
+    writeAscii(8, "WAVE");
+    writeAscii(12, "fmt ");
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, 1, true);
+    view.setUint32(24, 44_100, true);
+    view.setUint32(28, 88_200, true);
+    view.setUint16(32, 2, true);
+    view.setUint16(34, 16, true);
+    writeAscii(36, "data");
+    view.setUint32(40, dataLength, true);
+    return bytes;
+}
 
 async function startRecording(page: import("@playwright/test").Page): Promise<void> {
     await page.locator("#record-button").click();
@@ -15,6 +39,11 @@ async function stopRecording(page: import("@playwright/test").Page): Promise<voi
 async function waitForRecordedAudio(page: import("@playwright/test").Page): Promise<void> {
     await expect(page.locator("#record-button")).toHaveText(/Stop Recording \(00:0[12]\./);
 }
+
+test("rejects WAV chunks that end inside a PCM frame", async () => {
+    expect(() => parsePcmWav(createMonoPcmWav(3))).toThrow("Expected 16-bit PCM WAV data.");
+    expect(parsePcmWav(createMonoPcmWav(2)).durationSeconds).toBeCloseTo(1 / 44_100);
+});
 
 test("transitions transport and recording through their public controls", async ({
     pwaPage: page,
@@ -54,6 +83,10 @@ test("exports a real-time WAV recording through the browser download API", async
     pwaPage: page,
 }) => {
     await startAudio(page);
+    const playStop = page.locator("#play-stop");
+    await playStop.click();
+    await expect(playStop).toHaveText("Restart Audio");
+
     await startRecording(page);
     await waitForRecordedAudio(page);
     await stopRecording(page);
@@ -64,7 +97,13 @@ test("exports a real-time WAV recording through the browser download API", async
     );
 
     expect(download.filename).toMatch(/\.wav$/);
-    expect([...download.bytes.slice(0, 4)]).toEqual([0x52, 0x49, 0x46, 0x46]);
+    const wav = parsePcmWav(download.bytes);
+    expect(wav.channels).toBeGreaterThanOrEqual(1);
+    expect(wav.sampleRate).toBeGreaterThanOrEqual(44_100);
+    expect(wav.durationSeconds).toBeGreaterThan(0.5);
+    expect(wav.firstAudibleFrame / wav.sampleRate).toBeLessThan(0.2);
+    expect(wav.peak).toBeGreaterThan(0.002);
+    expect(wav.rms).toBeGreaterThan(0.0001);
     await expect(page.locator("#realtime-record-status")).toHaveText("Export complete!");
 });
 
@@ -85,6 +124,22 @@ test("exports a real-time MP3 recording through the browser download API", async
     expect(download.bytes[0]).toBe(0xff);
     expect(download.bytes[1] & 0xe0).toBe(0xe0);
     await expect(page.locator("#realtime-record-status")).toHaveText("Export complete!");
+    const decoded = await page.evaluate(async (samples) => {
+        const context = new AudioContext();
+        try {
+            const buffer = await context.decodeAudioData(new Uint8Array(samples).buffer);
+            let peak = 0;
+            for (let channel = 0; channel < buffer.numberOfChannels; channel += 1) {
+                for (const sample of buffer.getChannelData(channel))
+                    peak = Math.max(peak, Math.abs(sample));
+            }
+            return { duration: buffer.duration, peak };
+        } finally {
+            await context.close();
+        }
+    }, Array.from(download.bytes));
+    expect(decoded.duration).toBeGreaterThan(0.5);
+    expect(decoded.peak).toBeGreaterThan(0.0001);
 });
 
 test("renders and downloads a one-cycle offline WAV export", async ({ pwaPage: page }) => {

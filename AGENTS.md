@@ -25,10 +25,9 @@ Playback, previews, offline audio, and MIDI exports share the 480-PPQ musical ti
 The audio signal chain follows this path:
 
 ```
-Synths → Filter → Delay → Reverb → Limiter → Destination (speakers)
-                                 ↓
-                              Analyzer (visualizer)
-                              Recorder (capture)
+Synths → Distortion → Filter → Chorus → Auto-pan → Delay → Reverb ─┬→ Analyzer (visualizer)
+                                                                     └→ Post gain → Limiter ─┬→ Destination (speakers)
+                                                                                            └→ Recorder (capture, post-gain fallback)
 ```
 
 #### Synthesizers
@@ -50,10 +49,15 @@ All synths share a common ADSR (Attack, Decay, Sustain, Release) envelope.
 
 #### Effects Chain
 
-1. **Filter** (`Tone.Filter`): Lowpass filter with cutoff frequency (100-10000 Hz) and resonance (Q: 0-20)
-2. **Delay** (`Tone.FeedbackDelay`): Feedback delay set to 8th notes with adjustable wet/dry mix
-3. **Reverb** (`Tone.Reverb`): Room reverb with 1.5s decay and adjustable wet/dry mix
-4. **Limiter** (`Tone.Limiter`): Master limiter at 0dB to prevent clipping
+1. **Distortion** (`Tone.Distortion`): Drive effect with adjustable wet/dry mix.
+2. **Filter** (`Tone.Filter`): Lowpass filter with 100–10000 Hz cutoff and 0–20 resonance (Q).
+3. **Chorus** (`Tone.Chorus`): Stereo modulation effect with adjustable wet/dry mix.
+4. **Auto-pan** (`Tone.AutoPanner`): Tempo-synced stereo panning with adjustable wet/dry mix.
+5. **Delay** (`Tone.FeedbackDelay`): 8th-note feedback delay with adjustable wet/dry mix.
+6. **Reverb** (`Tone.Reverb`): Room reverb with 1.5-second decay and adjustable wet/dry mix.
+7. **Post gain** (`Tone.Volume`): Master level control after the effects chain.
+8. **Limiter** (`Tone.Limiter`): Master limiter at 0 dB where supported; otherwise post gain
+   connects to the destination.
 
 ### 2. Pattern Generation System
 
@@ -109,6 +113,7 @@ Powered by `Tone.getTransport()`:
 - Dual recorder system:
     - **`MediaRecorder`** (preferred on HTTPS): Native browser API
     - **`Tone.Recorder`** (fallback): Works in all contexts including HTTP/Canvas
+- Capture readiness is awaited before playback begins. Recorder teardown releases graph connections, browser streams, and transient decoded PCM; see [ADR 0018](./docs/adr/0018-awaited-recording-lifecycle-and-bounded-audio-resource-ownership.md).
 
 #### Offline Audio Export
 
@@ -350,7 +355,8 @@ Web Arpeggiator/
 │   │   ├── 0014-versioned-settings-snapshot-compatibility.md
 │   │   ├── 0015-shared-480-ppq-musical-timeline-contract.md
 │   │   ├── 0016-reproducible-stochastic-pattern-semantics.md
-│   │   └── 0017-zero-stderr-test-runner-noise-and-diagnostic-log-assertion.md
+│   │   ├── 0017-zero-stderr-test-runner-noise-and-diagnostic-log-assertion.md
+│   │   └── 0018-awaited-recording-lifecycle-and-bounded-audio-resource-ownership.md
 │   ├── architecture.md     # Module ownership, runtime flow, and deferred boundaries
 │   ├── development.md      # Local setup, commands, and test-runner guidance
 │   ├── improvements/       # Deferred, scoped follow-up plans

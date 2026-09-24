@@ -8,9 +8,9 @@
  */
 
 /**
- * @typedef {{activeSynth: object|null, analyser: object, meter: object, peakAnalyser: object, reverb: object, synths: object, createOfflineChain: (...args: unknown[]) => object, currentWaveform: string, dispose: () => void}} RuntimeEngine
+ * @typedef {{activeSynth: object|null, analyser: object, meter: object, peakAnalyser: object, reverb: object, recordingOutput: object, synths: object, createOfflineChain: (...args: unknown[]) => object, currentWaveform: string, dispose: () => void}} RuntimeEngine
  * @typedef {{startUiLoop: () => void, stopUiLoop: () => void, destroy: () => void}} RuntimeVisualizer
- * @typedef {{isRecording: boolean, recordingStartTime: number}} RuntimeRecorder
+ * @typedef {{isRecording: boolean, recordingStartTime: number, isStarting?: boolean, awaitPendingTransition?: () => Promise<void>, destroy?: () => Promise<void>}} RuntimeRecorder
  * @typedef {{isPlaying: boolean, isAudioContextStarted: boolean, activeNote: string|null, currentWaveform: string}} AudioRuntimeState
  * @typedef {[object, {createAudioEngine: (...args: unknown[]) => RuntimeEngine}, {createPatternController: (...args: unknown[]) => object}, {createRecorderManager: (...args: unknown[]) => RuntimeRecorder}, {createVisualizer: (...args: unknown[]) => RuntimeVisualizer}]} AudioModules
  *
@@ -37,7 +37,7 @@
  * Creates a deferred audio runtime controller.
  *
  * @param {AudioRuntimeDependencies} dependencies - Injected runtime dependencies.
- * @returns {{loadAudioModules: () => Promise<void>, startAudio: () => Promise<void>, initializeAudioRuntime: () => Promise<void>, getTone: () => object|null, getAvailableAudioEngine: () => object|null|undefined, getAudioEngine: () => object|undefined, getPatternController: () => object|undefined, getRecorderManager: () => object|undefined, getVisualizer: () => object|undefined, destroy: () => void}}
+ * @returns {{loadAudioModules: () => Promise<void>, startAudio: () => Promise<void>, initializeAudioRuntime: () => Promise<void>, getTone: () => object|null, getAvailableAudioEngine: () => object|null|undefined, getAudioEngine: () => object|undefined, getPatternController: () => object|undefined, getRecorderManager: () => object|undefined, getVisualizer: () => object|undefined, destroy: () => Promise<void>}}
  */
 export function createAudioRuntimeController(dependencies) {
     const {
@@ -72,6 +72,8 @@ export function createAudioRuntimeController(dependencies) {
     let audioModulesPromise = null;
     let audioRuntimePromise = null;
     let audioStartPromise = null;
+    /** @type {Promise<void>|null} */
+    let audioDestroyPromise = null;
 
     /**
      * Loads Tone and Tone-dependent modules only when explicitly requested.
@@ -166,6 +168,7 @@ export function createAudioRuntimeController(dependencies) {
                     nextRecorderManager = createRecorderManager({
                         audio: {
                             reverb: nextAudioEngine.reverb,
+                            recordingOutput: nextAudioEngine.recordingOutput,
                             synths: nextAudioEngine.synths,
                             createOfflineChain: nextAudioEngine.createOfflineChain,
                         },
@@ -208,6 +211,14 @@ export function createAudioRuntimeController(dependencies) {
                     onContextReady?.();
                 } catch (error) {
                     nextVisualizer?.destroy();
+                    try {
+                        await nextRecorderManager?.destroy?.();
+                    } catch (cleanupError) {
+                        logger.warn?.(
+                            "Failed to dispose a partial recorder runtime:",
+                            cleanupError,
+                        );
+                    }
                     nextAudioEngine?.dispose();
                     try {
                         nextPatternController?.dispose();
@@ -239,6 +250,7 @@ export function createAudioRuntimeController(dependencies) {
      * @returns {Promise<void>}
      */
     async function startAudio() {
+        if (audioDestroyPromise) await audioDestroyPromise;
         if (state.isAudioContextStarted && Tone?.getContext().state === "running") return;
 
         if (!audioStartPromise) {
@@ -293,9 +305,39 @@ export function createAudioRuntimeController(dependencies) {
         return visualizer;
     }
 
-    /** @returns {void} Releases partially or fully built runtime resources. */
+    /** @returns {Promise<void>} Releases partially or fully built runtime resources. */
     function destroy() {
+        if (audioDestroyPromise) return audioDestroyPromise;
+
+        const destroyPromise = destroyRuntime();
+        /** @type {Promise<void>} */
+        let trackedDestroyPromise;
+        trackedDestroyPromise = destroyPromise.finally(() => {
+            if (audioDestroyPromise === trackedDestroyPromise) {
+                audioDestroyPromise = null;
+            }
+        });
+        audioDestroyPromise = trackedDestroyPromise;
+        return trackedDestroyPromise;
+    }
+
+    /** @returns {Promise<void>} Waits for startup, then releases runtime resources. */
+    async function destroyRuntime() {
+        const pendingStartPromise = audioStartPromise;
+        if (pendingStartPromise) {
+            try {
+                await pendingStartPromise;
+            } catch (error) {
+                logger.warn?.("Audio startup failed during runtime teardown:", error);
+            }
+        }
+
         visualizer?.destroy();
+        try {
+            await recorderManager?.destroy?.();
+        } catch (error) {
+            logger.warn?.("Failed to dispose recorder runtime:", error);
+        }
         audioEngine?.dispose();
         patternController?.dispose();
         audioEngine = undefined;
