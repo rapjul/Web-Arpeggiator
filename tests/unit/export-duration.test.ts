@@ -169,15 +169,16 @@ describe("Export Duration", () => {
                 exportMode: OFFLINE_EXPORT_MODE_TAIL,
                 tailMode: OFFLINE_EXPORT_TAIL_MODE_CUSTOM,
                 tailSeconds: 2,
-                terminalEventEndSeconds: 0.25,
+                terminalDuration: 0.25,
             }),
         ).toMatchObject({
-            musicalDuration: 0.125,
+            patternDuration: 0.125,
+            musicalDuration: 0.25,
             exportDuration: 2.25,
             renderDuration: 2.25,
         });
 
-        // Negative/invalid terminalEventEndSeconds falls back to musicalDuration
+        // Negative/invalid/smaller terminalDuration falls back to patternDuration
         expect(
             calculateOfflineExportDuration({
                 loopCount: 1,
@@ -187,9 +188,10 @@ describe("Export Duration", () => {
                 exportMode: OFFLINE_EXPORT_MODE_TAIL,
                 tailMode: OFFLINE_EXPORT_TAIL_MODE_CUSTOM,
                 tailSeconds: 2,
-                terminalEventEndSeconds: 0.05,
+                terminalDuration: 0.05,
             }),
         ).toMatchObject({
+            patternDuration: 0.125,
             musicalDuration: 0.125,
             exportDuration: 2.125,
             renderDuration: 2.125,
@@ -203,9 +205,27 @@ describe("Export Duration", () => {
                 exportMode: OFFLINE_EXPORT_MODE_TAIL,
                 tailMode: OFFLINE_EXPORT_TAIL_MODE_CUSTOM,
                 tailSeconds: 2,
-                terminalEventEndSeconds: Number.NaN,
+                terminalDuration: Number.NaN,
             }),
         ).toMatchObject({
+            patternDuration: 0.125,
+            musicalDuration: 0.125,
+            exportDuration: 2.125,
+            renderDuration: 2.125,
+        });
+        expect(
+            calculateOfflineExportDuration({
+                loopCount: 1,
+                stepsPerLoop: 1,
+                interval: "16n",
+                bpm: 120,
+                exportMode: OFFLINE_EXPORT_MODE_TAIL,
+                tailMode: OFFLINE_EXPORT_TAIL_MODE_CUSTOM,
+                tailSeconds: 2,
+                terminalDuration: -1,
+            }),
+        ).toMatchObject({
+            patternDuration: 0.125,
             musicalDuration: 0.125,
             exportDuration: 2.125,
             renderDuration: 2.125,

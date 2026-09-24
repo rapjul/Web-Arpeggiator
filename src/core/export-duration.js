@@ -309,7 +309,6 @@ export function calculateRecommendedTailSeconds(options) {
  * @param {unknown} [options.chorusMix] - Chorus wet mix.
  * @param {unknown} [options.autoPanMix] - Auto-pan wet mix.
  * @param {unknown} [options.terminalDuration] - Final selected release end in seconds.
- * @param {unknown} [options.terminalEventEndSeconds] - Final release trigger time from the compiled timeline.
  * @returns {{loopCount: number, stepsPerLoop: number, intervalInSeconds: number, loopDuration: number, patternDuration: number, musicalDuration: number, preRollCycles: number, preRollDuration: number, tailDuration: number, recommendedTailSeconds: number, tailWasCapped: boolean, exportDuration: number, renderDuration: number, totalDuration: number, exportMode: "seamless"|"tail", tailMode: "auto"|"custom"}} Normalized timing values.
  */
 export function calculateOfflineExportDuration({
@@ -327,7 +326,6 @@ export function calculateOfflineExportDuration({
     chorusMix,
     autoPanMix,
     terminalDuration,
-    terminalEventEndSeconds,
 }) {
     const safeLoopCount = normalizeLoopCount(loopCount);
     const parsedStepsPerLoop = Number(stepsPerLoop);
@@ -378,14 +376,7 @@ export function calculateOfflineExportDuration({
     const preRollCycles =
         effectWarmupSeconds > 0 ? Math.ceil(effectWarmupSeconds / loopDuration) : 0;
     const preRollDuration = preRollCycles * loopDuration;
-    const parsedTerminalEventEnd = Number(terminalEventEndSeconds);
-    const sourceDuration =
-        safeExportMode === OFFLINE_EXPORT_MODE_TAIL &&
-        Number.isFinite(parsedTerminalEventEnd) &&
-        parsedTerminalEventEnd > musicalDuration
-            ? parsedTerminalEventEnd
-            : musicalDuration;
-    const exportDuration = sourceDuration + tailDuration;
+    const exportDuration = musicalDuration + tailDuration;
     const renderDuration = preRollDuration + exportDuration;
 
     return {
@@ -430,7 +421,6 @@ export function calculateOfflineExportDuration({
  * @param {unknown} [options.autoPanMix] - Auto-pan wet mix.
  * @param {unknown} [options.swing] - Swing amount from 0 through 1.
  * @param {unknown} [options.terminalDuration] - Final selected release end in seconds.
- * @param {unknown} [options.terminalEventEndSeconds] - Final release trigger time from the compiled timeline.
  * @returns {string} Formatted duration estimate.
  */
 export function formatEstimatedExportDuration(options) {
@@ -488,6 +478,6 @@ export function formatEstimatedExportDuration(options) {
     const capText = tailWasCapped
         ? ` Auto estimate is ${recommendedTailSeconds.toFixed(1)}s and is capped at ${MAX_OFFLINE_EXPORT_TAIL_SECONDS}s.`
         : "";
-    const sentenceEnd = tailWasCapped || tailMode === OFFLINE_EXPORT_TAIL_MODE_AUTO ? "." : "";
+    const sentenceEnd = tailMode === OFFLINE_EXPORT_TAIL_MODE_AUTO ? "." : "";
     return `${safeLoopCount} ${loopLabel} at ${formattedLoopDuration} each + ${tailLabel}. Export duration: ~${exportDuration.toFixed(1)} seconds${sentenceEnd}${capText}`;
 }

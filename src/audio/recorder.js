@@ -26,7 +26,7 @@ import { createOfflineExportMetadata } from "@core/export-metadata.js";
 import {
     compileTimeline,
     createCyclicRenderEvents,
-    getTimelineEndTick,
+    getTimelineTerminalEndSeconds,
     isSwingPhaseAligned,
     ticksToSeconds,
 } from "@core/timeline.js";
@@ -771,7 +771,7 @@ export function createRecorderManager(context) {
         });
         if (!isSeamlessExport) {
             exportDuration = calculateExportDuration(
-                ticksToSeconds(getTimelineEndTick(selectedTimeline), selectedTimeline.bpm),
+                getTimelineTerminalEndSeconds(selectedTimeline),
             );
         }
         const filenameSettings =
