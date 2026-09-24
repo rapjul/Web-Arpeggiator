@@ -1001,6 +1001,9 @@ describe("Recorder Manager Module", () => {
 
         await manager.initRecorder();
         await manager.destroy();
+        expect(nativeMediaRecorder?.ondataavailable).toBeNull();
+        expect(nativeMediaRecorder?.onstop).toBeNull();
+        expect(nativeMediaRecorder?.onerror).toBeNull();
         nativeMediaRecorder?.emitData(new Blob([new Uint8Array(2048)], { type: "audio/webm" }));
         nativeMediaRecorder?.emitStop();
         await manager.exportRealtime();

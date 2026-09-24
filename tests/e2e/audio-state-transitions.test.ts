@@ -171,6 +171,8 @@ test("captures master post-gain changes in real-time WAV recordings", async ({ p
     const quieter = await captureRecordedWav(page);
 
     expect(louder.rms).toBeGreaterThan(0.0001);
+    expect(quieter.rms).toBeGreaterThan(0.00001);
+    expect(quieter.peak).toBeGreaterThan(0.0001);
     expect(quieter.rms).toBeLessThan(louder.rms * 0.25);
     expect(quieter.peak).toBeLessThan(louder.peak * 0.25);
 });
