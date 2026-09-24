@@ -763,6 +763,73 @@ describe("Recorder Manager Module", () => {
         expect(mockDom.recordButton.disabled).toBe(false);
     });
 
+    it("ignores a second toggle while playback startup is still pending", async () => {
+        let notifyPlaybackStarted = () => {};
+        let resolvePlayback: () => void = () => {};
+        const playbackStarted = new Promise<void>((resolve) => {
+            notifyPlaybackStarted = resolve;
+        });
+        const playbackPending = new Promise<void>((resolve) => {
+            resolvePlayback = resolve;
+        });
+        mockActions.startPlayback = vi.fn(async () => {
+            notifyPlaybackStarted();
+            await playbackPending;
+        });
+
+        const manager = createRecorderManager({
+            audio: mockAudio,
+            dom: mockDom,
+            state: mockState,
+            actions: mockActions,
+        });
+
+        const startPromise = manager.toggleRecording();
+        await playbackStarted;
+        await manager.toggleRecording();
+
+        expect(manager.isRecording).toBe(true);
+        expect(recorderLifecycle).not.toContain("recording-stop");
+        expect(mockActions.startPlayback).toHaveBeenCalledOnce();
+
+        resolvePlayback();
+        await startPromise;
+        expect(mockDom.recordButton.disabled).toBe(false);
+    });
+
+    it("does not update recording UI after destroy during playback startup", async () => {
+        let notifyPlaybackStarted = () => {};
+        let resolvePlayback: () => void = () => {};
+        const playbackStarted = new Promise<void>((resolve) => {
+            notifyPlaybackStarted = resolve;
+        });
+        const playbackPending = new Promise<void>((resolve) => {
+            resolvePlayback = resolve;
+        });
+        mockActions.startPlayback = vi.fn(async () => {
+            notifyPlaybackStarted();
+            await playbackPending;
+        });
+
+        const manager = createRecorderManager({
+            audio: mockAudio,
+            dom: mockDom,
+            state: mockState,
+            actions: mockActions,
+        });
+
+        const startPromise = manager.toggleRecording();
+        await playbackStarted;
+        const destroyPromise = manager.destroy();
+        resolvePlayback();
+        await Promise.all([startPromise, destroyPromise]);
+
+        expect(mockActions.startUiLoop).not.toHaveBeenCalled();
+        expect(mockActions.startPlayback).toHaveBeenCalledOnce();
+        expect(manager.isRecording).toBe(false);
+        expect(recorderDispose).toHaveBeenCalled();
+    });
+
     it("restores the idle UI when recorder startup fails", async () => {
         recorderStartError = new Error("recorder failed");
         const manager = createRecorderManager({

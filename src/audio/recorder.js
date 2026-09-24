@@ -256,13 +256,15 @@ export function createRecorderManager(context) {
             console.warn("Failed to stop recorder during recovery:", cleanupError);
             resetRecorderBackend();
         } finally {
-            if (blob) {
+            if (blob && !isDestroyed) {
                 finalizeRecordingStop(blob);
             } else {
                 recordingPhase = "idle";
-                actions.stopUiLoop();
-                restoreIdleUi();
-                dom.exportControls.classList.add("hidden");
+                if (!isDestroyed) {
+                    actions.stopUiLoop();
+                    restoreIdleUi();
+                    dom.exportControls.classList.add("hidden");
+                }
             }
         }
         throw primaryError;
@@ -453,6 +455,7 @@ export function createRecorderManager(context) {
         if (
             isDestroyed ||
             isExporting ||
+            activeTransitionPromise ||
             recordingPhase === "starting" ||
             recordingPhase === "stopping"
         )
@@ -460,19 +463,30 @@ export function createRecorderManager(context) {
         if (isActivelyRecording()) {
             recordingPhase = "stopping";
             dom.recordButton.disabled = true;
-            const stopTransition = (async () => {
+            /** @type {Promise<void>} */
+            let stopTransition;
+            stopTransition = (async () => {
                 try {
-                    finalizeRecordingStop(await stopCapture());
+                    const blob = await stopCapture();
+                    if (isDestroyed) {
+                        recordingPhase = "idle";
+                        return;
+                    }
+                    finalizeRecordingStop(blob);
                 } catch (error) {
                     recordingPhase = "idle";
-                    actions.stopUiLoop();
                     resetRecorderBackend();
-                    restoreIdleUi();
-                    dom.recordStatus.textContent = "Recording failed to stop. See console.";
-                    actions.showToast("Recording failed to stop.", "error");
+                    if (!isDestroyed) {
+                        actions.stopUiLoop();
+                        restoreIdleUi();
+                        dom.recordStatus.textContent = "Recording failed to stop. See console.";
+                        actions.showToast("Recording failed to stop.", "error");
+                    }
                     throw error;
                 } finally {
-                    activeTransitionPromise = null;
+                    if (activeTransitionPromise === stopTransition) {
+                        activeTransitionPromise = null;
+                    }
                 }
             })();
             activeTransitionPromise = stopTransition;
@@ -482,7 +496,9 @@ export function createRecorderManager(context) {
 
         recordingPhase = "starting";
         dom.recordButton.disabled = true;
-        const startTransition = (async () => {
+        /** @type {Promise<void>} */
+        let startTransition;
+        startTransition = (async () => {
             try {
                 // --- Start recording ---
                 // If audio context is not yet started, initialize audio context first
@@ -530,19 +546,24 @@ export function createRecorderManager(context) {
                         await abortCapture(error);
                     }
                 }
+                if (isDestroyed) return;
                 actions.startUiLoop();
                 dom.recordButton.disabled = false;
             } catch (error) {
                 if (recordingPhase === "starting") {
                     recordingPhase = "idle";
-                    actions.stopUiLoop();
-                    restoreIdleUi();
-                    dom.recordStatus.textContent = "Recording failed to start. See console.";
-                    actions.showToast("Recording failed to start.", "error");
+                    if (!isDestroyed) {
+                        actions.stopUiLoop();
+                        restoreIdleUi();
+                        dom.recordStatus.textContent = "Recording failed to start. See console.";
+                        actions.showToast("Recording failed to start.", "error");
+                    }
                 }
                 throw error;
             } finally {
-                activeTransitionPromise = null;
+                if (activeTransitionPromise === startTransition) {
+                    activeTransitionPromise = null;
+                }
             }
         })();
         activeTransitionPromise = startTransition;
