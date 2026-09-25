@@ -99,10 +99,12 @@ describe("Production DOM Parity Suite", () => {
             element.remove();
         });
         document.body.innerHTML = doc.body.innerHTML;
+        document.body.className = doc.body.className;
     });
 
     afterEach(() => {
         document.body.innerHTML = "";
+        document.body.className = "";
     });
 
     it("verifies index.html contains all 13 pattern direction radio inputs and matching spans", () => {
@@ -285,5 +287,27 @@ describe("Production DOM Parity Suite", () => {
             "#browser-storage-recovery summary",
         );
         expect(storageRecoverySummary?.textContent?.trim()).toBe("Browser Storage Recovery");
+    });
+
+    /**
+     * Verifies that body, main dashboard container, and card sections declare responsive padding classes.
+     */
+    it("verifies responsive spacing chain classes on body, app-main, and card sections", () => {
+        expect(document.body.className).toContain("px-2 pt-2 sm:p-4");
+
+        const appMain = document.getElementById("app-main");
+        expect(appMain?.className).toContain("p-4 sm:p-8");
+        expect(appMain?.className).toContain("gap-4 sm:gap-6");
+
+        const sections = document.querySelectorAll("main#app-main > section");
+        expect(sections.length).toBeGreaterThan(0);
+
+        for (const section of sections) {
+            if (section.getAttribute("aria-labelledby") === "preset-management-title") {
+                expect(section.className).toContain("p-4 sm:p-5");
+            } else {
+                expect(section.className).toContain("p-3 sm:p-4");
+            }
+        }
     });
 });

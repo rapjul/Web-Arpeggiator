@@ -141,6 +141,7 @@ input[type="radio"]:focus-visible + .octave-btn {
 .has-custom-tooltip::after {
   content: attr(data-tooltip);
   position: absolute;
+  display: none;
   background: var(--ui-overlay);
   color: var(--ui-text-strong);
   padding: 0.4rem 0.65rem;
@@ -168,6 +169,7 @@ input[type="radio"]:focus-visible + .octave-btn {
 .has-custom-tooltip::before {
   content: "";
   position: absolute;
+  display: none;
   width: 8px;
   height: 8px;
   background: var(--ui-overlay);
@@ -221,6 +223,7 @@ label:hover .has-custom-tooltip::after,
 label:hover .has-custom-tooltip::before,
 input[type="radio"]:focus-visible + .has-custom-tooltip::after,
 input[type="radio"]:focus-visible + .has-custom-tooltip::before {
+  display: block;
   opacity: 1;
   visibility: visible;
 }

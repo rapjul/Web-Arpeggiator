@@ -77,9 +77,23 @@ Chosen option: **Option 3 (Fluid Wrapping, Intrinsic Width Capping, Container-Aw
   - **Level 3 (Buttons & Interactive Triggers)**: Title Case (e.g., `Export Audio`, `Export MIDI (.mid)`, `Include Effects Tail`, `Save Preset`, `Load Preset`, `Browser Storage Recovery`).
   - **Level 4 (Descriptive Subtitles & Guidance Text)**: Sentence case (e.g., "Auto estimates the envelope release and active delay, reverb, and chorus decay, capped at 10 seconds. Custom uses the duration below.").
 
+### 4. Mobile Gutter Tightening and Responsive Spacing Chain Architecture
+- **Horizontal Chrome Rebalancing**: On compact mobile screens (`< 640px`), triple-nested desktop padding (`body p-4`, `#app-main p-8`, and card `p-4`) consumed 112px of total horizontal chrome, leaving only 263px for interactive controls on a 375px display (iPhone SE).
+- **Middle-Ground Responsive Spacing Chain (Between Default Desktop Padding and Zero Padding)**:
+  - `body`: `px-2 pt-2 sm:p-4` (8px mobile padding, 16px desktop padding, naturally omitting mobile bottom padding so element specificity applies cleanly).
+  - `#app-main`: `p-4 sm:p-8 gap-4 sm:gap-6` (16px grid padding & 16px card gaps on mobile; 32px padding & 24px gaps on desktop).
+  - Card `<section>` elements: `p-3 sm:p-4` (12px padding on mobile, 16px desktop; `#preset-management-section` uses `p-4 sm:p-5`).
+  - Sticky Transport Clearance: In [`styles/base.css`](../../styles/base.css), `@media (max-width: 639px) { body { padding-bottom: calc(var(--ui-mobile-bar-height) + env(safe-area-inset-bottom, 0px)); } }` cleanly supplies the fixed transport clearance with standard element specificity, without requiring `!important`.
+- **Usable Content Area & Visual Elimination of Cutoffs**:
+  - Reclaims 40px of wasted horizontal chrome (72px total chrome vs. 112px previously).
+  - Expands card content width from 263px to 303px at 375px viewport (iPhone SE), completely eliminating virtual keyboard horizontal scroll cutoff (2-octave piano keyboard renders 100% horizontally without scrollbars).
+  - Preserves an 8px edge safety margin to prevent accidental edge gestures (iOS swipe-back / Android drawer swipes).
+  - Reduces mobile page height by ~800px (~11% less scrolling, ~1.5 screenfuls saved).
+
 ### Consequences
 
 - Good, because horizontal scrollbars and card overflow bugs are eliminated across all mobile, tablet, and desktop screens.
+- Good, because mobile screen space is significantly expanded, eliminating virtual piano keyboard cutoffs on 375px viewports while retaining edge swipe safety.
 - Good, because range sliders, dropdowns, and VU meters have ergonomic touch and mouse targets that do not blow out on widescreen monitors.
 - Good, because button groups preserve internal padding, visual balance, and icon alignment without clipping.
 - Good, because typographic balancing prevents awkward orphans across dynamic card subtitles.

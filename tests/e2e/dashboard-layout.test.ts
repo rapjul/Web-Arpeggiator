@@ -184,3 +184,95 @@ test("maintains responsive layout, bounded controls, and balanced wrapping acros
         .evaluate((el) => getComputedStyle(el).textWrap);
     expect(tailHelpWrap).toBe("balance");
 });
+
+/**
+ * Validates the middle-ground responsive spacing chain between default desktop padding
+ * and zero padding, confirming expanded usable card content width, zero keyboard horizontal
+ * scroll cutoff at 375px, and responsive grid gap scaling.
+ */
+test("validates middle-ground responsive spacing chain between default desktop padding and zero padding across viewports", async ({
+    pwaPage: page,
+}) => {
+    await dismissOnboarding(page);
+
+    // 1. Mobile 320px viewport: usable card content width >= 246px
+    await page.setViewportSize({ width: 320, height: 750 });
+    await page.waitForTimeout(50);
+
+    const transportCardContentWidth320 = await page
+        .locator("main#app-main > section[aria-labelledby='transport-title']")
+        .evaluate((card) => {
+            const style = getComputedStyle(card);
+            const paddingLeft = Number.parseFloat(style.paddingLeft);
+            const paddingRight = Number.parseFloat(style.paddingRight);
+            return card.clientWidth - paddingLeft - paddingRight;
+        });
+    expect(
+        transportCardContentWidth320,
+        "Card content width at 320px viewport should be at least 246px",
+    ).toBeGreaterThanOrEqual(246);
+
+    // 2. Mobile 375px viewport (iPhone SE): usable card content width >= 300px
+    await page.setViewportSize({ width: 375, height: 750 });
+    await page.waitForTimeout(50);
+
+    const transportCardContentWidth375 = await page
+        .locator("main#app-main > section[aria-labelledby='transport-title']")
+        .evaluate((card) => {
+            const style = getComputedStyle(card);
+            const paddingLeft = Number.parseFloat(style.paddingLeft);
+            const paddingRight = Number.parseFloat(style.paddingRight);
+            return card.clientWidth - paddingLeft - paddingRight;
+        });
+    expect(
+        transportCardContentWidth375,
+        "Card content width at 375px viewport should be at least 300px",
+    ).toBeGreaterThanOrEqual(300);
+
+    // 3. Virtual keyboard horizontal scroll cutoff eliminated at 375px viewport
+    await page.locator("#keyboard-details > summary").click();
+    await page.waitForTimeout(50);
+
+    const keyboardScrollDifference = await page.evaluate(() => {
+        const visual = document.getElementById("keyboard-visual");
+        return visual ? visual.scrollWidth - visual.clientWidth : 0;
+    });
+    expect(
+        keyboardScrollDifference,
+        "Virtual keyboard should fit completely without horizontal scroll at 375px viewport",
+    ).toBeLessThanOrEqual(1);
+
+    // 4. Mobile grid gap is 16px (1rem) on <640px viewport
+    const mobileGap = await page.locator("main#app-main").evaluate((el) => {
+        const style = getComputedStyle(el);
+        return {
+            rowGap: Number.parseFloat(style.rowGap),
+            columnGap: Number.parseFloat(style.columnGap),
+        };
+    });
+    expect(mobileGap.rowGap).toBe(16);
+    expect(mobileGap.columnGap).toBe(16);
+
+    // 5. Mobile sticky transport bar safe-area clearance preserved on body
+    const bodyPaddingBottom = await page.evaluate(() => {
+        return Number.parseFloat(getComputedStyle(document.body).paddingBottom);
+    });
+    expect(
+        bodyPaddingBottom,
+        "Body padding-bottom should reserve at least 64px for the mobile transport bar",
+    ).toBeGreaterThanOrEqual(64);
+
+    // 6. Desktop grid gap scales to 24px (1.5rem) on >=640px viewport
+    await page.setViewportSize({ width: 1280, height: 850 });
+    await page.waitForTimeout(50);
+
+    const desktopGap = await page.locator("main#app-main").evaluate((el) => {
+        const style = getComputedStyle(el);
+        return {
+            rowGap: Number.parseFloat(style.rowGap),
+            columnGap: Number.parseFloat(style.columnGap),
+        };
+    });
+    expect(desktopGap.rowGap).toBe(24);
+    expect(desktopGap.columnGap).toBe(24);
+});
