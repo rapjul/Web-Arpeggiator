@@ -18,7 +18,7 @@ function createFixture(
     const { hasButton = true, hasRecorder = true, isRecording = false } = options;
     let contextState = "running";
     let rawContext: EventTarget | null = new EventTarget();
-    const transport = { start: vi.fn(), stop: vi.fn() };
+    const transport = { position: 120, start: vi.fn(), stop: vi.fn() };
     const draw = { cancel: vi.fn() };
     const tone = {
         getContext: () => ({ state: contextState, rawContext }),
@@ -37,6 +37,8 @@ function createFixture(
     const createOrUpdatePattern = vi.fn();
     const clearNoteStep = vi.fn();
     const prepareForPlayback = vi.fn();
+    const onPlaybackStart = vi.fn();
+    const onPlaybackStop = vi.fn();
     const controller = createPlaybackController({
         dom: { playStopButton },
         state,
@@ -49,6 +51,8 @@ function createFixture(
         prepareForPlayback,
         createOrUpdatePattern,
         clearNoteStep,
+        onPlaybackStart,
+        onPlaybackStop,
     });
     controllers.push(controller);
 
@@ -60,6 +64,8 @@ function createFixture(
         controller,
         createOrUpdatePattern,
         draw,
+        onPlaybackStart,
+        onPlaybackStop,
         pattern,
         playStopButton,
         prepareForPlayback,
@@ -89,6 +95,8 @@ describe("playback controller", () => {
             controller,
             createOrUpdatePattern,
             draw,
+            onPlaybackStart,
+            onPlaybackStop,
             pattern,
             playStopButton,
             prepareForPlayback,
@@ -106,20 +114,26 @@ describe("playback controller", () => {
         expect(recorder?.initRecorder).toHaveBeenCalledOnce();
         expect(createOrUpdatePattern).toHaveBeenCalledOnce();
         expect(pattern.start).toHaveBeenCalledWith(0);
-        expect(transport.start).toHaveBeenCalledOnce();
+        expect(transport.start).toHaveBeenCalledWith(undefined, 0);
+        expect(transport.position).toBe(0);
         expect(state.isPlaying).toBe(true);
         expect(playStopButton?.textContent).toBe("Stop Audio");
         expect(visualizer.startUiLoop).toHaveBeenCalledOnce();
+        expect(onPlaybackStart).toHaveBeenCalledOnce();
+        expect(onPlaybackStop).not.toHaveBeenCalled();
 
+        transport.position = 480;
         controller.stop();
         expect(silenceActiveSynth).toHaveBeenCalledOnce();
         expect(draw.cancel).toHaveBeenCalledWith(0);
         expect(pattern.stop).toHaveBeenCalledOnce();
         expect(transport.stop).toHaveBeenCalledOnce();
+        expect(transport.position).toBe(0);
         expect(state.isPlaying).toBe(false);
         expect(playStopButton?.textContent).toBe("Restart Audio");
         expect(visualizer.stopUiLoop).toHaveBeenCalledOnce();
         expect(clearNoteStep).toHaveBeenCalledOnce();
+        expect(onPlaybackStop).toHaveBeenCalledOnce();
     });
 
     it("silences the active synth before stopping the transport on stop", async () => {
@@ -286,5 +300,117 @@ describe("playback controller", () => {
         await startPromise;
 
         expect(fixture.transport.start).not.toHaveBeenCalled();
+    });
+
+    it("does not block transport start on recorder pre-warming", async () => {
+        let resolveInit: () => void = () => {};
+        const slowInitRecorder = vi.fn(
+            () =>
+                new Promise<void>((resolve) => {
+                    resolveInit = resolve;
+                }),
+        );
+        const fixture = createFixture();
+        const slowRecorder = {
+            isRecording: false,
+            isStarting: false,
+            initRecorder: slowInitRecorder,
+        };
+        const controller = createPlaybackController({
+            dom: { playStopButton: fixture.playStopButton },
+            state: fixture.state,
+            getTone: () => ({
+                getContext: () => ({ state: "running", rawContext: fixture.rawContext }),
+                getTransport: () => fixture.transport,
+            }),
+            getPattern: () => fixture.pattern,
+            getRecorderManager: () => slowRecorder,
+            getVisualizer: () => fixture.visualizer,
+            startAudio: fixture.startAudio,
+            prepareForPlayback: fixture.prepareForPlayback,
+            createOrUpdatePattern: fixture.createOrUpdatePattern,
+            clearNoteStep: fixture.clearNoteStep,
+        });
+        controllers.push(controller);
+
+        await controller.start();
+        expect(slowInitRecorder).toHaveBeenCalledOnce();
+        expect(fixture.transport.start).toHaveBeenCalledWith(undefined, 0);
+        expect(fixture.state.isPlaying).toBe(true);
+
+        resolveInit();
+        await Promise.resolve();
+    });
+
+    it("schedules and starts transport before invoking recorder pre-warming", async () => {
+        const callOrder: string[] = [];
+        const fixture = createFixture();
+        fixture.transport.start = vi.fn((_time, offset) => {
+            callOrder.push(`transport.start:${String(offset)}`);
+        });
+        const syncRecorder = {
+            isRecording: false,
+            isStarting: false,
+            initRecorder: vi.fn(async () => {
+                callOrder.push("initRecorder");
+            }),
+        };
+        const controller = createPlaybackController({
+            dom: { playStopButton: fixture.playStopButton },
+            state: fixture.state,
+            getTone: () => ({
+                getContext: () => ({ state: "running", rawContext: fixture.rawContext }),
+                getTransport: () => fixture.transport,
+            }),
+            getPattern: () => fixture.pattern,
+            getRecorderManager: () => syncRecorder,
+            getVisualizer: () => fixture.visualizer,
+            startAudio: fixture.startAudio,
+            prepareForPlayback: fixture.prepareForPlayback,
+            createOrUpdatePattern: fixture.createOrUpdatePattern,
+            clearNoteStep: fixture.clearNoteStep,
+        });
+        controllers.push(controller);
+
+        await controller.start();
+        expect(callOrder).toEqual(["transport.start:0", "initRecorder"]);
+        expect(fixture.transport.start).toHaveBeenCalledWith(undefined, 0);
+    });
+
+    it("deduplicates concurrent in-flight start calls and shares a single promise", async () => {
+        const fixture = createFixture();
+        const { controller, createOrUpdatePattern, pattern, startAudio, transport } = fixture;
+
+        let resolveStartAudio: () => void = () => {};
+        startAudio.mockImplementation(
+            () =>
+                new Promise<void>((resolve) => {
+                    resolveStartAudio = resolve;
+                }),
+        );
+
+        const firstStartPromise = controller.start();
+        const secondStartPromise = controller.start();
+
+        expect(firstStartPromise).toBe(secondStartPromise);
+
+        resolveStartAudio();
+        await Promise.all([firstStartPromise, secondStartPromise]);
+
+        expect(createOrUpdatePattern).toHaveBeenCalledOnce();
+        expect(pattern.start).toHaveBeenCalledOnce();
+        expect(transport.start).toHaveBeenCalledWith(undefined, 0);
+    });
+
+    it("resets in-flight start promise when startAudio rejects, allowing subsequent retries", async () => {
+        const fixture = createFixture();
+        const { controller, startAudio, transport } = fixture;
+
+        startAudio.mockRejectedValueOnce(new Error("AudioContext failed"));
+        await expect(controller.start()).rejects.toThrow("AudioContext failed");
+
+        startAudio.mockResolvedValueOnce(undefined);
+        await expect(controller.start()).resolves.toBeUndefined();
+        expect(transport.start).toHaveBeenCalledWith(undefined, 0);
     });
 });

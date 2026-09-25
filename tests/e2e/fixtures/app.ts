@@ -178,7 +178,9 @@ export async function startAudio(page: Page): Promise<void> {
 
     const playStop = page.locator("#play-stop");
     await page.locator("#post-gain").fill("-12");
-    await playStop.click();
+    if ((await playStop.textContent())?.trim() !== "Stop Audio") {
+        await playStop.click();
+    }
     await expect(playStop).toHaveText("Stop Audio");
 }
 

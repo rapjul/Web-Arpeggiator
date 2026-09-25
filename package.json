@@ -20,11 +20,13 @@
     "lint:fix": "bunx biome lint --write .",
     "typecheck": "tsc --project tsconfig.json",
     "test:unit": "vitest run tests/unit",
-    "test:coverage": "vitest run --coverage tests/unit",
+    "test:perf": "vitest run tests/perf",
+    "test:coverage": "vitest run --coverage",
+    "test:coverage:ci": "vitest run --coverage tests/unit",
     "test:watch": "vitest tests/unit",
     "test:e2e": "playwright install chromium && playwright test",
-    "test": "vitest run tests/unit",
-    "test:all": "bun run test:unit && bun run test:e2e",
+    "test": "bun run test:unit && bun run test:perf",
+    "test:all": "bun run test:unit && bun run test:perf && bun run test:e2e",
     "prepare": "simple-git-hooks"
   },
   "dependencies": {

@@ -24,5 +24,10 @@
     "Chiptune",
     "Synthwave"
   ],
-  "editor.defaultFormatter": "biomejs.biome"
+  "editor.defaultFormatter": "biomejs.biome",
+  "[markdown]": {
+    "editor.wordWrap": "on",
+    "editor.wordWrapColumn": 0,
+    "editor.wrappingIndent": "none"
+  }
 }

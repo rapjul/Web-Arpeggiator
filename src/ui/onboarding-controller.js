@@ -222,11 +222,18 @@ export function createOnboardingController(dependencies) {
      */
     async function handleStartOverlayClick() {
         startOverlay?.classList.add("is-hidden");
-        enablePlayStopButton();
         try {
             await onStartOverlay();
         } catch (error) {
             logger.warn("Could not start audio from the activation overlay:", error);
+        } finally {
+            if (playStopButton) {
+                playStopButton.disabled = false;
+                playStopButton.classList.remove("opacity-50", "cursor-not-allowed", "bg-gray-600");
+                if (!playStopButton.classList.contains("bg-yellow-600")) {
+                    enablePlayStopButton();
+                }
+            }
         }
     }
 

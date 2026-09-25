@@ -357,7 +357,8 @@ Web Arpeggiator/
 │   │   ├── 0016-reproducible-stochastic-pattern-semantics.md
 │   │   ├── 0017-zero-stderr-test-runner-noise-and-diagnostic-log-assertion.md
 │   │   ├── 0018-awaited-recording-lifecycle-and-bounded-audio-resource-ownership.md
-│   │   └── 0019-recommended-effects-tail-strategy.md
+│   │   ├── 0019-recommended-effects-tail-strategy.md
+│   │   └── 0020-bounded-audio-startup-latency-and-lifecycle-benchmarking.md
 │   ├── architecture.md     # Module ownership, runtime flow, and deferred boundaries
 │   ├── development.md      # Local setup, commands, and test-runner guidance
 │   ├── improvements/       # Deferred, scoped follow-up plans
@@ -378,6 +379,7 @@ Web Arpeggiator/
 │   │   ├── randomizer.js   # Musical scale-quantized randomizer
 │   │   ├── settings-contract.js # Canonical schema, bounds, and settings snapshot normalization
 │   │   ├── settings-history.js # Persistent snapshot history for arpeggiator settings
+│   │   ├── startup-profiler.js # Local performance profiling and startup waterfall diagnostics
 │   │   ├── timeline.js     # Pure 480-PPQ musical timeline compiler
 │   │   ├── timing-constants.js # Shared transport bounds and timing limits
 │   │   ├── url-preset.js   # URL query parameter preset serialization
@@ -572,6 +574,7 @@ When modifying the codebase:
 5. **Validate Presets**: Ensure all parameters save/load correctly
 6. **Check Responsive Design**: Test on mobile and desktop
 7. **Update Documentation**: Keep `AGENTS.md` and `README.md` synchronized with changes
+8. **Markdown Document Formatting**: All Markdown files (`*.md`) follow soft-wrapping standards without hard-wrapped column limits (`max_line_length = off`), preserving each paragraph as a single continuous line
 
 ## Version History
 

@@ -33,6 +33,8 @@
  * @property {{error?: (...args: unknown[]) => void, warn?: (...args: unknown[]) => void}} [logger]
  */
 
+import { mark, STARTUP_MARKS } from "@core/startup-profiler.js";
+
 /**
  * Creates a deferred audio runtime controller.
  *
@@ -82,6 +84,7 @@ export function createAudioRuntimeController(dependencies) {
      */
     async function loadAudioModules() {
         if (!audioModulesPromise) {
+            mark(STARTUP_MARKS.MODULES_LOADING);
             const defaultModuleLoader = () =>
                 Promise.all([
                     import("tone"),
@@ -107,6 +110,7 @@ export function createAudioRuntimeController(dependencies) {
                         ({ createPatternController } = patternModule);
                         ({ createRecorderManager } = recorderModule);
                         ({ createVisualizer } = visualizerModule);
+                        mark(STARTUP_MARKS.MODULES_LOADED);
                         onToneLoaded?.(tone);
                     },
                 )
@@ -133,6 +137,7 @@ export function createAudioRuntimeController(dependencies) {
                 let nextPatternController;
 
                 try {
+                    mark(STARTUP_MARKS.ENGINE_CREATING);
                     nextAudioEngine = createAudioEngine({ dom: dom.audioEngine });
                     nextAudioEngine.currentWaveform = state.currentWaveform;
 
@@ -201,7 +206,11 @@ export function createAudioRuntimeController(dependencies) {
                         onPatternChange,
                         onStep: onPatternStep,
                     });
+                    mark(STARTUP_MARKS.ENGINE_CREATED);
+
+                    mark(STARTUP_MARKS.SETTINGS_APPLYING);
                     loadAllSettings(getAllSettings());
+                    mark(STARTUP_MARKS.SETTINGS_APPLIED);
 
                     audioEngine = nextAudioEngine;
                     visualizer = nextVisualizer;
@@ -258,7 +267,17 @@ export function createAudioRuntimeController(dependencies) {
                 try {
                     await loadAudioModules();
                     const context = Tone.getContext();
-                    if (context.state !== "running") await Tone.start();
+                    if (context.state !== "running") {
+                        mark(STARTUP_MARKS.CONTEXT_RESUMING);
+                        await Tone.start();
+                        mark(STARTUP_MARKS.CONTEXT_RESUMED);
+                    }
+                    const initialTransport =
+                        typeof Tone?.getTransport === "function" ? Tone.getTransport() : null;
+                    initialTransport?.stop?.();
+                    if (initialTransport) {
+                        initialTransport.position = 0;
+                    }
                     await initializeAudioRuntime();
                     state.isAudioContextStarted = true;
                     onAudioReady?.();

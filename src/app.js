@@ -17,6 +17,13 @@ import {
 } from "@core/pattern-core.js";
 import { generateRandomNotes } from "@core/randomizer.js";
 import { DEFAULT_SETTINGS, mergeSettings } from "@core/settings-contract.js";
+import {
+    clearMark,
+    hasMark,
+    logStartupWaterfall,
+    mark,
+    STARTUP_MARKS,
+} from "@core/startup-profiler.js";
 import { PRESET_URL_KEYS } from "@core/url-preset.js";
 import { initializePwa } from "@pwa/pwa.js";
 import { presetStore } from "@storage/presets-store.js";
@@ -99,6 +106,7 @@ function hasOscillatorWidth(oscillator) {
 
 // --- Application State ---
 let Tone;
+let appState = null;
 let audioRuntimeController = null;
 let playbackController = null;
 let exportControlsController = null;
@@ -110,10 +118,17 @@ let presetWorkflowController = null;
  * @returns {Promise<void>}
  */
 function startAudio() {
+    if (!appState?.isAudioContextStarted && !hasMark(STARTUP_MARKS.USER_START_GESTURE)) {
+        mark(STARTUP_MARKS.USER_START_GESTURE);
+    }
     if (!audioRuntimeController) {
+        clearMark(STARTUP_MARKS.USER_START_GESTURE);
         return Promise.reject(new Error("Audio runtime is not initialized."));
     }
-    return audioRuntimeController.startAudio();
+    return audioRuntimeController.startAudio().catch((error) => {
+        clearMark(STARTUP_MARKS.USER_START_GESTURE);
+        throw error;
+    });
 }
 
 /** @returns {void} Delegates the current duration estimate to export controls. */
@@ -356,7 +371,7 @@ function initializeApp() {
     }
 
     // --- App State Object (for injected modules) ---
-    const appState = createApplicationState({ getAvailableAudioEngine });
+    appState = createApplicationState({ getAvailableAudioEngine });
 
     // --- Pattern Helpers ---
 
@@ -678,6 +693,9 @@ function initializeApp() {
 
     const { getAllSettings, loadAllSettings, generateFilename } = settingsManager;
 
+    /** @type {Promise<void>|null} */
+    let initialSessionRestorePromise = null;
+
     const onboardingController = createOnboardingController({
         dom: {
             appMain,
@@ -717,11 +735,20 @@ function initializeApp() {
         },
         onStartFromScratch: async () => {
             await startAudio();
+            clearMark(STARTUP_MARKS.USER_START_GESTURE);
             loadPresetFromUrl();
         },
         onStartOverlay: async () => {
+            if (initialSessionRestorePromise) {
+                try {
+                    await initialSessionRestorePromise;
+                } catch {
+                    // Session restoration error handled on initial startup; proceed with available settings
+                }
+            }
             await startAudio();
             loadPresetFromUrl();
+            await startPlayback();
         },
         logger: console,
     });
@@ -753,6 +780,8 @@ function initializeApp() {
         },
     });
     const { updateKeyboardControlUi } = keyboardControls;
+
+    let isFirstPlaybackStep = true;
 
     audioRuntimeController = createAudioRuntimeController({
         dom: {
@@ -839,7 +868,9 @@ function initializeApp() {
         onPatternStep: (index) => {
             if (isFirstPlaybackStep && appState.isPlaying) {
                 isFirstPlaybackStep = false;
+                mark(STARTUP_MARKS.FIRST_STEP_EXECUTED);
                 log("Audio playback started.");
+                logStartupWaterfall(console);
             }
             noteStepController.highlight(index);
         },
@@ -853,8 +884,6 @@ function initializeApp() {
         onContextReady: () => playbackController?.observeAudioContextState(),
         logger: console,
     });
-
-    let isFirstPlaybackStep = true;
 
     playbackController = createPlaybackController({
         dom: { playStopButton },
@@ -871,6 +900,10 @@ function initializeApp() {
         clearNoteStep: () => {
             isFirstPlaybackStep = true;
             noteStepController.clear();
+        },
+        onPlaybackStop: () => {
+            isFirstPlaybackStep = true;
+            log("Audio playback stopped.");
         },
     });
 
@@ -1613,9 +1646,13 @@ function initializeApp() {
 
     log("Arpeggiator initialized and ready.");
     void refreshSavedPresetList();
-    restoreLastSession().then(() => {
-        loadPresetFromUrl();
-    });
+    initialSessionRestorePromise = restoreLastSession()
+        .then(() => {
+            loadPresetFromUrl();
+        })
+        .catch((error) => {
+            log("Could not restore initial session:", error);
+        });
 }
 
 if (document.readyState === "loading") {

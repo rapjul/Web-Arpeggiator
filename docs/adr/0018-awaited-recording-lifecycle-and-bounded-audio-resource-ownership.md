@@ -31,28 +31,18 @@ Real-time capture joins asynchronous recorder backends, transport playback, brow
 
 Chosen option: "Await backend readiness and use explicit recording phases with bounded ownership," because capture correctness and teardown require one lifecycle contract independent of the selected backend.
 
-`RecorderManager` owns `idle`, `starting`, `recording`, `stopping`, and `destroyed` phases. It awaits
-`Tone.Recorder.start()` and native `MediaRecorder`'s `start` event before it publishes recording
-state or requests transport playback. It rejects competing transitions, tracks active transition and
-export promises, and ignores late backend events after destruction. Real-time exports lock recording
-controls (`isExporting`) and snapshot the active take and decoded buffer to prevent concurrent
-mutation. Destruction waits for an active real-time export to complete before releasing
-runtime-owned resources, while the export suppresses UI updates after destruction begins.
+`RecorderManager` owns `idle`, `starting`, `recording`, `stopping`, and `destroyed` phases. It awaits `Tone.Recorder.start()` and native `MediaRecorder`'s `start` event before it publishes recording state or requests transport playback. It rejects competing transitions, tracks active transition and export promises, and ignores late backend events after destruction. Real-time exports lock recording controls (`isExporting`) and snapshot the active take and decoded buffer to prevent concurrent mutation. Destruction waits for an active real-time export to complete before releasing runtime-owned resources, while the export suppresses UI updates after destruction begins.
 
 All start and stop paths observe synchronous exceptions, rejected promises, and native error events. Mid-capture `MediaRecorder.onerror` events abort the take, restore idle state, and notify the user rather than falsely publishing export readiness. If playback fails after capture starts, cleanup is attempted in a guarded path, the original playback error remains the rejected error, and UI recovery always runs without claiming uncaptured takes are exportable. A valid blob from that cleanup remains exportable.
 
-The raw recorded blob remains available until a replacement take or teardown. Decoded PCM is retained
-only when a WAV or MP3 conversion fails, allowing a retry without a redundant decode; a successful
-export, new blob, or teardown releases it. `destroy()` awaits in-flight start or stop transitions and
-active real-time exports, stops active capture, disconnects graph targets, disposes Tone recorders,
-stops native stream tracks, clears handlers and chunks, and drops retained blobs and buffers. The
-runtime controller waits for in-flight audio startup before disposal and queues new `startAudio()`
-requests until teardown completes. Runtime teardown awaits recorder cleanup before disposing the
-audio engine.
+The raw recorded blob remains available until a replacement take or teardown. Decoded PCM is retained only when a WAV or MP3 conversion fails, allowing a retry without a redundant decode; a successful export, new blob, or teardown releases it. `destroy()` awaits in-flight start or stop transitions and active real-time exports, stops active capture, disconnects graph targets, disposes Tone recorders, stops native stream tracks, clears handlers and chunks, and drops retained blobs and buffers. The runtime controller waits for in-flight audio startup before disposal and queues new `startAudio()` requests until teardown completes. Runtime teardown awaits recorder cleanup before disposing the audio engine.
+
+Awaiting backend readiness is strictly scoped to the capture lifecycle (`startRealtimeCapture`) and in-flight capture transitions (`awaitPendingTransition`). Normal transport playback does not block on recorder backend instantiation; instead, it triggers asynchronous recorder pre-warming in the background so that transport startup latency remains instantaneous.
 
 ### Consequences
 
 - Good, because recording begins only after capture is demonstrably ready.
+- Good, because normal transport playback remains unblocked and starts immediately without waiting for recorder backend instantiation.
 - Good, because in-flight transitions serialize cleanly with teardown without orphaned promises or duplicate stops.
 - Good, because asynchronous backend errors contain failure without advertising corrupt takes.
 - Good, because active exports are isolated from new recording takes.
@@ -65,10 +55,7 @@ audio engine.
 
 ### Confirmation
 
-Unit tests exercise deferred and rejected starts, stop and playback cleanup failures, native fallback
-events, transition reentrancy, late events, retry-cache release, export completion during teardown,
-runtime restart during teardown, and recorder teardown. Browser tests fail on page errors or
-unhandled rejections and inspect real WAV/MP3 artifacts rather than only their container headers.
+Unit tests exercise deferred and rejected starts, stop and playback cleanup failures, native fallback events, transition reentrancy, late events, retry-cache release, export completion during teardown, runtime restart during teardown, and recorder teardown. Browser tests fail on page errors or unhandled rejections and inspect real WAV/MP3 artifacts rather than only their container headers.
 
 ## More Information
 

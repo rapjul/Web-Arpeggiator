@@ -52,7 +52,6 @@ test("restores a complete shared preset after audio activation", async ({ pwaPag
     await expect(page.locator("#octave-range-buttons input[value='3']")).toBeChecked();
 
     await dismissOnboarding(page);
-    await page.locator("#play-stop").click();
     await expect(page.locator("#play-stop")).toHaveText("Stop Audio");
 });
 
@@ -67,6 +66,5 @@ test("clamps out-of-range shared preset values", async ({ pwaPage: page }) => {
     await expect(page.locator("#octave-range-buttons input[value='5']")).toBeChecked();
 
     await dismissOnboarding(page);
-    await page.locator("#play-stop").click();
     await expect(page.locator("#play-stop")).toHaveText("Stop Audio");
 });
