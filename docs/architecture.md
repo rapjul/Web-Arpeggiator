@@ -30,7 +30,7 @@ The root retains the integration callbacks needed to connect focused modules to 
 - `playback-controller.js` owns transport start/stop and suspended AudioContext recovery.
 - `static-loop-renderer.js` owns offline rendering for visualizer previews and repeats a pattern through a complete swing phase when required to close the Loop Map boundary.
 
-Real-time recording has one awaited lifecycle: capture readiness completes before transport playback begins, cleanup preserves the primary failure, and runtime teardown awaits recorder resource release before disposing the engine. Raw takes are retained until replacement or teardown, while decoded PCM is retained only for failed-conversion retries. [ADR 0018](./adr/0018-awaited-recording-lifecycle-and-bounded-audio-resource-ownership.md) records this ownership contract.
+Real-time recording has one awaited lifecycle: capture readiness completes before transport playback begins, cleanup preserves the primary failure, and runtime teardown awaits recorder resource release before disposing the engine. The recorder taps the final monitored signal at the limiter after post gain, falling back to post gain if limiter creation fails. `Tone.Recorder` is attempted first, with native `MediaRecorder` available as a secure-context fallback when Tone recorder construction fails. Raw takes are retained until replacement or teardown, while decoded PCM is retained only after failed conversions and released after successful export, replacement, or teardown. [ADR 0018](./adr/0018-awaited-recording-lifecycle-and-bounded-audio-resource-ownership.md) records this ownership contract.
 
 ### Shared Musical Timeline
 
