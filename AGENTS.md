@@ -365,7 +365,8 @@ Web Arpeggiator/
 │   ├── improvements/       # Deferred, scoped follow-up plans
 │   ├── history-and-default-settings.md # Default parameters and settings history reference
 │   ├── midi-specification.md # Standard MIDI specification & implementation reference
-│   └── pattern-directions.md # Detailed pattern descriptions & visual guide
+│   ├── pattern-directions.md # Detailed pattern descriptions & visual guide
+│   └── styling-guide.md    # Design tokens, typography casing, responsive layouts, and ergonomics
 ├── src/                    # Modular source code
 │   ├── core/               # Pure algorithms & domain logic (zero DOM/Audio dependencies)
 │   │   ├── audio-utils.js  # WAV/MP3 encoding, PCM conversions, download helpers
