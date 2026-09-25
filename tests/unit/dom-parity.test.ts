@@ -294,10 +294,15 @@ describe("Production DOM Parity Suite", () => {
         ) as HTMLButtonElement | null;
         expect(reshuffleButton).not.toBeNull();
         expect(reshuffleButton?.getAttribute("aria-label")).toContain("Reshuffle Pattern");
+        expect(reshuffleButton?.classList.contains("has-custom-tooltip")).toBe(true);
+        expect(reshuffleButton?.getAttribute("data-placement")).toBe("top");
+        expect(reshuffleButton?.getAttribute("data-tooltip")).toContain(
+            "Active for generative patterns only",
+        );
     });
 
     /**
-     * Verifies that Level 2 control group labels and details summaries follow Title Case.
+     * Verifies that Level 2 control group labels, modal subheadings, and details summaries follow Title Case.
      */
     it("verifies Level 2 control labels and recovery summary follow Title Case", () => {
         const tailModeLabel = document.querySelector<HTMLLabelElement>(
@@ -322,6 +327,21 @@ describe("Production DOM Parity Suite", () => {
             "#browser-storage-recovery summary",
         );
         expect(storageRecoverySummary?.textContent?.trim()).toBe("Browser Storage Recovery");
+
+        const presetNameLabel = document.querySelector<HTMLLabelElement>(
+            "label[for='preset-name-input']",
+        );
+        expect(presetNameLabel?.textContent?.trim()).toBe("Preset Name");
+        expect(presetNameLabel?.classList.contains("uppercase")).toBe(false);
+
+        const subpanelHeadings = document.querySelectorAll(
+            "section[aria-labelledby='preset-management-title'] h3",
+        );
+        expect(subpanelHeadings.length).toBe(3);
+        for (const heading of subpanelHeadings) {
+            expect(heading.classList.contains("uppercase")).toBe(false);
+            expect(heading.classList.contains("tracking-wider")).toBe(false);
+        }
     });
 
     /**

@@ -473,3 +473,9 @@ input[type="radio"]:focus-visible + .has-custom-tooltip[data-placement="bottom"]
 .resettable-setting-target:hover {
   color: var(--color-sky-200);
 }
+
+label.setting-target-disabled {
+  cursor: not-allowed !important;
+  opacity: 0.5;
+  pointer-events: none;
+}
