@@ -323,4 +323,54 @@ test("validates refined layout ergonomics, bounded numeric inputs, slider margin
     await tailMode.selectOption("custom");
     await expect(tailSeconds).toBeEnabled();
     await expect(tailSeconds).not.toHaveAttribute("aria-disabled", "true");
+
+    // 5. Scale quantization dropdown has zero text clipping on narrow viewports
+    await page.setViewportSize({ width: 320, height: 750 });
+    await page.waitForTimeout(50);
+    const scaleTypeSelect = page.locator("#scale-type");
+    const scaleSelectOverflow = await scaleTypeSelect.evaluate((el) => {
+        return el.scrollWidth > el.clientWidth;
+    });
+    expect(scaleSelectOverflow, "Scale type select should not overflow at 320px viewport").toBe(
+        false,
+    );
+
+    // Scale controls flex container stacks vertically on mobile
+    const quantizerFlexDir = await page.locator("#quantizer-controls").evaluate((el) => {
+        return getComputedStyle(el).flexDirection;
+    });
+    expect(quantizerFlexDir).toBe("column");
+
+    // On desktop, scale controls flex container is row
+    await page.setViewportSize({ width: 1280, height: 850 });
+    await page.waitForTimeout(50);
+    const quantizerFlexDirDesktop = await page.locator("#quantizer-controls").evaluate((el) => {
+        return getComputedStyle(el).flexDirection;
+    });
+    expect(quantizerFlexDirDesktop).toBe("row");
+
+    // 6. Pattern direction sub-sections have Title Case headers
+    const patternSectionHeaders = await page
+        .locator("#pattern-buttons .text-xs.font-semibold")
+        .allTextContents();
+    expect(patternSectionHeaders).toContain("Linear Patterns");
+    expect(patternSectionHeaders).toContain("Octave Cycles");
+    expect(patternSectionHeaders.some((text) => text.includes("Generative & Random"))).toBe(true);
+
+    // 7. Reshuffle button is inside the Generative & Random header and contextually enabled/disabled
+    const reshuffleBtn = page.locator("#reshuffle-pattern");
+    await expect(reshuffleBtn).toBeVisible();
+    // Default active pattern is "up" (linear), so reshuffle button should be disabled
+    await expect(reshuffleBtn).toBeDisabled();
+    await expect(reshuffleBtn).toHaveAttribute("aria-disabled", "true");
+
+    // Select a generative pattern (e.g. random)
+    await page.locator("#pattern-buttons input[value='random']").locator("xpath=..").click();
+    await expect(reshuffleBtn).toBeEnabled();
+    await expect(reshuffleBtn).not.toHaveAttribute("aria-disabled", "true");
+
+    // Switch back to linear pattern (e.g. up)
+    await page.locator("#pattern-buttons input[value='up']").locator("xpath=..").click();
+    await expect(reshuffleBtn).toBeDisabled();
+    await expect(reshuffleBtn).toHaveAttribute("aria-disabled", "true");
 });

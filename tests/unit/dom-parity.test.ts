@@ -117,7 +117,29 @@ describe("Production DOM Parity Suite", () => {
         expect(radios?.length).toBe(13);
 
         const radioValues = Array.from(radios || []).map((r) => r.value);
-        expect(radioValues).toEqual(ALLOWED_DIRECTIONS);
+        expect(new Set(radioValues)).toEqual(new Set(ALLOWED_DIRECTIONS));
+        expect(radioValues).toEqual([
+            "up",
+            "down",
+            "upDown",
+            "downUp",
+            "upDownRepeat",
+            "downUpRepeat",
+            "octaveCycle",
+            "octaveCycleReverse",
+            "octaveCyclePingPong",
+            "random",
+            "randomCycle",
+            "randomWalk",
+            "randomWalkDrunk",
+        ]);
+
+        const subHeadings = Array.from(
+            patternButtons?.querySelectorAll("span.text-xs.font-semibold") || [],
+        ).map((el) => el.textContent?.trim());
+        expect(subHeadings).toContain("Linear Patterns");
+        expect(subHeadings).toContain("Octave Cycles");
+        expect(subHeadings).toContain("Generative & Random");
 
         for (const dir of ALLOWED_DIRECTIONS) {
             const span = patternButtons?.querySelector(`.pattern-btn[data-pattern="${dir}"]`);
@@ -125,7 +147,12 @@ describe("Production DOM Parity Suite", () => {
         }
     });
 
-    it("verifies initial tail seconds disabled state", () => {
+    it("verifies quantizer controls responsive flex stacking and initial tail seconds disabled state", () => {
+        const quantizerControls = document.getElementById("quantizer-controls");
+        expect(quantizerControls?.className).toContain("flex");
+        expect(quantizerControls?.className).toContain("flex-col");
+        expect(quantizerControls?.className).toContain("sm:flex-row");
+
         const tailSeconds = document.getElementById(
             "offline-export-tail-seconds",
         ) as HTMLInputElement | null;

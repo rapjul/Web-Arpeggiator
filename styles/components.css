@@ -260,37 +260,63 @@ input[type="radio"]:focus-visible + .has-custom-tooltip[data-placement="bottom"]
 
 /* Pattern buttons grid layout (4 columns on desktop/tablet, wrapping on tight spaces based on section width) */
 #pattern-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.pattern-subgrid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.5rem;
   width: 100%;
 }
 
-#pattern-buttons label {
+.pattern-subgrid label {
   display: flex;
   flex-direction: column;
   min-width: 0;
 }
 
-#pattern-buttons .pattern-btn {
+.pattern-subgrid .pattern-btn {
   width: 100%;
   height: 100%;
 }
 
+.pattern-btn {
+  padding: 0.625rem 0.5rem;
+  min-height: 76px;
+}
+
+@container (min-width: 480px) {
+  .pattern-btn {
+    padding: 0.75rem 0.625rem;
+    min-height: 82px;
+    gap: 0.375rem;
+  }
+
+  .pattern-btn span {
+    line-height: 1.3;
+    font-size: 0.8125rem;
+  }
+}
+
 @container (max-width: 480px) {
-  #pattern-buttons {
+  .pattern-subgrid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
 @container (max-width: 340px) {
-  #pattern-buttons {
+  .pattern-subgrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
-/* Octave buttons: compact single-row layout across mobile viewports */
-#octave-shift-buttons {
+/* Octave buttons: compact layout with responsive clamp and narrow keypad */
+#octave-shift-buttons,
+#octave-range-buttons {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
@@ -298,25 +324,88 @@ input[type="radio"]:focus-visible + .has-custom-tooltip[data-placement="bottom"]
 }
 
 .octave-btn {
-  min-width: 34px;
-  flex: 0 0 auto;
-  padding: 0.375rem 0.45rem;
+  flex: 1 1 0px;
+  min-width: 32px;
+  max-width: 4.5rem;
+  padding: 0.375rem 0.25rem;
   font-size: 0.875rem;
   font-weight: 600;
 }
 
-@container (width < 280px) {
-  #octave-shift-buttons label {
-    flex: 0 1 calc(33.333% - 0.375rem);
-    min-width: 32px;
+@container (min-width: 360px) {
+  .octave-btn {
+    padding: 0.45rem clamp(0.35rem, 1.5cqi, 0.75rem);
+  }
+}
+
+@container (max-width: 280px) {
+  #octave-shift-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.375rem;
+    width: 100%;
+  }
+
+  /* Downshift row: 3 equal-width buttons filling Row 1 */
+  #octave-shift-buttons label:nth-child(-n + 3) {
+    flex: 1 1 calc(33.333% - 0.375rem);
+    min-width: 0;
+  }
+
+  #octave-shift-buttons label:nth-child(-n + 3) .octave-btn {
+    width: 100%;
+    max-width: none;
+  }
+
+  /* Center/Root row: anchor button centered and wide in Row 2 */
+  #octave-shift-buttons label:nth-child(4) {
+    flex: 1 1 100%;
     display: flex;
     justify-content: center;
   }
 
-  #octave-shift-buttons label:nth-child(4) {
-    flex: 0 1 100%;
+  #octave-shift-buttons label:nth-child(4) .octave-btn {
+    width: 100%;
+    max-width: 160px;
+  }
+
+  /* Upshift row: 3 equal-width buttons filling Row 3 */
+  #octave-shift-buttons label:nth-child(n + 5) {
+    flex: 1 1 calc(33.333% - 0.375rem);
+    min-width: 0;
+  }
+
+  #octave-shift-buttons label:nth-child(n + 5) .octave-btn {
+    width: 100%;
+    max-width: none;
+  }
+
+  /* Octave Layers (5 buttons): 3 on top row, 2 on bottom row, evenly balanced */
+  #octave-range-buttons {
     display: flex;
-    justify-content: center;
+    flex-wrap: wrap;
+    gap: 0.375rem;
+    width: 100%;
+  }
+
+  #octave-range-buttons label:nth-child(-n + 3) {
+    flex: 1 1 calc(33.333% - 0.375rem);
+    min-width: 0;
+  }
+
+  #octave-range-buttons label:nth-child(-n + 3) .octave-btn {
+    width: 100%;
+    max-width: none;
+  }
+
+  #octave-range-buttons label:nth-child(n + 4) {
+    flex: 1 1 calc(50% - 0.375rem);
+    min-width: 0;
+  }
+
+  #octave-range-buttons label:nth-child(n + 4) .octave-btn {
+    width: 100%;
+    max-width: none;
   }
 }
 

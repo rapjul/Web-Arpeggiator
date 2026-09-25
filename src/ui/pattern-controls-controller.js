@@ -84,7 +84,13 @@ export function createPatternControlsController(dependencies) {
     }, 50);
     function updateReshuffleButton() {
         if (reshufflePatternButton) {
-            reshufflePatternButton.disabled = !isStochasticDirection(getSelectedPatternDirection());
+            const isStochastic = isStochasticDirection(getSelectedPatternDirection());
+            reshufflePatternButton.disabled = !isStochastic;
+            if (isStochastic) {
+                reshufflePatternButton.removeAttribute("aria-disabled");
+            } else {
+                reshufflePatternButton.setAttribute("aria-disabled", "true");
+            }
         }
     }
 
