@@ -323,7 +323,7 @@ input[type="radio"]:focus-visible + .has-custom-tooltip[data-placement="bottom"]
 /* VU meter alignment with capped sliders */
 #vu-meter-container {
   max-width: 480px;
-  margin-inline: auto;
+  margin-inline: 0 auto;
 }
 
 /* Waveform buttons centered wrapping and max-width bounding */

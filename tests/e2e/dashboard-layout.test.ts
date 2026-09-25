@@ -276,3 +276,51 @@ test("validates middle-ground responsive spacing chain between default desktop p
     expect(desktopGap.rowGap).toBe(24);
     expect(desktopGap.columnGap).toBe(24);
 });
+
+/**
+ * Validates refined layout ergonomics including left-aligned sliders with top margin,
+ * left-aligned VU meter, bounded numeric inputs, and reactive tail-seconds disabled state.
+ */
+test("validates refined layout ergonomics, bounded numeric inputs, slider margins, and export tail controls", async ({
+    pwaPage: page,
+}) => {
+    await dismissOnboarding(page);
+
+    // 1. Sliders have 0.625rem (10px) top margin and left alignment (margin-inline: 0 auto)
+    const bpmSliderStyles = await page.locator("#bpm").evaluate((el) => {
+        const style = getComputedStyle(el);
+        return {
+            marginTop: Number.parseFloat(style.marginTop),
+            marginLeft: Number.parseFloat(style.marginLeft),
+        };
+    });
+    expect(bpmSliderStyles.marginTop).toBe(10);
+    expect(bpmSliderStyles.marginLeft).toBe(0);
+
+    // 2. VU meter container is left-aligned
+    const vuMeterMarginLeft = await page.locator("#vu-meter-container").evaluate((el) => {
+        return Number.parseFloat(getComputedStyle(el).marginLeft);
+    });
+    expect(vuMeterMarginLeft).toBe(0);
+
+    // 3. Small numeric inputs are strictly bounded in width
+    const loopCountWidth = await page.locator("#loop-count").evaluate((el) => {
+        return el.getBoundingClientRect().width;
+    });
+    expect(loopCountWidth).toBeLessThanOrEqual(85);
+
+    const tailSecondsWidth = await page.locator("#offline-export-tail-seconds").evaluate((el) => {
+        return el.getBoundingClientRect().width;
+    });
+    expect(tailSecondsWidth).toBeLessThanOrEqual(95);
+
+    // 4. Offline export tail-seconds is disabled and aria-disabled="true" on Auto, and enabled on Custom
+    const tailMode = page.locator("#offline-export-tail-mode");
+    const tailSeconds = page.locator("#offline-export-tail-seconds");
+    await expect(tailSeconds).toBeDisabled();
+    await expect(tailSeconds).toHaveAttribute("aria-disabled", "true");
+
+    await tailMode.selectOption("custom");
+    await expect(tailSeconds).toBeEnabled();
+    await expect(tailSeconds).not.toHaveAttribute("aria-disabled", "true");
+});

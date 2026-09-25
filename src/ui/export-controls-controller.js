@@ -75,7 +75,13 @@ export function createExportControlsController(dependencies) {
         offlineExportTailControl?.classList.toggle("hidden", !isTailMode);
         if (offlineExportTailModeSelect) offlineExportTailModeSelect.disabled = !isTailMode;
         if (offlineExportTailSecondsInput) {
-            offlineExportTailSecondsInput.disabled = !isTailMode || tailMode === "auto";
+            const isSecondsDisabled = !isTailMode || tailMode === "auto";
+            offlineExportTailSecondsInput.disabled = isSecondsDisabled;
+            if (isSecondsDisabled) {
+                offlineExportTailSecondsInput.setAttribute("aria-disabled", "true");
+            } else {
+                offlineExportTailSecondsInput.removeAttribute("aria-disabled");
+            }
         }
     }
 

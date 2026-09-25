@@ -125,6 +125,14 @@ describe("Production DOM Parity Suite", () => {
         }
     });
 
+    it("verifies initial tail seconds disabled state", () => {
+        const tailSeconds = document.getElementById(
+            "offline-export-tail-seconds",
+        ) as HTMLInputElement | null;
+        expect(tailSeconds?.disabled).toBe(true);
+        expect(tailSeconds?.getAttribute("aria-disabled")).toBe("true");
+    });
+
     it("materializes every DOM pattern direction into a timeline-backed Tone.Pattern", () => {
         const radios = document.querySelectorAll<HTMLInputElement>(
             "input[name='pattern-direction']",
