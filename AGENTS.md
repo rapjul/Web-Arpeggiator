@@ -358,7 +358,8 @@ Web Arpeggiator/
 │   │   ├── 0017-zero-stderr-test-runner-noise-and-diagnostic-log-assertion.md
 │   │   ├── 0018-awaited-recording-lifecycle-and-bounded-audio-resource-ownership.md
 │   │   ├── 0019-recommended-effects-tail-strategy.md
-│   │   └── 0020-bounded-audio-startup-latency-and-lifecycle-benchmarking.md
+│   │   ├── 0020-bounded-audio-startup-latency-and-lifecycle-benchmarking.md
+│   │   └── 0021-fluid-wrapping-and-card-aware-responsive-layout.md
 │   ├── architecture.md     # Module ownership, runtime flow, and deferred boundaries
 │   ├── development.md      # Local setup, commands, and test-runner guidance
 │   ├── improvements/       # Deferred, scoped follow-up plans
