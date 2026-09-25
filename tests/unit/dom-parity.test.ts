@@ -258,4 +258,32 @@ describe("Production DOM Parity Suite", () => {
         expect(reshuffleButton).not.toBeNull();
         expect(reshuffleButton?.getAttribute("aria-label")).toContain("Reshuffle Pattern");
     });
+
+    /**
+     * Verifies that Level 2 control group labels and details summaries follow Title Case.
+     */
+    it("verifies Level 2 control labels and recovery summary follow Title Case", () => {
+        const tailModeLabel = document.querySelector<HTMLLabelElement>(
+            "label[for='offline-export-tail-mode']",
+        );
+        expect(tailModeLabel?.textContent?.trim()).toBe("Effects Tail Strategy:");
+
+        const tailSecondsLabel = document.querySelector<HTMLLabelElement>(
+            "label[for='offline-export-tail-seconds']",
+        );
+        expect(tailSecondsLabel?.textContent?.trim()).toBe("Effects Tail:");
+
+        const cyclesLabel = document.querySelector<HTMLLabelElement>("label[for='loop-count']");
+        expect(cyclesLabel?.textContent?.trim()).toBe("Pattern Cycles:");
+
+        const exportModeLegend = document.querySelector<HTMLLegendElement>(
+            "#offline-export-mode-label",
+        );
+        expect(exportModeLegend?.textContent?.trim()).toBe("Audio Export Mode");
+
+        const storageRecoverySummary = document.querySelector<HTMLElement>(
+            "#browser-storage-recovery summary",
+        );
+        expect(storageRecoverySummary?.textContent?.trim()).toBe("Browser Storage Recovery");
+    });
 });
