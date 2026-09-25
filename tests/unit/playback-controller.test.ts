@@ -376,4 +376,41 @@ describe("playback controller", () => {
         expect(callOrder).toEqual(["transport.start:0", "initRecorder"]);
         expect(fixture.transport.start).toHaveBeenCalledWith(undefined, 0);
     });
+
+    it("deduplicates concurrent in-flight start calls and shares a single promise", async () => {
+        const fixture = createFixture();
+        const { controller, createOrUpdatePattern, pattern, startAudio, transport } = fixture;
+
+        let resolveStartAudio: () => void = () => {};
+        startAudio.mockImplementation(
+            () =>
+                new Promise<void>((resolve) => {
+                    resolveStartAudio = resolve;
+                }),
+        );
+
+        const firstStartPromise = controller.start();
+        const secondStartPromise = controller.start();
+
+        expect(firstStartPromise).toBe(secondStartPromise);
+
+        resolveStartAudio();
+        await Promise.all([firstStartPromise, secondStartPromise]);
+
+        expect(createOrUpdatePattern).toHaveBeenCalledOnce();
+        expect(pattern.start).toHaveBeenCalledOnce();
+        expect(transport.start).toHaveBeenCalledWith(undefined, 0);
+    });
+
+    it("resets in-flight start promise when startAudio rejects, allowing subsequent retries", async () => {
+        const fixture = createFixture();
+        const { controller, startAudio, transport } = fixture;
+
+        startAudio.mockRejectedValueOnce(new Error("AudioContext failed"));
+        await expect(controller.start()).rejects.toThrow("AudioContext failed");
+
+        startAudio.mockResolvedValueOnce(undefined);
+        await expect(controller.start()).resolves.toBeUndefined();
+        expect(transport.start).toHaveBeenCalledWith(undefined, 0);
+    });
 });

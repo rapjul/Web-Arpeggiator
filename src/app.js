@@ -693,6 +693,9 @@ function initializeApp() {
 
     const { getAllSettings, loadAllSettings, generateFilename } = settingsManager;
 
+    /** @type {Promise<void>|null} */
+    let initialSessionRestorePromise = null;
+
     const onboardingController = createOnboardingController({
         dom: {
             appMain,
@@ -736,6 +739,13 @@ function initializeApp() {
             loadPresetFromUrl();
         },
         onStartOverlay: async () => {
+            if (initialSessionRestorePromise) {
+                try {
+                    await initialSessionRestorePromise;
+                } catch {
+                    // Session restoration error handled on initial startup; proceed with available settings
+                }
+            }
             await startAudio();
             loadPresetFromUrl();
             await startPlayback();
@@ -1636,9 +1646,13 @@ function initializeApp() {
 
     log("Arpeggiator initialized and ready.");
     void refreshSavedPresetList();
-    restoreLastSession().then(() => {
-        loadPresetFromUrl();
-    });
+    initialSessionRestorePromise = restoreLastSession()
+        .then(() => {
+            loadPresetFromUrl();
+        })
+        .catch((error) => {
+            log("Could not restore initial session:", error);
+        });
 }
 
 if (document.readyState === "loading") {

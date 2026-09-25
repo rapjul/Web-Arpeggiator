@@ -218,6 +218,43 @@ describe("onboarding controller", () => {
         expect(localStorage.getItem("webArpHasVisited")).toBe("true");
     });
 
+    test("keeps play button disabled during overlay startup and preserves active playing state", async () => {
+        let resolveOverlay: () => void = () => {};
+        const onStartOverlay = vi.fn(
+            () =>
+                new Promise<void>((resolve) => {
+                    resolveOverlay = resolve;
+                }),
+        );
+        const { controller, playStopButton, startOverlay } = createFixture({
+            search: "?bpm=160",
+            onStartOverlay,
+        });
+
+        controller.initialize();
+        expect(playStopButton?.disabled).toBe(true);
+
+        startOverlay?.dispatchEvent(new Event("click"));
+        expect(startOverlay?.classList.contains("is-hidden")).toBe(true);
+        // Play button must remain disabled while startup is in-flight
+        expect(playStopButton?.disabled).toBe(true);
+
+        // Simulate playback starting before onStartOverlay resolves
+        if (playStopButton) {
+            playStopButton.textContent = "Stop Audio";
+            playStopButton.classList.add("bg-yellow-600");
+        }
+
+        resolveOverlay();
+        await vi.waitFor(() => {
+            expect(playStopButton?.disabled).toBe(false);
+        });
+
+        // Ensure "Stop Audio" and yellow class were not overwritten by "Start Audio"
+        expect(playStopButton?.textContent).toBe("Stop Audio");
+        expect(playStopButton?.classList.contains("bg-yellow-600")).toBe(true);
+    });
+
     test("dismisses modal on backdrop click and on Escape key, ignoring unrelated events", async () => {
         const { controller, onStartFromScratch, quickStartModal, quickStartOverlay } =
             createFixture();

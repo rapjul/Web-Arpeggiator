@@ -32,46 +32,57 @@ export function createPlaybackController(dependencies) {
     } = dependencies;
     let observedRawAudioContext = null;
     let audioContextStateListener = null;
+    /** @type {Promise<void>|null} */
+    let inFlightStartPromise = null;
 
     /** @returns {Promise<void>} Starts the scheduler and transport. */
-    async function start() {
-        if (!state.isAudioContextStarted) prepareForPlayback();
-        await startAudio();
-        const recorderManager = getRecorderManager();
-        if (recorderManager) {
-            if (recorderManager.isStarting) {
-                try {
-                    await recorderManager.awaitPendingTransition?.();
-                } catch {
-                    // Capture startup failure is handled by recorder; proceed with normal playback start
+    function start() {
+        if (state.isPlaying) return Promise.resolve();
+        if (inFlightStartPromise) return inFlightStartPromise;
+
+        inFlightStartPromise = (async () => {
+            if (!state.isAudioContextStarted) prepareForPlayback();
+            await startAudio();
+            const recorderManager = getRecorderManager();
+            if (recorderManager) {
+                if (recorderManager.isStarting) {
+                    try {
+                        await recorderManager.awaitPendingTransition?.();
+                    } catch {
+                        // Capture startup failure is handled by recorder; proceed with normal playback start
+                    }
+                    if (state.isPlaying) return;
                 }
-                if (state.isPlaying) return;
             }
-        }
-        createOrUpdatePattern();
-        if (!state.isPlaying) {
-            const tone = getTone();
-            const transport = tone?.getTransport();
-            if (transport) {
-                transport.position = 0;
+            createOrUpdatePattern();
+            if (!state.isPlaying) {
+                const tone = getTone();
+                const transport = tone?.getTransport();
+                if (transport) {
+                    transport.position = 0;
+                }
+                getPattern()?.start(0);
+                mark(STARTUP_MARKS.TRANSPORT_STARTING);
+                transport?.start(undefined, 0);
+                const playStopButton = dom.playStopButton;
+                if (playStopButton) {
+                    playStopButton.textContent = "Stop Audio";
+                    playStopButton.setAttribute("aria-label", "Press to stop arpeggio");
+                    playStopButton.classList.add("bg-yellow-600", "hover:bg-yellow-700");
+                    playStopButton.classList.remove("bg-blue-600", "hover:bg-blue-700");
+                }
+                state.isPlaying = true;
+                getVisualizer()?.startUiLoop();
+                onPlaybackStart?.();
             }
-            getPattern()?.start(0);
-            mark(STARTUP_MARKS.TRANSPORT_STARTING);
-            transport?.start(undefined, 0);
-            const playStopButton = dom.playStopButton;
-            if (playStopButton) {
-                playStopButton.textContent = "Stop Audio";
-                playStopButton.setAttribute("aria-label", "Press to stop arpeggio");
-                playStopButton.classList.add("bg-yellow-600", "hover:bg-yellow-700");
-                playStopButton.classList.remove("bg-blue-600", "hover:bg-blue-700");
+            if (recorderManager && !recorderManager.isRecording) {
+                void recorderManager.initRecorder();
             }
-            state.isPlaying = true;
-            getVisualizer()?.startUiLoop();
-            onPlaybackStart?.();
-        }
-        if (recorderManager && !recorderManager.isRecording) {
-            void recorderManager.initRecorder();
-        }
+        })().finally(() => {
+            inFlightStartPromise = null;
+        });
+
+        return inFlightStartPromise;
     }
 
     /** @returns {void} Stops transport and clears active step state. */
