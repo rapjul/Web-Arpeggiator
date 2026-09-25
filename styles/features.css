@@ -55,6 +55,9 @@
   user-select: none;
   touch-action: manipulation;
   cursor: pointer;
+  min-width: 0;
+  white-space: nowrap;
+  text-wrap: balance;
 }
 
 .chord-btn:active {

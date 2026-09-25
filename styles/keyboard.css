@@ -1,4 +1,11 @@
-/* KEYBOARD VISUAL CONTAINER - Overall Wrapper (renamed from #keyboard-visual) */
+/* KEYBOARD VISUAL CONTAINER - Outer Shell & Inner Wrapper */
+#keyboard-visual {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 #keyboard-main-wrapper {
   display: flex;
   /* Allow wrapping when there is not enough space, stacking higher octave above lower */

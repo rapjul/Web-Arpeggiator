@@ -7,11 +7,38 @@ section {
   display: none;
 }
 
+/* Prevent awkward trailing orphan words in descriptive paragraphs */
+p {
+  text-wrap: pretty;
+}
+
+/* Balanced text wrapping for headings, control labels, legends, summaries, and subtitles */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+label,
+legend,
+summary,
+.card-help-text,
+#offline-export-mode-help,
+#offline-export-duration,
+#offline-export-guidance,
+.offline-export-tail-control > p,
+#offline-export-tail-control > p {
+  text-wrap: balance;
+}
+
 /* Custom styles for better-looking sliders */
 input[type="range"] {
   -webkit-appearance: none;
   appearance: none;
   width: 100%;
+  max-width: 480px;
+  margin-inline: auto;
+  display: block;
   height: 8px;
   background-color: var(--color-gray-300);
   /* bg-gray-300 */

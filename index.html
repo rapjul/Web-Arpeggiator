@@ -360,7 +360,7 @@
                             <span id="post-gain-value">85</span>
                             %
                         </label>
-                        <p class="text-[11px] text-gray-400 mb-1">
+                        <p class="text-xs text-gray-400 mb-1">
                             Master output volume level (-40 dB to 0 dB)
                         </p>
                         <input type="range" id="post-gain" min="-40" max="0" value="-6" step="1" />
@@ -370,7 +370,7 @@
                             BPM:
                             <span id="bpm-value">120</span>
                         </label>
-                        <p class="text-[11px] text-gray-400 mb-1">
+                        <p class="text-xs text-gray-400 mb-1">
                             Tempo speed in beats per minute (40 to 240)
                         </p>
                         <input type="range" id="bpm" min="40" max="240" value="120" step="1" />
@@ -380,7 +380,7 @@
                             Swing:
                             <span id="swing-value">0.00</span>
                         </label>
-                        <p class="text-[11px] text-gray-400 mb-1">
+                        <p class="text-xs text-gray-400 mb-1">
                             Adds groove & shuffle to straight rhythms
                         </p>
                         <input type="range" id="swing" min="0" max="1" value="0" step="0.01" />
@@ -441,7 +441,7 @@
                                 <div
                                     id="vu-clip-tooltip"
                                     role="tooltip"
-                                    class="hidden absolute right-0 bottom-full mb-1.5 z-50 px-2 py-1 bg-gray-900 border border-gray-600 rounded shadow-xl text-[11px] font-sans font-normal text-gray-200 whitespace-nowrap pointer-events-none"
+                                    class="hidden absolute right-0 bottom-full mb-1.5 z-50 px-2 py-1 bg-gray-900 border border-gray-600 rounded shadow-xl text-xs font-sans font-normal text-gray-200 whitespace-nowrap pointer-events-none"
                                 >
                                     No clipping detected
                                 </div>
@@ -514,7 +514,7 @@
                                 Measures real-time output signal level in dBFS after the master
                                 limiter.
                             </p>
-                            <ul class="list-disc pl-4 space-y-0.5 text-[11px] text-gray-400">
+                            <ul class="list-disc pl-4 space-y-0.5 text-xs text-gray-400">
                                 <li>
                                     <strong class="text-gray-200">Scale:</strong>
                                     -60 dBFS (silence) to 0 dBFS (digital ceiling).
@@ -564,12 +564,12 @@
                             </span>
                             <fieldset
                                 id="chord-buttons"
-                                class="grid grid-cols-3 sm:grid-cols-6 gap-1.5"
+                                class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-1.5"
                                 aria-labelledby="chord-starters-label"
                             >
                                 <button
                                     type="button"
-                                    class="chord-btn has-custom-tooltip text-xs font-semibold py-1.5 px-2 bg-gray-800 hover:bg-gray-700 text-blue-300 hover:text-blue-200 border border-gray-600 rounded transition-all shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+                                    class="chord-btn has-custom-tooltip min-w-0 text-center text-xs font-semibold py-1.5 px-2 bg-gray-800 hover:bg-gray-700 text-blue-300 hover:text-blue-200 border border-gray-600 rounded transition-all shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
                                     data-chord="major"
                                     data-tooltip="Major&nbsp;Triad: Root, Major&nbsp;3rd, Perfect&nbsp;5th"
                                     data-placement="top"
@@ -579,7 +579,7 @@
                                 </button>
                                 <button
                                     type="button"
-                                    class="chord-btn has-custom-tooltip text-xs font-semibold py-1.5 px-2 bg-gray-800 hover:bg-gray-700 text-blue-300 hover:text-blue-200 border border-gray-600 rounded transition-all shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+                                    class="chord-btn has-custom-tooltip min-w-0 text-center text-xs font-semibold py-1.5 px-2 bg-gray-800 hover:bg-gray-700 text-blue-300 hover:text-blue-200 border border-gray-600 rounded transition-all shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
                                     data-chord="minor"
                                     data-tooltip="Minor&nbsp;Triad: Root, Minor&nbsp;3rd, Perfect&nbsp;5th"
                                     data-placement="top"
@@ -589,7 +589,7 @@
                                 </button>
                                 <button
                                     type="button"
-                                    class="chord-btn has-custom-tooltip text-xs font-semibold py-1.5 px-2 bg-gray-800 hover:bg-gray-700 text-blue-300 hover:text-blue-200 border border-gray-600 rounded transition-all shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+                                    class="chord-btn has-custom-tooltip min-w-0 text-center text-xs font-semibold py-1.5 px-2 bg-gray-800 hover:bg-gray-700 text-blue-300 hover:text-blue-200 border border-gray-600 rounded transition-all shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
                                     data-chord="dom7"
                                     data-tooltip="Dominant&nbsp;7th: Root, 3rd, 5th, Minor&nbsp;7th"
                                     data-placement="top"
@@ -599,7 +599,7 @@
                                 </button>
                                 <button
                                     type="button"
-                                    class="chord-btn has-custom-tooltip text-xs font-semibold py-1.5 px-2 bg-gray-800 hover:bg-gray-700 text-blue-300 hover:text-blue-200 border border-gray-600 rounded transition-all shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+                                    class="chord-btn has-custom-tooltip min-w-0 text-center text-xs font-semibold py-1.5 px-2 bg-gray-800 hover:bg-gray-700 text-blue-300 hover:text-blue-200 border border-gray-600 rounded transition-all shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
                                     data-chord="sus4"
                                     data-tooltip="Suspended&nbsp;4th: Root, Perfect&nbsp;4th, Perfect&nbsp;5th"
                                     data-placement="top"
@@ -609,7 +609,7 @@
                                 </button>
                                 <button
                                     type="button"
-                                    class="chord-btn has-custom-tooltip text-xs font-semibold py-1.5 px-2 bg-gray-800 hover:bg-gray-700 text-blue-300 hover:text-blue-200 border border-gray-600 rounded transition-all shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+                                    class="chord-btn has-custom-tooltip min-w-0 text-center text-xs font-semibold py-1.5 px-2 bg-gray-800 hover:bg-gray-700 text-blue-300 hover:text-blue-200 border border-gray-600 rounded transition-all shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
                                     data-chord="power"
                                     data-tooltip="Power&nbsp;Chord: Root, 5th, Octave"
                                     data-placement="top"
@@ -619,7 +619,7 @@
                                 </button>
                                 <button
                                     type="button"
-                                    class="chord-btn has-custom-tooltip text-xs font-semibold py-1.5 px-2 bg-gray-800 hover:bg-gray-700 text-blue-300 hover:text-blue-200 border border-gray-600 rounded transition-all shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+                                    class="chord-btn has-custom-tooltip min-w-0 text-center text-xs font-semibold py-1.5 px-2 bg-gray-800 hover:bg-gray-700 text-blue-300 hover:text-blue-200 border border-gray-600 rounded transition-all shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
                                     data-chord="pentatonic"
                                     data-tooltip="Pentatonic&nbsp;Scale: 5&#x2011;note melodic run"
                                     data-placement="top"
@@ -636,7 +636,7 @@
                             value="C4 E4 G4"
                             placeholder="e.g., C4 E4 G4 C#4 Eb5"
                             autocomplete="off"
-                            class="w-full p-2 bg-gray-800 border border-gray-600 rounded-md text-gray-100"
+                            class="w-full max-w-md p-2 bg-gray-800 border border-gray-600 rounded-md text-gray-100"
                         />
 
                         <!-- Note Step Indicator: highlights the currently playing note during playback -->
@@ -1114,12 +1114,12 @@
                         <label for="interval" class="block text-sm font-medium mb-1">
                             Note Duration
                         </label>
-                        <p class="text-[11px] text-gray-400 mb-1">
+                        <p class="text-xs text-gray-400 mb-1 card-help-text text-balance">
                             Rhythmic step subdivision (32nd note to Half note)
                         </p>
                         <select
                             id="interval"
-                            class="w-full p-2 bg-gray-800 border border-gray-600 rounded-md text-gray-100"
+                            class="w-full max-w-md p-2 bg-gray-800 border border-gray-600 rounded-md text-gray-100"
                         >
                             <option value="32n">
                                 32nd (Rapid burst)
@@ -1255,7 +1255,7 @@
                             Octave Shift
                             <span class="text-xs text-gray-400 font-normal">(0 = no shift)</span>
                         </span>
-                        <p class="text-[11px] text-gray-400 mb-1">
+                        <p class="text-xs text-gray-400 mb-1">
                             Transposition offset (-3 to +3 octaves)
                         </p>
                         <fieldset
@@ -1344,7 +1344,7 @@
                             Octave Layers
                             <span class="text-xs text-gray-400 font-normal">(1 = base only)</span>
                         </span>
-                        <p class="text-[11px] text-gray-400 mb-1">
+                        <p class="text-xs text-gray-400 mb-1">
                             Number of octave duplications (1 to 5 octaves)
                         </p>
                         <fieldset
@@ -1702,7 +1702,7 @@
                                 Duty Cycle:
                                 <span id="duty-value">0.50</span>
                             </label>
-                            <p class="text-[11px] text-gray-400 mb-1">
+                            <p class="text-xs text-gray-400 mb-1">
                                 Pulse width / square wave timbre balance
                             </p>
                             <input
@@ -1724,7 +1724,7 @@
                                 Harmonicity:
                                 <span id="harmonicity-value">3.0</span>
                             </label>
-                            <p class="text-[11px] text-gray-400 mb-1">
+                            <p class="text-xs text-gray-400 mb-1">
                                 Frequency ratio of modulating oscillator (dissonance/metallic)
                             </p>
                             <input
@@ -1741,7 +1741,7 @@
                                 Mod. Index:
                                 <span id="modulation-index-value">10.0</span>
                             </label>
-                            <p class="text-[11px] text-gray-400 mb-1">
+                            <p class="text-xs text-gray-400 mb-1">
                                 Intensity / depth of timbre modulation
                             </p>
                             <input
@@ -1764,7 +1764,7 @@
                                 <span id="mono-cutoff-value">300</span>
                                 Hz
                             </label>
-                            <p class="text-[11px] text-gray-400 mb-1">
+                            <p class="text-xs text-gray-400 mb-1">
                                 Starting cutoff frequency for filter envelope sweep
                             </p>
                             <input
@@ -1781,7 +1781,7 @@
                                 Filter Env Octaves:
                                 <span id="mono-octaves-value">4.0</span>
                             </label>
-                            <p class="text-[11px] text-gray-400 mb-1">
+                            <p class="text-xs text-gray-400 mb-1">
                                 Number of octaves modulated by the envelope
                             </p>
                             <input
@@ -1798,7 +1798,7 @@
                                 Filter Q (Resonance):
                                 <span id="mono-q-value">2.0</span>
                             </label>
-                            <p class="text-[11px] text-gray-400 mb-1">
+                            <p class="text-xs text-gray-400 mb-1">
                                 Resonance sharpness of the dedicated mono filter
                             </p>
                             <input
@@ -1820,7 +1820,7 @@
                                 Voice Ratio:
                                 <span id="duo-harm-value">1.50</span>
                             </label>
-                            <p class="text-[11px] text-gray-400 mb-1">
+                            <p class="text-xs text-gray-400 mb-1">
                                 Harmonic interval ratio between Voice 1 and Voice 2
                             </p>
                             <input
@@ -1837,7 +1837,7 @@
                                 Vibrato Depth:
                                 <span id="duo-vibrato-value">0.20</span>
                             </label>
-                            <p class="text-[11px] text-gray-400 mb-1">
+                            <p class="text-xs text-gray-400 mb-1">
                                 Pitch modulation vibrato intensity on second voice
                             </p>
                             <input
@@ -1860,7 +1860,7 @@
                                 <span id="pluck-dampening-value">4000</span>
                                 Hz
                             </label>
-                            <p class="text-[11px] text-gray-400 mb-1">
+                            <p class="text-xs text-gray-400 mb-1">
                                 String material dampening frequency (lower = warmer nylon)
                             </p>
                             <input
@@ -1877,7 +1877,7 @@
                                 Resonance:
                                 <span id="pluck-resonance-value">0.90</span>
                             </label>
-                            <p class="text-[11px] text-gray-400 mb-1">
+                            <p class="text-xs text-gray-400 mb-1">
                                 String resonance sustain and body ring duration
                             </p>
                             <input
@@ -1894,7 +1894,7 @@
                                 Attack Noise:
                                 <span id="pluck-noise-value">1.0</span>
                             </label>
-                            <p class="text-[11px] text-gray-400 mb-1">
+                            <p class="text-xs text-gray-400 mb-1">
                                 Initial plectrum pick/pluck strike transient strength
                             </p>
                             <input
@@ -1920,7 +1920,7 @@
                                 <span id="membrane-pitch-decay-value">0.05</span>
                                 s
                             </label>
-                            <p class="text-[11px] text-gray-400 mb-1">
+                            <p class="text-xs text-gray-400 mb-1">
                                 Duration of initial pitch drop on percussive strike
                             </p>
                             <input
@@ -1937,7 +1937,7 @@
                                 Octaves:
                                 <span id="membrane-octaves-value">8.0</span>
                             </label>
-                            <p class="text-[11px] text-gray-400 mb-1">
+                            <p class="text-xs text-gray-400 mb-1">
                                 Pitch sweep range for percussive punch / 808 drop
                             </p>
                             <input
@@ -1958,7 +1958,7 @@
                             Gate (Note Length):
                             <span id="gate-value">0.80</span>
                         </label>
-                        <p class="text-[11px] text-gray-400 mb-1">
+                        <p class="text-xs text-gray-400 mb-1">
                             Short = staccato & punchy; Long = smooth & sustained
                         </p>
                         <input
@@ -1990,7 +1990,7 @@
                             <span id="env-attack-value">0.01</span>
                             s
                         </label>
-                        <p class="text-[11px] text-gray-400 mb-1">
+                        <p class="text-xs text-gray-400 mb-1">
                             Time to reach peak volume from key strike
                         </p>
                         <input
@@ -2011,7 +2011,7 @@
                             <span id="env-decay-value">0.10</span>
                             s
                         </label>
-                        <p class="text-[11px] text-gray-400 mb-1">
+                        <p class="text-xs text-gray-400 mb-1">
                             Time to drop from peak to sustain level
                         </p>
                         <input
@@ -2031,7 +2031,7 @@
                             Sustain:
                             <span id="env-sustain-value">0.30</span>
                         </label>
-                        <p class="text-[11px] text-gray-400 mb-1">
+                        <p class="text-xs text-gray-400 mb-1">
                             Held volume level while note is active
                         </p>
                         <input
@@ -2052,7 +2052,7 @@
                             <span id="env-release-value">0.50</span>
                             s
                         </label>
-                        <p class="text-[11px] text-gray-400 mb-1">
+                        <p class="text-xs text-gray-400 mb-1">
                             Fade-out duration after note stops
                         </p>
                         <input
@@ -2082,7 +2082,7 @@
                             <span id="filter-cutoff-value">4000</span>
                             Hz
                         </label>
-                        <p class="text-[11px] text-gray-400 mb-1">
+                        <p class="text-xs text-gray-400 mb-1">
                             Tone brightness; low = warm/dark, high = bright/crisp
                         </p>
                         <input
@@ -2102,7 +2102,7 @@
                             Resonance:
                             <span id="filter-resonance-value">1.0</span>
                         </label>
-                        <p class="text-[11px] text-gray-400 mb-1">
+                        <p class="text-xs text-gray-400 mb-1">
                             Sharpness / vocal emphasis at cutoff peak
                         </p>
                         <input
@@ -2131,7 +2131,7 @@
                             Drive (Overdrive):
                             <span id="drive-mix-value">0.00</span>
                         </label>
-                        <p class="text-[11px] text-gray-400 mb-1">
+                        <p class="text-xs text-gray-400 mb-1">
                             Harmonic saturation and distortion warmth
                         </p>
                         <input type="range" id="drive-mix" min="0" max="1" value="0" step="0.01" />
@@ -2144,7 +2144,7 @@
                             Chorus Mix:
                             <span id="chorus-mix-value">0.00</span>
                         </label>
-                        <p class="text-[11px] text-gray-400 mb-1">
+                        <p class="text-xs text-gray-400 mb-1">
                             Stereo shimmer and modulated detune blend
                         </p>
                         <input type="range" id="chorus-mix" min="0" max="1" value="0" step="0.01" />
@@ -2157,7 +2157,7 @@
                             Auto-Pan Mix:
                             <span id="autopan-mix-value">0.00</span>
                         </label>
-                        <p class="text-[11px] text-gray-400 mb-1">
+                        <p class="text-xs text-gray-400 mb-1">
                             Left/right stereo oscillation depth
                         </p>
                         <input
@@ -2177,7 +2177,7 @@
                             Delay Mix:
                             <span id="delay-mix-value">0.20</span>
                         </label>
-                        <p class="text-[11px] text-gray-400 mb-1">
+                        <p class="text-xs text-gray-400 mb-1">
                             Echo wet/dry blend (fixed 8th note delay)
                         </p>
                         <input
@@ -2197,7 +2197,7 @@
                             Reverb Mix:
                             <span id="reverb-mix-value">0.20</span>
                         </label>
-                        <p class="text-[11px] text-gray-400 mb-1">
+                        <p class="text-xs text-gray-400 mb-1">
                             Room acoustic space and decay wet/dry blend
                         </p>
                         <input
@@ -2423,7 +2423,7 @@
                             id="offline-export-mode-label"
                             class="text-sm font-medium mb-2"
                         >
-                            Audio export mode
+                            Audio Export Mode
                         </legend>
                         <div class="flex flex-col gap-2 sm:flex-row sm:gap-5">
                             <label class="flex items-start gap-2 cursor-pointer">
@@ -2436,7 +2436,7 @@
                                 />
                                 <span>
                                     <span class="block text-sm font-medium">Seamless loop (WAV)</span>
-                                    <span class="block text-[11px] text-gray-400">
+                                    <span class="block text-xs text-gray-400 text-balance">
                                         Exact musical length with an internal effects warm-up.
                                     </span>
                                 </span>
@@ -2452,13 +2452,13 @@
                                 />
                                 <span>
                                     <span class="block text-sm font-medium">Include effects tail</span>
-                                    <span class="block text-[11px] text-gray-400">
+                                    <span class="block text-xs text-gray-400 text-balance">
                                         Keep the natural delay and reverb decay after the pattern.
                                     </span>
                                 </span>
                             </label>
                         </div>
-                        <p id="offline-export-mode-help" class="text-[11px] text-gray-400 mt-2">
+                        <p id="offline-export-mode-help" class="text-xs text-gray-400 mt-2 text-balance">
                             Seamless looping is sample-exact for WAV. MP3 encoder padding can prevent
                             exact looping.
                         </p>
@@ -2466,7 +2466,7 @@
                     <div>
                         <div class="flex items-center gap-4">
                             <label for="loop-count" class="text-sm font-medium whitespace-nowrap">
-                                Pattern cycles:
+                                Pattern Cycles:
                             </label>
                             <input
                                 type="number"
@@ -2477,34 +2477,34 @@
                                 class="w-20 p-2 bg-gray-800 border border-gray-600 rounded-md text-gray-100"
                             />
                         </div>
-                        <p class="text-[11px] text-gray-400 mt-1">
+                        <p class="text-xs text-gray-400 mt-1 text-balance">
                             Number of complete pattern cycles rendered into the export audio.
                         </p>
                         <p
                             id="offline-export-duration"
-                            class="text-xs text-blue-200 mt-1"
+                            class="text-xs text-blue-200 mt-1 text-balance"
                             aria-live="polite"
                         >
                             Calculating export duration…
                         </p>
                     </div>
-                    <div id="offline-export-tail-control">
-                        <div class="flex items-center gap-4">
+                    <div id="offline-export-tail-control" class="offline-export-tail-control">
+                        <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
                             <label
                                 for="offline-export-tail-mode"
                                 class="text-sm font-medium whitespace-nowrap"
                             >
-                                Effects tail strategy:
+                                Effects Tail Strategy:
                             </label>
                             <select
                                 id="offline-export-tail-mode"
-                                class="p-2 bg-gray-800 border border-gray-600 rounded-md text-gray-100"
+                                class="w-full sm:w-auto min-w-0 max-w-full p-2 bg-gray-800 border border-gray-600 rounded-md text-gray-100"
                             >
                                 <option value="auto" selected>Auto (recommended)</option>
                                 <option value="custom">Custom</option>
                             </select>
                         </div>
-                        <p class="text-[11px] text-gray-400 mt-1">
+                        <p class="text-xs text-gray-400 mt-1 text-balance">
                             Auto estimates the envelope release and active delay, reverb, and chorus
                             decay, capped at 10 seconds. Custom uses the duration below.
                         </p>
@@ -2513,7 +2513,7 @@
                                 for="offline-export-tail-seconds"
                                 class="text-sm font-medium whitespace-nowrap"
                             >
-                                Effects tail:
+                                Effects Tail:
                             </label>
                             <input
                                 type="number"
@@ -2527,7 +2527,7 @@
                             />
                             <span class="text-sm text-gray-400">seconds</span>
                         </div>
-                        <p class="text-[11px] text-gray-400 mt-1">
+                        <p class="text-xs text-gray-400 mt-1 text-balance">
                             Appended after the final scheduled note release when Include effects tail is
                             selected and Custom is active, including a preserved swung terminal gate that
                             extends beyond the final pattern cycle.
@@ -2707,7 +2707,7 @@
                                 class="hidden mt-3 rounded-md border border-amber-500/50 bg-amber-950/30 p-2 text-xs text-amber-100"
                             >
                                 <summary class="cursor-pointer font-semibold text-amber-300">
-                                    Browser storage recovery
+                                    Browser Storage Recovery
                                 </summary>
                                 <p class="mt-2 leading-relaxed">
                                     Retry the failed action first. If it keeps failing, use Export JSON to
