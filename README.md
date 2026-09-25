@@ -185,11 +185,13 @@ Saving a preset also keeps a copy in browser storage so it can be restored offli
 Snap all input notes to a musical scale:
 
 1. **Enable Scale Quantization**: Toggle the checkbox
-2. **Select Root Note**: Choose the tonal center (C, D, E, F, G, A, B, etc.)
+2. **Select Root Note**: Choose the tonal center for scale snapping and chord starters (C, D, E, F, G, A, B, etc.)
 3. **Select Scale Type**: Major, Minor, Harmonic Minor, Dorian, Blues, Chromatic, etc.
 4. **Input Notes**: Any notes you enter will snap to the nearest scale degree
 
 Example: With C Major selected, the note "C#4" becomes "D4"
+
+When a chord starter does not fit the active scale, choose **Keep** to preserve its notes and turn snapping off, **Adapt** to keep snapping on and use the scale-compatible notes, or **Cancel** to leave the pattern unchanged. Keep retains the selected root and scale for later.
 
 ## Technologies
 

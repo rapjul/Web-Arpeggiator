@@ -91,7 +91,7 @@ The arpeggiator generates note sequences based on:
 
 When enabled, input notes are quantized to the nearest scale degree:
 
-- **Root Note**: C, C#, D, D#, E, F, F#, G, G#, A, A#, B
+- **Root Note**: C, C#, D, D#, E, F, F#, G, G#, A, A#, B; also used by chord starters even when snapping is disabled
 - **Scale Type**: Major, minor, harmonic minor, melodic minor, dorian, phrygian, lydian, mixolydian, locrian, blues, chromatic (no quantization)
 
 Uses Tonal.js to calculate scale pitches and find nearest MIDI note.
@@ -193,7 +193,7 @@ Offline-friendly note sequence generation using local music theory calculations:
 
 ### 9. Chord Starters
 
-Scale-aware chord buttons insert major, minor, seventh, sus4, power, or pentatonic notes from the selected root. Chord construction lives in the pure `src/core/chord-builder.js` module and falls back safely for invalid chord types or octave values.
+Scale-aware chord buttons insert major, minor, seventh, sus4, power, or pentatonic notes from the selected root. When a requested chord conflicts with active scale snapping, users can keep it (which disables snapping while retaining the selected root and scale), adapt it to the scale, or cancel without changing the pattern. Chord construction lives in the pure `src/core/chord-builder.js` module and falls back safely for invalid chord types or octave values.
 
 ## State Management
 
