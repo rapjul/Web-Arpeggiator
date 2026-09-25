@@ -6,7 +6,9 @@ import { describe, expect, it } from "vitest";
 import {
     calculateSeamlessRenderFrameWindow,
     calculateOfflineExportDuration,
+    calculateRecommendedTailSeconds,
     DEFAULT_OFFLINE_EXPORT_MODE,
+    DEFAULT_OFFLINE_EXPORT_TAIL_MODE,
     DEFAULT_OFFLINE_EXPORT_TAIL_SECONDS,
     formatEstimatedExportDuration,
     getSeamlessModulationCompatibility,
@@ -16,9 +18,12 @@ import {
     MIN_LOOP_COUNT,
     MIN_OFFLINE_EXPORT_TAIL_SECONDS,
     normalizeOfflineExportMode,
+    normalizeOfflineExportTailMode,
     normalizeOfflineExportTailSeconds,
     OFFLINE_EXPORT_MODE_SEAMLESS,
     OFFLINE_EXPORT_MODE_TAIL,
+    OFFLINE_EXPORT_TAIL_MODE_AUTO,
+    OFFLINE_EXPORT_TAIL_MODE_CUSTOM,
     normalizeLoopCount,
     OFFLINE_RENDER_TAIL_SECONDS,
 } from "@core/export-duration.js";
@@ -50,6 +55,22 @@ describe("Export Duration", () => {
             OFFLINE_EXPORT_MODE_SEAMLESS,
         );
         expect(normalizeOfflineExportMode("unexpected")).toBe(OFFLINE_EXPORT_MODE_TAIL);
+        expect(DEFAULT_OFFLINE_EXPORT_TAIL_MODE).toBe(OFFLINE_EXPORT_TAIL_MODE_AUTO);
+        expect(normalizeOfflineExportTailMode(OFFLINE_EXPORT_TAIL_MODE_CUSTOM)).toBe(
+            OFFLINE_EXPORT_TAIL_MODE_CUSTOM,
+        );
+        expect(normalizeOfflineExportTailMode("unexpected")).toBe(OFFLINE_EXPORT_TAIL_MODE_AUTO);
+        expect(normalizeOfflineExportTailMode(undefined, OFFLINE_EXPORT_TAIL_MODE_CUSTOM)).toBe(
+            OFFLINE_EXPORT_TAIL_MODE_CUSTOM,
+        );
+        expect(normalizeOfflineExportTailMode(null)).toBe(OFFLINE_EXPORT_TAIL_MODE_AUTO);
+        expect(normalizeOfflineExportTailMode(123)).toBe(OFFLINE_EXPORT_TAIL_MODE_AUTO);
+        expect(normalizeOfflineExportTailMode(true)).toBe(OFFLINE_EXPORT_TAIL_MODE_AUTO);
+        expect(normalizeOfflineExportTailMode(false)).toBe(OFFLINE_EXPORT_TAIL_MODE_AUTO);
+        expect(normalizeOfflineExportTailMode({})).toBe(OFFLINE_EXPORT_TAIL_MODE_AUTO);
+        expect(normalizeOfflineExportTailMode([], OFFLINE_EXPORT_TAIL_MODE_CUSTOM)).toBe(
+            OFFLINE_EXPORT_TAIL_MODE_CUSTOM,
+        );
         expect(normalizeOfflineExportTailSeconds(undefined)).toBe(
             DEFAULT_OFFLINE_EXPORT_TAIL_SECONDS,
         );
@@ -78,6 +99,146 @@ describe("Export Duration", () => {
             preRollDuration: 0,
             renderDuration: 3.5,
         });
+    });
+
+    it("recommends a tail from decaying effects without treating auto-pan as decay", () => {
+        const recommended = calculateRecommendedTailSeconds({
+            bpm: 120,
+            envRelease: 1,
+            delayMix: 0.5,
+            reverbMix: 0.5,
+            chorusMix: 0.5,
+            autoPanMix: 1,
+        });
+
+        expect(recommended).toBeGreaterThan(4.9);
+        expect(recommended).toBeLessThan(5.1);
+        expect(
+            calculateRecommendedTailSeconds({
+                bpm: 120,
+                envRelease: 1,
+                delayMix: 0.5,
+                reverbMix: 0.5,
+                chorusMix: 0.5,
+                autoPanMix: 0,
+            }),
+        ).toBe(recommended);
+    });
+
+    it("caps a reachable automatic recommendation at the supported ten-second tail", () => {
+        expect(
+            calculateOfflineExportDuration({
+                loopCount: 1,
+                stepsPerLoop: 1,
+                interval: "16n",
+                bpm: 40,
+                exportMode: OFFLINE_EXPORT_MODE_TAIL,
+                tailMode: OFFLINE_EXPORT_TAIL_MODE_AUTO,
+                envRelease: 5,
+                delayMix: 0.5,
+                reverbMix: 0,
+                chorusMix: 0,
+            }),
+        ).toMatchObject({
+            tailDuration: MAX_OFFLINE_EXPORT_TAIL_SECONDS,
+            tailWasCapped: true,
+            tailMode: OFFLINE_EXPORT_TAIL_MODE_AUTO,
+        });
+    });
+
+    it("uses Pluck Synth's physical-model release instead of the ADSR setting", () => {
+        expect(
+            calculateRecommendedTailSeconds({
+                bpm: 120,
+                envRelease: 5,
+                synthType: "pluckSynth",
+                delayMix: 0,
+                reverbMix: 0,
+                chorusMix: 0,
+            }),
+        ).toBe(1);
+    });
+
+    it("appends a tail after a preserved terminal gate", () => {
+        expect(
+            calculateOfflineExportDuration({
+                loopCount: 1,
+                stepsPerLoop: 1,
+                interval: "16n",
+                bpm: 120,
+                exportMode: OFFLINE_EXPORT_MODE_TAIL,
+                tailMode: OFFLINE_EXPORT_TAIL_MODE_CUSTOM,
+                tailSeconds: 2,
+                terminalDuration: 0.25,
+            }),
+        ).toMatchObject({
+            patternDuration: 0.125,
+            musicalDuration: 0.25,
+            exportDuration: 2.25,
+            renderDuration: 2.25,
+        });
+
+        // Negative/invalid/smaller terminalDuration falls back to patternDuration
+        expect(
+            calculateOfflineExportDuration({
+                loopCount: 1,
+                stepsPerLoop: 1,
+                interval: "16n",
+                bpm: 120,
+                exportMode: OFFLINE_EXPORT_MODE_TAIL,
+                tailMode: OFFLINE_EXPORT_TAIL_MODE_CUSTOM,
+                tailSeconds: 2,
+                terminalDuration: 0.05,
+            }),
+        ).toMatchObject({
+            patternDuration: 0.125,
+            musicalDuration: 0.125,
+            exportDuration: 2.125,
+            renderDuration: 2.125,
+        });
+        expect(
+            calculateOfflineExportDuration({
+                loopCount: 1,
+                stepsPerLoop: 1,
+                interval: "16n",
+                bpm: 120,
+                exportMode: OFFLINE_EXPORT_MODE_TAIL,
+                tailMode: OFFLINE_EXPORT_TAIL_MODE_CUSTOM,
+                tailSeconds: 2,
+                terminalDuration: Number.NaN,
+            }),
+        ).toMatchObject({
+            patternDuration: 0.125,
+            musicalDuration: 0.125,
+            exportDuration: 2.125,
+            renderDuration: 2.125,
+        });
+        expect(
+            calculateOfflineExportDuration({
+                loopCount: 1,
+                stepsPerLoop: 1,
+                interval: "16n",
+                bpm: 120,
+                exportMode: OFFLINE_EXPORT_MODE_TAIL,
+                tailMode: OFFLINE_EXPORT_TAIL_MODE_CUSTOM,
+                tailSeconds: 2,
+                terminalDuration: -1,
+            }),
+        ).toMatchObject({
+            patternDuration: 0.125,
+            musicalDuration: 0.125,
+            exportDuration: 2.125,
+            renderDuration: 2.125,
+        });
+        expect(
+            calculateRecommendedTailSeconds({
+                bpm: 120,
+                envRelease: -1,
+                delayMix: 0,
+                reverbMix: 0,
+                chorusMix: 0,
+            }),
+        ).toBe(0);
     });
 
     it("adds a configurable effects tail only to tail exports", () => {
@@ -275,6 +436,20 @@ describe("Export Duration", () => {
             }),
         ).toBe(
             "1 Pattern cycle at ~0.38s each. Seamless WAV duration: ~0.4 seconds. Swing is not phase-aligned across the selected Pattern cycles. Disable it, adjust Pattern cycles, or use Include effects tail.",
+        );
+        expect(
+            formatEstimatedExportDuration({
+                loopCount: 1,
+                stepsPerLoop: 1,
+                interval: "16n",
+                bpm: 40,
+                exportMode: OFFLINE_EXPORT_MODE_TAIL,
+                tailMode: OFFLINE_EXPORT_TAIL_MODE_AUTO,
+                envRelease: 5,
+                delayMix: 0.5,
+            }),
+        ).toBe(
+            "1 Pattern cycle at ~0.38s each + Auto effects tail: 10.0s. Export duration: ~10.4 seconds. Auto estimate is 12.5s and is capped at 10s.",
         );
     });
 });

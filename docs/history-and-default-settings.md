@@ -24,7 +24,8 @@ The settings below are included in every history snapshot. Reset All Defaults re
 | Octave layers | 2. |
 | Offline export pattern cycles | 4. |
 | Offline export mode | Include effects tail. |
-| Offline effects tail | 2.0 seconds. |
+| Offline effects tail strategy | Auto (recommended). |
+| Offline effects tail | 2.0 seconds for Custom and legacy settings; Auto ignores this stored value. |
 
 The generated octave-expanded notes are included in snapshots as derived data; they are not a separate control. With the default notes and two octave layers, the generated pattern contains C4, C5, E4, E5, G4, and G5. Reshuffle Pattern is the only action that generates a new random seed. Presets, history, sessions, URLs, and exports preserve and restore the seed.
 

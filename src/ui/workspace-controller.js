@@ -249,6 +249,7 @@ export function createWorkspaceController(dependencies) {
         return (
             target.id !== "loop-count" &&
             target.id !== "offline-export-tail-seconds" &&
+            target.id !== "offline-export-tail-mode" &&
             !target.matches("input[name='offline-export-mode']")
         );
     }

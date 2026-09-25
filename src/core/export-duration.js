@@ -14,6 +14,9 @@ export const MAX_LOOP_COUNT = 100;
 export const OFFLINE_EXPORT_MODE_SEAMLESS = "seamless";
 export const OFFLINE_EXPORT_MODE_TAIL = "tail";
 export const DEFAULT_OFFLINE_EXPORT_MODE = OFFLINE_EXPORT_MODE_TAIL;
+export const OFFLINE_EXPORT_TAIL_MODE_AUTO = "auto";
+export const OFFLINE_EXPORT_TAIL_MODE_CUSTOM = "custom";
+export const DEFAULT_OFFLINE_EXPORT_TAIL_MODE = OFFLINE_EXPORT_TAIL_MODE_AUTO;
 export const MIN_OFFLINE_EXPORT_TAIL_SECONDS = 0;
 export const MAX_OFFLINE_EXPORT_TAIL_SECONDS = 10;
 export const DEFAULT_OFFLINE_EXPORT_TAIL_SECONDS = 2;
@@ -37,6 +40,7 @@ export const OFFLINE_CHORUS_DELAY_SECONDS = OFFLINE_CHORUS_DELAY_MILLISECONDS / 
 export const OFFLINE_CHORUS_DEPTH = 0.7;
 export const OFFLINE_EFFECT_SETTLE_AMPLITUDE = 0.001;
 export const SEAMLESS_RENDER_GUARD_FRAMES = 1;
+export const PLUCK_SYNTH_RELEASE_SECONDS = 1;
 
 /**
  * Converts the selected note subdivision into seconds at a given tempo.
@@ -84,6 +88,24 @@ export function normalizeOfflineExportMode(exportMode) {
 }
 
 /**
+ * Normalizes the effects-tail strategy.
+ *
+ * @param {unknown} tailMode - Automatic recommendation or custom duration.
+ * @param {"auto"|"custom"} [fallback=DEFAULT_OFFLINE_EXPORT_TAIL_MODE] - Legacy-safe fallback.
+ * @returns {"auto"|"custom"} Supported tail strategy.
+ */
+export function normalizeOfflineExportTailMode(
+    tailMode,
+    fallback = DEFAULT_OFFLINE_EXPORT_TAIL_MODE,
+) {
+    if (tailMode === OFFLINE_EXPORT_TAIL_MODE_CUSTOM) return OFFLINE_EXPORT_TAIL_MODE_CUSTOM;
+    if (tailMode === OFFLINE_EXPORT_TAIL_MODE_AUTO) return OFFLINE_EXPORT_TAIL_MODE_AUTO;
+    return fallback === OFFLINE_EXPORT_TAIL_MODE_CUSTOM
+        ? OFFLINE_EXPORT_TAIL_MODE_CUSTOM
+        : DEFAULT_OFFLINE_EXPORT_TAIL_MODE;
+}
+
+/**
  * Normalizes the appended effects-tail duration.
  *
  * @param {unknown} tailSeconds - Requested tail duration in seconds.
@@ -110,6 +132,13 @@ export function normalizeOfflineExportTailSeconds(tailSeconds) {
 function hasActiveEffectMix(mix) {
     const parsedMix = Number(mix);
     return Number.isFinite(parsedMix) && parsedMix > 0;
+}
+
+function getSynthReleaseSeconds(synthType, envRelease) {
+    if (synthType === "pluckSynth") return PLUCK_SYNTH_RELEASE_SECONDS;
+
+    const parsedRelease = Number(envRelease);
+    return Number.isFinite(parsedRelease) && parsedRelease > 0 ? parsedRelease : 0;
 }
 
 function isPhaseAligned(durationSeconds, periodSeconds) {
@@ -198,6 +227,7 @@ export function calculateSeamlessRenderFrameWindow({
  * @param {object} options - Current export-effect settings.
  * @param {unknown} options.bpm - Tempo in beats per minute.
  * @param {unknown} options.envRelease - Synth release time in seconds.
+ * @param {unknown} [options.synthType] - Active synth type.
  * @param {unknown} options.delayMix - Delay wet mix.
  * @param {unknown} options.reverbMix - Reverb wet mix.
  * @param {unknown} options.chorusMix - Chorus wet mix.
@@ -207,13 +237,13 @@ export function calculateSeamlessRenderFrameWindow({
 export function calculateEffectWarmupSeconds({
     bpm,
     envRelease,
+    synthType,
     delayMix,
     reverbMix,
     chorusMix,
     autoPanMix,
 }) {
-    const parsedRelease = Number(envRelease);
-    const releaseSeconds = Number.isFinite(parsedRelease) && parsedRelease > 0 ? parsedRelease : 0;
+    const releaseSeconds = getSynthReleaseSeconds(synthType, envRelease);
     const hasDelay = hasActiveEffectMix(delayMix);
     const hasReverb = hasActiveEffectMix(reverbMix);
     const hasChorus = hasActiveEffectMix(chorusMix);
@@ -244,6 +274,24 @@ export function calculateEffectWarmupSeconds({
 }
 
 /**
+ * Estimates the effects tail after the final note for Auto tail mode.
+ * Auto-pan is intentionally excluded because it does not add decaying energy.
+ *
+ * @param {object} options - Export-effect settings.
+ * @param {unknown} options.bpm - Tempo in beats per minute.
+ * @param {unknown} options.envRelease - Synth release time in seconds.
+ * @param {unknown} [options.synthType] - Active synth type.
+ * @param {unknown} options.delayMix - Delay wet mix.
+ * @param {unknown} options.reverbMix - Reverb wet mix.
+ * @param {unknown} options.chorusMix - Chorus wet mix.
+ * @param {unknown} [options.autoPanMix] - Auto-pan wet mix, ignored for the recommendation.
+ * @returns {number} Recommended tail duration before the 0–10 second UI cap.
+ */
+export function calculateRecommendedTailSeconds(options) {
+    return calculateEffectWarmupSeconds({ ...options, autoPanMix: 0 });
+}
+
+/**
  * Calculates the rendered duration shared by the offline exporter and its estimate.
  *
  * @param {object} options - Export duration inputs.
@@ -252,14 +300,16 @@ export function calculateEffectWarmupSeconds({
  * @param {unknown} options.interval - Tone-style note subdivision, such as "16n".
  * @param {unknown} options.bpm - Tempo in beats per minute.
  * @param {unknown} [options.exportMode] - Seamless loop or effects-tail export.
+ * @param {unknown} [options.tailMode] - Automatic recommended or custom tail strategy.
  * @param {unknown} [options.tailSeconds] - Effects tail duration in seconds.
  * @param {unknown} [options.envRelease] - Synth release time in seconds.
+ * @param {unknown} [options.synthType] - Active synth type.
  * @param {unknown} [options.delayMix] - Delay wet mix.
  * @param {unknown} [options.reverbMix] - Reverb wet mix.
  * @param {unknown} [options.chorusMix] - Chorus wet mix.
  * @param {unknown} [options.autoPanMix] - Auto-pan wet mix.
  * @param {unknown} [options.terminalDuration] - Final selected release end in seconds.
- * @returns {{loopCount: number, stepsPerLoop: number, intervalInSeconds: number, loopDuration: number, patternDuration: number, musicalDuration: number, preRollCycles: number, preRollDuration: number, tailDuration: number, exportDuration: number, renderDuration: number, totalDuration: number, exportMode: "seamless"|"tail"}} Normalized timing values.
+ * @returns {{loopCount: number, stepsPerLoop: number, intervalInSeconds: number, loopDuration: number, patternDuration: number, musicalDuration: number, preRollCycles: number, preRollDuration: number, tailDuration: number, recommendedTailSeconds: number, tailWasCapped: boolean, exportDuration: number, renderDuration: number, totalDuration: number, exportMode: "seamless"|"tail", tailMode: "auto"|"custom"}} Normalized timing values.
  */
 export function calculateOfflineExportDuration({
     loopCount,
@@ -267,8 +317,10 @@ export function calculateOfflineExportDuration({
     interval,
     bpm,
     exportMode,
+    tailMode,
     tailSeconds,
     envRelease,
+    synthType,
     delayMix,
     reverbMix,
     chorusMix,
@@ -285,6 +337,19 @@ export function calculateOfflineExportDuration({
     const loopDuration = safeStepsPerLoop * intervalInSeconds;
     const patternDuration = safeLoopCount * loopDuration;
     const safeExportMode = normalizeOfflineExportMode(exportMode);
+    const safeTailMode = normalizeOfflineExportTailMode(tailMode, OFFLINE_EXPORT_TAIL_MODE_CUSTOM);
+    const recommendedTailSeconds = calculateRecommendedTailSeconds({
+        bpm,
+        envRelease,
+        synthType,
+        delayMix,
+        reverbMix,
+        chorusMix,
+    });
+    const requestedTailSeconds =
+        safeTailMode === OFFLINE_EXPORT_TAIL_MODE_AUTO
+            ? recommendedTailSeconds
+            : normalizeOfflineExportTailSeconds(tailSeconds);
     const parsedTerminalDuration = Number(terminalDuration);
     const musicalDuration =
         safeExportMode === OFFLINE_EXPORT_MODE_TAIL &&
@@ -294,13 +359,14 @@ export function calculateOfflineExportDuration({
             : patternDuration;
     const tailDuration =
         safeExportMode === OFFLINE_EXPORT_MODE_TAIL
-            ? normalizeOfflineExportTailSeconds(tailSeconds)
+            ? Math.min(requestedTailSeconds, MAX_OFFLINE_EXPORT_TAIL_SECONDS)
             : 0;
     const effectWarmupSeconds =
         safeExportMode === OFFLINE_EXPORT_MODE_SEAMLESS
             ? calculateEffectWarmupSeconds({
                   bpm,
                   envRelease,
+                  synthType,
                   delayMix,
                   reverbMix,
                   chorusMix,
@@ -323,10 +389,16 @@ export function calculateOfflineExportDuration({
         preRollCycles,
         preRollDuration,
         tailDuration,
+        recommendedTailSeconds,
+        tailWasCapped:
+            safeExportMode === OFFLINE_EXPORT_MODE_TAIL &&
+            safeTailMode === OFFLINE_EXPORT_TAIL_MODE_AUTO &&
+            requestedTailSeconds > MAX_OFFLINE_EXPORT_TAIL_SECONDS,
         exportDuration,
         renderDuration,
         totalDuration: renderDuration,
         exportMode: safeExportMode,
+        tailMode: safeTailMode,
     };
 }
 
@@ -339,8 +411,10 @@ export function calculateOfflineExportDuration({
  * @param {unknown} options.interval - Tone-style note subdivision, such as "16n".
  * @param {unknown} options.bpm - Tempo in beats per minute.
  * @param {unknown} [options.exportMode] - Seamless loop or effects-tail export.
+ * @param {unknown} [options.tailMode] - Automatic recommended or custom tail strategy.
  * @param {unknown} [options.tailSeconds] - Effects tail duration in seconds.
  * @param {unknown} [options.envRelease] - Synth release time in seconds.
+ * @param {unknown} [options.synthType] - Active synth type.
  * @param {unknown} [options.delayMix] - Delay wet mix.
  * @param {unknown} [options.reverbMix] - Reverb wet mix.
  * @param {unknown} [options.chorusMix] - Chorus wet mix.
@@ -357,6 +431,9 @@ export function formatEstimatedExportDuration(options) {
         exportDuration,
         preRollDuration,
         tailDuration,
+        recommendedTailSeconds,
+        tailWasCapped,
+        tailMode,
         exportMode,
         musicalDuration,
     } = calculateOfflineExportDuration(options);
@@ -394,5 +471,13 @@ export function formatEstimatedExportDuration(options) {
         return `${safeLoopCount} ${loopLabel} at ${formattedLoopDuration} each. Seamless WAV duration: ~${exportDuration.toFixed(1)} seconds.${warmupText}${modulationText}${swingText}`;
     }
 
-    return `${safeLoopCount} ${loopLabel} at ${formattedLoopDuration} each + ${tailDuration.toFixed(1)}s effects tail. Export duration: ~${exportDuration.toFixed(1)} seconds`;
+    const tailLabel =
+        tailMode === OFFLINE_EXPORT_TAIL_MODE_AUTO
+            ? `Auto effects tail: ${tailDuration.toFixed(1)}s`
+            : `${tailDuration.toFixed(1)}s effects tail`;
+    const capText = tailWasCapped
+        ? ` Auto estimate is ${recommendedTailSeconds.toFixed(1)}s and is capped at ${MAX_OFFLINE_EXPORT_TAIL_SECONDS}s.`
+        : "";
+    const sentenceEnd = tailMode === OFFLINE_EXPORT_TAIL_MODE_AUTO ? "." : "";
+    return `${safeLoopCount} ${loopLabel} at ${formattedLoopDuration} each + ${tailLabel}. Export duration: ~${exportDuration.toFixed(1)} seconds${sentenceEnd}${capText}`;
 }

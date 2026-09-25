@@ -1,6 +1,7 @@
 import {
     normalizeLoopCount,
     normalizeOfflineExportMode,
+    normalizeOfflineExportTailMode,
     normalizeOfflineExportTailSeconds,
 } from "@core/export-duration.js";
 import { normalizeSettings, SETTINGS_SCHEMA_VERSION } from "@core/settings-contract.js";
@@ -151,6 +152,10 @@ export function createSettingsManager(context) {
             loopCount: normalizeLoopCount(dom.loopCountInput.value),
             offlineExportMode: normalizeOfflineExportMode(
                 Array.from(dom.offlineExportModeInputs || []).find((input) => input.checked)?.value,
+            ),
+            offlineExportTailMode: normalizeOfflineExportTailMode(
+                dom.offlineExportTailModeSelect?.value,
+                "custom",
             ),
             offlineExportTailSeconds: normalizeOfflineExportTailSeconds(
                 dom.offlineExportTailSecondsInput?.value,
@@ -375,6 +380,12 @@ export function createSettingsManager(context) {
                     normalizeOfflineExportTailSeconds(settings.offlineExportTailSeconds),
                 );
             }
+            if (dom.offlineExportTailModeSelect) {
+                dom.offlineExportTailModeSelect.value = normalizeOfflineExportTailMode(
+                    settings.offlineExportTailMode,
+                    "custom",
+                );
+            }
             if (typeof actions.updateOfflineExportModeUi === "function") {
                 actions.updateOfflineExportModeUi();
             }
@@ -434,18 +445,24 @@ export function createSettingsManager(context) {
                 ? `${settings.scaleRoot}-${settings.scaleType}`
                 : "chromatic";
             const exportMode = normalizeOfflineExportMode(settings.offlineExportMode);
+            const tailMode = normalizeOfflineExportTailMode(
+                settings.offlineExportTailMode,
+                "custom",
+            );
             const tailSeconds = normalizeOfflineExportTailSeconds(
                 settings.offlineExportTailSeconds,
             );
             const exportLength =
                 exportMode === "seamless"
                     ? "seamless-loop"
-                    : `tail-${String(tailSeconds).replace(".", "p")}s`;
+                    : tailMode === "auto"
+                      ? `tail-auto-${tailSeconds.toFixed(1)}s`
+                      : `tail-${tailSeconds}s`;
             const synth =
                 settings.synthType === "synth" ? `synth-${settings.waveform}` : settings.synthType;
             const filename = `arp-${settings.bpm}bpm-${notes || "notes"}-${settings.direction}-${settings.interval}-${normalizeLoopCount(settings.loopCount)}x-${exportLength}-${synth}-${scale}`;
 
-            return `${filename.replace(/[^A-Za-z0-9-_#]/g, "")}-${timestamp}`;
+            return `${filename.replace(/[^A-Za-z0-9-_.#]/g, "")}-${timestamp}`;
         }
 
         const notesString = settings.baseNotes

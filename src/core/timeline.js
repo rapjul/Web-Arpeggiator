@@ -133,6 +133,16 @@ export function getTimelineEndTick(timeline) {
 }
 
 /**
+ * Returns the final scheduled release time for a compiled timeline.
+ *
+ * @param {{events?: TimelineEvent[], bpm?: unknown}|null|undefined} timeline - Candidate compiled timeline.
+ * @returns {number} Last release time in seconds, or zero for an empty timeline.
+ */
+export function getTimelineTerminalEndSeconds(timeline) {
+    return ticksToSeconds(getTimelineEndTick(timeline), timeline?.bpm);
+}
+
+/**
  * Repeats a selected timeline as cyclic source material before its export
  * region. Every copied event keeps its selected start and gate offsets, which
  * prevents warm-up scheduling from recalculating a different swing phase.

@@ -264,6 +264,7 @@ function initializeApp() {
         loopCountInput,
         offlineExportModeInputs,
         offlineExportTailControl,
+        offlineExportTailModeSelect,
         offlineExportTailSecondsInput,
         offlineExportDuration,
         offlineExportWavCheck,
@@ -628,6 +629,7 @@ function initializeApp() {
             reverbMixValue,
             loopCountInput,
             offlineExportModeInputs,
+            offlineExportTailModeSelect,
             offlineExportTailSecondsInput,
             octaveShiftButtons,
             octaveRangeButtons,
@@ -1173,11 +1175,22 @@ function initializeApp() {
         },
         {
             name: "Audio Export",
-            keys: ["loopCount", "offlineExportMode", "offlineExportTailSeconds"],
-            controls: [loopCountInput, ...offlineExportModeInputs, offlineExportTailSecondsInput],
+            keys: [
+                "loopCount",
+                "offlineExportMode",
+                "offlineExportTailMode",
+                "offlineExportTailSeconds",
+            ],
+            controls: [
+                loopCountInput,
+                ...offlineExportModeInputs,
+                offlineExportTailModeSelect,
+                offlineExportTailSecondsInput,
+            ],
             targets: [
                 "label[for='loop-count']",
                 "#offline-export-mode-label",
+                "label[for='offline-export-tail-mode']",
                 "label[for='offline-export-tail-seconds']",
             ],
         },
@@ -1380,7 +1393,10 @@ function initializeApp() {
             synthControlsController.updateWaveformButtons(appState.currentWaveform);
             getAudioEngine()?.setSynth(synthTypeSelect.value);
         },
-        onEnvelopeChange: debouncedUpdateEnvelope,
+        onEnvelopeChange: () => {
+            debouncedUpdateEnvelope();
+            updateEstimatedExportDuration();
+        },
         onHarmonicityChange: debouncedSetHarmonicity,
         onModIndexChange: debouncedSetModIndex,
         onDutyChange: debouncedSetDuty,
@@ -1489,13 +1505,20 @@ function initializeApp() {
         onChorusMixChange: (value) => {
             const audioEngine = getAudioEngine();
             if (audioEngine?.chorus) audioEngine.chorus.wet.value = value;
+            updateEstimatedExportDuration();
         },
         onAutoPanMixChange: (value) => {
             const audioEngine = getAudioEngine();
             if (audioEngine?.autoPanner) audioEngine.autoPanner.wet.value = value;
         },
-        onDelayMixChange: debouncedSetDelayMix,
-        onReverbMixChange: debouncedSetReverbMix,
+        onDelayMixChange: (value) => {
+            debouncedSetDelayMix(value);
+            updateEstimatedExportDuration();
+        },
+        onReverbMixChange: (value) => {
+            debouncedSetReverbMix(value);
+            updateEstimatedExportDuration();
+        },
     });
     effectsControlsController.initialize();
 
@@ -1514,6 +1537,7 @@ function initializeApp() {
             loopCountInput,
             offlineExportModeInputs,
             offlineExportTailControl,
+            offlineExportTailModeSelect,
             offlineExportTailSecondsInput,
             offlineExportDuration,
             recordButton,

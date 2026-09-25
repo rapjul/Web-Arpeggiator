@@ -7,12 +7,13 @@
 import {
     formatEstimatedExportDuration,
     normalizeLoopCount,
+    normalizeOfflineExportTailMode,
     normalizeOfflineExportTailSeconds,
     OFFLINE_EXPORT_MODE_SEAMLESS,
     OFFLINE_EXPORT_MODE_TAIL,
 } from "@core/export-duration.js";
 import { exportMidiFile } from "@core/midi-export.js";
-import { compileTimeline, getTimelineEndTick, ticksToSeconds } from "@core/timeline.js";
+import { compileTimeline, getTimelineTerminalEndSeconds } from "@core/timeline.js";
 
 /** @typedef {import("@core/settings-contract.js").ArpeggiatorSettings} ArpeggiatorSettings */
 /** @typedef {import("@core/timeline.js").CompiledTimeline} CompiledTimeline */
@@ -20,7 +21,7 @@ import { compileTimeline, getTimelineEndTick, ticksToSeconds } from "@core/timel
 /**
  * Creates the export controls controller.
  *
- * @param {{dom: {loopCountInput: HTMLInputElement, offlineExportModeInputs: NodeListOf<HTMLInputElement>, offlineExportTailControl: HTMLElement|null, offlineExportTailSecondsInput: HTMLInputElement|null, offlineExportDuration: HTMLElement|null, recordButton: HTMLElement, exportButton: HTMLElement, offlineExportButton: HTMLElement, offlineExportMidiButton: HTMLElement|null, toggleVisualizerButton: HTMLElement, visualizerModeSelect: HTMLSelectElement|null}, getSettings: () => ArpeggiatorSettings, getTimeline?: () => CompiledTimeline|null, getRecorderManager: () => {toggleRecording: () => Promise<void>, exportRealtime: () => Promise<void>, exportOffline: () => Promise<void>}|undefined, getVisualizer: () => {currentMode: string, toggle: () => void}|undefined, startAudio: () => Promise<void>, generateFilename: (isRealtime: boolean) => string, showToast: (message: string, type?: string) => void, renderStaticLoop: () => Promise<void>, debounce: (callback: () => void, wait: number) => () => void, logger?: {error?: (...args: unknown[]) => void, warn?: (...args: unknown[]) => void}}} dependencies - Injected export behavior.
+ * @param {{dom: {loopCountInput: HTMLInputElement, offlineExportModeInputs: NodeListOf<HTMLInputElement>, offlineExportTailControl: HTMLElement|null, offlineExportTailModeSelect: HTMLSelectElement|null, offlineExportTailSecondsInput: HTMLInputElement|null, offlineExportDuration: HTMLElement|null, recordButton: HTMLElement, exportButton: HTMLElement, offlineExportButton: HTMLElement, offlineExportMidiButton: HTMLElement|null, toggleVisualizerButton: HTMLElement, visualizerModeSelect: HTMLSelectElement|null}, getSettings: () => ArpeggiatorSettings, getTimeline?: () => CompiledTimeline|null, getRecorderManager: () => {toggleRecording: () => Promise<void>, exportRealtime: () => Promise<void>, exportOffline: () => Promise<void>}|undefined, getVisualizer: () => {currentMode: string, toggle: () => void}|undefined, startAudio: () => Promise<void>, generateFilename: (isRealtime: boolean) => string, showToast: (message: string, type?: string) => void, renderStaticLoop: () => Promise<void>, debounce: (callback: () => void, wait: number) => () => void, logger?: {error?: (...args: unknown[]) => void, warn?: (...args: unknown[]) => void}}} dependencies - Injected export behavior.
  * @returns {{initialize: () => void, destroy: () => void, updateEstimatedExportDuration: () => void, updateOfflineExportModeUi: () => void, requestStaticLoopRender: () => void}} Export controls API.
  */
 export function createExportControlsController(dependencies) {
@@ -41,6 +42,7 @@ export function createExportControlsController(dependencies) {
         loopCountInput,
         offlineExportModeInputs,
         offlineExportTailControl,
+        offlineExportTailModeSelect,
         offlineExportTailSecondsInput,
         offlineExportDuration,
         recordButton,
@@ -66,8 +68,15 @@ export function createExportControlsController(dependencies) {
 
     function updateOfflineExportModeUi() {
         const isTailMode = getSelectedOfflineExportMode() === OFFLINE_EXPORT_MODE_TAIL;
+        const tailMode = normalizeOfflineExportTailMode(
+            offlineExportTailModeSelect?.value,
+            "custom",
+        );
         offlineExportTailControl?.classList.toggle("hidden", !isTailMode);
-        if (offlineExportTailSecondsInput) offlineExportTailSecondsInput.disabled = !isTailMode;
+        if (offlineExportTailModeSelect) offlineExportTailModeSelect.disabled = !isTailMode;
+        if (offlineExportTailSecondsInput) {
+            offlineExportTailSecondsInput.disabled = !isTailMode || tailMode === "auto";
+        }
     }
 
     function updateEstimatedExportDuration() {
@@ -82,7 +91,7 @@ export function createExportControlsController(dependencies) {
                   })
                 : null;
         const terminalDuration = selectedTimeline
-            ? ticksToSeconds(getTimelineEndTick(selectedTimeline), selectedTimeline.bpm)
+            ? getTimelineTerminalEndSeconds(selectedTimeline)
             : undefined;
         offlineExportDuration.textContent = formatEstimatedExportDuration({
             loopCount: settings.loopCount,
@@ -90,8 +99,10 @@ export function createExportControlsController(dependencies) {
             interval: settings.interval,
             bpm: settings.bpm,
             exportMode: settings.offlineExportMode,
+            tailMode: settings.offlineExportTailMode,
             tailSeconds: settings.offlineExportTailSeconds,
             envRelease: settings.envRelease,
+            synthType: settings.synthType,
             delayMix: settings.delayMix,
             reverbMix: settings.reverbMix,
             chorusMix: settings.chorusMix,
@@ -154,6 +165,18 @@ export function createExportControlsController(dependencies) {
                 listenerOptions,
             );
         });
+        offlineExportTailModeSelect?.addEventListener(
+            "change",
+            () => {
+                offlineExportTailModeSelect.value = normalizeOfflineExportTailMode(
+                    offlineExportTailModeSelect.value,
+                    "custom",
+                );
+                updateOfflineExportModeUi();
+                updateEstimatedExportDuration();
+            },
+            listenerOptions,
+        );
         offlineExportTailSecondsInput?.addEventListener(
             "input",
             updateEstimatedExportDuration,

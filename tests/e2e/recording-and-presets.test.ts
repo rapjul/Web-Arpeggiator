@@ -35,14 +35,17 @@ test("switches offline export modes and persists their settings in a browser pre
     const seamless = page.locator("#offline-export-mode-seamless");
     const tail = page.locator("#offline-export-mode-tail");
     const tailControl = page.locator("#offline-export-tail-control");
+    const tailMode = page.locator("#offline-export-tail-mode");
     const tailSeconds = page.locator("#offline-export-tail-seconds");
 
     await expect(tail).toBeChecked();
+    await expect(tailMode).toHaveValue("auto");
     await expect(tailSeconds).toHaveValue("2");
     await seamless.check();
     await expect(tailControl).toBeHidden();
     await expect(tailSeconds).toBeDisabled();
     await tail.check();
+    await tailMode.selectOption("custom");
     await tailSeconds.fill("3.5");
     await expect(tailControl).toBeVisible();
     await expect(tailSeconds).toHaveValue("3.5");
@@ -56,7 +59,11 @@ test("switches offline export modes and persists their settings in a browser pre
     await expect
         .poll(async () => readSavedPreset(page, presetName))
         .toMatchObject({
-            settings: { offlineExportMode: "tail", offlineExportTailSeconds: 3.5 },
+            settings: {
+                offlineExportMode: "tail",
+                offlineExportTailMode: "custom",
+                offlineExportTailSeconds: 3.5,
+            },
         });
 });
 
