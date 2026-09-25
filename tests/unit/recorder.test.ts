@@ -884,6 +884,32 @@ describe("Recorder Manager Module", () => {
         expect(mockDom.recordButton.disabled).toBe(false);
     });
 
+    it("cancels a recording that is still starting before hidden controls can lose it", async () => {
+        let resolveStart: (() => void) | undefined;
+        recorderStartPromise = new Promise((resolve) => {
+            resolveStart = resolve;
+        });
+        const manager = createRecorderManager({
+            audio: mockAudio,
+            dom: mockDom,
+            state: mockState,
+            actions: mockActions,
+        });
+
+        const startRecording = manager.toggleRecording();
+        await Promise.resolve();
+        expect(manager.isRecording).toBe(true);
+
+        const cancelRecording = manager.toggleRecording();
+        resolveStart?.();
+        await Promise.all([startRecording, cancelRecording]);
+
+        expect(recorderLifecycle).toEqual(["recording-start", "recording-stop"]);
+        expect(mockActions.startPlayback).not.toHaveBeenCalled();
+        expect(manager.isRecording).toBe(false);
+        expect(mockDom.recordButton.textContent).toBe("Record");
+    });
+
     it("hides previous export controls while replacement capture is pending", async () => {
         let resolveStart: () => void = () => {};
         recorderStartPromise = new Promise((resolve) => {
@@ -903,7 +929,6 @@ describe("Recorder Manager Module", () => {
             expect(mockDom.exportControls.classList.contains("hidden")).toBe(true);
         });
         expect(manager.isStarting).toBe(true);
-        expect(manager.isRecording).toBe(false);
 
         resolveStart();
         await startPromise;

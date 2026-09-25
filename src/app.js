@@ -60,7 +60,7 @@ import { FACTORY_PRESETS } from "./config/factory-presets.js";
 /** @typedef {{activeSynth: ActiveSynthLike, currentWaveform: string, setSynth: (type: string) => void, updateEnvelope: () => void, postGain: {volume: NumericAudioParam}, distortion: {wet: NumericAudioParam}, filter: {frequency: NumericAudioParam, Q: NumericAudioParam}, chorus: {wet: NumericAudioParam}, autoPanner: {wet: NumericAudioParam}, delay: {wet: NumericAudioParam}, reverb: {wet: NumericAudioParam}, createOfflineChain: (context: unknown, settings: unknown) => {offlineSynth: {triggerAttackRelease: (note: string, duration: number, time: number) => void}}}} AudioEngineLike */
 /** @typedef {{update: (settings: object) => object|null, getPattern: () => {start: () => void, stop: () => void}|null, getTimeline?: () => CompiledTimeline|null, dispose: () => void, silenceActiveSynth?: () => void}} PatternControllerLike */
 /** @typedef {{isRecording: boolean, toggleRecording: () => Promise<void>, exportRealtime: () => Promise<void>, exportOffline: () => Promise<void>, initRecorder: () => Promise<void>}} RecorderManagerLike */
-/** @typedef {{currentMode: string, toggle: () => void, startUiLoop: () => void, stopUiLoop: () => void, onManualNoteAttack: () => void, onManualNoteRelease: () => void, updateStaticLoopMap: (buffer: unknown, markers: unknown) => void}} VisualizerLike */
+/** @typedef {{currentMode: string, isVisualizerOn: boolean, toggle: () => void, startUiLoop: () => void, stopUiLoop: () => void, onManualNoteAttack: () => void, onManualNoteRelease: () => void, updateStaticLoopMap: (buffer: unknown, markers: unknown) => void}} VisualizerLike */
 
 // --- Global Config ---
 // Keep development diagnostics out of production bundles.
@@ -704,10 +704,42 @@ function initializeApp() {
 
     const interfaceModeController = createInterfaceModeController({
         dom: { appMain, interfaceModeSelect },
-        documentRef,
         storage: {
             getItem: (key) => window.localStorage.getItem(key),
             setItem: (key, value) => window.localStorage.setItem(key, value),
+        },
+        onModeApplied: (mode) => {
+            if (mode !== "simple") return;
+
+            if (keyboardToggle.checked) {
+                keyboardToggle.checked = false;
+                keyboardToggle.dispatchEvent(new Event("change"));
+            }
+
+            const visualizer = getVisualizer();
+            if (visualizer?.isVisualizerOn) visualizer.toggle();
+
+            const recorderManager = getRecorderManager();
+            if (recorderManager?.isRecording) {
+                void recorderManager
+                    .toggleRecording()
+                    .then(() => {
+                        showToast("Recording stopped when Simple controls were selected.", "info");
+                    })
+                    .catch((error) => {
+                        console.warn(
+                            "Could not stop recording after selecting Simple controls:",
+                            error,
+                        );
+                        if (interfaceModeController.getMode() === "simple") {
+                            interfaceModeController.setMode("full");
+                            showToast(
+                                "Recording could not be stopped, so Full controls were restored.",
+                                "error",
+                            );
+                        }
+                    });
+            }
         },
         logger: console,
     });

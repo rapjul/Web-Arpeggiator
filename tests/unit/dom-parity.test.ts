@@ -207,6 +207,19 @@ describe("Production DOM Parity Suite", () => {
         expect(duration?.getAttribute("aria-live")).toBe("polite");
     });
 
+    it("masks the app until interface mode restoration and hides the complete Utilities card", () => {
+        const appMain = document.getElementById("app-main");
+        const utilitiesTitle = document.getElementById("utilities-title");
+        const utilitiesSection = utilitiesTitle?.closest("section");
+        const visualizerContent = document
+            .getElementById("visualizer-container")
+            ?.closest(".space-y-4");
+
+        expect(appMain?.hidden).toBe(true);
+        expect(utilitiesSection?.hasAttribute("data-interface-advanced")).toBe(true);
+        expect(visualizerContent?.hasAttribute("data-interface-advanced")).toBe(false);
+    });
+
     it("verifies synth types and waveforms have descriptive sound character labels and custom tooltips", () => {
         const synthSelect = document.getElementById("synth-type") as HTMLSelectElement;
         expect(synthSelect).not.toBeNull();
