@@ -53,14 +53,14 @@ Chosen option: **Option 3 (Fluid Wrapping, Intrinsic Width Capping, Container-Aw
 
 ### 1. Fluid Flex Wrapping and Control Capping Architecture
 - **Flex Row Fluidity**: Any control row combining `<label>`, `<select>`, `<input>`, or action buttons must declare `flex-wrap: wrap` with distinct column and row gaps (`gap-x-4 gap-y-2`) and allow child inputs to shrink (`min-w-0 max-w-full`).
-- **480px Ergonomic Control Cap**: In [`styles/base.css`](../../styles/base.css) and [`styles/components.css`](../../styles/components.css), all `input[type="range"]`, `#vu-meter-container`, `#interval`, and `#notes` are bound to `max-width: 480px; margin-inline: auto;`. On compact screens (<= 480px), they span 100% of available card width; on wide displays, they remain comfortably reachable and visually aligned.
+- **480px Ergonomic Control Cap**: In [`styles/base.css`](../../styles/base.css), [`styles/components.css`](../../styles/components.css), and [`index.html`](../../index.html), all card `input[type="range"]`, `#vu-meter-container`, `#interval`, and `#notes` are bound to `max-width: 480px; margin-inline: auto;` (with `#notes` and `#interval` centered via `max-w-[480px] mx-auto block`, and `#visualizer-zoom` explicitly opting out in [`styles/visualizer.css`](../../styles/visualizer.css) to preserve its `flex-1` toolbar layout). On compact screens (<= 480px), they span 100% of available card width; on wide displays, they remain comfortably reachable and visually aligned.
 - **Flexbox Containment**: `#visualizer-viewport` specifies `min-width: 0;` and `#keyboard-visual` specifies `max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch;` to guarantee flex parents never expand beyond viewport boundaries during dynamic DOM rendering.
 
 ### 2. Button Grid and Row Wrapping Contracts
 - **Pattern Direction**: In [`styles/components.css`](../../styles/components.css), container queries drop the grid from 4 columns to 3 columns at `<= 480px`, and to 2 columns at `<= 340px`. This preserves internal button padding and prevents label text from collapsing into 3 cramped lines.
 - **Octave Shift**: Shift buttons (`-3` to `+3`) use compact padding (`padding: 0.375rem 0.45rem; min-width: 34px; font-size: 0.875rem;`) and a centered wrapping flex container (`#octave-shift-buttons`). All 7 buttons fit cleanly on a single horizontal row when card container width is `>= 280px`. In compact mobile viewports (<= 375px where available container width is `< 280px`), a container query wraps the buttons into a balanced musical 3–1–3 layout (`[-3, -2, -1]`, `[0]`, `[+1, +2, +3]`) with the root octave centered on its own row.
 - **Waveform**: Buttons use centered alignment (`justify-content: center;`) with a maximum width (`max-width: 140px;`). Container queries split the 5 buttons into balanced 3/2 rows at `<= 440px` and 2/2/1 rows at `<= 280px`, preventing full-width blowout on the final `Pulse` button.
-- **Chord Starters**: Responsive grid classes `grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-1.5` provide 2 columns on mobile, 3 columns on tablet/intermediate viewports, and 6 columns on desktop. Buttons declare `min-w-0 text-center` and ellipsis handling.
+- **Chord Starters**: Responsive grid classes `grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-1.5` provide 2 columns on mobile, 3 columns on tablet/intermediate viewports, and 6 columns on desktop. Buttons declare `min-w-0 text-center`, `overflow-wrap: anywhere`, and balanced wrapping.
 
 ### 3. Typography Balancing, Accessible Sizing, and Hierarchy Standards
 - **Accessible Rem-Based Sizing**: Standardize helper descriptions and card subtitles on `text-xs` (`0.75rem`, standard 12px) in [`index.html`](../../index.html), eliminating static, arbitrary `text-[11px]` hardcoded units to preserve browser root font scaling and WCAG accessibility standards.
@@ -68,7 +68,7 @@ Chosen option: **Option 3 (Fluid Wrapping, Intrinsic Width Capping, Container-Aw
   - All headings (`h1` through `h6`).
   - Control labels (`label`), fieldset legends (`legend`), and collapsible summaries (`summary`).
   - Button text across `.chord-btn`, `.sound-starter-btn`, and primary action triggers.
-  - Card helper subtitles (`.card-help-text`, `#offline-export-mode-help`, `#offline-export-tail-control > p`, `#offline-export-duration`, `#offline-export-guidance`).
+  - Card helper subtitles (`.card-help-text`, `#offline-export-mode-help`, `#offline-export-tail-control > p`, `#offline-export-duration`).
   - This eliminates ragged word wraps, balances multi-line headings, and prevents awkward 1–2 word orphan lines.
 - **Pretty Paragraph Wrapping**: Native `text-wrap: pretty;` is applied to descriptive body paragraphs (`p`) in [`styles/base.css`](../../styles/base.css), evaluating the final lines of multi-line descriptions to prevent isolated trailing single-word orphans without the layout cost of balancing full paragraphs.
 - **Text Casing Hierarchy**:

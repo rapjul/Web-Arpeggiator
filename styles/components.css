@@ -323,12 +323,6 @@ input[type="radio"]:focus-visible + .has-custom-tooltip[data-placement="bottom"]
   margin-inline: auto;
 }
 
-/* Balanced text wrapping for export tail description paragraphs */
-.offline-export-tail-control > p,
-#offline-export-tail-control > p {
-  text-wrap: balance;
-}
-
 /* Waveform buttons centered wrapping and max-width bounding */
 #waveform-buttons {
   justify-content: center;

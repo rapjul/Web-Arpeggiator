@@ -54,3 +54,9 @@
 #visualizer-viewport::-webkit-scrollbar-thumb:hover {
   background: var(--ui-control-hover);
 }
+
+/* Opt toolbar zoom slider out of card slider 480px centered cap so it fills flex-1 container */
+#visualizer-zoom {
+  max-width: none;
+  margin-inline: 0;
+}

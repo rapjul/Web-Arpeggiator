@@ -56,7 +56,7 @@
   touch-action: manipulation;
   cursor: pointer;
   min-width: 0;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
   text-wrap: balance;
 }
 

@@ -1,4 +1,4 @@
-import { expect, test } from "./fixtures/app";
+import { dismissOnboarding, expect, test } from "./fixtures/app";
 
 test("orders dashboard sections for the creative workflow", async ({ pwaPage: page }) => {
     const sectionHeadings = await page
@@ -53,10 +53,7 @@ test("maintains responsive layout, bounded controls, and balanced wrapping acros
     pwaPage: page,
 }) => {
     // Dismiss start overlay if present to reveal full dashboard
-    const startButton = page.locator("#start-audio-btn");
-    if (await startButton.isVisible()) {
-        await startButton.click();
-    }
+    await dismissOnboarding(page);
 
     for (const width of RESPONSIVE_VIEWPORT_WIDTHS) {
         await page.setViewportSize({ width, height: 850 });
@@ -81,7 +78,7 @@ test("maintains responsive layout, bounded controls, and balanced wrapping acros
             `Offline export tail control clipped or overflowing at ${width}px viewport`,
         ).toBe(false);
 
-        // 3. Wide controls (sliders, VU meter, notes input) capped at ergonomic 480px width
+        // 3. Wide controls (sliders, VU meter, notes input, interval dropdown) capped at ergonomic 480px width
         const bpmSliderWidth = await page
             .locator("#bpm")
             .evaluate((el) => el.getBoundingClientRect().width);
@@ -96,6 +93,18 @@ test("maintains responsive layout, bounded controls, and balanced wrapping acros
             .locator("#notes")
             .evaluate((el) => el.getBoundingClientRect().width);
         expect(notesWidth).toBeLessThanOrEqual(481);
+
+        const intervalWidth = await page
+            .locator("#interval")
+            .evaluate((el) => el.getBoundingClientRect().width);
+        expect(intervalWidth).toBeLessThanOrEqual(481);
+
+        if (width >= 1280) {
+            const zoomMaxWidth = await page
+                .locator("#visualizer-zoom")
+                .evaluate((el) => getComputedStyle(el).maxWidth);
+            expect(zoomMaxWidth).toBe("none");
+        }
 
         // 4. Octave shift buttons layout: single row when container >= 280px, balanced 3-1-3 rows when < 280px
         const octaveDetails = await page

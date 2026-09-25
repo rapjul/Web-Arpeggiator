@@ -25,8 +25,6 @@ summary,
 .card-help-text,
 #offline-export-mode-help,
 #offline-export-duration,
-#offline-export-guidance,
-.offline-export-tail-control > p,
 #offline-export-tail-control > p {
   text-wrap: balance;
 }
