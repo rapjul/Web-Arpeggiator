@@ -8,10 +8,12 @@
  * @module onboarding-controller
  */
 
+import { normalizeInterfaceMode } from "@core/interface-mode.js";
+
 /** @typedef {import("../config/factory-presets.js").FactoryPreset} FactoryPreset */
 
 /** @typedef {object} OnboardingControllerDependencies
- * @property {{startOverlay?: HTMLElement|null, quickStartOverlay?: HTMLElement|null, quickStartModal?: HTMLElement|null, quickStartPresetsGrid?: HTMLElement|null, quickStartScratchButton?: HTMLButtonElement|null, appMain?: HTMLElement|null, playStopButton?: HTMLButtonElement|null, soundStartersDetails?: HTMLDetailsElement|null}} dom
+ * @property {{startOverlay?: HTMLElement|null, quickStartOverlay?: HTMLElement|null, quickStartModal?: HTMLElement|null, quickStartModeChoice?: HTMLElement|null, quickStartModeContent?: HTMLElement|null, quickStartSimpleButton?: HTMLButtonElement|null, quickStartFullButton?: HTMLButtonElement|null, quickStartPresetsGrid?: HTMLElement|null, quickStartScratchButton?: HTMLButtonElement|null, appMain?: HTMLElement|null, playStopButton?: HTMLButtonElement|null, soundStartersDetails?: HTMLDetailsElement|null}} dom
  * @property {Document} documentRef
  * @property {Pick<Storage, "getItem"|"setItem">} storage
  * @property {() => string} getLocationSearch
@@ -20,6 +22,7 @@
  * @property {(preset: FactoryPreset) => Promise<void>|void} onPresetSelected
  * @property {() => Promise<void>|void} onStartFromScratch
  * @property {() => Promise<void>|void} onStartOverlay
+ * @property {(mode: "simple"|"full") => void} [onInterfaceModeSelected]
  * @property {{warn: (...args: unknown[]) => void}} [logger]
  */
 
@@ -31,7 +34,7 @@ const SOUND_STARTERS_OPEN_KEY = "soundStartersOpen";
  * settings, or browser-global application state.
  *
  * @param {OnboardingControllerDependencies} dependencies - Injected UI and app behavior.
- * @returns {{initialize: () => void, closeQuickStartModal: () => void, prepareForPlayback: () => void}}
+ * @returns {{initialize: () => void, destroy: () => void, closeQuickStartModal: () => void, prepareForPlayback: () => void}}
  */
 export function createOnboardingController(dependencies) {
     const {
@@ -44,12 +47,17 @@ export function createOnboardingController(dependencies) {
         onPresetSelected,
         onStartFromScratch,
         onStartOverlay,
+        onInterfaceModeSelected,
         logger = console,
     } = dependencies;
     const {
         appMain,
         playStopButton,
         quickStartModal,
+        quickStartModeChoice,
+        quickStartModeContent,
+        quickStartSimpleButton,
+        quickStartFullButton,
         quickStartOverlay,
         quickStartPresetsGrid,
         quickStartScratchButton,
@@ -57,6 +65,7 @@ export function createOnboardingController(dependencies) {
         startOverlay,
     } = dom;
     let isInitialized = false;
+    let hasSelectedInterfaceMode = false;
 
     /**
      * Checks whether a shared preset URL should bypass first-visit onboarding.
@@ -144,6 +153,7 @@ export function createOnboardingController(dependencies) {
 
             card.append(accentBar, topRow, title);
             card.addEventListener("click", () => {
+                if (!isInitialized) return;
                 void handleQuickStartPresetClick(preset);
             });
             quickStartPresetsGrid.appendChild(card);
@@ -159,6 +169,38 @@ export function createOnboardingController(dependencies) {
         if (!quickStartOverlay) return;
         quickStartOverlay.classList.remove("is-hidden");
         appMain?.setAttribute("inert", "");
+        if (quickStartModeChoice && quickStartModeContent) {
+            hasSelectedInterfaceMode = false;
+            quickStartModeChoice.hidden = false;
+            quickStartModeChoice.setAttribute("aria-hidden", "false");
+            quickStartModeContent.hidden = true;
+            quickStartModeContent.classList.add("is-hidden");
+            quickStartModeContent.setAttribute("aria-hidden", "true");
+            (quickStartSimpleButton || quickStartFullButton)?.focus();
+            return;
+        }
+        buildQuickStartPresetCards();
+        const firstPresetButton = quickStartPresetsGrid?.querySelector("button");
+        (firstPresetButton || quickStartScratchButton)?.focus();
+    }
+
+    /**
+     * Applies the first-visit interface choice before showing sound starters.
+     *
+     * @param {unknown} mode - Selected interface mode.
+     * @returns {void}
+     */
+    function handleInterfaceModeSelected(mode) {
+        const normalizedMode = normalizeInterfaceMode(mode);
+        hasSelectedInterfaceMode = true;
+        onInterfaceModeSelected?.(normalizedMode);
+        if (quickStartModeChoice && quickStartModeContent) {
+            quickStartModeChoice.hidden = true;
+            quickStartModeChoice.setAttribute("aria-hidden", "true");
+            quickStartModeContent.hidden = false;
+            quickStartModeContent.classList.remove("is-hidden");
+            quickStartModeContent.setAttribute("aria-hidden", "false");
+        }
         buildQuickStartPresetCards();
         const firstPresetButton = quickStartPresetsGrid?.querySelector("button");
         (firstPresetButton || quickStartScratchButton)?.focus();
@@ -197,6 +239,9 @@ export function createOnboardingController(dependencies) {
      * @returns {Promise<void>}
      */
     async function handleStartFromScratch() {
+        if (quickStartModeChoice && !hasSelectedInterfaceMode) {
+            onInterfaceModeSelected?.("full");
+        }
         closeQuickStartModal();
         if (soundStartersDetails) {
             soundStartersDetails.removeAttribute("open");
@@ -249,7 +294,7 @@ export function createOnboardingController(dependencies) {
             /** @type {NodeListOf<HTMLButtonElement>} */ (
                 quickStartModal.querySelectorAll("button:not([disabled])")
             ),
-        );
+        ).filter((element) => !element.closest("[hidden], .is-hidden, [aria-hidden='true']"));
         if (focusable.length === 0) return;
         const firstElement = focusable[0];
         const lastElement = focusable[focusable.length - 1];
@@ -284,27 +329,13 @@ export function createOnboardingController(dependencies) {
         if (isInitialized) return;
         isInitialized = true;
 
-        startOverlay?.addEventListener("click", () => {
-            void handleStartOverlayClick();
-        });
-        quickStartScratchButton?.addEventListener("click", () => {
-            void handleStartFromScratch();
-        });
-        quickStartOverlay?.addEventListener("click", (event) => {
-            if (event.target === quickStartOverlay) {
-                void handleStartFromScratch();
-            }
-        });
+        startOverlay?.addEventListener("click", handleStartOverlayEvent);
+        quickStartScratchButton?.addEventListener("click", handleScratchClick);
+        quickStartSimpleButton?.addEventListener("click", handleSimpleModeClick);
+        quickStartFullButton?.addEventListener("click", handleFullModeClick);
+        quickStartOverlay?.addEventListener("click", handleQuickStartOverlayClick);
         quickStartModal?.addEventListener("keydown", trapQuickStartFocus);
-        documentRef.defaultView?.addEventListener("keydown", (event) => {
-            if (
-                event.key === "Escape" &&
-                quickStartOverlay &&
-                !quickStartOverlay.classList.contains("is-hidden")
-            ) {
-                void handleStartFromScratch();
-            }
-        });
+        documentRef.defaultView?.addEventListener("keydown", handleWindowKeydown);
 
         if (isFirstVisit()) {
             openQuickStartModal();
@@ -313,5 +344,85 @@ export function createOnboardingController(dependencies) {
         }
     }
 
-    return { initialize, closeQuickStartModal, prepareForPlayback };
+    /**
+     * Handles returning user start overlay click event.
+     *
+     * @returns {void}
+     */
+    function handleStartOverlayEvent() {
+        void handleStartOverlayClick();
+    }
+
+    /**
+     * Handles scratch button click event.
+     *
+     * @returns {void}
+     */
+    function handleScratchClick() {
+        void handleStartFromScratch();
+    }
+
+    /**
+     * Handles simple mode button click event.
+     *
+     * @returns {void}
+     */
+    function handleSimpleModeClick() {
+        handleInterfaceModeSelected("simple");
+    }
+
+    /**
+     * Handles full mode button click event.
+     *
+     * @returns {void}
+     */
+    function handleFullModeClick() {
+        handleInterfaceModeSelected("full");
+    }
+
+    /**
+     * Handles clicks on the modal backdrop overlay.
+     *
+     * @param {MouseEvent} event - Overlay click event.
+     * @returns {void}
+     */
+    function handleQuickStartOverlayClick(event) {
+        if (event.target === quickStartOverlay) void handleStartFromScratch();
+    }
+
+    /**
+     * Handles Escape key press on window to dismiss modal.
+     *
+     * @param {KeyboardEvent} event - Window keyboard event.
+     * @returns {void}
+     */
+    function handleWindowKeydown(event) {
+        if (
+            event.key === "Escape" &&
+            quickStartOverlay &&
+            !quickStartOverlay.classList.contains("is-hidden")
+        ) {
+            void handleStartFromScratch();
+        }
+    }
+
+    /**
+     * Removes all registered onboarding listeners and cleans up dynamic DOM nodes.
+     *
+     * @returns {void}
+     */
+    function destroy() {
+        if (!isInitialized) return;
+        startOverlay?.removeEventListener("click", handleStartOverlayEvent);
+        quickStartScratchButton?.removeEventListener("click", handleScratchClick);
+        quickStartSimpleButton?.removeEventListener("click", handleSimpleModeClick);
+        quickStartFullButton?.removeEventListener("click", handleFullModeClick);
+        quickStartOverlay?.removeEventListener("click", handleQuickStartOverlayClick);
+        quickStartModal?.removeEventListener("keydown", trapQuickStartFocus);
+        documentRef.defaultView?.removeEventListener("keydown", handleWindowKeydown);
+        quickStartPresetsGrid?.replaceChildren();
+        isInitialized = false;
+    }
+
+    return { initialize, destroy, closeQuickStartModal, prepareForPlayback };
 }

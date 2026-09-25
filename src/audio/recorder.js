@@ -88,7 +88,7 @@ function formatEffectList(effectNames) {
  * @property {Function} toggleRecording - Start/stop recording.
  * @property {Function} exportRealtime - Export recorded blob as WAV/MP3.
  * @property {Function} exportOffline - Tone.Offline render + export.
- * @property {boolean} isRecording - Whether recording is active.
+ * @property {boolean} isRecording - Whether recording is starting or active.
  * @property {boolean} [isStarting] - Whether capture initialization is currently pending.
  * @property {() => Promise<void>} [awaitPendingTransition] - Awaits in-flight transition.
  * @property {number} recordingStartTime - Timestamp when recording started.
@@ -123,6 +123,9 @@ export function createRecorderManager(context) {
     let activeMediaRecorderError = null;
     let isExporting = false;
     let isDestroyed = false;
+    let cancelPendingStart = false;
+    /** @type {Promise<void>|null} */
+    let pendingStartCompletion = null;
 
     // ------------------------------------------------------------------
     // Helpers
@@ -151,6 +154,11 @@ export function createRecorderManager(context) {
      */
     function isActivelyRecording() {
         return recordingPhase === "recording";
+    }
+
+    /** @returns {boolean} Whether capture startup or recording is in progress. */
+    function isRecordingInProgress() {
+        return recordingPhase === "starting" || recordingPhase === "recording";
     }
 
     /**
@@ -462,54 +470,43 @@ export function createRecorderManager(context) {
     // Real-Time Record Toggle
     // ------------------------------------------------------------------
 
-    /**
-     * Starts or stops real-time recording.
-     *
-     * @returns {Promise<void>}
-     */
-    async function toggleRecording() {
-        if (
-            isDestroyed ||
-            isExporting ||
-            activeTransitionPromise ||
-            recordingPhase === "starting" ||
-            recordingPhase === "stopping"
-        )
-            return;
-        if (isActivelyRecording()) {
-            recordingPhase = "stopping";
-            dom.recordButton.disabled = true;
-            /** @type {Promise<void>} */
-            let stopTransition;
-            stopTransition = (async () => {
-                try {
-                    const blob = await stopCapture();
-                    if (isDestroyed) {
-                        recordingPhase = "idle";
-                        return;
-                    }
-                    finalizeRecordingStop(blob);
-                } catch (error) {
+    /** @returns {Promise<void>} Stops capture after it has begun. */
+    async function stopActiveRecording() {
+        recordingPhase = "stopping";
+        dom.recordButton.disabled = true;
+        /** @type {Promise<void>} */
+        let stopTransition;
+        stopTransition = (async () => {
+            try {
+                const blob = await stopCapture();
+                if (isDestroyed) {
                     recordingPhase = "idle";
-                    resetRecorderBackend();
-                    if (!isDestroyed) {
-                        actions.stopUiLoop();
-                        restoreIdleUi();
-                        dom.recordStatus.textContent = "Recording failed to stop. See console.";
-                        actions.showToast("Recording failed to stop.", "error");
-                    }
-                    throw error;
-                } finally {
-                    if (activeTransitionPromise === stopTransition) {
-                        activeTransitionPromise = null;
-                    }
+                    return;
                 }
-            })();
-            activeTransitionPromise = stopTransition;
-            await stopTransition;
-            return;
-        }
+                finalizeRecordingStop(blob);
+            } catch (error) {
+                recordingPhase = "idle";
+                resetRecorderBackend();
+                if (!isDestroyed) {
+                    actions.stopUiLoop();
+                    restoreIdleUi();
+                    dom.recordStatus.textContent = "Recording failed to stop. See console.";
+                    actions.showToast("Recording failed to stop.", "error");
+                }
+                throw error;
+            } finally {
+                if (activeTransitionPromise === stopTransition) {
+                    activeTransitionPromise = null;
+                }
+            }
+        })();
+        activeTransitionPromise = stopTransition;
+        await stopTransition;
+    }
 
+    /** @returns {Promise<void>} Starts real-time recording. */
+    async function startRecording() {
+        cancelPendingStart = false;
         recordingPhase = "starting";
         dom.recordButton.disabled = true;
         /** @type {Promise<void>} */
@@ -525,6 +522,13 @@ export function createRecorderManager(context) {
                 // Lazy initialize recorder instance if not yet created
                 if (!recorder) {
                     await initRecorder();
+                }
+
+                if (cancelPendingStart) {
+                    recordingPhase = "idle";
+                    restoreIdleUi();
+                    dom.recordStatus.textContent = "Recording cancelled.";
+                    return;
                 }
 
                 if (!recorder) {
@@ -545,6 +549,12 @@ export function createRecorderManager(context) {
                 recordingPhase = "recording";
                 if (isDestroyed) return;
 
+                if (cancelPendingStart) {
+                    recordingPhase = "stopping";
+                    finalizeRecordingStop(await stopCapture());
+                    return;
+                }
+
                 dom.recordButton.classList.add("recording");
                 dom.exportControls.classList.add("hidden");
                 dom.recordStatus.textContent = "Recording... Click again to stop.";
@@ -563,22 +573,31 @@ export function createRecorderManager(context) {
                         await abortCapture(error);
                     }
                 }
-                if (isDestroyed) return;
+                if (isDestroyed || !isActivelyRecording()) return;
                 actions.startUiLoop();
                 dom.recordButton.disabled = false;
             } catch (error) {
-                if (recordingPhase === "starting") {
+                if (recordingPhase === "starting" || recordingPhase === "stopping") {
                     recordingPhase = "idle";
                     resetRecorderBackend();
                     if (!isDestroyed) {
                         actions.stopUiLoop();
                         restoreIdleUi();
-                        dom.recordStatus.textContent = "Recording failed to start. See console.";
-                        actions.showToast("Recording failed to start.", "error");
+                        const failedToStop = cancelPendingStart;
+                        dom.recordStatus.textContent = failedToStop
+                            ? "Recording failed to stop. See console."
+                            : "Recording failed to start. See console.";
+                        actions.showToast(
+                            failedToStop
+                                ? "Recording failed to stop."
+                                : "Recording failed to start.",
+                            "error",
+                        );
                     }
                 }
                 throw error;
             } finally {
+                cancelPendingStart = false;
                 if (activeTransitionPromise === startTransition) {
                     activeTransitionPromise = null;
                 }
@@ -586,6 +605,34 @@ export function createRecorderManager(context) {
         })();
         activeTransitionPromise = startTransition;
         await startTransition;
+    }
+
+    /**
+     * Starts or stops real-time recording. A second request during startup
+     * cancels the pending start and resolves after capture has been stopped.
+     *
+     * @returns {Promise<void>}
+     */
+    function toggleRecording() {
+        if (isDestroyed || isExporting || recordingPhase === "stopping") return Promise.resolve();
+        if (recordingPhase === "starting") {
+            cancelPendingStart = true;
+            return pendingStartCompletion || activeTransitionPromise || Promise.resolve();
+        }
+        if (activeTransitionPromise) return Promise.resolve();
+        if (isActivelyRecording()) return stopActiveRecording();
+
+        const startCompletion = startRecording();
+        pendingStartCompletion = startCompletion;
+        void startCompletion.then(
+            () => {
+                if (pendingStartCompletion === startCompletion) pendingStartCompletion = null;
+            },
+            () => {
+                if (pendingStartCompletion === startCompletion) pendingStartCompletion = null;
+            },
+        );
+        return startCompletion;
     }
 
     // ------------------------------------------------------------------
@@ -1018,7 +1065,7 @@ export function createRecorderManager(context) {
         exportOffline,
         destroy,
         get isRecording() {
-            return isActivelyRecording();
+            return isRecordingInProgress();
         },
         get isStarting() {
             return recordingPhase === "starting";
