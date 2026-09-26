@@ -160,6 +160,12 @@ input[type="radio"]:focus-visible + .octave-btn {
   opacity: 0;
   visibility: hidden;
   z-index: var(--ui-z-tooltip);
+  transition:
+    display 0.15s,
+    opacity 0.15s ease-out,
+    transform 0.15s ease-out,
+    visibility 0.15s;
+  transition-behavior: allow-discrete;
 }
 
 /* Tooltip Arrow Pointer (::before) */
@@ -174,6 +180,12 @@ input[type="radio"]:focus-visible + .octave-btn {
   opacity: 0;
   visibility: hidden;
   z-index: calc(var(--ui-z-tooltip) + 1);
+  transition:
+    display 0.15s,
+    opacity 0.15s ease-out,
+    transform 0.15s ease-out,
+    visibility 0.15s;
+  transition-behavior: allow-discrete;
 }
 
 /* Placement: Top (Default or data-placement="top") */
@@ -250,6 +262,63 @@ input[type="radio"]:focus-visible + .has-custom-tooltip[data-placement="bottom"]
 label:hover .has-custom-tooltip[data-placement="bottom"]::before,
 input[type="radio"]:focus-visible + .has-custom-tooltip[data-placement="bottom"]::before {
   transform: translateX(-50%) translateY(0) rotate(45deg);
+}
+
+/* Starting styles for smooth entry transition from display: none */
+@starting-style {
+  .has-custom-tooltip:hover::after,
+  .has-custom-tooltip:focus-visible::after,
+  label:hover .has-custom-tooltip::after,
+  input[type="radio"]:focus-visible + .has-custom-tooltip::after {
+    opacity: 0;
+    visibility: hidden;
+  }
+
+  .has-custom-tooltip:hover::before,
+  .has-custom-tooltip:focus-visible::before,
+  label:hover .has-custom-tooltip::before,
+  input[type="radio"]:focus-visible + .has-custom-tooltip::before {
+    opacity: 0;
+    visibility: hidden;
+  }
+
+  .has-custom-tooltip:not([data-placement]):hover::after,
+  .has-custom-tooltip[data-placement="top"]:hover::after,
+  label:hover .has-custom-tooltip:not([data-placement])::after,
+  label:hover .has-custom-tooltip[data-placement="top"]::after,
+  input[type="radio"]:focus-visible + .has-custom-tooltip:not([data-placement])::after,
+  input[type="radio"]:focus-visible + .has-custom-tooltip[data-placement="top"]::after {
+    transform: translateX(-50%) translateY(4px);
+  }
+
+  .has-custom-tooltip:not([data-placement]):hover::before,
+  .has-custom-tooltip[data-placement="top"]:hover::before,
+  label:hover .has-custom-tooltip:not([data-placement])::before,
+  label:hover .has-custom-tooltip[data-placement="top"]::before,
+  input[type="radio"]:focus-visible + .has-custom-tooltip:not([data-placement])::before,
+  input[type="radio"]:focus-visible + .has-custom-tooltip[data-placement="top"]::before {
+    transform: translateX(-50%) translateY(4px) rotate(45deg);
+  }
+
+  .has-custom-tooltip[data-placement="bottom"]:hover::after,
+  label:hover .has-custom-tooltip[data-placement="bottom"]::after,
+  input[type="radio"]:focus-visible + .has-custom-tooltip[data-placement="bottom"]::after {
+    transform: translateX(-50%) translateY(-4px);
+  }
+
+  .has-custom-tooltip[data-placement="bottom"]:hover::before,
+  label:hover .has-custom-tooltip[data-placement="bottom"]::before,
+  input[type="radio"]:focus-visible + .has-custom-tooltip[data-placement="bottom"]::before {
+    transform: translateX(-50%) translateY(-4px) rotate(45deg);
+  }
+}
+
+/* Respect user preference for reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .has-custom-tooltip::after,
+  .has-custom-tooltip::before {
+    transition: none;
+  }
 }
 
 /* Pattern buttons grid layout (4 columns on desktop/tablet, wrapping on tight spaces based on section width) */
