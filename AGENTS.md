@@ -282,7 +282,7 @@ loadPreset(file);
 - Swing control (0-1)
 - Notes input (space-separated, validated)
 - Chord starter buttons for common scale-aware note groups
-- Pattern direction buttons (9 options)
+- Pattern direction buttons (13 options across 3 sub-sections)
 - Interval selector (note duration)
 - Gate length slider (note length)
 
@@ -358,13 +358,15 @@ Web Arpeggiator/
 │   │   ├── 0017-zero-stderr-test-runner-noise-and-diagnostic-log-assertion.md
 │   │   ├── 0018-awaited-recording-lifecycle-and-bounded-audio-resource-ownership.md
 │   │   ├── 0019-recommended-effects-tail-strategy.md
-│   │   └── 0020-bounded-audio-startup-latency-and-lifecycle-benchmarking.md
+│   │   ├── 0020-bounded-audio-startup-latency-and-lifecycle-benchmarking.md
+│   │   └── 0021-fluid-wrapping-and-card-aware-responsive-layout.md
 │   ├── architecture.md     # Module ownership, runtime flow, and deferred boundaries
 │   ├── development.md      # Local setup, commands, and test-runner guidance
 │   ├── improvements/       # Deferred, scoped follow-up plans
 │   ├── history-and-default-settings.md # Default parameters and settings history reference
 │   ├── midi-specification.md # Standard MIDI specification & implementation reference
-│   └── pattern-directions.md # Detailed pattern descriptions & visual guide
+│   ├── pattern-directions.md # Detailed pattern descriptions & visual guide
+│   └── styling-guide.md    # Design tokens, typography casing, responsive layouts, and ergonomics
 ├── src/                    # Modular source code
 │   ├── core/               # Pure algorithms & domain logic (zero DOM/Audio dependencies)
 │   │   ├── audio-utils.js  # WAV/MP3 encoding, PCM conversions, download helpers

@@ -7,11 +7,37 @@ section {
   display: none;
 }
 
+/* Prevent awkward trailing orphan words in descriptive paragraphs */
+p {
+  text-wrap: pretty;
+}
+
+/* Balanced text wrapping for headings, control labels, legends, summaries, and subtitles */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+label,
+legend,
+summary,
+.card-help-text,
+#offline-export-mode-help,
+#offline-export-duration,
+#offline-export-tail-control > p {
+  text-wrap: balance;
+}
+
 /* Custom styles for better-looking sliders */
 input[type="range"] {
   -webkit-appearance: none;
   appearance: none;
   width: 100%;
+  max-width: 480px;
+  margin-inline: 0 auto;
+  margin-top: 0.625rem;
+  display: block;
   height: 8px;
   background-color: var(--color-gray-300);
   /* bg-gray-300 */
@@ -22,8 +48,14 @@ input[type="range"] {
   transition: opacity var(--ui-transition-normal);
 }
 
-input[type="range"]:hover {
+input[type="range"]:hover,
+input[type="range"]:focus-visible {
   opacity: 1;
+}
+
+input[type="range"]:focus-visible {
+  outline: var(--ui-focus-width) solid var(--ui-focus);
+  outline-offset: var(--ui-focus-width);
 }
 
 input[type="range"]::-webkit-slider-thumb {
@@ -85,10 +117,30 @@ input[type="number"] {
   /* text-gray-100 */
 }
 
-/* Style for AI button when loading */
+/* Bounded width for small 1-3 digit numeric inputs */
+input[type="number"]#loop-count {
+  width: 5.25rem;
+  max-width: 5.25rem;
+}
+
+input[type="number"]#offline-export-tail-seconds {
+  width: 5.75rem;
+  max-width: 5.75rem;
+}
+
+/* Style for disabled controls */
+input:disabled,
+select:disabled,
 button:disabled {
-  opacity: 0.5;
+  opacity: 0.45;
   cursor: not-allowed;
+}
+
+input:disabled,
+select:disabled {
+  background-color: var(--ui-surface-disabled, #1f2937);
+  border-color: var(--ui-border-subtle, #374151);
+  color: var(--ui-text-muted, #9ca3af);
 }
 
 /* Hide file input */

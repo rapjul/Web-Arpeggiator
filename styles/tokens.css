@@ -49,6 +49,7 @@
   --ui-radius-lg: 0.75rem;
   --ui-radius-pill: 9999px;
   --ui-transition-fast: 0.1s;
+  --ui-transition-tooltip: 0.15s;
   --ui-transition-normal: 0.2s;
   --ui-transition-slow: 0.3s;
   --ui-focus-width: 2px;

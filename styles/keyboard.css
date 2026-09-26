@@ -1,12 +1,11 @@
-/* KEYBOARD VISUAL CONTAINER - Overall Wrapper (renamed from #keyboard-visual) */
+/* KEYBOARD MAIN WRAPPER - Outer Shell & Octave Container */
 #keyboard-main-wrapper {
   display: flex;
   /* Allow wrapping when there is not enough space, stacking higher octave above lower */
   flex-wrap: wrap-reverse;
   gap: 0.5rem;
-  /* Space between octaves */
-  justify-content: center;
-  /* Center the keyboard horizontally */
+  justify-content: safe center;
+  /* Center the keyboard horizontally, falling back to start when overflowing to keep leftmost keys scrollable */
   align-items: flex-start;
   /* Align octaves at the top */
   width: 100%;
@@ -14,10 +13,17 @@
   box-sizing: border-box;
   height: auto;
   /* Let content define height */
-  overflow: visible;
-  /* Ensure absolutely positioned black keys are visible */
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
   margin-top: 1rem;
   /* Add some margin above the keyboard */
+}
+
+@media (max-width: 639px) {
+  #keyboard-main-wrapper {
+    --ui-piano-white-key-width: 2.375rem;
+    --ui-piano-black-key-width: 1.425rem;
+  }
 }
 
 /* INDIVIDUAL OCTAVE CONTAINER */

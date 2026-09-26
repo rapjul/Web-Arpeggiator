@@ -21,7 +21,7 @@ import { compileTimeline, getTimelineTerminalEndSeconds } from "@core/timeline.j
 /**
  * Creates the export controls controller.
  *
- * @param {{dom: {loopCountInput: HTMLInputElement, offlineExportModeInputs: NodeListOf<HTMLInputElement>, offlineExportTailControl: HTMLElement|null, offlineExportTailModeSelect: HTMLSelectElement|null, offlineExportTailSecondsInput: HTMLInputElement|null, offlineExportDuration: HTMLElement|null, recordButton: HTMLElement, exportButton: HTMLElement, offlineExportButton: HTMLElement, offlineExportMidiButton: HTMLElement|null, toggleVisualizerButton: HTMLElement, visualizerModeSelect: HTMLSelectElement|null}, getSettings: () => ArpeggiatorSettings, getTimeline?: () => CompiledTimeline|null, getRecorderManager: () => {toggleRecording: () => Promise<void>, exportRealtime: () => Promise<void>, exportOffline: () => Promise<void>}|undefined, getVisualizer: () => {currentMode: string, toggle: () => void}|undefined, startAudio: () => Promise<void>, generateFilename: (isRealtime: boolean) => string, showToast: (message: string, type?: string) => void, renderStaticLoop: () => Promise<void>, debounce: (callback: () => void, wait: number) => () => void, logger?: {error?: (...args: unknown[]) => void, warn?: (...args: unknown[]) => void}}} dependencies - Injected export behavior.
+ * @param {{dom: {loopCountInput: HTMLInputElement, offlineExportModeInputs: NodeListOf<HTMLInputElement>, offlineExportTailControl: HTMLElement|null, offlineExportTailModeSelect: HTMLSelectElement|null, offlineExportTailSecondsInput: HTMLInputElement|null, offlineExportTailSecondsLabel?: HTMLElement|null, offlineExportDuration: HTMLElement|null, recordButton: HTMLElement, exportButton: HTMLElement, offlineExportButton: HTMLElement, offlineExportMidiButton: HTMLElement|null, toggleVisualizerButton: HTMLElement, visualizerModeSelect: HTMLSelectElement|null}, getSettings: () => ArpeggiatorSettings, getTimeline?: () => CompiledTimeline|null, getRecorderManager: () => {toggleRecording: () => Promise<void>, exportRealtime: () => Promise<void>, exportOffline: () => Promise<void>}|undefined, getVisualizer: () => {currentMode: string, toggle: () => void}|undefined, startAudio: () => Promise<void>, generateFilename: (isRealtime: boolean) => string, showToast: (message: string, type?: string) => void, renderStaticLoop: () => Promise<void>, debounce: (callback: () => void, wait: number) => () => void, logger?: {error?: (...args: unknown[]) => void, warn?: (...args: unknown[]) => void}}} dependencies - Injected export behavior.
  * @returns {{initialize: () => void, destroy: () => void, updateEstimatedExportDuration: () => void, updateOfflineExportModeUi: () => void, requestStaticLoopRender: () => void}} Export controls API.
  */
 export function createExportControlsController(dependencies) {
@@ -44,6 +44,9 @@ export function createExportControlsController(dependencies) {
         offlineExportTailControl,
         offlineExportTailModeSelect,
         offlineExportTailSecondsInput,
+        offlineExportTailSecondsLabel = dom.offlineExportTailControl?.querySelector?.(
+            "label[for='offline-export-tail-seconds']",
+        ) ?? null,
         offlineExportDuration,
         recordButton,
         exportButton,
@@ -74,8 +77,32 @@ export function createExportControlsController(dependencies) {
         );
         offlineExportTailControl?.classList.toggle("hidden", !isTailMode);
         if (offlineExportTailModeSelect) offlineExportTailModeSelect.disabled = !isTailMode;
+        const isTailSecondsDisabled = !isTailMode || tailMode === "auto";
         if (offlineExportTailSecondsInput) {
-            offlineExportTailSecondsInput.disabled = !isTailMode || tailMode === "auto";
+            offlineExportTailSecondsInput.disabled = isTailSecondsDisabled;
+            if (isTailSecondsDisabled) {
+                offlineExportTailSecondsInput.setAttribute("aria-disabled", "true");
+            } else {
+                offlineExportTailSecondsInput.removeAttribute("aria-disabled");
+            }
+        }
+        if (offlineExportTailSecondsLabel) {
+            offlineExportTailSecondsLabel.classList.toggle(
+                "setting-target-disabled",
+                isTailSecondsDisabled,
+            );
+            if (isTailSecondsDisabled) {
+                if (offlineExportTailSecondsLabel.hasAttribute("title")) {
+                    offlineExportTailSecondsLabel.dataset.activeTitle =
+                        offlineExportTailSecondsLabel.getAttribute("title") || "";
+                    offlineExportTailSecondsLabel.removeAttribute("title");
+                }
+            } else if (offlineExportTailSecondsLabel.dataset.activeTitle) {
+                offlineExportTailSecondsLabel.setAttribute(
+                    "title",
+                    offlineExportTailSecondsLabel.dataset.activeTitle,
+                );
+            }
         }
     }
 
