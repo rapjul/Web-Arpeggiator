@@ -323,10 +323,20 @@ input[type="radio"]:focus-visible + .has-custom-tooltip[data-placement="bottom"]
   gap: 0.375rem;
 }
 
-.octave-btn {
+#octave-shift-buttons label,
+#octave-range-buttons label {
   flex: 1 1 0px;
-  min-width: 32px;
-  max-width: 4.5rem;
+  min-width: 0;
+  max-width: 6rem;
+  display: flex;
+}
+
+.octave-btn {
+  width: 100%;
+  flex: 1 1 0px;
+  min-width: 0;
+  max-width: 6rem;
+  min-height: 44px;
   padding: 0.375rem 0.25rem;
   font-size: 0.875rem;
   font-weight: 600;
@@ -350,6 +360,7 @@ input[type="radio"]:focus-visible + .has-custom-tooltip[data-placement="bottom"]
   #octave-shift-buttons label:nth-child(-n + 3) {
     flex: 1 1 calc(33.333% - 0.375rem);
     min-width: 0;
+    max-width: none;
   }
 
   #octave-shift-buttons label:nth-child(-n + 3) .octave-btn {
@@ -360,6 +371,7 @@ input[type="radio"]:focus-visible + .has-custom-tooltip[data-placement="bottom"]
   /* Center/Root row: anchor button centered and wide in Row 2 */
   #octave-shift-buttons label:nth-child(4) {
     flex: 1 1 100%;
+    max-width: 100%;
     display: flex;
     justify-content: center;
   }
@@ -373,6 +385,7 @@ input[type="radio"]:focus-visible + .has-custom-tooltip[data-placement="bottom"]
   #octave-shift-buttons label:nth-child(n + 5) {
     flex: 1 1 calc(33.333% - 0.375rem);
     min-width: 0;
+    max-width: none;
   }
 
   #octave-shift-buttons label:nth-child(n + 5) .octave-btn {
@@ -391,6 +404,7 @@ input[type="radio"]:focus-visible + .has-custom-tooltip[data-placement="bottom"]
   #octave-range-buttons label:nth-child(-n + 3) {
     flex: 1 1 calc(33.333% - 0.375rem);
     min-width: 0;
+    max-width: none;
   }
 
   #octave-range-buttons label:nth-child(-n + 3) .octave-btn {
@@ -401,6 +415,7 @@ input[type="radio"]:focus-visible + .has-custom-tooltip[data-placement="bottom"]
   #octave-range-buttons label:nth-child(n + 4) {
     flex: 1 1 calc(50% - 0.375rem);
     min-width: 0;
+    max-width: none;
   }
 
   #octave-range-buttons label:nth-child(n + 4) .octave-btn {
@@ -474,8 +489,38 @@ input[type="radio"]:focus-visible + .has-custom-tooltip[data-placement="bottom"]
   color: var(--color-sky-200);
 }
 
+label.resettable-setting-target.setting-target-disabled,
 label.setting-target-disabled {
-  cursor: not-allowed !important;
+  cursor: not-allowed;
   opacity: 0.5;
   pointer-events: none;
+}
+
+/* Scale Quantization card container responsive stacking and bounding */
+.quantizer-controls {
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.quantizer-controls select {
+  max-width: 22rem;
+}
+
+@container (min-width: 420px) {
+  .quantizer-controls {
+    flex-direction: row;
+    gap: 1rem;
+  }
+
+  .quantizer-controls select {
+    max-width: none;
+  }
+
+  .quantizer-control-root {
+    width: 33.333333%;
+  }
+
+  .quantizer-control-type {
+    width: 66.666667%;
+  }
 }

@@ -335,19 +335,49 @@ test("validates refined layout ergonomics, bounded numeric inputs, slider margin
         false,
     );
 
-    // Scale controls flex container stacks vertically on mobile
+    // Scale controls flex container stacks vertically on mobile (320px)
     const quantizerFlexDir = await page.locator("#quantizer-controls").evaluate((el) => {
         return getComputedStyle(el).flexDirection;
     });
     expect(quantizerFlexDir).toBe("column");
 
-    // On desktop, scale controls flex container is row
+    // At 768px viewport (2-column card grid where quantizer card width is ~340px < 440px),
+    // controls stack vertically via container query with zero text clipping
+    await page.setViewportSize({ width: 768, height: 850 });
+    await page.waitForTimeout(50);
+    const quantizerFlexDir768 = await page.locator("#quantizer-controls").evaluate((el) => {
+        return getComputedStyle(el).flexDirection;
+    });
+    expect(quantizerFlexDir768).toBe("column");
+
+    const scaleSelectOverflow768 = await scaleTypeSelect.evaluate((el) => {
+        return el.scrollWidth > el.clientWidth;
+    });
+    expect(scaleSelectOverflow768, "Scale type select should not overflow at 768px viewport").toBe(
+        false,
+    );
+
+    // On wide desktop (1280px viewport where card width >= 420px), scale controls switch to row
     await page.setViewportSize({ width: 1280, height: 850 });
     await page.waitForTimeout(50);
     const quantizerFlexDirDesktop = await page.locator("#quantizer-controls").evaluate((el) => {
         return getComputedStyle(el).flexDirection;
     });
     expect(quantizerFlexDirDesktop).toBe("row");
+
+    // Octave keypad buttons expand beyond 4.5rem (up to 6rem) while maintaining min 44px tap target height
+    const octaveBtnDimensions = await page
+        .locator("#octave-shift-buttons .octave-btn")
+        .first()
+        .evaluate((el) => {
+            const rect = el.getBoundingClientRect();
+            return {
+                width: rect.width,
+                height: rect.height,
+            };
+        });
+    expect(octaveBtnDimensions.height).toBeGreaterThanOrEqual(44);
+    expect(octaveBtnDimensions.width).toBeGreaterThanOrEqual(48);
 
     // 6. Pattern direction sub-sections have Title Case headers
     const patternSectionHeaders = await page

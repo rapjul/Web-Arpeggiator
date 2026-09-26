@@ -109,7 +109,8 @@ The 13 pattern directions are divided into 3 semantic sub-sections (`Linear Patt
   .octave-btn {
     flex: 1 1 0px;
     min-width: 32px;
-    max-width: 4.5rem;
+    max-width: 6rem;
+    min-height: 44px;
     padding: 0.375rem 0.25rem;
     font-size: 0.875rem;
     font-weight: 600;
@@ -144,8 +145,11 @@ The 13 pattern directions are divided into 3 semantic sub-sections (`Linear Patt
   - `#loop-count`: `width: 5.25rem; max-width: 5.25rem;`
   - `#offline-export-tail-seconds`: `width: 5.75rem; max-width: 5.75rem;`
 
-### Scale Quantization Responsive Stacking
-- On viewports `< 640px`, `#quantizer-controls` stacks vertically (`flex flex-col sm:flex-row gap-3 sm:gap-4`) with Root Note taking `w-full sm:w-1/3` and Scale Type taking `w-full sm:w-2/3`. This allocates `100%` card width on mobile, eliminating text clipping on long scale labels like `Phrygian (Spanish / Tension)`.
+### Scale Quantization Card-Aware Container Stacking
+- Rather than relying on viewport media queries, `#quantizer-controls` is controlled by `@container (min-width: 420px)` on its parent card section:
+  - When card width is `< 420px` (such as on mobile screens or in intermediate 2-column grid cards at 768px viewport where each card is ~340px), the controls stack vertically (`flex-direction: column`).
+  - Stacked dropdown selects are constrained to `max-width: 22rem` to prevent excessive horizontal stretching while giving `100%` available space to avoid truncation on long scale option names like `Phrygian (Spanish / Tension)`.
+  - When card width is `>= 420px`, the controls switch to `flex-direction: row` with Root Note taking `33.333%` and Scale Type taking `66.667%`.
 
 ### Disabled State Conventions
 All disabled inputs, buttons, and selects share unified visual and accessible affordances:

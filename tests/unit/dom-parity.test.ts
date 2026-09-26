@@ -150,8 +150,7 @@ describe("Production DOM Parity Suite", () => {
     it("verifies quantizer controls responsive flex stacking and initial tail seconds disabled state", () => {
         const quantizerControls = document.getElementById("quantizer-controls");
         expect(quantizerControls?.className).toContain("flex");
-        expect(quantizerControls?.className).toContain("flex-col");
-        expect(quantizerControls?.className).toContain("sm:flex-row");
+        expect(quantizerControls?.className).toContain("quantizer-controls");
 
         const tailSeconds = document.getElementById(
             "offline-export-tail-seconds",
