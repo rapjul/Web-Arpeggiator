@@ -11,12 +11,13 @@ The application couples Tailwind CSS utilities for high-level layouts with a mod
 The stylesheet manifest in `styles.css` imports modular sheets in cascade order:
 
 ```css
+@import "tailwindcss";
 @import "./styles/tokens.css";
 @import "./styles/base.css";
 @import "./styles/components.css";
-@import "./styles/features.css";
 @import "./styles/visualizer.css";
 @import "./styles/keyboard.css";
+@import "./styles/features.css";
 ```
 
 ### Module Responsibilities
@@ -26,9 +27,9 @@ The stylesheet manifest in `styles.css` imports modular sheets in cascade order:
 | `styles/tokens.css` | Design Tokens | Semantic color tokens (`--ui-surface`, `--ui-accent`, `--ui-border`), typography, focus rings, shadows, and z-index layers. |
 | `styles/base.css` | Base Elements & Controls | Range sliders, numeric inputs, disabled control styles, native selects, `<details>` accordion summaries, and document-level reset rules. |
 | `styles/components.css` | Component & Control Patterns | Pattern button subgrids, octave shift/range button keypads, Peak VU meter, toast notifications, custom CSS tooltips, and container queries. |
-| `styles/features.css` | Application Features | Sticky transport bar, dialogs, chord conflict resolution modal, and startup overlays. |
 | `styles/visualizer.css` | Canvas Visualizer | Oscilloscope, FFT, and Loop Map canvas containers and footer controls. |
 | `styles/keyboard.css` | Virtual Piano Keyboard | Natural/accidental key sizing, active highlight styling, and responsive layout. |
+| `styles/features.css` | Application Features | Sticky transport bar, dialogs, chord conflict resolution modal, and startup overlays. |
 
 ---
 
@@ -57,7 +58,7 @@ The dashboard uses a balanced, middle-ground responsive spacing chain that maxim
 | Spacing Dimension | `< 640px` (Mobile) | `>= 640px` (Desktop / Tablet) |
 | :--- | :--- | :--- |
 | **Body Padding** | `px-2 pt-2` (8px sides / top) | `sm:p-4` (16px all sides) |
-| **Body Bottom Clearance** | `64px + safe-area-inset-bottom` | `16px` |
+| **Body Bottom Clearance** | `80px + safe-area-inset-bottom` | `16px` |
 | **Dashboard Container** | `p-4` (16px) | `sm:p-8` (32px) |
 | **Grid Gap** | `gap-4` (16px) | `sm:gap-6` (24px) |
 | **Card Padding** | `p-3` (12px) | `sm:p-4` (16px) |
@@ -67,6 +68,7 @@ The dashboard uses a balanced, middle-ground responsive spacing chain that maxim
 - **320px Viewport**: Usable card width is `>= 246px`.
 - **375px Viewport** (e.g. iPhone SE): Usable card width is `>= 300px`, allowing the virtual piano keyboard to render without horizontal scroll clipping.
 - **Fixed Mobile Transport Clearance**: The `body` element maintains dynamic bottom padding on viewports `< 640px` via:
+
   ```css
   padding-bottom: calc(var(--ui-mobile-bar-height) + env(safe-area-inset-bottom, 0px));
   ```
@@ -105,10 +107,12 @@ The 13 pattern directions are divided into 3 semantic sub-sections (`Linear Patt
 ### B. Octave Keypad Layout
 
 - **Wide Container (`>= 280px`)**: Octave shift (`-3` to `+3`) and octave range (`1` to `5`) buttons stretch horizontally to fill the row using `flex: 1 1 0px` and responsive padding:
+
   ```css
   .octave-btn {
     flex: 1 1 0px;
-    min-width: 32px;
+    min-width: 0;
+    width: 100%;
     max-width: 6rem;
     min-height: 44px;
     padding: 0.375rem 0.25rem;
@@ -122,6 +126,7 @@ The 13 pattern directions are divided into 3 semantic sub-sections (`Linear Patt
     }
   }
   ```
+
 - **Narrow Container (`< 280px`)**: Buttons form a balanced 3-1-3 musical keypad without empty side voids:
   - **Row 1 (`-3`, `-2`, `-1`)**: 3 equal buttons (`flex: 1 1 calc(33.333% - 0.375rem)`).
   - **Row 2 (`0`)**: 1 centered anchor pill (`flex: 1 1 100%; max-width: 160px;`).
@@ -133,34 +138,39 @@ The 13 pattern directions are divided into 3 semantic sub-sections (`Linear Patt
 ## 5. Control Ergonomics & Accessibility Invariants
 
 ### Range Sliders (`input[type="range"]`)
+
 - **Alignment**: Flush left within the card container (`margin-inline: 0 auto;`).
 - **Vertical Separation**: `margin-top: 0.625rem;` (`10px`) ensures slider thumbs and tracks do not crowd the label or helper text above.
 - **Maximum Width**: Capped at `max-width: 480px; width: 100%;` for ergonomic reachability across ultra-wide displays.
 
 ### Peak VU Meter (`#vu-meter-container`)
+
 - **Alignment**: Flush left (`margin-inline: 0 auto; max-width: 480px;`) aligning directly with synth and volume sliders above it.
 
 ### Bounded Numeric Inputs (`#loop-count` & `#offline-export-tail-seconds`)
+
 - Small 1–4 digit inputs must never stretch across the card. Explicit width rules constrain them:
   - `#loop-count`: `width: 5.25rem; max-width: 5.25rem;`
   - `#offline-export-tail-seconds`: `width: 5.75rem; max-width: 5.75rem;`
 
 ### Scale Quantization Card-Aware Container Stacking
+
 - Rather than relying on viewport media queries, `#quantizer-controls` is controlled by `@container (min-width: 420px)` on its parent card section:
   - When card width is `< 420px` (such as on mobile screens or in intermediate 2-column grid cards at 768px viewport where each card is ~340px), the controls stack vertically (`flex-direction: column`).
   - Stacked dropdown selects are constrained to `max-width: 22rem` to prevent excessive horizontal stretching while giving `100%` available space to avoid truncation on long scale option names like `Phrygian (Spanish / Tension)`.
   - When card width is `>= 420px`, the controls switch to `flex-direction: row` with Root Note taking `33.333%` and Scale Type taking `66.667%`.
 
 ### Disabled State Conventions
+
 All disabled inputs, buttons, and selects share unified visual and accessible affordances:
 - `opacity: 0.45`
-- `cursor: not-allowed`
-- `pointer-events: none`
+- `cursor: not-allowed` (pointer events remain active to display the not-allowed cursor affordance on hover)
 - `background-color: var(--ui-surface-disabled, #1f2937)`
 - `border-color: var(--ui-border-subtle, #374151)`
 - `color: var(--ui-text-muted, #9ca3af)`
 - Programmatic synchronization with `aria-disabled="true"`.
 
 ### Pointer vs Help Cursors
+
 - **Interactive Controls**: Always use `cursor: pointer` on buttons, radios, and sliders that trigger immediate state changes (including waveform and pattern buttons with custom tooltips).
 - **Informational Badges**: Reserved for read-only help indicators (e.g. `#vu-meter-info`), which use `cursor: help`.

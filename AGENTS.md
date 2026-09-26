@@ -282,7 +282,7 @@ loadPreset(file);
 - Swing control (0-1)
 - Notes input (space-separated, validated)
 - Chord starter buttons for common scale-aware note groups
-- Pattern direction buttons (9 options)
+- Pattern direction buttons (13 options across 3 sub-sections)
 - Interval selector (note duration)
 - Gate length slider (note length)
 

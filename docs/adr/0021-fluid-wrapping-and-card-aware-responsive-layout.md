@@ -42,10 +42,10 @@ We need an enforced architectural design standard that ensures fluid responsive 
 - **Option 2: Fixed-Width Desktop Shell with Horizontal Scroll on Mobile**: Enforce a minimum canvas/dashboard width (e.g., 960px) and let mobile browsers zoom or scroll horizontally.
 - **Option 3: Fluid Wrapping, Intrinsic Width Capping, Container-Aware Grids, and Balanced Typography**:
   - Implement fluid flex wrapping (`flex-wrap: wrap`) and responsive width constraints (`w-full sm:w-auto min-w-0 max-w-full`) across all multi-control rows.
-  - Apply an ergonomic 480px intrinsic width cap (`max-width: 480px; margin-inline: auto; display: block;`) to range sliders, the VU meter, `#interval`, and `#notes`.
-  - Use container queries to adapt button grids based on available card space: Pattern Direction drops to 3 columns at container width <= 480px and 2 columns <= 340px; Waveform centers and caps at 140px; Octave Shift uses compact sizing (`min-width: 34px`) to preserve a single row when container width is >= 280px and wraps into a balanced 3–1–3 layout under 280px; Chord Starters use `grid-cols-2 sm:grid-cols-3 lg:grid-cols-6`.
+  - Apply an ergonomic 480px intrinsic width cap (`max-width: 480px; margin-inline: 0 auto; display: block;` for range sliders and `#vu-meter-container`, with `#notes` and `#interval` centered via `max-w-[480px] mx-auto block`).
+  - Use container queries to adapt button grids based on available card space: Pattern Direction drops to 3 columns at container width <= 480px and 2 columns <= 340px; Waveform centers and caps at 140px; Octave Shift uses flexible keypad sizing (`min-width: 0; width: 100%; max-width: 6rem;`) to preserve a single row when container width is >= 280px and wraps into a balanced 3–1–3 layout under 280px; Chord Starters use `grid-cols-2 sm:grid-cols-3 lg:grid-cols-6`.
   - Use native CSS `text-wrap: balance` on all headings (`h1`–`h6`), button labels, and helper subtitles (`.card-help-text`, `#offline-export-tail-control > p`).
-  - Standardize UI text casing into an explicit 4-level hierarchy with Title Case for labels and Sentence case for body paragraphs.
+  - Standardize UI text casing into an explicit 4-level hierarchy with Title Case for labels and Sentence case for body paragraphs and radio option descriptions.
 
 ## Decision Outcome
 
@@ -53,12 +53,12 @@ Chosen option: **Option 3 (Fluid Wrapping, Intrinsic Width Capping, Container-Aw
 
 ### 1. Fluid Flex Wrapping and Control Capping Architecture
 - **Flex Row Fluidity**: Any control row combining `<label>`, `<select>`, `<input>`, or action buttons must declare `flex-wrap: wrap` with distinct column and row gaps (`gap-x-4 gap-y-2`) and allow child inputs to shrink (`min-w-0 max-w-full`).
-- **480px Ergonomic Control Cap**: In [`styles/base.css`](../../styles/base.css), [`styles/components.css`](../../styles/components.css), and [`index.html`](../../index.html), all card `input[type="range"]`, `#vu-meter-container`, `#interval`, and `#notes` are bound to `max-width: 480px; margin-inline: auto;` (with `#notes` and `#interval` centered via `max-w-[480px] mx-auto block`, and `#visualizer-zoom` explicitly opting out in [`styles/visualizer.css`](../../styles/visualizer.css) to preserve its `flex-1` toolbar layout). On compact screens (<= 480px), they span 100% of available card width; on wide displays, they remain comfortably reachable and visually aligned.
-- **Flexbox Containment**: `#visualizer-viewport` specifies `min-width: 0;` and `#keyboard-visual` specifies `max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch;` to guarantee flex parents never expand beyond viewport boundaries during dynamic DOM rendering.
+- **480px Ergonomic Control Cap**: In [`styles/base.css`](../../styles/base.css), [`styles/components.css`](../../styles/components.css), and [`index.html`](../../index.html), all card `input[type="range"]` and `#vu-meter-container` use flush-left `max-width: 480px; margin-inline: 0 auto;` (with `#notes` and `#interval` centered via `max-w-[480px] mx-auto block`, and `#visualizer-zoom` explicitly opting out in [`styles/visualizer.css`](../../styles/visualizer.css) with `margin-top: 0;` to preserve its `flex-1` toolbar layout). On compact screens (<= 480px), they span 100% of available card width; on wide displays, they remain comfortably reachable and visually aligned.
+- **Flexbox Containment**: `#visualizer-viewport` specifies `min-width: 0;` and `#keyboard-main-wrapper` specifies `max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch;` to guarantee flex parents never expand beyond viewport boundaries during dynamic DOM rendering.
 
 ### 2. Button Grid and Row Wrapping Contracts
 - **Pattern Direction**: In [`styles/components.css`](../../styles/components.css), container queries drop the grid from 4 columns to 3 columns at `<= 480px`, and to 2 columns at `<= 340px`. This preserves internal button padding and prevents label text from collapsing into 3 cramped lines.
-- **Octave Shift**: Shift buttons (`-3` to `+3`) use compact padding (`padding: 0.375rem 0.45rem; min-width: 34px; font-size: 0.875rem;`) and a centered wrapping flex container (`#octave-shift-buttons`). All 7 buttons fit cleanly on a single horizontal row when card container width is `>= 280px`. In compact mobile viewports (<= 375px where available container width is `< 280px`), a container query wraps the buttons into a balanced musical 3–1–3 layout (`[-3, -2, -1]`, `[0]`, `[+1, +2, +3]`) with the root octave centered on its own row.
+- **Octave Shift**: Shift buttons (`-3` to `+3`) use responsive padding (`padding: 0.375rem 0.25rem; min-width: 0; width: 100%; max-width: 6rem; font-size: 0.875rem;`) and a centered wrapping flex container (`#octave-shift-buttons`). All 7 buttons fit cleanly on a single horizontal row when card container width is `>= 280px`. In compact mobile viewports (where available container width is `< 280px`), a container query wraps the buttons into a balanced musical 3–1–3 layout (`[-3, -2, -1]`, `[0]`, `[+1, +2, +3]`) with the root octave centered on its own row.
 - **Waveform**: Buttons use centered alignment (`justify-content: center;`) with a maximum width (`max-width: 140px;`). Container queries split the 5 buttons into balanced 3/2 rows at `<= 440px` and 2/2/1 rows at `<= 280px`, preventing full-width blowout on the final `Pulse` button.
 - **Chord Starters**: Responsive grid classes `grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-1.5` provide 2 columns on mobile, 3 columns on tablet/intermediate viewports, and 6 columns on desktop. Buttons declare `min-w-0 text-center`, `overflow-wrap: anywhere`, and balanced wrapping.
 
@@ -74,8 +74,8 @@ Chosen option: **Option 3 (Fluid Wrapping, Intrinsic Width Capping, Container-Aw
 - **Text Casing Hierarchy**:
   - **Level 1 (Card & Section Titles)**: Title Case (e.g., `Sound Starters`, `Synthesizer Settings`, `Pattern & Pitch Configuration`, `Effects Chain`, `Offline Audio Export`, `Preset Management`).
   - **Level 2 (Control Group Labels & Selectors)**: Title Case (e.g., `Audio Export Mode`, `Pattern Cycles:`, `Effects Tail Strategy:`, `Effects Tail:`, `Note Duration`, `Pattern Direction`, `Scale Quantization`).
-  - **Level 3 (Buttons & Interactive Triggers)**: Title Case (e.g., `Export Audio`, `Export MIDI (.mid)`, `Include Effects Tail`, `Save Preset`, `Load Preset`, `Browser Storage Recovery`).
-  - **Level 4 (Descriptive Subtitles & Guidance Text)**: Sentence case (e.g., "Auto estimates the envelope release and active delay, reverb, and chorus decay, capped at 10 seconds. Custom uses the duration below.").
+  - **Level 3 (Buttons & Interactive Triggers)**: Title Case (e.g., `Export Audio`, `Export MIDI (.mid)`, `Save Preset`, `Load Preset`, `Browser Storage Recovery`).
+  - **Level 4 (Descriptive Subtitles & Guidance Text)**: Sentence case (e.g., `Include effects tail`, "Auto estimates the envelope release and active delay, reverb, and chorus decay, capped at 10 seconds. Custom uses the duration below.").
 
 ### 4. Mobile Gutter Tightening and Responsive Spacing Chain Architecture
 - **Horizontal Chrome Rebalancing**: On compact mobile screens (`< 640px`), triple-nested desktop padding (`body p-4`, `#app-main p-8`, and card `p-4`) consumed 112px of total horizontal chrome, leaving only 263px for interactive controls on a 375px display (iPhone SE).
@@ -86,7 +86,7 @@ Chosen option: **Option 3 (Fluid Wrapping, Intrinsic Width Capping, Container-Aw
   - Sticky Transport Clearance: In [`styles/base.css`](../../styles/base.css), `@media (max-width: 639px) { body { padding-bottom: calc(var(--ui-mobile-bar-height) + env(safe-area-inset-bottom, 0px)); } }` cleanly supplies the fixed transport clearance with standard element specificity, without requiring `!important`.
 - **Usable Content Area & Visual Elimination of Cutoffs**:
   - Reclaims 40px of wasted horizontal chrome (72px total chrome vs. 112px previously).
-  - Expands card content width from 263px to 303px at 375px viewport (iPhone SE), completely eliminating virtual keyboard horizontal scroll cutoff (2-octave piano keyboard renders 100% horizontally without scrollbars).
+  - Expands card content width from 263px to 303px at 375px viewport (iPhone SE), paired with responsive key scaling (`--ui-piano-white-key-width: 2.375rem`) to completely eliminate virtual keyboard horizontal scroll cutoff (2-octave piano keyboard renders 100% horizontally without scrollbars).
   - Preserves an 8px edge safety margin to prevent accidental edge gestures (iOS swipe-back / Android drawer swipes).
   - Reduces mobile page height by ~800px (~11% less scrolling, ~1.5 screenfuls saved).
 

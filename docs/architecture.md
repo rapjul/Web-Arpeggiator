@@ -61,7 +61,7 @@ Live playback adapts that timeline to `Tone.Pattern` so the existing transport l
 - `preset-controller.js` renders factory and saved preset lists and sound-starter cards.
 - `preset-workflow-controller.js` coordinates URL sharing, file import, future-version confirmation, and browser-preset persistence actions.
 
-Card layouts and input controls use fluid flex wrapping and intrinsic width capping (`max-width: 480px; margin-inline: auto;`) to prevent horizontal blowout while maintaining ergonomics on wide screens. [ADR 0021](./adr/0021-fluid-wrapping-and-card-aware-responsive-layout.md) records this responsive layout and typography contract.
+Card layouts and input controls use fluid flex wrapping and intrinsic width capping (flush-left `max-width: 480px; margin-inline: 0 auto;` for range sliders and the VU meter, with `#notes` and `#interval` centered via `max-w-[480px] mx-auto block`) to prevent horizontal blowout while maintaining ergonomics on wide screens. [ADR 0021](./adr/0021-fluid-wrapping-and-card-aware-responsive-layout.md) records this responsive layout and typography contract.
 
 ### PWA
 
