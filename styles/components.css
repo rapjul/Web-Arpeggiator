@@ -161,10 +161,10 @@ input[type="radio"]:focus-visible + .octave-btn {
   visibility: hidden;
   z-index: var(--ui-z-tooltip);
   transition:
-    display 0.15s,
-    opacity 0.15s ease-out,
-    transform 0.15s ease-out,
-    visibility 0.15s;
+    display var(--ui-transition-tooltip),
+    opacity var(--ui-transition-tooltip) ease-out,
+    transform var(--ui-transition-tooltip) ease-out,
+    visibility var(--ui-transition-tooltip);
   transition-behavior: allow-discrete;
 }
 
@@ -181,10 +181,10 @@ input[type="radio"]:focus-visible + .octave-btn {
   visibility: hidden;
   z-index: calc(var(--ui-z-tooltip) + 1);
   transition:
-    display 0.15s,
-    opacity 0.15s ease-out,
-    transform 0.15s ease-out,
-    visibility 0.15s;
+    display var(--ui-transition-tooltip),
+    opacity var(--ui-transition-tooltip) ease-out,
+    transform var(--ui-transition-tooltip) ease-out,
+    visibility var(--ui-transition-tooltip);
   transition-behavior: allow-discrete;
 }
 

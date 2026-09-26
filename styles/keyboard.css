@@ -4,9 +4,8 @@
   /* Allow wrapping when there is not enough space, stacking higher octave above lower */
   flex-wrap: wrap-reverse;
   gap: 0.5rem;
-  /* Space between octaves */
-  justify-content: center;
-  /* Center the keyboard horizontally */
+  justify-content: safe center;
+  /* Center the keyboard horizontally, falling back to start when overflowing to keep leftmost keys scrollable */
   align-items: flex-start;
   /* Align octaves at the top */
   width: 100%;

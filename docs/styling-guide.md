@@ -173,7 +173,7 @@ All disabled inputs, buttons, and selects share unified visual and accessible af
 ### Custom Tooltips (`.has-custom-tooltip`)
 
 - **Zero-Overflow Resting Invariant**: Inactive tooltips declare `display: none; opacity: 0; visibility: hidden;` on their `::after` and `::before` pseudo-elements. This completely removes the 180px tooltips from the card layout tree, guaranteeing zero horizontal container blowout on compact mobile viewports (e.g. 375px/390px).
-- **Discrete Transitions**: Supported modern browsers (Chrome 117+, Safari 17.5+, Firefox 129+) smoothly animate tooltip entry and exit using `@starting-style` and `transition-behavior: allow-discrete;`. Older browsers degrade gracefully to instant display toggling with zero visual artifacts.
+- **Discrete Transitions**: Supported modern browsers (Chrome 117+, Safari 17.5+, Firefox 129+) smoothly animate tooltip entry and exit using `@starting-style`, `transition-behavior: allow-discrete;`, and the dedicated `--ui-transition-tooltip: 0.15s;` theme token. Older browsers degrade gracefully to instant display toggling with zero visual artifacts.
 - **Reduced Motion Support**: An `@media (prefers-reduced-motion: reduce)` block disables `transition` on tooltip pseudo-elements, honoring user accessibility preferences by displaying tooltips instantly without sliding or fading motion.
 
 ### Pointer vs Help Cursors
