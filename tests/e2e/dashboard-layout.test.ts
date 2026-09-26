@@ -234,8 +234,9 @@ test("validates middle-ground responsive spacing chain between default desktop p
     await page.waitForTimeout(50);
 
     const keyboardScrollDifference = await page.evaluate(() => {
-        const visual = document.getElementById("keyboard-visual");
-        return visual ? visual.scrollWidth - visual.clientWidth : 0;
+        const visual = document.getElementById("keyboard-main-wrapper");
+        if (!visual) throw new Error("Expected #keyboard-main-wrapper element to exist");
+        return visual.scrollWidth - visual.clientWidth;
     });
     expect(
         keyboardScrollDifference,
@@ -341,7 +342,7 @@ test("validates refined layout ergonomics, bounded numeric inputs, slider margin
     });
     expect(quantizerFlexDir).toBe("column");
 
-    // At 768px viewport (2-column card grid where quantizer card width is ~340px < 440px),
+    // At 768px viewport (2-column card grid where quantizer card width is ~340px < 420px),
     // controls stack vertically via container query with zero text clipping
     await page.setViewportSize({ width: 768, height: 850 });
     await page.waitForTimeout(50);
@@ -522,6 +523,14 @@ test("audits WCAG AAA focus rings and contrast styling across all interactive in
     ];
     for (const selector of buttonSelectors) {
         const btn = page.locator(selector).first();
+        const unfocusedStyles = await btn.evaluate((el) => {
+            const style = getComputedStyle(el);
+            return {
+                outlineStyle: style.outlineStyle,
+                outlineWidth: Number.parseFloat(style.outlineWidth) || 0,
+                boxShadow: style.boxShadow,
+            };
+        });
         await btn.focus();
         const focusOutline = await btn.evaluate((el) => {
             const style = getComputedStyle(el);
@@ -531,9 +540,12 @@ test("audits WCAG AAA focus rings and contrast styling across all interactive in
                 boxShadow: style.boxShadow,
             };
         });
-        const hasVisibleFocus =
-            (focusOutline.outlineStyle !== "none" && focusOutline.outlineWidth >= 2) ||
+        const hasVisibleOutline =
+            focusOutline.outlineStyle !== "none" && focusOutline.outlineWidth >= 2;
+        const hasDistinctFocusRingShadow =
+            focusOutline.boxShadow !== unfocusedStyles.boxShadow &&
             focusOutline.boxShadow.includes("rgb");
+        const hasVisibleFocus = hasVisibleOutline || hasDistinctFocusRingShadow;
         expect(hasVisibleFocus, `Button focus visibility for ${selector}`).toBe(true);
     }
 
