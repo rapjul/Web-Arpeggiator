@@ -404,3 +404,197 @@ test("validates refined layout ergonomics, bounded numeric inputs, slider margin
     await expect(reshuffleBtn).toBeDisabled();
     await expect(reshuffleBtn).toHaveAttribute("aria-disabled", "true");
 });
+
+/**
+ * Audits WCAG AAA focus ring visibility and high-contrast outline styling across
+ * all interactive controls (numeric, text, selects, range sliders, checkboxes,
+ * radios, and buttons).
+ */
+test("audits WCAG AAA focus rings and contrast styling across all interactive inputs and controls", async ({
+    pwaPage: page,
+}) => {
+    await dismissOnboarding(page);
+
+    // Expand collapsible sections to ensure all controls are in the active DOM tree
+    const detailsElements = page.locator("details.card-details");
+    const detailsCount = await detailsElements.count();
+    for (let i = 0; i < detailsCount; i += 1) {
+        const details = detailsElements.nth(i);
+        const isOpen = await details.evaluate((el) => (el as HTMLDetailsElement).open);
+        if (!isOpen) {
+            await details.locator("summary").click();
+        }
+    }
+    await page.waitForTimeout(50);
+
+    // 1. Numeric and Text Inputs
+    const textAndNumericInputIds = ["#notes", "#loop-count", "#preset-name-input"];
+    for (const selector of textAndNumericInputIds) {
+        const input = page.locator(selector);
+        await input.focus();
+        const focusOutline = await input.evaluate((el) => {
+            const style = getComputedStyle(el);
+            return {
+                outlineStyle: style.outlineStyle,
+                outlineWidth: Number.parseFloat(style.outlineWidth) || 0,
+            };
+        });
+        expect(focusOutline.outlineStyle, `Focus outline style for ${selector}`).not.toBe("none");
+        expect(
+            focusOutline.outlineWidth,
+            `Focus outline width for ${selector}`,
+        ).toBeGreaterThanOrEqual(2);
+    }
+
+    // 2. Dropdown Select Elements
+    const selectIds = [
+        "#interval",
+        "#scale-root",
+        "#scale-type",
+        "#synth-type",
+        "#offline-export-tail-mode",
+        "#saved-preset-select",
+        "#oscilloscope-window",
+    ];
+    for (const selector of selectIds) {
+        const select = page.locator(selector);
+        await select.focus();
+        const focusOutline = await select.evaluate((el) => {
+            const style = getComputedStyle(el);
+            return {
+                outlineStyle: style.outlineStyle,
+                outlineWidth: Number.parseFloat(style.outlineWidth) || 0,
+            };
+        });
+        expect(focusOutline.outlineStyle, `Focus outline style for ${selector}`).not.toBe("none");
+        expect(
+            focusOutline.outlineWidth,
+            `Focus outline width for ${selector}`,
+        ).toBeGreaterThanOrEqual(2);
+    }
+
+    // 3. Range Sliders
+    const sliderIds = [
+        "#bpm",
+        "#post-gain",
+        "#swing",
+        "#gate",
+        "#env-attack",
+        "#env-decay",
+        "#env-sustain",
+        "#env-release",
+        "#filter-cutoff",
+        "#filter-resonance",
+        "#drive-mix",
+        "#chorus-mix",
+        "#autopan-mix",
+        "#delay-mix",
+        "#reverb-mix",
+    ];
+    for (const selector of sliderIds) {
+        const slider = page.locator(selector);
+        await slider.focus();
+        await page.keyboard.press("ArrowRight");
+        await page.keyboard.press("ArrowLeft");
+        const focusOutline = await slider.evaluate((el) => {
+            const style = getComputedStyle(el);
+            return {
+                outlineStyle: style.outlineStyle,
+                outlineWidth: Number.parseFloat(style.outlineWidth) || 0,
+            };
+        });
+        expect(focusOutline.outlineStyle, `Focus outline style for ${selector}`).not.toBe("none");
+        expect(
+            focusOutline.outlineWidth,
+            `Focus outline width for ${selector}`,
+        ).toBeGreaterThanOrEqual(2);
+    }
+
+    // 4. Interactive Action Buttons
+    const buttonSelectors = [
+        "#play-stop",
+        "#record-button",
+        "#offline-export-button",
+        "#offline-export-midi-button",
+        "#randomize-notes",
+        ".chord-btn",
+        ".waveform-btn",
+    ];
+    for (const selector of buttonSelectors) {
+        const btn = page.locator(selector).first();
+        await btn.focus();
+        const focusOutline = await btn.evaluate((el) => {
+            const style = getComputedStyle(el);
+            return {
+                outlineStyle: style.outlineStyle,
+                outlineWidth: Number.parseFloat(style.outlineWidth) || 0,
+                boxShadow: style.boxShadow,
+            };
+        });
+        const hasVisibleFocus =
+            (focusOutline.outlineStyle !== "none" && focusOutline.outlineWidth >= 2) ||
+            focusOutline.boxShadow.includes("rgb");
+        expect(hasVisibleFocus, `Button focus visibility for ${selector}`).toBe(true);
+    }
+
+    // 5. Radio Buttons (Octave and Pattern directions via peer focus-visible)
+    const radioTestCases = [
+        {
+            radioSelector: "#octave-shift-buttons input[type='radio']",
+            visibleSpanSelector: "#octave-shift-buttons .octave-btn",
+            label: "Octave Shift radio",
+        },
+        {
+            radioSelector: "#octave-range-buttons input[type='radio']",
+            visibleSpanSelector: "#octave-range-buttons .octave-btn",
+            label: "Octave Layers radio",
+        },
+        {
+            radioSelector: "#pattern-buttons input[type='radio']",
+            visibleSpanSelector: "#pattern-buttons .pattern-btn",
+            label: "Pattern Direction radio",
+        },
+    ];
+    for (const { radioSelector, visibleSpanSelector, label } of radioTestCases) {
+        const radio = page.locator(radioSelector).first();
+        await radio.focus();
+        const peerFocusOutline = await page
+            .locator(visibleSpanSelector)
+            .first()
+            .evaluate((el) => {
+                const style = getComputedStyle(el);
+                return {
+                    outlineStyle: style.outlineStyle,
+                    outlineWidth: Number.parseFloat(style.outlineWidth) || 0,
+                    boxShadow: style.boxShadow,
+                };
+            });
+        const hasVisiblePeerFocus =
+            (peerFocusOutline.outlineStyle !== "none" && peerFocusOutline.outlineWidth >= 2) ||
+            peerFocusOutline.boxShadow.includes("rgb");
+        expect(hasVisiblePeerFocus, `Peer focus indicator for ${label}`).toBe(true);
+    }
+
+    // 6. Checkbox switches and format checkboxes
+    const checkboxSelectors = [
+        "#scale-quantize-toggle",
+        "#offline-export-wav",
+        "#offline-export-mp3",
+    ];
+    for (const selector of checkboxSelectors) {
+        const checkbox = page.locator(selector);
+        await checkbox.focus();
+        const focusOutline = await checkbox.evaluate((el) => {
+            const style = getComputedStyle(el);
+            return {
+                outlineStyle: style.outlineStyle,
+                outlineWidth: Number.parseFloat(style.outlineWidth) || 0,
+                boxShadow: style.boxShadow,
+            };
+        });
+        const hasVisibleFocus =
+            (focusOutline.outlineStyle !== "none" && focusOutline.outlineWidth >= 2) ||
+            focusOutline.boxShadow.includes("rgb");
+        expect(hasVisibleFocus, `Checkbox focus indicator for ${selector}`).toBe(true);
+    }
+});

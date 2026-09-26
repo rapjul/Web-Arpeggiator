@@ -48,8 +48,14 @@ input[type="range"] {
   transition: opacity var(--ui-transition-normal);
 }
 
-input[type="range"]:hover {
+input[type="range"]:hover,
+input[type="range"]:focus-visible {
   opacity: 1;
+}
+
+input[type="range"]:focus-visible {
+  outline: var(--ui-focus-width) solid var(--ui-focus);
+  outline-offset: var(--ui-focus-width);
 }
 
 input[type="range"]::-webkit-slider-thumb {
