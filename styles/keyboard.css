@@ -1,11 +1,4 @@
-/* KEYBOARD VISUAL CONTAINER - Outer Shell & Inner Wrapper */
-#keyboard-visual {
-  width: 100%;
-  max-width: 100%;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-}
-
+/* KEYBOARD MAIN WRAPPER - Outer Shell & Octave Container */
 #keyboard-main-wrapper {
   display: flex;
   /* Allow wrapping when there is not enough space, stacking higher octave above lower */
@@ -21,10 +14,17 @@
   box-sizing: border-box;
   height: auto;
   /* Let content define height */
-  overflow: visible;
-  /* Ensure absolutely positioned black keys are visible */
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
   margin-top: 1rem;
   /* Add some margin above the keyboard */
+}
+
+@media (max-width: 639px) {
+  #keyboard-main-wrapper {
+    --ui-piano-white-key-width: 2.375rem;
+    --ui-piano-black-key-width: 1.425rem;
+  }
 }
 
 /* INDIVIDUAL OCTAVE CONTAINER */

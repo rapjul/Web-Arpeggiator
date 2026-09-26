@@ -77,22 +77,21 @@ export function createExportControlsController(dependencies) {
         );
         offlineExportTailControl?.classList.toggle("hidden", !isTailMode);
         if (offlineExportTailModeSelect) offlineExportTailModeSelect.disabled = !isTailMode;
+        const isTailSecondsDisabled = !isTailMode || tailMode === "auto";
         if (offlineExportTailSecondsInput) {
-            const isSecondsDisabled = !isTailMode || tailMode === "auto";
-            offlineExportTailSecondsInput.disabled = isSecondsDisabled;
-            if (isSecondsDisabled) {
+            offlineExportTailSecondsInput.disabled = isTailSecondsDisabled;
+            if (isTailSecondsDisabled) {
                 offlineExportTailSecondsInput.setAttribute("aria-disabled", "true");
             } else {
                 offlineExportTailSecondsInput.removeAttribute("aria-disabled");
             }
         }
         if (offlineExportTailSecondsLabel) {
-            const isLabelDisabled = !isTailMode || tailMode === "auto";
             offlineExportTailSecondsLabel.classList.toggle(
                 "setting-target-disabled",
-                isLabelDisabled,
+                isTailSecondsDisabled,
             );
-            if (isLabelDisabled) {
+            if (isTailSecondsDisabled) {
                 if (offlineExportTailSecondsLabel.hasAttribute("title")) {
                     offlineExportTailSecondsLabel.dataset.activeTitle =
                         offlineExportTailSecondsLabel.getAttribute("title") || "";

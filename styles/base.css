@@ -141,7 +141,6 @@ select:disabled {
   background-color: var(--ui-surface-disabled, #1f2937);
   border-color: var(--ui-border-subtle, #374151);
   color: var(--ui-text-muted, #9ca3af);
-  pointer-events: none;
 }
 
 /* Hide file input */

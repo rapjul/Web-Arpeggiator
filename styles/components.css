@@ -159,9 +159,6 @@ input[type="radio"]:focus-visible + .octave-btn {
   pointer-events: none;
   opacity: 0;
   visibility: hidden;
-  transition:
-    opacity var(--ui-transition-fast) ease-out,
-    transform var(--ui-transition-fast) ease-out;
   z-index: var(--ui-z-tooltip);
 }
 
@@ -176,9 +173,6 @@ input[type="radio"]:focus-visible + .octave-btn {
   pointer-events: none;
   opacity: 0;
   visibility: hidden;
-  transition:
-    opacity var(--ui-transition-fast) ease-out,
-    transform var(--ui-transition-fast) ease-out;
   z-index: calc(var(--ui-z-tooltip) + 1);
 }
 
