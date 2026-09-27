@@ -194,6 +194,9 @@ export function createWorkspaceController(dependencies) {
                     "dblclick",
                     (event) => {
                         event.preventDefault();
+                        if (target.classList.contains("setting-target-disabled")) {
+                            return;
+                        }
                         resetIndividualSettings(definition);
                     },
                     { signal: listenerController.signal },
