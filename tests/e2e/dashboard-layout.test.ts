@@ -1,3 +1,4 @@
+import type { Page } from "@playwright/test";
 import { dismissOnboarding, expect, test } from "./fixtures/app";
 
 test("orders dashboard sections for the creative workflow", async ({ pwaPage: page }) => {
@@ -49,6 +50,36 @@ test("orders dashboard sections for the creative workflow", async ({ pwaPage: pa
  */
 const RESPONSIVE_VIEWPORT_WIDTHS = [320, 375, 390, 430, 820, 1280] as const;
 
+async function expectDashboardLayoutAtViewport(page: Page, width: number) {
+    const expectedOuterPadding = width < 640 ? "8px" : "16px";
+    const expectedInnerPadding = width < 640 ? "16px" : "32px";
+    const expectedGridGap = width < 640 ? "16px" : "24px";
+    const expectedMainWidth = Math.min(width - Number.parseFloat(expectedOuterPadding) * 2, 1024);
+
+    await expect
+        .poll(() =>
+            page.locator("main#app-main").evaluate((main) => {
+                const style = getComputedStyle(main);
+                return {
+                    viewportWidth: window.innerWidth,
+                    mainWidth: Math.round(main.getBoundingClientRect().width),
+                    paddingLeft: style.paddingLeft,
+                    paddingRight: style.paddingRight,
+                    rowGap: style.rowGap,
+                    columnGap: style.columnGap,
+                };
+            }),
+        )
+        .toEqual({
+            viewportWidth: width,
+            mainWidth: expectedMainWidth,
+            paddingLeft: expectedInnerPadding,
+            paddingRight: expectedInnerPadding,
+            rowGap: expectedGridGap,
+            columnGap: expectedGridGap,
+        });
+}
+
 test("maintains responsive layout, bounded controls, and balanced wrapping across all viewport breakpoints", async ({
     pwaPage: page,
 }) => {
@@ -57,8 +88,7 @@ test("maintains responsive layout, bounded controls, and balanced wrapping acros
 
     for (const width of RESPONSIVE_VIEWPORT_WIDTHS) {
         await page.setViewportSize({ width, height: 850 });
-        // Allow container queries and layout to settle
-        await page.waitForTimeout(50);
+        await expectDashboardLayoutAtViewport(page, width);
 
         // 1. Zero horizontal page overflow
         const hasHorizontalScroll = await page.evaluate(
@@ -83,11 +113,19 @@ test("maintains responsive layout, bounded controls, and balanced wrapping acros
             .locator("#bpm")
             .evaluate((el) => el.getBoundingClientRect().width);
         expect(bpmSliderWidth).toBeLessThanOrEqual(481);
+        await expect
+            .poll(() => page.locator("#bpm").evaluate((el) => getComputedStyle(el).maxWidth))
+            .toBe("480px");
 
         const vuMeterWidth = await page
             .locator("#vu-meter-container")
             .evaluate((el) => el.getBoundingClientRect().width);
         expect(vuMeterWidth).toBeLessThanOrEqual(481);
+        await expect
+            .poll(() =>
+                page.locator("#vu-meter-container").evaluate((el) => getComputedStyle(el).maxWidth),
+            )
+            .toBe("480px");
 
         const notesWidth = await page
             .locator("#notes")
@@ -197,7 +235,7 @@ test("validates middle-ground responsive spacing chain between default desktop p
 
     // 1. Mobile 320px viewport: usable card content width >= 246px
     await page.setViewportSize({ width: 320, height: 750 });
-    await page.waitForTimeout(50);
+    await expectDashboardLayoutAtViewport(page, 320);
 
     const transportCardContentWidth320 = await page
         .locator("main#app-main > section[aria-labelledby='transport-title']")
@@ -214,7 +252,7 @@ test("validates middle-ground responsive spacing chain between default desktop p
 
     // 2. Mobile 375px viewport (iPhone SE): usable card content width >= 300px
     await page.setViewportSize({ width: 375, height: 750 });
-    await page.waitForTimeout(50);
+    await expectDashboardLayoutAtViewport(page, 375);
 
     const transportCardContentWidth375 = await page
         .locator("main#app-main > section[aria-labelledby='transport-title']")
@@ -231,7 +269,7 @@ test("validates middle-ground responsive spacing chain between default desktop p
 
     // 3. Virtual keyboard horizontal scroll cutoff eliminated at 375px viewport
     await page.locator("#keyboard-details > summary").click();
-    await page.waitForTimeout(50);
+    await expect(page.locator("#keyboard-details")).toHaveAttribute("open", "");
 
     const keyboardScrollDifference = await page.evaluate(() => {
         const visual = document.getElementById("keyboard-main-wrapper");
@@ -265,7 +303,7 @@ test("validates middle-ground responsive spacing chain between default desktop p
 
     // 6. Desktop grid gap scales to 24px (1.5rem) on >=640px viewport
     await page.setViewportSize({ width: 1280, height: 850 });
-    await page.waitForTimeout(50);
+    await expectDashboardLayoutAtViewport(page, 1280);
 
     const desktopGap = await page.locator("main#app-main").evaluate((el) => {
         const style = getComputedStyle(el);
@@ -327,7 +365,7 @@ test("validates refined layout ergonomics, bounded numeric inputs, slider margin
 
     // 5. Scale quantization dropdown has zero text clipping on narrow viewports
     await page.setViewportSize({ width: 320, height: 750 });
-    await page.waitForTimeout(50);
+    await expectDashboardLayoutAtViewport(page, 320);
     const scaleTypeSelect = page.locator("#scale-type");
     const scaleSelectOverflow = await scaleTypeSelect.evaluate((el) => {
         return el.scrollWidth > el.clientWidth;
@@ -345,11 +383,13 @@ test("validates refined layout ergonomics, bounded numeric inputs, slider margin
     // At 768px viewport (2-column card grid where quantizer card width is ~340px < 420px),
     // controls stack vertically via container query with zero text clipping
     await page.setViewportSize({ width: 768, height: 850 });
-    await page.waitForTimeout(50);
-    const quantizerFlexDir768 = await page.locator("#quantizer-controls").evaluate((el) => {
-        return getComputedStyle(el).flexDirection;
-    });
-    expect(quantizerFlexDir768).toBe("column");
+    await expect
+        .poll(() =>
+            page
+                .locator("#quantizer-controls")
+                .evaluate((el) => getComputedStyle(el).flexDirection),
+        )
+        .toBe("column");
 
     const scaleSelectOverflow768 = await scaleTypeSelect.evaluate((el) => {
         return el.scrollWidth > el.clientWidth;
@@ -360,11 +400,13 @@ test("validates refined layout ergonomics, bounded numeric inputs, slider margin
 
     // On wide desktop (1280px viewport where card width >= 420px), scale controls switch to row
     await page.setViewportSize({ width: 1280, height: 850 });
-    await page.waitForTimeout(50);
-    const quantizerFlexDirDesktop = await page.locator("#quantizer-controls").evaluate((el) => {
-        return getComputedStyle(el).flexDirection;
-    });
-    expect(quantizerFlexDirDesktop).toBe("row");
+    await expect
+        .poll(() =>
+            page
+                .locator("#quantizer-controls")
+                .evaluate((el) => getComputedStyle(el).flexDirection),
+        )
+        .toBe("row");
 
     // Octave keypad buttons expand beyond 4.5rem (up to 6rem) while maintaining min 44px tap target height
     const octaveBtnDimensions = await page
@@ -425,8 +467,8 @@ test("audits focus rings and outline styling across all interactive inputs and c
         if (!isOpen) {
             await details.locator("summary").click();
         }
+        await expect(details).toHaveAttribute("open", "");
     }
-    await page.waitForTimeout(50);
 
     // 1. Numeric and Text Inputs
     const textAndNumericInputIds = ["#notes", "#loop-count", "#preset-name-input"];
