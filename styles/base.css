@@ -138,7 +138,7 @@ button:disabled {
 
 input:disabled,
 select:disabled {
-  background-color: var(--ui-surface-disabled, #1f2937);
+  background-color: var(--ui-surface-disabled, #1a2332);
   border-color: var(--ui-border-subtle, #374151);
   color: var(--ui-text-muted, #9ca3af);
 }
