@@ -44,7 +44,7 @@ We need an enforced architectural design standard that ensures fluid responsive 
   - Implement fluid flex wrapping (`flex-wrap: wrap`) and responsive width constraints (`w-full sm:w-auto min-w-0 max-w-full`) across all multi-control rows.
   - Apply an ergonomic 480px intrinsic width cap (`max-width: 480px; margin-inline: 0 auto; display: block;` for range sliders and `#vu-meter-container`, with `#notes` and `#interval` centered via `max-w-[480px] mx-auto block`).
   - Use container queries to adapt button grids based on available card space: Pattern Direction drops to 3 columns at container width <= 480px and 2 columns <= 340px; Waveform centers and caps at 140px; Octave Shift uses flexible keypad sizing (`min-width: 0; width: 100%; max-width: 6rem;`) to preserve a single row when container width is >= 280px and wraps into a balanced 3–1–3 layout under 280px; Chord Starters use `grid-cols-2 sm:grid-cols-3 lg:grid-cols-6`.
-  - Use native CSS `text-wrap: balance` on all headings (`h1`–`h6`), button labels, and helper subtitles (`.card-help-text`, `#offline-export-tail-control > p`).
+  - Use native CSS `text-wrap: balance` on all headings (`h1`–`h6`), button labels, and selected helper text elements such as the Note Duration helper and offline-export guidance.
   - Standardize UI text casing into an explicit 4-level hierarchy with Title Case for labels and Sentence case for body paragraphs and radio option descriptions.
 
 ## Decision Outcome
@@ -66,7 +66,7 @@ Chosen option: **Option 3 (Fluid Wrapping, Intrinsic Width Capping, Container-Aw
 ### 3. Typography Balancing, Accessible Sizing, and Hierarchy Standards
 - **Accessible Rem-Based Sizing**: Standardize helper descriptions and card subtitles on `text-xs` (`0.75rem`, standard 12px) in [`index.html`](../../index.html), eliminating static, arbitrary `text-[11px]` hardcoded units to preserve browser root font scaling and WCAG accessibility standards.
 - **Balanced Text Wrapping**: Native `text-wrap: balance;` is applied across stylesheets:
-  - In [`styles/base.css`](../../styles/base.css): all headings (`h1` through `h6`), control labels (`label`), fieldset legends (`legend`), collapsible summaries (`summary`), and card helper subtitles (`.card-help-text`, `#offline-export-mode-help`, `#offline-export-tail-control > p`, `#offline-export-duration`).
+  - In [`styles/base.css`](../../styles/base.css): all headings (`h1` through `h6`), control labels (`label`), fieldset legends (`legend`), collapsible summaries (`summary`), the Note Duration helper marked `.card-help-text`, and selected offline-export guidance elements (`#offline-export-mode-help`, `#offline-export-tail-control > p`, `#offline-export-duration`).
   - In [`styles/components.css`](../../styles/components.css): `.waveform-btn`, `.pattern-btn`, and `.octave-btn` button labels.
   - In [`styles/features.css`](../../styles/features.css): `.chord-btn` button text and `.sound-starter-card` preset titles.
   - This eliminates ragged word wraps, balances multi-line headings, and prevents awkward 1–2 word orphan lines.
@@ -78,7 +78,7 @@ Chosen option: **Option 3 (Fluid Wrapping, Intrinsic Width Capping, Container-Aw
   - **Level 4 (Descriptive Subtitles & Guidance Text)**: Sentence case (e.g., `Include effects tail`, "Auto estimates the envelope release and active delay, reverb, and chorus decay, capped at 10 seconds. Custom uses the duration below.").
 
 ### 4. Mobile Gutter Tightening and Responsive Spacing Chain Architecture
-- **Horizontal Chrome Rebalancing**: On compact mobile screens (`< 640px`), triple-nested desktop padding (`body p-4`, `#app-main p-8`, and card `p-4`) consumed 112px of total horizontal chrome, leaving only 263px for interactive controls on a 375px display (iPhone SE).
+- **Horizontal Chrome Rebalancing**: On compact mobile screens (`< 640px`), triple-nested padding (`body p-4`, `#app-main p-6 (sm:p-8)`, and card `p-4`) consumed 112px of total horizontal chrome, leaving only 263px for interactive controls on a 375px display (iPhone SE).
 - **Middle-Ground Responsive Spacing Chain (Between Default Desktop Padding and Zero Padding)**:
   - `body`: `px-2 pt-2 sm:p-4` (8px mobile padding, 16px desktop padding, naturally omitting mobile bottom padding so element specificity applies cleanly).
   - `#app-main`: `p-4 sm:p-8 gap-4 sm:gap-6` (16px grid padding & 16px card gaps on mobile; 32px padding & 24px gaps on desktop).
