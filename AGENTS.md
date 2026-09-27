@@ -493,7 +493,7 @@ createController({ showToast });
 
 - iOS: Set `navigator.audioSession.type = "playback"` to bypass silent mode
 - Touch events: All controls support both mouse and touch
-- Responsive design: Keyboard stacks on screens less than 768px
+- Responsive design: Keyboard stacks on screens less than 768px. Its wrapper uses safe centering when supported and retains start alignment otherwise, keeping the first octave reachable when the keys overflow.
 
 ## Performance Optimization
 

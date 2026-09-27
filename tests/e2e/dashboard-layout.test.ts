@@ -281,7 +281,20 @@ test("validates middle-ground responsive spacing chain between default desktop p
         "Virtual keyboard should fit completely without horizontal scroll at 375px viewport",
     ).toBeLessThanOrEqual(1);
 
-    // 4. Mobile grid gap is 16px (1rem) on <640px viewport
+    // 4. At 320px, the first octave remains reachable from the keyboard's scroll start.
+    await page.setViewportSize({ width: 320, height: 750 });
+    await expectDashboardLayoutAtViewport(page, 320);
+    const firstOctaveStartOffset = await page.locator("#keyboard-octave-1").evaluate((octave) => {
+        const wrapper = octave.parentElement;
+        if (!wrapper) throw new Error("Expected the keyboard octave to have a wrapper");
+        return octave.getBoundingClientRect().left - wrapper.getBoundingClientRect().left;
+    });
+    expect(
+        firstOctaveStartOffset,
+        "First keyboard octave should not begin in unreachable negative overflow",
+    ).toBeGreaterThanOrEqual(0);
+
+    // 5. Mobile grid gap is 16px (1rem) on <640px viewport
     const mobileGap = await page.locator("main#app-main").evaluate((el) => {
         const style = getComputedStyle(el);
         return {
@@ -292,7 +305,7 @@ test("validates middle-ground responsive spacing chain between default desktop p
     expect(mobileGap.rowGap).toBe(16);
     expect(mobileGap.columnGap).toBe(16);
 
-    // 5. Mobile sticky transport bar safe-area clearance preserved on body
+    // 6. Mobile sticky transport bar safe-area clearance preserved on body
     const bodyPaddingBottom = await page.evaluate(() => {
         return Number.parseFloat(getComputedStyle(document.body).paddingBottom);
     });
@@ -301,7 +314,7 @@ test("validates middle-ground responsive spacing chain between default desktop p
         "Body padding-bottom should reserve at least 64px for the mobile transport bar",
     ).toBeGreaterThanOrEqual(64);
 
-    // 6. Desktop grid gap scales to 24px (1.5rem) on >=640px viewport
+    // 7. Desktop grid gap scales to 24px (1.5rem) on >=640px viewport
     await page.setViewportSize({ width: 1280, height: 850 });
     await expectDashboardLayoutAtViewport(page, 1280);
 
