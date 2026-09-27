@@ -11,6 +11,7 @@
      fall back to 'start' alignment when the content overflows, keeping
      the leftmost keys scrollable. */
   justify-content: center;
+  /* biome-ignore lint/suspicious/noDuplicateProperties: Cascade fallback for browsers lacking 'safe' flexbox keyword support. */
   justify-content: safe center;
   align-items: flex-start;
   /* Align octaves at the top */
