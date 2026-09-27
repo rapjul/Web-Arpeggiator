@@ -283,7 +283,9 @@ input[type="radio"]:focus-visible + .has-custom-tooltip[data-placement="bottom"]
   }
 
   .has-custom-tooltip:not([data-placement]):hover::after,
+  .has-custom-tooltip:not([data-placement]):focus-visible::after,
   .has-custom-tooltip[data-placement="top"]:hover::after,
+  .has-custom-tooltip[data-placement="top"]:focus-visible::after,
   label:hover .has-custom-tooltip:not([data-placement])::after,
   label:hover .has-custom-tooltip[data-placement="top"]::after,
   input[type="radio"]:focus-visible + .has-custom-tooltip:not([data-placement])::after,
@@ -292,7 +294,9 @@ input[type="radio"]:focus-visible + .has-custom-tooltip[data-placement="bottom"]
   }
 
   .has-custom-tooltip:not([data-placement]):hover::before,
+  .has-custom-tooltip:not([data-placement]):focus-visible::before,
   .has-custom-tooltip[data-placement="top"]:hover::before,
+  .has-custom-tooltip[data-placement="top"]:focus-visible::before,
   label:hover .has-custom-tooltip:not([data-placement])::before,
   label:hover .has-custom-tooltip[data-placement="top"]::before,
   input[type="radio"]:focus-visible + .has-custom-tooltip:not([data-placement])::before,
@@ -301,12 +305,14 @@ input[type="radio"]:focus-visible + .has-custom-tooltip[data-placement="bottom"]
   }
 
   .has-custom-tooltip[data-placement="bottom"]:hover::after,
+  .has-custom-tooltip[data-placement="bottom"]:focus-visible::after,
   label:hover .has-custom-tooltip[data-placement="bottom"]::after,
   input[type="radio"]:focus-visible + .has-custom-tooltip[data-placement="bottom"]::after {
     transform: translateX(-50%) translateY(-4px);
   }
 
   .has-custom-tooltip[data-placement="bottom"]:hover::before,
+  .has-custom-tooltip[data-placement="bottom"]:focus-visible::before,
   label:hover .has-custom-tooltip[data-placement="bottom"]::before,
   input[type="radio"]:focus-visible + .has-custom-tooltip[data-placement="bottom"]::before {
     transform: translateX(-50%) translateY(-4px) rotate(45deg);
@@ -556,7 +562,6 @@ label.resettable-setting-target.setting-target-disabled,
 label.setting-target-disabled {
   cursor: not-allowed;
   opacity: 0.5;
-  pointer-events: none;
 }
 
 /* Scale Quantization card container responsive stacking and bounding */

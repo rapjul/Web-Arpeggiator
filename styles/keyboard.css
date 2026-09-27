@@ -4,8 +4,14 @@
   /* Allow wrapping when there is not enough space, stacking higher octave above lower */
   flex-wrap: wrap-reverse;
   gap: 0.5rem;
+  /* Center the keyboard horizontally; the plain 'center' fallback ensures
+     browsers that don't support the 'safe' keyword (Safari ≤ 17.5,
+     Samsung Internet ≤ 22, Firefox ≤ 62) still center the content.
+     Browsers that support 'safe center' override the first line and
+     fall back to 'start' alignment when the content overflows, keeping
+     the leftmost keys scrollable. */
+  justify-content: center;
   justify-content: safe center;
-  /* Center the keyboard horizontally, falling back to start when overflowing to keep leftmost keys scrollable */
   align-items: flex-start;
   /* Align octaves at the top */
   width: 100%;
@@ -14,7 +20,6 @@
   height: auto;
   /* Let content define height */
   overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
   margin-top: 1rem;
   /* Add some margin above the keyboard */
 }
