@@ -382,11 +382,11 @@ test("validates refined layout ergonomics, bounded numeric inputs, slider margin
 
     // 6. Pattern direction sub-sections have Title Case headers
     const patternSectionHeaders = await page
-        .locator("#pattern-buttons .text-xs.font-semibold")
+        .locator("#pattern-buttons span.text-xs.font-semibold")
         .allTextContents();
     expect(patternSectionHeaders).toContain("Linear Patterns");
     expect(patternSectionHeaders).toContain("Octave Cycles");
-    expect(patternSectionHeaders.some((text) => text.includes("Generative & Random"))).toBe(true);
+    expect(patternSectionHeaders).toContain("Generative & Random");
 
     // 7. Reshuffle button is inside the Generative & Random header and contextually enabled/disabled
     const reshuffleBtn = page.locator("#reshuffle-pattern");
@@ -407,11 +407,11 @@ test("validates refined layout ergonomics, bounded numeric inputs, slider margin
 });
 
 /**
- * Audits WCAG AAA focus ring visibility and high-contrast outline styling across
+ * Audits focus ring visibility and high-contrast outline styling across
  * all interactive controls (numeric, text, selects, range sliders, checkboxes,
  * radios, and buttons).
  */
-test("audits WCAG AAA focus rings and contrast styling across all interactive inputs and controls", async ({
+test("audits focus rings and outline styling across all interactive inputs and controls", async ({
     pwaPage: page,
 }) => {
     await dismissOnboarding(page);

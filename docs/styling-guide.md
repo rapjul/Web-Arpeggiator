@@ -162,18 +162,16 @@ The 13 pattern directions are divided into 3 semantic sub-sections (`Linear Patt
 
 ### Disabled State Conventions
 
-All disabled inputs, buttons, and selects share unified visual and accessible affordances:
-- `opacity: 0.45`
-- `cursor: not-allowed` (pointer events remain active to display the not-allowed cursor affordance on hover)
-- `background-color: var(--ui-surface-disabled, #1f2937)`
-- `border-color: var(--ui-border-subtle, #374151)`
-- `color: var(--ui-text-muted, #9ca3af)`
-- Programmatic synchronization with `aria-disabled="true"`.
+Disabled controls adhere to consistent visual and accessible affordances:
+- `opacity: 0.5` on `input:disabled`, `select:disabled`, `button:disabled`, and disabled setting labels.
+- `cursor: not-allowed` with active pointer hit-testing preserved so users see the not-allowed cursor on hover.
+- `background-color: var(--ui-surface-disabled, #1a2332)`, `border-color: var(--ui-border-subtle, #374151)`, and `color: var(--ui-text-muted, #9ca3af)` apply to disabled text/number inputs and selects. Disabled action buttons retain their colored backgrounds with reduced opacity.
+- Screen readers receive native accessibility states through the standard HTML `disabled` attribute; programmatic `aria-disabled="true"` is preserved on dynamically toggled controls (`#offline-export-tail-seconds`, `#reshuffle-pattern`).
 
 ### Custom Tooltips (`.has-custom-tooltip`)
 
 - **Zero-Overflow Resting Invariant**: Inactive tooltips declare `display: none; opacity: 0; visibility: hidden;` on their `::after` and `::before` pseudo-elements. This completely removes the 180px tooltips from the card layout tree, guaranteeing zero horizontal container blowout on compact mobile viewports (e.g. 375px/390px).
-- **Discrete Transitions**: Supported modern browsers (Chrome 117+, Safari 17.5+, Firefox 129+) smoothly animate tooltip entry and exit using `@starting-style`, `transition-behavior: allow-discrete;`, and the dedicated `--ui-transition-tooltip: 0.15s;` theme token. Older browsers degrade gracefully to instant display toggling with zero visual artifacts.
+- **Discrete Transitions**: Supported modern browsers (Chrome 117+, Edge 117+, Safari 18+, Opera 103+, Samsung Internet 24+) smoothly animate tooltip entry and exit using `@starting-style`, `transition-behavior: allow-discrete;`, and the dedicated `--ui-transition-tooltip: 0.15s;` theme token. Firefox 129+ supports `@starting-style` and discrete property transitions but does not yet transition the `display` property, so tooltips toggle display cleanly without animation. Older browsers degrade gracefully to instant display toggling with zero visual artifacts.
 - **Reduced Motion Support**: An `@media (prefers-reduced-motion: reduce)` block disables `transition` on tooltip pseudo-elements, honoring user accessibility preferences by displaying tooltips instantly without sliding or fading motion.
 
 ### Pointer vs Help Cursors

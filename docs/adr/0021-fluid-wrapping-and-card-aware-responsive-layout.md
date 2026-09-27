@@ -10,7 +10,7 @@ informed: []
 
 ## Context and Problem Statement
 
-Web Arpeggiator features an extensive multi-card interface hosting dense synthesizer, pattern, octave, scale, effect, and offline export controls. In PR #69 (`fix/offline-export-tail-release`) and PR #70 (`fix/offline-export-auto-tail`), new controls were introduced to `#offline-export-tail-control` alongside existing export selectors.
+Web Arpeggiator features an extensive multi-card interface hosting dense synthesizer, pattern, octave, scale, effect, and offline export controls. In PR #41 (`offline-audio-export-modes`) and PR #70 (`feat/export-tail-guidance`), new controls were introduced to `#offline-export-tail-control` alongside existing export selectors.
 
 When inspecting the application across modern device viewports (from compact mobile smartphones at 375px/390px, to wide smartphones at 430px, intermediate tablets/split-screens at 768px/820px, and large desktop screens at 1280px+), several responsive layout and ergonomic issues arose:
 1. **Unwrapped Horizontal Flex Containers**: In `#offline-export-tail-control`, the container used `flex items-center gap-4` without wrapping, and child `<select>` controls were constrained without flexible sizing. On tablets and mobile screens, this caused a 34px horizontal card blowout (`scrollWidth > clientWidth`) and forced horizontal window scrolling.
@@ -65,11 +65,10 @@ Chosen option: **Option 3 (Fluid Wrapping, Intrinsic Width Capping, Container-Aw
 
 ### 3. Typography Balancing, Accessible Sizing, and Hierarchy Standards
 - **Accessible Rem-Based Sizing**: Standardize helper descriptions and card subtitles on `text-xs` (`0.75rem`, standard 12px) in [`index.html`](../../index.html), eliminating static, arbitrary `text-[11px]` hardcoded units to preserve browser root font scaling and WCAG accessibility standards.
-- **Balanced Text Wrapping**: Native `text-wrap: balance;` is globally applied in [`styles/base.css`](../../styles/base.css) to:
-  - All headings (`h1` through `h6`).
-  - Control labels (`label`), fieldset legends (`legend`), and collapsible summaries (`summary`).
-  - Button text across `.chord-btn`, `.sound-starter-btn`, and primary action triggers.
-  - Card helper subtitles (`.card-help-text`, `#offline-export-mode-help`, `#offline-export-tail-control > p`, `#offline-export-duration`).
+- **Balanced Text Wrapping**: Native `text-wrap: balance;` is applied across stylesheets:
+  - In [`styles/base.css`](../../styles/base.css): all headings (`h1` through `h6`), control labels (`label`), fieldset legends (`legend`), collapsible summaries (`summary`), and card helper subtitles (`.card-help-text`, `#offline-export-mode-help`, `#offline-export-tail-control > p`, `#offline-export-duration`).
+  - In [`styles/components.css`](../../styles/components.css): `.waveform-btn`, `.pattern-btn`, and `.octave-btn` button labels.
+  - In [`styles/features.css`](../../styles/features.css): `.chord-btn` button text and `.sound-starter-card` preset titles.
   - This eliminates ragged word wraps, balances multi-line headings, and prevents awkward 1–2 word orphan lines.
 - **Pretty Paragraph Wrapping**: Native `text-wrap: pretty;` is applied to descriptive body paragraphs (`p`) in [`styles/base.css`](../../styles/base.css), evaluating the final lines of multi-line descriptions to prevent isolated trailing single-word orphans without the layout cost of balancing full paragraphs.
 - **Text Casing Hierarchy**:
