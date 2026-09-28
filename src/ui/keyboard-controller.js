@@ -93,7 +93,6 @@ export function initializeKeyboardControls(context) {
     ];
 
     const keyboardMainWrapper = dom.keyboardVisual;
-    keyboardMainWrapper.id = "keyboard-main-wrapper";
     keyboardMainWrapper.classList.remove(
         "flex",
         "justify-center",

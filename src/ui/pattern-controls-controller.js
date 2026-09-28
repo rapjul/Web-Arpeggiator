@@ -84,7 +84,21 @@ export function createPatternControlsController(dependencies) {
     }, 50);
     function updateReshuffleButton() {
         if (reshufflePatternButton) {
-            reshufflePatternButton.disabled = !isStochasticDirection(getSelectedPatternDirection());
+            const isStochastic = isStochasticDirection(getSelectedPatternDirection());
+            reshufflePatternButton.disabled = !isStochastic;
+            if (isStochastic) {
+                reshufflePatternButton.removeAttribute("aria-disabled");
+                reshufflePatternButton.setAttribute(
+                    "data-tooltip",
+                    "Reshuffle Pattern: Generate a new randomized note sequence variation with a fresh seed. Seeds are saved in presets and audio metadata for exact reproduction.",
+                );
+            } else {
+                reshufflePatternButton.setAttribute("aria-disabled", "true");
+                reshufflePatternButton.setAttribute(
+                    "data-tooltip",
+                    "Active for generative patterns only (Random Step, Random Cycle, Random Walk, Drunkard's Walk).",
+                );
+            }
         }
     }
 

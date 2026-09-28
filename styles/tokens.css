@@ -8,6 +8,7 @@
   --ui-page: #111827;
   --ui-overlay: #0f172a;
   --ui-surface: #1f2937;
+  --ui-surface-disabled: #1a2332;
   --ui-surface-raised: #374151;
   --ui-control: #4b5563;
   --ui-control-hover: #6b7280;
@@ -49,6 +50,7 @@
   --ui-radius-lg: 0.75rem;
   --ui-radius-pill: 9999px;
   --ui-transition-fast: 0.1s;
+  --ui-transition-tooltip: 0.15s;
   --ui-transition-normal: 0.2s;
   --ui-transition-slow: 0.3s;
   --ui-focus-width: 2px;

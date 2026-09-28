@@ -21,12 +21,18 @@ function createFixture() {
     modeSeamlessInput.name = "offline-export-mode";
     modeSeamlessInput.value = "seamless";
     const tailControl = document.createElement("div");
+    const tailSecondsLabel = document.createElement("label");
+    tailSecondsLabel.setAttribute("for", "offline-export-tail-seconds");
+    tailSecondsLabel.setAttribute("title", "Double-click to reset");
+    tailSecondsLabel.textContent = "Effects Tail:";
     const tailModeSelect = document.createElement("select");
     tailModeSelect.innerHTML =
-        '<option value="auto">Auto (recommended)</option><option value="custom">Custom</option>';
+        '<option value="auto">Auto</option><option value="custom">Custom</option>';
     tailModeSelect.value = "auto";
     const tailSecondsInput = document.createElement("input");
+    tailSecondsInput.id = "offline-export-tail-seconds";
     tailSecondsInput.value = "2";
+    tailControl.append(tailSecondsLabel, tailModeSelect, tailSecondsInput);
     const duration = document.createElement("output");
     const recordButton = document.createElement("button");
     const exportButton = document.createElement("button");
@@ -41,8 +47,6 @@ function createFixture() {
         modeTailInput,
         modeSeamlessInput,
         tailControl,
-        tailModeSelect,
-        tailSecondsInput,
         duration,
         recordButton,
         exportButton,
@@ -110,6 +114,7 @@ function createFixture() {
         tailControl,
         tailModeSelect,
         tailSecondsInput,
+        tailSecondsLabel,
         toggleVisualizerButton,
         visualizer,
         visualizerModeSelect,
@@ -134,6 +139,7 @@ describe("export controls controller", () => {
             tailControl,
             tailModeSelect,
             tailSecondsInput,
+            tailSecondsLabel,
         } = createFixture();
 
         expect(duration.textContent).toContain("Pattern cycles");
@@ -141,15 +147,21 @@ describe("export controls controller", () => {
         modeSeamlessInput.dispatchEvent(new Event("change", { bubbles: true }));
         expect(tailControl.classList.contains("hidden")).toBe(true);
         expect(tailSecondsInput.disabled).toBe(true);
+        expect(tailSecondsLabel.classList.contains("setting-target-disabled")).toBe(true);
 
         modeSeamlessInput.checked = false;
         modeTailInput.checked = true;
         modeTailInput.dispatchEvent(new Event("change", { bubbles: true }));
         expect(tailModeSelect.disabled).toBe(false);
         expect(tailSecondsInput.disabled).toBe(true);
+        expect(tailSecondsLabel.classList.contains("setting-target-disabled")).toBe(true);
+        expect(tailSecondsLabel.hasAttribute("title")).toBe(false);
+
         tailModeSelect.value = "custom";
         tailModeSelect.dispatchEvent(new Event("change", { bubbles: true }));
         expect(tailSecondsInput.disabled).toBe(false);
+        expect(tailSecondsLabel.classList.contains("setting-target-disabled")).toBe(false);
+        expect(tailSecondsLabel.getAttribute("title")).toBe("Double-click to reset");
 
         loopCountInput.value = "999";
         loopCountInput.dispatchEvent(new Event("change", { bubbles: true }));
