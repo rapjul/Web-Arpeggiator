@@ -30,7 +30,7 @@ Include effects tail previously used a fixed two-second default. That can trunca
 
 Chosen option: "Calculate Auto tails from the effective synth release and active decaying effects after the final release trigger," because it preserves the final scheduled note and gives the entire recommended tail to its release and effects.
 
-Include effects tail exposes **Auto (recommended)** and **Custom** strategies. Auto combines the effective synth release with settling time for active Delay, Reverb, and Chorus, excludes Auto-pan because it does not add decaying energy, and caps the result at ten seconds. `PluckSynth` explicitly uses its one-second physical-model release for both live and offline synthesis and Auto estimation. Custom uses the normalized zero-to-ten-second field.
+Include effects tail exposes **Auto** and **Custom** strategies. Auto is the recommended default for new settings. It combines the effective synth release with settling time for active Delay, Reverb, and Chorus, excludes Auto-pan because it does not add decaying energy, and caps the result at ten seconds. `PluckSynth` explicitly uses its one-second physical-model release for both live and offline synthesis and Auto estimation. Custom uses the normalized zero-to-ten-second field.
 
 The shared timeline provides the final release trigger. Tail renders begin after whichever is later: the selected pattern boundary or that terminal trigger. The duration preview and offline renderer call the same duration calculation, and Auto filenames record the rounded effective duration in conventional seconds notation, such as `tail-auto-4.5s`. Export metadata retains the actual render timing.
 

@@ -127,7 +127,7 @@ export function createDomReferences(documentRef) {
         envDecayValue: getById("env-decay-value"),
         envSustainValue: getById("env-sustain-value"),
         envReleaseValue: getById("env-release-value"),
-        keyboardVisual: getById("keyboard-visual"),
+        keyboardVisual: getById("keyboard-main-wrapper"),
         keyboardToggle: /** @type {HTMLInputElement} */ (getById("keyboard-toggle")),
         keyboardToggleStatus: getById("keyboard-toggle-status"),
         keyboardDescription: getById("keyboard-description"),

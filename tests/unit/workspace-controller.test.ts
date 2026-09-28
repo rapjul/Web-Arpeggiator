@@ -237,4 +237,23 @@ describe("workspace controller", () => {
 
         expect(onStaticLoopChange).not.toHaveBeenCalled();
     });
+
+    it("ignores double-click reset gestures on disabled setting targets", () => {
+        const { controller, resetTarget, settings, showToast } = createFixture();
+
+        controller.applySettingsWithHistory({ ...settings(), bpm: 150 });
+        expect(settings().bpm).toBe(150);
+
+        // When the target is disabled, double-click does not reset settings
+        resetTarget.classList.add("setting-target-disabled");
+        resetTarget.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+        expect(settings().bpm).toBe(150);
+        expect(showToast).not.toHaveBeenCalled();
+
+        // When enabled, double-click resets setting group to default
+        resetTarget.classList.remove("setting-target-disabled");
+        resetTarget.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+        expect(settings().bpm).toBe(120);
+        expect(showToast).toHaveBeenCalledWith("Reset BPM to default.", "info");
+    });
 });

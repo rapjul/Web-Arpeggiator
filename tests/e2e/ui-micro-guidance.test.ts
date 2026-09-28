@@ -186,3 +186,55 @@ test("refreshes the Auto tail estimate when its source settings change", async (
         )
         .toBeGreaterThan(0);
 });
+
+/**
+ * Verifies that custom tooltips are rendered with discrete display transitions,
+ * maintain zero-overflow resting states, and honor user reduced-motion preferences.
+ */
+test("renders custom tooltips with discrete display transitions and honors reduced motion", async ({
+    pwaPage: page,
+}) => {
+    await dismissOnboarding(page);
+
+    const button = page.locator(".has-custom-tooltip[data-tooltip]").first();
+    await expect(button).toBeVisible();
+
+    // Resting state: tooltip pseudo-element is display: none and opacity: 0
+    const restingState = await button.evaluate((el) => {
+        const afterStyle = window.getComputedStyle(el, "::after");
+        return {
+            display: afterStyle.display,
+            opacity: afterStyle.opacity,
+            visibility: afterStyle.visibility,
+        };
+    });
+    expect(restingState.display).toBe("none");
+    expect(restingState.opacity).toBe("0");
+
+    // Hovered state: reveals with display: block and opacity: 1
+    await button.hover();
+    await expect
+        .poll(async () => {
+            return await button.evaluate((el) => {
+                const afterStyle = window.getComputedStyle(el, "::after");
+                return {
+                    display: afterStyle.display,
+                    opacity: afterStyle.opacity,
+                    visibility: afterStyle.visibility,
+                };
+            });
+        })
+        .toEqual({
+            display: "block",
+            opacity: "1",
+            visibility: "visible",
+        });
+
+    // Emulate reduced motion: verify transition is disabled
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    const reducedMotionTransition = await button.evaluate((el) => {
+        const afterStyle = window.getComputedStyle(el, "::after");
+        return afterStyle.transitionDuration;
+    });
+    expect(reducedMotionTransition === "0s" || reducedMotionTransition === "").toBe(true);
+});
