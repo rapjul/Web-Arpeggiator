@@ -1,4 +1,4 @@
-import { expect, resetAppState, test } from "./fixtures/app";
+import { captureDownload, expect, resetAppState, test } from "./fixtures/app";
 
 test("starts a factory sound starter from the first-visit quick start", async ({
     pwaPage: page,
@@ -158,4 +158,23 @@ test("synchronizes a selected factory preset with its sound starter card", async
     await expect(
         page.locator('#sound-starters-grid [data-preset-id="factory-cyberpunk"]'),
     ).toHaveClass(/active/);
+});
+
+test("generates and downloads an offline audio render in Simple mode", async ({
+    pwaPage: page,
+}) => {
+    await page.locator("#quick-start-simple").click();
+    await page.locator("#quick-start-scratch").click();
+    await expect(page.locator("#play-stop")).toBeEnabled();
+
+    const offlineExportSection = page.locator("section[aria-labelledby='offline-export-title']");
+    await expect(offlineExportSection).toBeVisible();
+
+    const download = await captureDownload(page, () =>
+        page.locator("#offline-export-button").click(),
+    );
+
+    expect(download.filename).toMatch(/\.wav$/);
+    await expect(page.locator("#offline-export-status")).toContainText("complete");
+    await expect(page.locator("#offline-export-button")).toBeEnabled();
 });
