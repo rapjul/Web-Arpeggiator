@@ -20,6 +20,8 @@ See the [Architecture Guide](./docs/architecture.md) for the detailed module own
 
 Playback, previews, offline audio, and MIDI exports share the 480-PPQ musical timeline compiler in `src/core/timeline.js`; keep note resolution, swing, gate lengths, and event boundaries in that shared contract.
 
+Recorder-aware playback must wait for `awaitCaptureReady()`, not the full recording transition, because recording startup may itself request playback. `stopRecording()` returns whether an active capture was successfully stopped; concurrent callers share the same stop result. Re-check destruction after asynchronous boundaries before creating backends, starting capture, or updating UI. Keep Simple-mode safety effects in `src/ui/interface-mode-safety-controller.js` and ignore stale transition completions.
+
 ### 1. Audio Engine
 
 The audio signal chain follows this path:
@@ -408,6 +410,7 @@ Web Arpeggiator/
 │   │   ├── history-controller.js # Settings undo, redo, and reset interactions
 │   │   ├── input-filter-controller.js # Notes and export-count keyboard filtering
 │   │   ├── interface-mode-controller.js # Header-integrated Simple/Full presentation switcher
+│   │   ├── interface-mode-safety-controller.js # Stops transient tools hidden by Simple mode
 │   │   ├── keyboard-controller.js # Virtual keyboard input handling
 │   │   ├── note-step-controller.js # Pattern-step indicator rendering and updates
 │   │   ├── onboarding-controller.js # First-visit and quick-start onboarding flow
