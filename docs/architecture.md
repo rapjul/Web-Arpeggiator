@@ -55,6 +55,7 @@ Live playback adapts that timeline to `Tone.Pattern` so the existing transport l
 `src/ui/` contains DOM controllers and visual rendering:
 
 - Pattern, synth, transport, effects, onboarding, keyboard, visualizer, note-step, and accessibility controllers own their respective controls.
+- `interface-mode-controller.js` manages the header-integrated segmented pill control (`[ Simple | Full ]`) with accessible WAI-ARIA `role="radiogroup"` arrow-key navigation, restores the presentation choice before revealing the application shell, persists it separately from musical settings, and hides complete advanced sections. The composition root deactivates transient keyboard and visualizer activity and cancels active or starting recording when their controls become unavailable in Simple mode; a recording stop failure restores Full controls. [ADR 0022](./adr/0022-persisted-interface-mode.md) records this persisted interface mode contract.
 - `dom-references.js` builds the complete injected DOM reference registry and resolves reset targets for the composition root.
 - `workspace-controller.js` coordinates settings history, resets, autosave, and session restoration.
 - `export-controls-controller.js` coordinates recording/export controls, automatic or custom effects-tail duration readouts, offline modes, and loop-preview requests.

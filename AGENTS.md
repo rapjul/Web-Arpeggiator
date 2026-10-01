@@ -359,7 +359,8 @@ Web Arpeggiator/
 │   │   ├── 0018-awaited-recording-lifecycle-and-bounded-audio-resource-ownership.md
 │   │   ├── 0019-recommended-effects-tail-strategy.md
 │   │   ├── 0020-bounded-audio-startup-latency-and-lifecycle-benchmarking.md
-│   │   └── 0021-fluid-wrapping-and-card-aware-responsive-layout.md
+│   │   ├── 0021-fluid-wrapping-and-card-aware-responsive-layout.md
+│   │   └── 0022-persisted-interface-mode.md
 │   ├── architecture.md     # Module ownership, runtime flow, and deferred boundaries
 │   ├── development.md      # Local setup, commands, and test-runner guidance
 │   ├── improvements/       # Deferred, scoped follow-up plans
@@ -374,6 +375,7 @@ Web Arpeggiator/
 │   │   ├── export-duration.js # Offline export duration calculation & formatting
 │   │   ├── export-metadata.js # Versioned offline audio metadata encoder & binary reader
 │   │   ├── input-filters.js# Keyboard note & numeric input filtering
+│   │   ├── interface-mode.js# Interface mode validation and local storage persistence
 │   │   ├── meter-utils.js  # Audio meter decibel & percentage calculations
 │   │   ├── midi-export.js  # Standard MIDI File (.mid) binary encoder
 │   │   ├── pattern-core.js # Core note transformations, directions, quantization math
@@ -405,6 +407,7 @@ Web Arpeggiator/
 │   │   ├── effects-controls-controller.js # Post-gain, filter, and effects control wiring
 │   │   ├── history-controller.js # Settings undo, redo, and reset interactions
 │   │   ├── input-filter-controller.js # Notes and export-count keyboard filtering
+│   │   ├── interface-mode-controller.js # Header-integrated Simple/Full presentation switcher
 │   │   ├── keyboard-controller.js # Virtual keyboard input handling
 │   │   ├── note-step-controller.js # Pattern-step indicator rendering and updates
 │   │   ├── onboarding-controller.js # First-visit and quick-start onboarding flow
