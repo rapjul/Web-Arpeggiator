@@ -287,10 +287,11 @@ export function createRecorderManager(context) {
         if (!isActivelyRecording()) throw primaryError;
         let blob = null;
         try {
-            blob = await stopCapture();
+            // Share playback-error cleanup with explicit cancellation and teardown requests.
+            await stopActiveRecording();
+            blob = liveRecordedWavBlob;
         } catch (cleanupError) {
             console.warn("Failed to stop recorder during recovery:", cleanupError);
-            resetRecorderBackend();
         } finally {
             // Guard against mutating detached DOM nodes or firing toasts if destroyed during playback startup recovery.
             if (blob && !isDestroyed) {

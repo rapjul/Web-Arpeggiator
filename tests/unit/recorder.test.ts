@@ -1492,6 +1492,52 @@ describe("Recorder Manager Module", () => {
         }
     });
 
+    it("shares playback-error cleanup with a concurrent cancellation request", async () => {
+        let rejectPlaybackStart: ((error: Error) => void) | undefined;
+        let resolveCaptureStop: (() => void) | undefined;
+        let markCaptureStopCalled: (() => void) | undefined;
+        mockActions.startPlayback = vi.fn(
+            () =>
+                new Promise<void>((_resolve, reject) => {
+                    rejectPlaybackStart = reject;
+                }),
+        );
+        recorderStopPromise = new Promise((resolve) => {
+            resolveCaptureStop = resolve;
+        });
+        const captureStopCalled = new Promise<void>((resolve) => {
+            markCaptureStopCalled = resolve;
+        });
+        const stopRecorder = vi.fn(() => markCaptureStopCalled?.());
+        recorderStopCalled = stopRecorder;
+        const playbackError = new Error("playback startup failed");
+        const stopError = new Error("capture cleanup failed");
+        recorderStopError = stopError;
+        const manager = createRecorderManager({
+            audio: mockAudio,
+            dom: mockDom,
+            state: mockState,
+            actions: mockActions,
+        });
+
+        const start = manager.toggleRecording();
+        await vi.waitFor(() => expect(mockActions.startPlayback).toHaveBeenCalledOnce());
+        rejectPlaybackStart?.(playbackError);
+        await captureStopCalled;
+        const cancellation = manager.stopRecording();
+        resolveCaptureStop?.();
+
+        const [startResult, cancellationResult] = await Promise.allSettled([start, cancellation]);
+        expect(startResult).toMatchObject({ status: "rejected", reason: playbackError });
+        expect(cancellationResult).toMatchObject({ status: "rejected", reason: stopError });
+        expect(stopRecorder).toHaveBeenCalledOnce();
+        expect(mockActions.showToast).toHaveBeenCalledWith("Recording failed to stop.", "error");
+        expect(mockActions.showToast).not.toHaveBeenCalledWith(
+            "Recording stopped when Simple controls were selected.",
+            "info",
+        );
+    });
+
     it("releases decoded PCM after a successful export and retains it for retry", async () => {
         const manager = createRecorderManager({
             audio: mockAudio,
