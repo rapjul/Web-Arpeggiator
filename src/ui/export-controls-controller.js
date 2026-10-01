@@ -21,7 +21,7 @@ import { compileTimeline, getTimelineTerminalEndSeconds } from "@core/timeline.j
 /**
  * Creates the export controls controller.
  *
- * @param {{dom: {loopCountInput: HTMLInputElement, offlineExportModeInputs: NodeListOf<HTMLInputElement>, offlineExportTailControl: HTMLElement|null, offlineExportTailModeSelect: HTMLSelectElement|null, offlineExportTailSecondsInput: HTMLInputElement|null, offlineExportTailSecondsLabel?: HTMLElement|null, offlineExportDuration: HTMLElement|null, recordButton: HTMLElement, exportButton: HTMLElement, offlineExportButton: HTMLElement, offlineExportMidiButton: HTMLElement|null, toggleVisualizerButton: HTMLElement, visualizerModeSelect: HTMLSelectElement|null}, getSettings: () => ArpeggiatorSettings, getTimeline?: () => CompiledTimeline|null, getRecorderManager: () => {toggleRecording: () => Promise<void>, exportRealtime: () => Promise<void>, exportOffline: () => Promise<void>}|undefined, getVisualizer: () => {currentMode: string, toggle: () => void}|undefined, startAudio: () => Promise<void>, generateFilename: (isRealtime: boolean) => string, showToast: (message: string, type?: string) => void, renderStaticLoop: () => Promise<void>, debounce: (callback: () => void, wait: number) => () => void, logger?: {error?: (...args: unknown[]) => void, warn?: (...args: unknown[]) => void}}} dependencies - Injected export behavior.
+ * @param {{dom: {loopCountInput: HTMLInputElement, offlineExportModeInputs: NodeListOf<HTMLInputElement>, offlineExportTailControl: HTMLElement|null, offlineExportTailModeSelect: HTMLSelectElement|null, offlineExportTailSecondsInput: HTMLInputElement|null, offlineExportTailSecondsLabel?: HTMLElement|null, offlineExportDuration: HTMLElement|null, recordButton: HTMLElement, exportButton: HTMLElement, offlineExportButton: HTMLElement, offlineExportMidiButton: HTMLElement|null, toggleVisualizerButton: HTMLElement, visualizerModeSelect: HTMLSelectElement|null}, getSettings: () => ArpeggiatorSettings, getTimeline?: () => CompiledTimeline|null, getRecorderManager: () => {toggleRecording: () => Promise<void>, exportRealtime: () => Promise<void>, exportOffline: () => Promise<void>}|undefined, getVisualizer: () => {currentMode: string, toggle: () => void}|undefined, getInterfaceMode?: () => string, startAudio: () => Promise<void>, generateFilename: (isRealtime: boolean) => string, showToast: (message: string, type?: string) => void, renderStaticLoop: () => Promise<void>, debounce: (callback: () => void, wait: number) => () => void, logger?: {error?: (...args: unknown[]) => void, warn?: (...args: unknown[]) => void}}} dependencies - Injected export behavior.
  * @returns {{initialize: () => void, destroy: () => void, updateEstimatedExportDuration: () => void, updateOfflineExportModeUi: () => void, requestStaticLoopRender: () => void}} Export controls API.
  */
 export function createExportControlsController(dependencies) {
@@ -31,6 +31,7 @@ export function createExportControlsController(dependencies) {
         getTimeline,
         getRecorderManager,
         getVisualizer,
+        getInterfaceMode,
         startAudio,
         generateFilename,
         showToast,
@@ -139,11 +140,25 @@ export function createExportControlsController(dependencies) {
         });
     }
 
-    async function startAndRun(action, warning) {
+    /**
+     * Ensures audio activation before executing a requested export or recording action.
+     *
+     * @param {() => Promise<unknown>|unknown} action - Export or recording callback.
+     * @param {string} warning - Warning message logged if audio startup fails.
+     * @param {{advancedOnly?: boolean}} [options={}] - Execution guard options.
+     * @returns {Promise<void>}
+     */
+    async function startAndRun(action, warning, options = {}) {
+        const { advancedOnly = false } = options;
         try {
             await startAudio();
         } catch (error) {
             logger.warn?.(warning, error);
+            return;
+        }
+        // If the user switched to Simple mode while asynchronous audio runtime initialization was in flight,
+        // abort execution for advanced-only actions (such as recording or realtime export) whose controls are hidden.
+        if (advancedOnly && getInterfaceMode?.() === "simple") {
             return;
         }
         try {
@@ -225,6 +240,7 @@ export function createExportControlsController(dependencies) {
                 startAndRun(
                     () => getRecorderManager()?.toggleRecording(),
                     "AudioContext failed to start on record click:",
+                    { advancedOnly: true },
                 ),
             listenerOptions,
         );
@@ -234,6 +250,7 @@ export function createExportControlsController(dependencies) {
                 startAndRun(
                     () => getRecorderManager()?.exportRealtime(),
                     "AudioContext failed to start on recording export click:",
+                    { advancedOnly: true },
                 ),
             listenerOptions,
         );

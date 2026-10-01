@@ -7,7 +7,7 @@ vi.mock("@core/midi-export.js", () => ({ exportMidiFile: vi.fn() }));
 
 const controllers: Array<ReturnType<typeof createExportControlsController>> = [];
 
-function createFixture() {
+function createFixture(options: { getInterfaceMode?: () => string } = {}) {
     document.body.replaceChildren();
     const loopCountInput = document.createElement("input");
     loopCountInput.value = "2";
@@ -85,6 +85,7 @@ function createFixture() {
         getSettings: () => settings,
         getRecorderManager: () => recorder,
         getVisualizer: () => visualizer,
+        getInterfaceMode: options.getInterfaceMode ?? (() => "full"),
         startAudio,
         generateFilename: () => "arpeggio",
         showToast,
@@ -311,5 +312,67 @@ describe("export controls controller", () => {
         visualizerModeSelect.value = "loopMap";
         visualizerModeSelect.dispatchEvent(new Event("change"));
         expect(renderStaticLoop).toHaveBeenCalledOnce();
+    });
+
+    it("cancels queued record action if interface mode switches to simple while startAudio is pending", async () => {
+        let currentMode = "full";
+        let resolveStartAudio: (() => void) | undefined;
+        const startAudioPromise = new Promise<void>((resolve) => {
+            resolveStartAudio = resolve;
+        });
+        const { recordButton, recorder, startAudio } = createFixture({
+            getInterfaceMode: () => currentMode,
+        });
+        startAudio.mockImplementationOnce(() => startAudioPromise);
+
+        recordButton.click();
+        expect(startAudio).toHaveBeenCalledOnce();
+        expect(recorder.toggleRecording).not.toHaveBeenCalled();
+
+        // Switch to simple mode while startAudio is still pending
+        currentMode = "simple";
+        resolveStartAudio?.();
+
+        await vi.waitFor(() => {
+            expect(startAudio).toHaveReturned();
+        });
+        expect(recorder.toggleRecording).not.toHaveBeenCalled();
+    });
+
+    it("cancels queued export action if interface mode switches to simple while startAudio is pending", async () => {
+        let currentMode = "full";
+        let resolveStartAudio: (() => void) | undefined;
+        const startAudioPromise = new Promise<void>((resolve) => {
+            resolveStartAudio = resolve;
+        });
+        const { exportButton, recorder, startAudio } = createFixture({
+            getInterfaceMode: () => currentMode,
+        });
+        startAudio.mockImplementationOnce(() => startAudioPromise);
+
+        exportButton.click();
+        expect(startAudio).toHaveBeenCalledOnce();
+        expect(recorder.exportRealtime).not.toHaveBeenCalled();
+
+        // Switch to simple mode while startAudio is still pending
+        currentMode = "simple";
+        resolveStartAudio?.();
+
+        await vi.waitFor(() => {
+            expect(startAudio).toHaveReturned();
+        });
+        expect(recorder.exportRealtime).not.toHaveBeenCalled();
+    });
+
+    it("allows offline export action to proceed in simple mode", async () => {
+        const { offlineExportButton, recorder, startAudio } = createFixture({
+            getInterfaceMode: () => "simple",
+        });
+
+        offlineExportButton.click();
+        await vi.waitFor(() => {
+            expect(startAudio).toHaveBeenCalledOnce();
+            expect(recorder.exportOffline).toHaveBeenCalledOnce();
+        });
     });
 });

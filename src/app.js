@@ -1666,6 +1666,7 @@ function initializeApp() {
         getTimeline: () => getPatternController()?.getTimeline?.() ?? null,
         getRecorderManager,
         getVisualizer,
+        getInterfaceMode: () => interfaceModeController?.getMode() ?? "full",
         startAudio,
         generateFilename,
         showToast,
