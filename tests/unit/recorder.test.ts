@@ -13,6 +13,7 @@ let lastSeamlessFrameCount = 0;
 let recorderLifecycle: string[] = [];
 let recorderStartPromise: Promise<void> | null = null;
 let recorderStopPromise: Promise<void> | null = null;
+let recorderStopCalled: (() => void) | null = null;
 let recorderStartError: Error | null = null;
 let recorderStopError: Error | null = null;
 let toneRecorderConstructorError: Error | null = null;
@@ -124,6 +125,7 @@ vi.mock("tone", async () => {
                 recorderLifecycle.push("recording-start");
             }
             async stop() {
+                recorderStopCalled?.();
                 if (recorderStopPromise) await recorderStopPromise;
                 if (recorderStopError) throw recorderStopError;
                 this.state = "stopped";
@@ -195,6 +197,7 @@ describe("Recorder Manager Module", () => {
         recorderLifecycle = [];
         recorderStartPromise = null;
         recorderStopPromise = null;
+        recorderStopCalled = null;
         recorderStartError = null;
         recorderStopError = null;
         toneRecorderConstructorError = null;
@@ -884,6 +887,67 @@ describe("Recorder Manager Module", () => {
         expect(mockDom.recordButton.disabled).toBe(false);
     });
 
+    it("cancels a recording that is still starting before hidden controls can lose it", async () => {
+        let resolveStart: (() => void) | undefined;
+        recorderStartPromise = new Promise((resolve) => {
+            resolveStart = resolve;
+        });
+        const manager = createRecorderManager({
+            audio: mockAudio,
+            dom: mockDom,
+            state: mockState,
+            actions: mockActions,
+        });
+
+        const startRecording = manager.toggleRecording();
+        await Promise.resolve();
+        expect(manager.isRecording).toBe(true);
+
+        const cancelRecording = manager.toggleRecording();
+        resolveStart?.();
+        await Promise.all([startRecording, cancelRecording]);
+
+        expect(recorderLifecycle).toEqual(["recording-start", "recording-stop"]);
+        expect(mockActions.startPlayback).not.toHaveBeenCalled();
+        expect(manager.isRecording).toBe(false);
+        expect(mockDom.recordButton.textContent).toBe("Record");
+    });
+
+    it("safely exits cancelPendingStart when destroyed while capture is stopping", async () => {
+        let resolveStart: (() => void) | undefined;
+        let resolveStop: (() => void) | undefined;
+        recorderStartPromise = new Promise((resolve) => {
+            resolveStart = resolve;
+        });
+        recorderStopPromise = new Promise((resolve) => {
+            resolveStop = resolve;
+        });
+        let onStopInvoked: (() => void) | undefined;
+        const stopInvokedPromise = new Promise<void>((resolve) => {
+            onStopInvoked = resolve;
+        });
+        recorderStopCalled = () => onStopInvoked?.();
+
+        const manager = createRecorderManager({
+            audio: mockAudio,
+            dom: mockDom,
+            state: mockState,
+            actions: mockActions,
+        });
+
+        const startRecording = manager.toggleRecording();
+        await Promise.resolve();
+        const cancelRecording = manager.toggleRecording();
+        resolveStart?.();
+        await stopInvokedPromise;
+
+        manager.destroy();
+        resolveStop?.();
+        await Promise.all([startRecording, cancelRecording]);
+
+        expect(manager.isRecording).toBe(false);
+    });
+
     it("hides previous export controls while replacement capture is pending", async () => {
         let resolveStart: () => void = () => {};
         recorderStartPromise = new Promise((resolve) => {
@@ -903,7 +967,6 @@ describe("Recorder Manager Module", () => {
             expect(mockDom.exportControls.classList.contains("hidden")).toBe(true);
         });
         expect(manager.isStarting).toBe(true);
-        expect(manager.isRecording).toBe(false);
 
         resolveStart();
         await startPromise;
