@@ -107,6 +107,8 @@ export function createInterfaceModeController(dependencies) {
         const normalizedMode = normalizeInterfaceMode(mode);
         const hasModeChanged = !hasAppliedMode || currentMode !== normalizedMode;
         currentMode = normalizedMode;
+        // Only trigger transition callbacks if explicitly requested or if the mode actually changed,
+        // avoiding redundant teardown side-effects during initial workspace hydration.
         const shouldNotify = options.notify !== undefined ? options.notify : hasModeChanged;
         applyMode(normalizedMode, shouldNotify);
         hasAppliedMode = true;

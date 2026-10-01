@@ -131,8 +131,6 @@ export function createRecorderManager(context) {
     let isExporting = false;
     let isDestroyed = false;
     let cancelPendingStart = false;
-    /** @type {Promise<void>|null} */
-    let pendingStartCompletion = null;
     /** @type {Promise<void>} */
     let captureReadyPromise = Promise.resolve();
     /** @type {(() => void)|null} */
@@ -649,6 +647,8 @@ export function createRecorderManager(context) {
                 actions.startUiLoop();
                 dom.recordButton.disabled = false;
             } catch (error) {
+                // Capture whether cancellation was requested ("stopping") before resetting recordingPhase to "idle",
+                // ensuring error notifications accurately distinguish startup failures from teardown failures.
                 const failedToStop = recordingPhase === "stopping";
                 if (recordingPhase === "starting" || recordingPhase === "stopping") {
                     recordingPhase = "idle";
@@ -757,17 +757,7 @@ export function createRecorderManager(context) {
         if (recordingPhase === "stopping") return activeStopPromise || Promise.resolve();
         if (isActivelyRecording()) return stopActiveRecording();
 
-        const startCompletion = startRecording();
-        pendingStartCompletion = startCompletion;
-        void startCompletion.then(
-            () => {
-                if (pendingStartCompletion === startCompletion) pendingStartCompletion = null;
-            },
-            () => {
-                if (pendingStartCompletion === startCompletion) pendingStartCompletion = null;
-            },
-        );
-        return startCompletion;
+        return startRecording();
     }
 
     // ------------------------------------------------------------------
