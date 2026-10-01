@@ -39,6 +39,19 @@ export function createDomReferences(documentRef) {
     return {
         documentRef,
         appMain: getById("app-main"),
+        interfaceModeControls: /** @type {HTMLElement | null} */ (
+            getById("interface-mode-controls")
+        ),
+        interfaceModeButtons: /** @type {HTMLButtonElement[]} */ (
+            Array.from(queryAll("#interface-mode-controls button[data-interface-mode]"))
+        ),
+        interfaceModeSimpleBtn: /** @type {HTMLButtonElement | null} */ (
+            getById("interface-mode-simple-btn")
+        ),
+        interfaceModeFullBtn: /** @type {HTMLButtonElement | null} */ (
+            getById("interface-mode-full-btn")
+        ),
+        interfaceModeSelect: /** @type {HTMLSelectElement | null} */ (getById("interface-mode")),
         stickyTransportBar: /** @type {HTMLElement | null} */ (query(".sticky-transport-bar")),
         playStopButton: /** @type {HTMLButtonElement | null} */ (getById("play-stop")),
         undoButton: /** @type {HTMLButtonElement | null} */ (getById("undo-button")),
@@ -219,6 +232,12 @@ export function createDomReferences(documentRef) {
         liveRegion: getById("sr-announcements"),
         quickStartModal: getById("quick-start-modal"),
         quickStartOverlay: getById("quick-start-overlay"),
+        quickStartModeChoice: getById("quick-start-mode-choice"),
+        quickStartModeContent: getById("quick-start-mode-content"),
+        quickStartSimpleButton: /** @type {HTMLButtonElement | null} */ (
+            getById("quick-start-simple")
+        ),
+        quickStartFullButton: /** @type {HTMLButtonElement | null} */ (getById("quick-start-full")),
         quickStartPresetsGrid: getById("quick-start-presets-grid"),
         quickStartScratchButton: /** @type {HTMLButtonElement | null} */ (
             getById("quick-start-scratch")
