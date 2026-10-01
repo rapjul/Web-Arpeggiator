@@ -610,6 +610,7 @@ export function createRecorderManager(context) {
                 actions.startUiLoop();
                 dom.recordButton.disabled = false;
             } catch (error) {
+                const failedToStop = recordingPhase === "stopping";
                 if (recordingPhase === "starting" || recordingPhase === "stopping") {
                     recordingPhase = "idle";
                     resetRecorderBackend();
@@ -617,7 +618,6 @@ export function createRecorderManager(context) {
                     if (!isDestroyed) {
                         actions.stopUiLoop();
                         restoreIdleUi();
-                        const failedToStop = cancelPendingStart;
                         dom.recordStatus.textContent = failedToStop
                             ? "Recording failed to stop. See console."
                             : "Recording failed to start. See console.";

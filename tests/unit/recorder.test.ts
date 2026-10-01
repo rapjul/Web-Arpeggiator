@@ -1010,6 +1010,35 @@ describe("Recorder Manager Module", () => {
         expect(mockDom.recordButton.textContent).toBe("Record");
     });
 
+    it("reports start failure rather than stop failure when startup fails while cancellation is pending", async () => {
+        let rejectStartAudio: ((error: Error) => void) | undefined;
+        const startAudioDeferred = new Promise<void>((_, reject) => {
+            rejectStartAudio = reject;
+        });
+        mockActions.startAudio = vi.fn().mockImplementation(() => startAudioDeferred);
+
+        const manager = createRecorderManager({
+            audio: mockAudio,
+            dom: mockDom,
+            state: { ...mockState, isAudioContextStarted: false },
+            actions: mockActions,
+        });
+
+        const startPromise = manager.toggleRecording();
+        await vi.waitFor(() => {
+            expect(mockActions.startAudio).toHaveBeenCalled();
+        });
+
+        const stopPromise = manager.stopRecording();
+        rejectStartAudio?.(new Error("Audio activation denied"));
+
+        await expect(startPromise).rejects.toThrow("Audio activation denied");
+        await expect(stopPromise).resolves.toBeUndefined();
+
+        expect(mockActions.showToast).toHaveBeenCalledWith("Recording failed to start.", "error");
+        expect(mockDom.recordStatus.textContent).toBe("Recording failed to start. See console.");
+    });
+
     it("distinguishes starting phase from actively recording and resets recordingStartTime to 0 on entry", async () => {
         let resolveStart: (() => void) | undefined;
         recorderStartPromise = new Promise((resolve) => {
