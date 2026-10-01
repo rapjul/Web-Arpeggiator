@@ -654,7 +654,14 @@ export function createRecorderManager(context) {
         if (recordingPhase === "starting" || activeTransitionType === "start") {
             cancelPendingStart = true;
             if (activeTransitionPromise) {
-                await activeTransitionPromise;
+                try {
+                    await activeTransitionPromise;
+                } catch {
+                    // If an upstream start transition fails (e.g. playback start rejects or startAudio fails),
+                    // it has already aborted capture, reset the capture backend, and returned recordingPhase to "idle".
+                    // Catch the rejection so that stopRecording() reports success (capture is stopped) rather than
+                    // bubbling an upstream start error to callers.
+                }
             }
             if (isActivelyRecording()) {
                 await stopActiveRecording();
@@ -662,7 +669,11 @@ export function createRecorderManager(context) {
             return;
         }
         if (activeTransitionPromise) {
-            await activeTransitionPromise;
+            try {
+                await activeTransitionPromise;
+            } catch {
+                // Upstream transition failed; verify whether active capture remains.
+            }
             if (isActivelyRecording()) {
                 await stopActiveRecording();
             }

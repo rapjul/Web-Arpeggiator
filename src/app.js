@@ -740,7 +740,12 @@ function initializeApp() {
              */
             const handleRecorderStopFailure = (error) => {
                 console.warn("Could not stop recording after selecting Simple controls:", error);
-                if (interfaceModeController.getMode() === "simple") {
+                // Only revert to Full controls if capture is actually still active. If recording has
+                // already stopped or aborted to idle, do not override the user's explicit Simple mode selection.
+                if (
+                    recorderManager?.isRecording &&
+                    interfaceModeController.getMode() === "simple"
+                ) {
                     interfaceModeController.setMode("full");
                     showToast(
                         "Recording could not be stopped, so Full controls were restored.",

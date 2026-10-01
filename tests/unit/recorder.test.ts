@@ -978,6 +978,38 @@ describe("Recorder Manager Module", () => {
         expect(mockDom.recordButton.textContent).toBe("Record");
     });
 
+    it("resolves cleanly when in-flight start transition encounters playback startup failure without bubbling error", async () => {
+        let rejectPlayback: ((error: Error) => void) | undefined;
+        const playbackDeferred = new Promise<void>((_, reject) => {
+            rejectPlayback = reject;
+        });
+        mockActions.startPlayback = vi.fn().mockImplementation(() => playbackDeferred);
+
+        const manager = createRecorderManager({
+            audio: mockAudio,
+            dom: mockDom,
+            state: { ...mockState, isPlaying: false },
+            actions: mockActions,
+        });
+
+        const startPromise = manager.toggleRecording();
+        await vi.waitFor(() => {
+            expect(mockActions.startPlayback).toHaveBeenCalled();
+        });
+        expect(manager.isRecording).toBe(true);
+
+        const stopPromise = manager.stopRecording();
+        rejectPlayback?.(new Error("Audio playback failed"));
+
+        // startPromise rejects because startPlayback threw, but stopRecording must resolve cleanly
+        await expect(startPromise).rejects.toThrow("Audio playback failed");
+        await expect(stopPromise).resolves.toBeUndefined();
+
+        expect(manager.isRecording).toBe(false);
+        expect(manager.isActivelyRecording).toBe(false);
+        expect(mockDom.recordButton.textContent).toBe("Record");
+    });
+
     it("distinguishes starting phase from actively recording and resets recordingStartTime to 0 on entry", async () => {
         let resolveStart: (() => void) | undefined;
         recorderStartPromise = new Promise((resolve) => {
