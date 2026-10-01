@@ -1799,6 +1799,40 @@ describe("Recorder Manager Module", () => {
         }
     });
 
+    it("preserves the unavailable recorder state when startup is cancelled", async () => {
+        toneRecorderConstructorError = new Error("Tone.Recorder unavailable");
+        const originalSecureContext = window.isSecureContext;
+        const originalMediaRecorder = window.MediaRecorder;
+
+        window.isSecureContext = false;
+        // @ts-expect-error simulating missing MediaRecorder
+        window.MediaRecorder = undefined;
+
+        try {
+            const manager = createRecorderManager({
+                audio: mockAudio,
+                dom: mockDom,
+                state: mockState,
+                actions: mockActions,
+            });
+
+            const starting = manager.toggleRecording();
+            const cancellation = manager.stopRecording();
+            await expect(Promise.all([starting, cancellation])).resolves.toEqual([
+                undefined,
+                false,
+            ]);
+
+            expect(mockDom.recordButton.disabled).toBe(true);
+            expect(mockDom.recordStatus.textContent).toBe(
+                "Recording not available on this device.",
+            );
+        } finally {
+            window.isSecureContext = originalSecureContext;
+            window.MediaRecorder = originalMediaRecorder;
+        }
+    });
+
     it("disables Record button and blocks recording transitions during active real-time export", async () => {
         const manager = createRecorderManager({
             audio: mockAudio,
