@@ -948,6 +948,71 @@ describe("Recorder Manager Module", () => {
         expect(manager.isRecording).toBe(false);
     });
 
+    it("cancels in-flight recording if stop is requested while awaiting playback auto-start", async () => {
+        let resolvePlayback: (() => void) | undefined;
+        const playbackDeferred = new Promise<void>((resolve) => {
+            resolvePlayback = resolve;
+        });
+        mockActions.startPlayback = vi.fn().mockImplementation(() => playbackDeferred);
+
+        const manager = createRecorderManager({
+            audio: mockAudio,
+            dom: mockDom,
+            state: { ...mockState, isPlaying: false },
+            actions: mockActions,
+        });
+
+        const startPromise = manager.toggleRecording();
+        await vi.waitFor(() => {
+            expect(mockActions.startPlayback).toHaveBeenCalled();
+        });
+        expect(manager.isRecording).toBe(true);
+
+        const stopPromise = manager.stopRecording();
+        resolvePlayback?.();
+        await Promise.all([startPromise, stopPromise]);
+
+        expect(recorderLifecycle).toEqual(["recording-start", "recording-stop"]);
+        expect(manager.isRecording).toBe(false);
+        expect(manager.isActivelyRecording).toBe(false);
+        expect(mockDom.recordButton.textContent).toBe("Record");
+    });
+
+    it("distinguishes starting phase from actively recording and resets recordingStartTime to 0 on entry", async () => {
+        let resolveStart: (() => void) | undefined;
+        recorderStartPromise = new Promise((resolve) => {
+            resolveStart = resolve;
+        });
+        const manager = createRecorderManager({
+            audio: mockAudio,
+            dom: mockDom,
+            state: mockState,
+            actions: mockActions,
+        });
+
+        expect(manager.isRecording).toBe(false);
+        expect(manager.isActivelyRecording).toBe(false);
+        expect(manager.recordingStartTime).toBe(0);
+
+        const startPromise = manager.toggleRecording();
+        await Promise.resolve();
+
+        expect(manager.isRecording).toBe(true);
+        expect(manager.isActivelyRecording).toBe(false);
+        expect(manager.recordingStartTime).toBe(0);
+
+        resolveStart?.();
+        await startPromise;
+
+        expect(manager.isRecording).toBe(true);
+        expect(manager.isActivelyRecording).toBe(true);
+        expect(manager.recordingStartTime).toBeGreaterThan(0);
+
+        await manager.stopRecording();
+        expect(manager.isRecording).toBe(false);
+        expect(manager.isActivelyRecording).toBe(false);
+    });
+
     it("hides previous export controls while replacement capture is pending", async () => {
         let resolveStart: () => void = () => {};
         recorderStartPromise = new Promise((resolve) => {

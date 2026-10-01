@@ -829,7 +829,9 @@ export function createVisualizer(context) {
         }
 
         // --- Recording Timer updates ---
-        if (state.isRecording) {
+        // Guard with recordingStartTime > 0 so elapsed time is only computed when capture has
+        // actively started, preventing stale or context-uptime durations while audio initializes.
+        if (state.isRecording && state.recordingStartTime > 0) {
             const elapsed = Tone.now() - state.recordingStartTime;
             const timeStr = actions.formatTime(elapsed);
             if (timeStr !== lastTimeStr) {
