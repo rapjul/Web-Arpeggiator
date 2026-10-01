@@ -11,7 +11,7 @@ import { mark, STARTUP_MARKS } from "@core/startup-profiler.js";
 /**
  * Creates a playback coordinator around injected runtime accessors.
  *
- * @param {{dom: {playStopButton: HTMLButtonElement|null}, state: PlaybackState, getTone: () => {getContext: () => {state: string, rawContext: EventTarget|null}, getTransport: () => {position?: number|string, start: (time?: number|string, offset?: number|string) => void, stop: () => void}}, getPattern: () => {start: (time?: number|string) => void, stop: () => void}|undefined, getSilenceActiveSynth: () => (() => void)|undefined, getRecorderManager: () => {isRecording: boolean, isStarting?: boolean, awaitPendingTransition?: () => Promise<void>, initRecorder: () => Promise<void>}|undefined, getVisualizer: () => {startUiLoop: () => void, stopUiLoop: () => void}|undefined, startAudio: () => Promise<void>, prepareForPlayback: () => void, createOrUpdatePattern: () => void, clearNoteStep: () => void, onPlaybackStart?: () => void, onPlaybackStop?: () => void}} dependencies - Playback dependencies.
+ * @param {{dom: {playStopButton: HTMLButtonElement|null}, state: PlaybackState, getTone: () => {getContext: () => {state: string, rawContext: EventTarget|null}, getTransport: () => {position?: number|string, start: (time?: number|string, offset?: number|string) => void, stop: () => void}}, getPattern: () => {start: (time?: number|string) => void, stop: () => void}|undefined, getSilenceActiveSynth: () => (() => void)|undefined, getRecorderManager: () => {isRecording: boolean, isStarting?: boolean, awaitCaptureReady?: () => Promise<void>, awaitPendingTransition?: () => Promise<void>, initRecorder: () => Promise<void>}|undefined, getVisualizer: () => {startUiLoop: () => void, stopUiLoop: () => void}|undefined, startAudio: () => Promise<void>, prepareForPlayback: () => void, createOrUpdatePattern: () => void, clearNoteStep: () => void, onPlaybackStart?: () => void, onPlaybackStop?: () => void}} dependencies - Playback dependencies.
  * @returns {{start: () => Promise<void>, stop: () => void, observeAudioContextState: () => void, destroy: () => void}}
  */
 export function createPlaybackController(dependencies) {
@@ -47,7 +47,9 @@ export function createPlaybackController(dependencies) {
             if (recorderManager) {
                 if (recorderManager.isStarting) {
                     try {
-                        await recorderManager.awaitPendingTransition?.();
+                        // Do not await the recording transition: it may itself be waiting for this playback start.
+                        await (recorderManager.awaitCaptureReady?.() ??
+                            recorderManager.awaitPendingTransition?.());
                     } catch {
                         // Capture startup failure is handled by recorder; proceed with normal playback start
                     }

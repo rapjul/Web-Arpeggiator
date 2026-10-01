@@ -10,7 +10,7 @@
 /**
  * @typedef {{activeSynth: object|null, analyser: object, meter: object, peakAnalyser: object, reverb: object, recordingOutput: object, synths: object, createOfflineChain: (...args: unknown[]) => object, currentWaveform: string, dispose: () => void}} RuntimeEngine
  * @typedef {{startUiLoop: () => void, stopUiLoop: () => void, destroy: () => void}} RuntimeVisualizer
- * @typedef {{isRecording: boolean, isActivelyRecording?: boolean, stopRecording?: () => Promise<void>, recordingStartTime: number, isStarting?: boolean, awaitPendingTransition?: () => Promise<void>, destroy?: () => Promise<void>}} RuntimeRecorder
+ * @typedef {{isRecording: boolean, isActivelyRecording?: boolean, stopRecording?: () => Promise<boolean>, recordingStartTime: number, isStarting?: boolean, awaitCaptureReady?: () => Promise<void>, awaitPendingTransition?: () => Promise<void>, destroy?: () => Promise<void>}} RuntimeRecorder
  * @typedef {{isPlaying: boolean, isAudioContextStarted: boolean, activeNote: string|null, currentWaveform: string}} AudioRuntimeState
  * @typedef {[object, {createAudioEngine: (...args: unknown[]) => RuntimeEngine}, {createPatternController: (...args: unknown[]) => object}, {createRecorderManager: (...args: unknown[]) => RuntimeRecorder}, {createVisualizer: (...args: unknown[]) => RuntimeVisualizer}]} AudioModules
  *
