@@ -273,7 +273,6 @@ export function createRecorderManager(context) {
      */
     async function abortCapture(primaryError) {
         // An explicit stop may finish while playback startup is still pending; do not stop that take twice.
-        if (isDestroyed) throw primaryError;
         if (activeStopPromise) {
             try {
                 await activeStopPromise;
@@ -282,6 +281,7 @@ export function createRecorderManager(context) {
             }
             throw primaryError;
         }
+        if (isDestroyed) throw primaryError;
         if (!isActivelyRecording()) throw primaryError;
         let blob = null;
         try {
@@ -647,6 +647,13 @@ export function createRecorderManager(context) {
                 actions.startUiLoop();
                 dom.recordButton.disabled = false;
             } catch (error) {
+                if (activeStopPromise) {
+                    try {
+                        await activeStopPromise;
+                    } catch {
+                        // Ignore stop failure here; primary error takes precedence.
+                    }
+                }
                 // Capture whether cancellation was requested ("stopping") before resetting recordingPhase to "idle",
                 // ensuring error notifications accurately distinguish startup failures from teardown failures.
                 const failedToStop = recordingPhase === "stopping";
@@ -1158,10 +1165,9 @@ export function createRecorderManager(context) {
             }
         }
 
-        if (isActivelyRecording()) {
-            recordingPhase = "stopping";
+        if (isActivelyRecording() || activeStopPromise) {
             try {
-                await stopCapture();
+                await (activeStopPromise || stopActiveRecording());
             } catch (error) {
                 console.warn("Failed to stop recorder during destruction:", error);
             }

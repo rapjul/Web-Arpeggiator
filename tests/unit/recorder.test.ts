@@ -1362,6 +1362,38 @@ describe("Recorder Manager Module", () => {
         expect(recorderDispose).toHaveBeenCalled();
     });
 
+    it("settles destroy cleanly when playback start rejects during teardown stop", async () => {
+        let notifyPlaybackStarted = () => {};
+        let rejectPlayback: (err: Error) => void = () => {};
+        const playbackStarted = new Promise<void>((resolve) => {
+            notifyPlaybackStarted = resolve;
+        });
+        const playbackPending = new Promise<void>((_resolve, reject) => {
+            rejectPlayback = reject;
+        });
+        mockActions.startPlayback = vi.fn(async () => {
+            notifyPlaybackStarted();
+            await playbackPending;
+        });
+
+        const manager = createRecorderManager({
+            audio: mockAudio,
+            dom: mockDom,
+            state: mockState,
+            actions: mockActions,
+        });
+
+        const startPromise = manager.toggleRecording();
+        await playbackStarted;
+        const destroyPromise = manager.destroy();
+        rejectPlayback(new Error("Playback failure during destruction"));
+
+        await expect(startPromise).rejects.toThrow("Playback failure during destruction");
+        await expect(destroyPromise).resolves.toBeUndefined();
+        expect(manager.isRecording).toBe(false);
+        expect(recorderDispose).toHaveBeenCalled();
+    });
+
     it("waits for native MediaRecorder readiness and stores its stopped capture", async () => {
         toneRecorderConstructorError = new Error("Tone.Recorder unavailable");
         vi.stubGlobal("isSecureContext", true);
