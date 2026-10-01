@@ -27,7 +27,10 @@ const INTERFACE_MODE_STORAGE_KEY = "webArpInterfaceMode";
  * @returns {{
  *   initialize: () => void,
  *   destroy: () => void,
- *   setMode: (mode: unknown, options?: { persist?: boolean }) => "simple" | "full",
+ *   setMode: (
+ *     mode: unknown,
+ *     options?: { persist?: boolean, notify?: boolean }
+ *   ) => "simple" | "full",
  *   getMode: () => "simple" | "full"
  * }} Controller lifecycle and mode mutation interface.
  */

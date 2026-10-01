@@ -42,7 +42,7 @@ Awaiting backend readiness is scoped to the capture lifecycle. Normal transport 
 ### Consequences
 
 - Good, because recording begins only after capture is demonstrably ready.
-- Good, because playback without an in-progress capture avoids recorder pre-warming, while coordinated playback waits only for capture readiness.
+- Good, because normal playback does not block on recorder pre-warming, while coordinated playback waits only for capture readiness.
 - Good, because playback and recording startup cannot wait on each other, and concurrent stop requests share one outcome.
 - Good, because destruction during activation cannot create a late recorder, and active capture stops before its resources are released.
 - Good, because asynchronous backend errors contain failure without advertising corrupt takes.

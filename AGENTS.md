@@ -377,7 +377,7 @@ Web Arpeggiator/
 │   │   ├── export-duration.js # Offline export duration calculation & formatting
 │   │   ├── export-metadata.js # Versioned offline audio metadata encoder & binary reader
 │   │   ├── input-filters.js# Keyboard note & numeric input filtering
-│   │   ├── interface-mode.js# Interface mode validation and local storage persistence
+│   │   ├── interface-mode.js# Interface mode constants and normalization
 │   │   ├── meter-utils.js  # Audio meter decibel & percentage calculations
 │   │   ├── midi-export.js  # Standard MIDI File (.mid) binary encoder
 │   │   ├── pattern-core.js # Core note transformations, directions, quantization math
