@@ -375,4 +375,22 @@ describe("export controls controller", () => {
             expect(recorder.exportOffline).toHaveBeenCalledOnce();
         });
     });
+
+    it("discards a queued record request when the controller is destroyed", async () => {
+        let resolveAudio: (() => void) | undefined;
+        const audioStartup = new Promise<void>((resolve) => {
+            resolveAudio = resolve;
+        });
+        const { controller, recordButton, recorder, startAudio } = createFixture();
+        startAudio.mockImplementationOnce(() => audioStartup);
+
+        recordButton.click();
+        expect(startAudio).toHaveBeenCalledOnce();
+        controller.destroy();
+        resolveAudio?.();
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(recorder.toggleRecording).not.toHaveBeenCalled();
+    });
 });

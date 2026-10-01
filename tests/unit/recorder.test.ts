@@ -1035,6 +1035,35 @@ describe("Recorder Manager Module", () => {
         expect(mockActions.showToast).toHaveBeenCalledWith("Recording failed to stop.", "error");
     });
 
+    it("shares one successful capture stop across concurrent callers", async () => {
+        let resolveCaptureStop: (() => void) | undefined;
+        let markCaptureStopCalled: (() => void) | undefined;
+        recorderStopPromise = new Promise((resolve) => {
+            resolveCaptureStop = resolve;
+        });
+        const captureStopCalled = new Promise<void>((resolve) => {
+            markCaptureStopCalled = resolve;
+        });
+        const stopRecorder = vi.fn(() => markCaptureStopCalled?.());
+        recorderStopCalled = stopRecorder;
+        const manager = createRecorderManager({
+            audio: mockAudio,
+            dom: mockDom,
+            state: mockState,
+            actions: mockActions,
+        });
+
+        await manager.toggleRecording();
+        const firstStop = manager.stopRecording();
+        const secondStop = manager.stopRecording();
+        await captureStopCalled;
+        resolveCaptureStop?.();
+
+        await expect(Promise.all([firstStop, secondStop])).resolves.toEqual([true, true]);
+        expect(stopRecorder).toHaveBeenCalledOnce();
+        expect(manager.isRecording).toBe(false);
+    });
+
     it("does not create a recorder after destruction during audio activation", async () => {
         let resolveAudioActivation: (() => void) | undefined;
         const audioActivation = new Promise<void>((resolve) => {

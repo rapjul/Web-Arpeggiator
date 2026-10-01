@@ -35,6 +35,7 @@ import { createStaticLoopRenderer } from "@audio/static-loop-renderer.js";
 import { initializeKeyboardControls } from "@ui/keyboard-controller.js";
 import { createHistoryController } from "@ui/history-controller.js";
 import { createInterfaceModeController } from "@ui/interface-mode-controller.js";
+import { createInterfaceModeSafetyController } from "@ui/interface-mode-safety-controller.js";
 import { createInputFilterController } from "@ui/input-filter-controller.js";
 import { createNoteStepController } from "@ui/note-step-controller.js";
 import { createOnboardingController } from "@ui/onboarding-controller.js";
@@ -59,7 +60,7 @@ import { FACTORY_PRESETS } from "./config/factory-presets.js";
 /** @typedef {{oscillator: {width: NumericAudioParam}, harmonicity: NumericAudioParam, modulationIndex: NumericAudioParam, filterEnvelope: {baseFrequency: number, octaves: number}, filter: {Q: NumericAudioParam}, vibratoAmount: NumericAudioParam, dampening: number, resonance: number, attackNoise: number, pitchDecay: number, octaves: number}} ActiveSynthLike */
 /** @typedef {{activeSynth: ActiveSynthLike, currentWaveform: string, setSynth: (type: string) => void, updateEnvelope: () => void, postGain: {volume: NumericAudioParam}, distortion: {wet: NumericAudioParam}, filter: {frequency: NumericAudioParam, Q: NumericAudioParam}, chorus: {wet: NumericAudioParam}, autoPanner: {wet: NumericAudioParam}, delay: {wet: NumericAudioParam}, reverb: {wet: NumericAudioParam}, createOfflineChain: (context: unknown, settings: unknown) => {offlineSynth: {triggerAttackRelease: (note: string, duration: number, time: number) => void}}}} AudioEngineLike */
 /** @typedef {{update: (settings: object) => object|null, getPattern: () => {start: () => void, stop: () => void}|null, getTimeline?: () => CompiledTimeline|null, dispose: () => void, silenceActiveSynth?: () => void}} PatternControllerLike */
-/** @typedef {{isRecording: boolean, isActivelyRecording?: boolean, toggleRecording: () => Promise<void>, stopRecording?: () => Promise<void>, exportRealtime: () => Promise<void>, exportOffline: () => Promise<void>, initRecorder: () => Promise<void>, awaitPendingTransition?: () => Promise<void>}} RecorderManagerLike */
+/** @typedef {{isRecording: boolean, isActivelyRecording?: boolean, toggleRecording: () => Promise<void>, stopRecording?: () => Promise<boolean>, exportRealtime: () => Promise<void>, exportOffline: () => Promise<void>, initRecorder: () => Promise<void>, awaitPendingTransition?: () => Promise<void>}} RecorderManagerLike */
 /** @typedef {{currentMode: string, isVisualizerOn: boolean, toggle: () => void, startUiLoop: () => void, stopUiLoop: () => void, onManualNoteAttack: () => void, onManualNoteRelease: () => void, updateStaticLoopMap: (buffer: unknown, markers: unknown) => void}} VisualizerLike */
 
 // --- Global Config ---
@@ -706,6 +707,8 @@ function initializeApp() {
     /** @type {Promise<void>|null} */
     let initialSessionRestorePromise = null;
 
+    /** @type {ReturnType<typeof createInterfaceModeSafetyController>|null} */
+    let interfaceModeSafetyController = null;
     const interfaceModeController = createInterfaceModeController({
         dom: {
             appMain,
@@ -719,55 +722,16 @@ function initializeApp() {
             getItem: (key) => window.localStorage.getItem(key),
             setItem: (key, value) => window.localStorage.setItem(key, value),
         },
-        onModeApplied: (mode) => {
-            if (mode !== "simple") return;
-
-            if (keyboardToggle.checked) {
-                keyboardToggle.checked = false;
-                keyboardToggle.dispatchEvent(new Event("change"));
-            }
-
-            const visualizer = getVisualizer();
-            if (visualizer?.isVisualizerOn) visualizer.toggle();
-
-            const recorderManager = getRecorderManager();
-            /**
-             * Handles recording termination failures when switching to Simple mode,
-             * logging the error, restoring Full controls, and notifying the user.
-             *
-             * @param {unknown} error - The error encountered while stopping the recording.
-             * @returns {void}
-             */
-            const handleRecorderStopFailure = (error) => {
-                console.warn("Could not stop recording after selecting Simple controls:", error);
-                // Only revert to Full controls if capture is actually still active. If recording has
-                // already stopped or aborted to idle, do not override the user's explicit Simple mode selection.
-                if (
-                    recorderManager?.isRecording &&
-                    interfaceModeController.getMode() === "simple"
-                ) {
-                    interfaceModeController.setMode("full");
-                    showToast(
-                        "Recording could not be stopped, so Full controls were restored.",
-                        "error",
-                    );
-                }
-            };
-
-            if (recorderManager?.isRecording) {
-                // Use explicit stopRecording() if available to cancel in-flight startup and guarantee capture termination.
-                const stopOperation = recorderManager.stopRecording
-                    ? recorderManager.stopRecording()
-                    : recorderManager.toggleRecording();
-                void stopOperation
-                    .then(() => {
-                        showToast("Recording stopped when Simple controls were selected.", "info");
-                    })
-                    .catch(handleRecorderStopFailure);
-            } else if (recorderManager?.awaitPendingTransition) {
-                void recorderManager.awaitPendingTransition().catch(handleRecorderStopFailure);
-            }
-        },
+        onModeApplied: (mode) => interfaceModeSafetyController?.onModeApplied(mode),
+        logger: console,
+    });
+    interfaceModeSafetyController = createInterfaceModeSafetyController({
+        getInterfaceMode: () => interfaceModeController.getMode(),
+        getRecorderManager,
+        getKeyboardToggle: () => keyboardToggle,
+        getVisualizer,
+        setInterfaceMode: (mode) => interfaceModeController.setMode(mode),
+        showToast,
         logger: console,
     });
 

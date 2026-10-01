@@ -57,7 +57,9 @@ export function createExportControlsController(dependencies) {
         visualizerModeSelect,
     } = dom;
     let listenerController = null;
+    let isDestroyed = false;
     const requestStaticLoopRender = debounce(() => {
+        if (isDestroyed) return;
         const visualizer = getVisualizer();
         if (visualizer?.currentMode === "loopMap") void renderStaticLoop();
     }, 150);
@@ -149,13 +151,16 @@ export function createExportControlsController(dependencies) {
      * @returns {Promise<void>}
      */
     async function startAndRun(action, warning, options = {}) {
+        if (isDestroyed) return;
         const { advancedOnly = false } = options;
         try {
             await startAudio();
         } catch (error) {
+            if (isDestroyed) return;
             logger.warn?.(warning, error);
             return;
         }
+        if (isDestroyed) return;
         // If the user switched to Simple mode while asynchronous audio runtime initialization was in flight,
         // abort execution for advanced-only actions (such as recording or realtime export) whose controls are hidden.
         if (advancedOnly && getInterfaceMode?.() === "simple") {
@@ -185,6 +190,7 @@ export function createExportControlsController(dependencies) {
 
     function initialize() {
         if (listenerController) return;
+        isDestroyed = false;
         listenerController = new AbortController();
         const listenerOptions = { signal: listenerController.signal };
         loopCountInput.addEventListener("input", updateEstimatedExportDuration, listenerOptions);
@@ -281,6 +287,7 @@ export function createExportControlsController(dependencies) {
     }
 
     function destroy() {
+        isDestroyed = true;
         /** @type {{cancel?: () => void}} */ (requestStaticLoopRender).cancel?.();
         listenerController?.abort();
         listenerController = null;

@@ -1,4 +1,4 @@
-import { captureDownload, expect, resetAppState, test } from "./fixtures/app";
+import { captureDownload, expect, parsePcmWav, resetAppState, test } from "./fixtures/app";
 
 test("starts a factory sound starter from the first-visit quick start", async ({
     pwaPage: page,
@@ -163,18 +163,51 @@ test("synchronizes a selected factory preset with its sound starter card", async
 test("generates and downloads an offline audio render in Simple mode", async ({
     pwaPage: page,
 }) => {
-    await page.locator("#quick-start-simple").click();
+    await page.locator("#quick-start-full").click();
     await page.locator("#quick-start-scratch").click();
     await expect(page.locator("#play-stop")).toBeEnabled();
 
+    await page.locator("#notes").fill("C4");
+    await page.locator("#notes").dispatchEvent("change");
+    await page.locator("input[name='octave-range'][value='1']").locator("xpath=..").click();
+    await expect(page.locator("#bpm")).toHaveValue("120");
+
+    await page.locator("#interface-mode-full-btn").focus();
+    await page.keyboard.press("ArrowLeft");
+    await expect(page.locator("#interface-mode-simple-btn")).toHaveAttribute(
+        "aria-checked",
+        "true",
+    );
+    await expect(page.locator("#octave-title")).toBeHidden();
+    await expect(page.locator("#notes")).toHaveValue("C4");
+
     const offlineExportSection = page.locator("section[aria-labelledby='offline-export-title']");
     await expect(offlineExportSection).toBeVisible();
+    await page.locator("#offline-export-mode-seamless").check();
+    await page.locator("#loop-count").fill("1");
+    await page.locator("#offline-export-mp3").uncheck();
 
     const download = await captureDownload(page, () =>
         page.locator("#offline-export-button").click(),
     );
+    const wav = parsePcmWav(download.bytes);
 
     expect(download.filename).toMatch(/\.wav$/);
+    expect(wav.durationSeconds).toBeGreaterThan(0);
+    expect(Math.abs(wav.durationSeconds - 0.125)).toBeLessThanOrEqual(1 / wav.sampleRate);
+    expect(wav.firstAudibleFrame).toBeLessThan(wav.durationSeconds * wav.sampleRate);
+    expect(wav.peak).toBeGreaterThan(0.002);
+    expect(wav.rms).toBeGreaterThan(0.0001);
     await expect(page.locator("#offline-export-status")).toContainText("complete");
     await expect(page.locator("#offline-export-button")).toBeEnabled();
+
+    await expect
+        .poll(() => page.evaluate(() => localStorage.getItem("webArpInterfaceMode")))
+        .toBe("simple");
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.locator("#interface-mode-simple-btn")).toHaveAttribute(
+        "aria-checked",
+        "true",
+    );
+    await expect(page.locator("#octave-title")).toBeHidden();
 });
