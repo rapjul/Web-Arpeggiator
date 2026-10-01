@@ -84,22 +84,43 @@ describe("interface mode", () => {
         });
 
         controller.initialize();
-        expect(onModeApplied).toHaveBeenCalledTimes(1);
+        expect(onModeApplied).not.toHaveBeenCalled();
         controller.setMode("full");
-        expect(onModeApplied).toHaveBeenCalledTimes(1);
+        expect(onModeApplied).not.toHaveBeenCalled();
 
         modeSelect.value = "simple";
         modeSelect.dispatchEvent(new Event("change"));
         expect(onModeApplied).toHaveBeenLastCalledWith(INTERFACE_MODE_SIMPLE);
-        expect(onModeApplied).toHaveBeenCalledTimes(2);
+        expect(onModeApplied).toHaveBeenCalledTimes(1);
 
         controller.setMode(INTERFACE_MODE_SIMPLE);
-        expect(onModeApplied).toHaveBeenCalledTimes(2);
+        expect(onModeApplied).toHaveBeenCalledTimes(1);
 
         controller.destroy();
         modeSelect.value = "full";
         modeSelect.dispatchEvent(new Event("change"));
         expect(controller.getMode()).toBe(INTERFACE_MODE_SIMPLE);
+    });
+
+    test("supports suppressing transition notification via notify option", () => {
+        const appMain = document.createElement("main");
+        const onModeApplied = vi.fn();
+        const controller = createInterfaceModeController({
+            dom: { appMain },
+            storage: localStorage,
+            onModeApplied,
+        });
+
+        controller.initialize();
+        expect(onModeApplied).not.toHaveBeenCalled();
+
+        controller.setMode("simple", { notify: false });
+        expect(controller.getMode()).toBe("simple");
+        expect(onModeApplied).not.toHaveBeenCalled();
+
+        controller.setMode("full");
+        expect(controller.getMode()).toBe("full");
+        expect(onModeApplied).toHaveBeenCalledWith("full");
     });
 
     test("falls back safely and warns when browser storage is unavailable", () => {

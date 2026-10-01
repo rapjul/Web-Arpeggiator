@@ -100,14 +100,15 @@ export function createInterfaceModeController(dependencies) {
      * Sets, applies, and optionally persists the active presentation mode.
      *
      * @param {unknown} mode - Target interface mode.
-     * @param {{persist?: boolean}} [options={}] - Persistence configuration options.
+     * @param {{persist?: boolean, notify?: boolean}} [options={}] - Persistence and notification configuration options.
      * @returns {"simple"|"full"} Normalized applied mode.
      */
     function setMode(mode, options = {}) {
         const normalizedMode = normalizeInterfaceMode(mode);
         const hasModeChanged = !hasAppliedMode || currentMode !== normalizedMode;
         currentMode = normalizedMode;
-        applyMode(normalizedMode, hasModeChanged);
+        const shouldNotify = options.notify !== undefined ? options.notify : hasModeChanged;
+        applyMode(normalizedMode, shouldNotify);
         hasAppliedMode = true;
         if (options.persist === false) return normalizedMode;
         try {
@@ -190,7 +191,7 @@ export function createInterfaceModeController(dependencies) {
         } catch (error) {
             logger.warn("Could not read interface mode:", error);
         }
-        setMode(normalizeInterfaceMode(savedMode), { persist: false });
+        setMode(normalizeInterfaceMode(savedMode), { persist: false, notify: false });
 
         if (interfaceModeControls) {
             interfaceModeControls.addEventListener("click", handleClick, { signal });
