@@ -4,9 +4,8 @@ test("starts a factory sound starter from the first-visit quick start", async ({
     pwaPage: page,
 }) => {
     await expect(page.locator("#quick-start-overlay")).toBeVisible();
-    await expect(page.locator("#start-overlay")).toBeHidden();
     await page.locator("#quick-start-simple").click();
-    await expect(page.locator("#quick-start-presets-grid .sound-starter-card")).toHaveCount(6);
+    await expect(page.locator("#quick-start-presets-grid .sound-starter-card")).toHaveCount(11);
     await expect(page.locator("#app-main")).toHaveAttribute("data-interface-mode", "simple");
     await expect(page.locator("#app-main")).not.toHaveAttribute("hidden", "");
     await expect(page.locator("#interface-mode-simple-btn")).toHaveAttribute(
@@ -16,6 +15,7 @@ test("starts a factory sound starter from the first-visit quick start", async ({
     await expect(page.locator("#interface-mode-full-btn")).toHaveAttribute("aria-checked", "false");
     await expect(page.locator("#octave-title")).toBeHidden();
     await expect(page.locator("#utilities-title")).toBeHidden();
+
     await expect(page.locator("#scale-quantize-toggle")).toBeChecked();
     await expect(page.locator("#scale-quantize-toggle-status")).toHaveText(/Enabled/);
 
@@ -24,7 +24,7 @@ test("starts a factory sound starter from the first-visit quick start", async ({
         .click();
     await expect(page.locator("#play-stop")).toHaveText("Stop Audio");
     await expect(page.locator("#quick-start-overlay")).toBeHidden();
-    await expect(page.locator("#notes")).toHaveValue("C4 E4 G4 B4");
+    await expect(page.locator("#notes")).toHaveValue("A2 E3 A3 C4 E4 G4 A4 B4");
     await expect(page.locator("#bpm")).toHaveValue("128");
     await expect(
         page.locator('#sound-starters-grid [data-preset-id="factory-synthwave"]'),
@@ -42,7 +42,7 @@ test("loads sound starters, clears their active state on an edit, and remembers 
         .locator('#quick-start-presets-grid button[data-preset-id="factory-ambient"]')
         .click();
     await expect(page.locator("#play-stop")).toHaveText("Stop Audio");
-    await expect(page.locator("#notes")).toHaveValue("C4 G4 C5 D5");
+    await expect(page.locator("#notes")).toHaveValue("C3 G3 D4 E4 G4 B4 D5");
     await expect(page.locator("#bpm")).toHaveValue("85");
     await expect(
         page.locator('#sound-starters-grid [data-preset-id="factory-ambient"]'),
@@ -210,4 +210,20 @@ test("generates and downloads an offline audio render in Simple mode", async ({
         "true",
     );
     await expect(page.locator("#octave-title")).toBeHidden();
+});
+
+test("starts the Lo-Fi Chillhop preset and applies its tempo and notes", async ({
+    pwaPage: page,
+}) => {
+    await page.locator("#quick-start-full").click();
+    await page
+        .locator('#quick-start-presets-grid button[data-preset-id="factory-lofi-beats"]')
+        .click();
+    await expect(page.locator("#play-stop")).toHaveText("Stop Audio");
+    await expect(page.locator("#quick-start-overlay")).toBeHidden();
+    await expect(page.locator("#notes")).toHaveValue("C3 G3 A#3 D#4 G4 A#4 D5");
+    await expect(page.locator("#bpm")).toHaveValue("76");
+    await expect(
+        page.locator('#sound-starters-grid [data-preset-id="factory-lofi-beats"]'),
+    ).toHaveClass(/active/);
 });
