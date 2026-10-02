@@ -5,6 +5,8 @@ test("starts a factory sound starter from the first-visit quick start", async ({
 }) => {
     await expect(page.locator("#quick-start-overlay")).toBeVisible();
     await page.locator("#quick-start-simple").click();
+    await expect(page.locator("#quick-start-mode-choice")).toBeHidden();
+    await expect(page.locator("#quick-start-mode-content")).toBeVisible();
     await expect(page.locator("#quick-start-presets-grid .sound-starter-card")).toHaveCount(11);
     await expect(page.locator("#app-main")).toHaveAttribute("data-interface-mode", "simple");
     await expect(page.locator("#app-main")).not.toHaveAttribute("hidden", "");
