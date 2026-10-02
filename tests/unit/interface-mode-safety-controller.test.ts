@@ -1,16 +1,35 @@
 import { createInterfaceModeSafetyController } from "@ui/interface-mode-safety-controller.js";
 import { describe, expect, it, vi } from "vitest";
 
-function createFixture(
-    options: { isRecording?: boolean; stopRecording?: () => Promise<boolean> } = {},
-) {
+/**
+ * Test fixture options for the interface mode safety controller.
+ */
+interface FixtureOptions {
+    isRecording?: boolean;
+    stopRecording?: () => Promise<boolean>;
+    keyboardToggle?: HTMLInputElement | null;
+    visualizer?: { isVisualizerOn: boolean; toggle: () => void } | null;
+}
+
+/**
+ * Creates an interface mode safety controller fixture for testing.
+ *
+ * @param {FixtureOptions} [options={}] - Fixture configuration options.
+ * @returns {object} The test fixture and mock dependencies.
+ */
+function createFixture(options: FixtureOptions = {}) {
     let mode = "full";
-    const keyboardToggle = document.createElement("input");
-    keyboardToggle.type = "checkbox";
-    keyboardToggle.checked = true;
+    const defaultKeyboardToggle = document.createElement("input");
+    defaultKeyboardToggle.type = "checkbox";
+    defaultKeyboardToggle.checked = true;
+    const keyboardToggle =
+        options.keyboardToggle !== undefined ? options.keyboardToggle : defaultKeyboardToggle;
     const keyboardChange = vi.fn();
-    keyboardToggle.addEventListener("change", keyboardChange);
-    const visualizer = { isVisualizerOn: true, toggle: vi.fn() };
+    keyboardToggle?.addEventListener("change", keyboardChange);
+    const visualizer =
+        options.visualizer !== undefined
+            ? options.visualizer
+            : { isVisualizerOn: true, toggle: vi.fn() };
     const recorder = {
         isRecording: options.isRecording ?? true,
         stopRecording: options.stopRecording ?? vi.fn(async () => true),
@@ -134,5 +153,29 @@ describe("interface mode safety controller", () => {
 
         expect(fixture.showToast).not.toHaveBeenCalled();
         expect(fixture.setInterfaceMode).not.toHaveBeenCalled();
+    });
+
+    it("handles missing or null keyboard toggle element gracefully without throwing", () => {
+        const fixture = createFixture({ keyboardToggle: null });
+
+        expect(() => fixture.applyMode("simple")).not.toThrow();
+        expect(fixture.visualizer.toggle).toHaveBeenCalledOnce();
+    });
+
+    it("handles missing or null visualizer gracefully without throwing", () => {
+        const fixture = createFixture({ visualizer: null });
+
+        expect(() => fixture.applyMode("simple")).not.toThrow();
+        expect(fixture.keyboardToggle?.checked).toBe(false);
+    });
+
+    it("does not toggle visualizer when visualizer is already off", () => {
+        const fixture = createFixture({
+            visualizer: { isVisualizerOn: false, toggle: vi.fn() },
+        });
+
+        fixture.applyMode("simple");
+
+        expect(fixture.visualizer.toggle).not.toHaveBeenCalled();
     });
 });
