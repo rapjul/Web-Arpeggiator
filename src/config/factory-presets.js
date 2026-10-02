@@ -394,19 +394,3 @@ export const FACTORY_PRESETS = Object.freeze([
         },
     },
 ]);
-
-/**
- * Compact root chord definitions for future migration when sequential octave traversal
- * (full-sweep arpeggiation) is introduced in a dedicated engine update.
- *
- * @type {Readonly<Record<string, {octaveRange: number, baseNotes: string[]}>>}
- */
-export const SEQUENTIAL_OCTAVE_PRESET_MIGRATION = Object.freeze({
-    "factory-synthwave": { octaveRange: 2, baseNotes: ["A2", "C3", "E3", "G3"] },
-    "factory-ambient": { octaveRange: 2, baseNotes: ["C3", "G3", "D4", "E4"] },
-    "factory-harp": { octaveRange: 2, baseNotes: ["D3", "F#3", "A3", "C#4"] },
-    "factory-chiptune": { octaveRange: 2, baseNotes: ["C4", "E4", "G4", "B4"] },
-    "factory-neosoul": { octaveRange: 2, baseNotes: ["D3", "F3", "A3", "C4"] },
-    "factory-lofi-beats": { octaveRange: 2, baseNotes: ["C3", "D#3", "G3", "A#3"] },
-    "factory-percussion": { octaveRange: 2, baseNotes: ["C3", "E3", "G3", "A3"] },
-});
