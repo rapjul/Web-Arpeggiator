@@ -4,8 +4,22 @@
  * @module interface-mode
  */
 
+/**
+ * Identifier for the beginner-friendly Simple interface mode.
+ * @type {"simple"}
+ */
 export const INTERFACE_MODE_SIMPLE = "simple";
+
+/**
+ * Identifier for the complete Full interface mode.
+ * @type {"full"}
+ */
 export const INTERFACE_MODE_FULL = "full";
+
+/**
+ * Default interface presentation mode for returning visitors when unpersisted.
+ * @type {"full"}
+ */
 export const DEFAULT_INTERFACE_MODE = INTERFACE_MODE_FULL;
 
 /**

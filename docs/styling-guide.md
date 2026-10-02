@@ -29,7 +29,7 @@ The stylesheet manifest in `styles.css` imports modular sheets in cascade order:
 | `styles/components.css` | Component & Control Patterns | Pattern button subgrids, octave shift/range button keypads, Peak VU meter, toast notifications, custom CSS tooltips, and container queries. |
 | `styles/visualizer.css` | Canvas Visualizer | Oscilloscope, FFT, and Loop Map canvas containers and footer controls. |
 | `styles/keyboard.css` | Virtual Piano Keyboard | Natural/accidental key sizing, active highlight styling, and responsive layout. |
-| `styles/features.css` | Application Features | Sticky transport bar, dialogs, chord conflict resolution modal, and startup overlays. |
+| `styles/features.css` | Application Features | Header segmented interface mode switcher, sticky transport bar, dialogs, chord conflict resolution modal, and startup overlays. |
 
 ---
 
@@ -41,7 +41,7 @@ To maintain visual order and avoid typographic clutter across cards, modals, and
 | :--- | :--- | :--- | :--- | :--- |
 | **Level 1** | Card titles, modal headers, major section headings (`h1`, `h2`, `h3`, card `<summary>`) | **Title Case** | High contrast, bold/semibold, no all-caps | `Pattern`, `Transport`, `Synthesis Engine`, `Audio Export`, `Sound Starters` |
 | **Level 2** | Sub-sections, fieldset legends, control group headers, form labels (`legend`, `label`, group headers) | **Title Case** | Neutral-subtle, medium/semibold, **never all-caps / no `uppercase`** | `Linear Patterns`, `Octave Cycles`, `Generative & Random`, `Octave Shift`, `Octave Layers`, `Root Note`, `Scale Type`, `Audio Export Mode` |
-| **Level 3** | Interactive triggers, button labels, select options, tabs (`button`, `option`, `.pattern-btn span`) | **Title Case** | Action-oriented, semibold, concise | `Reshuffle Pattern`, `Start Audio`, `Save Preset`, `Reversed Octaves`, `Drunkard's Walk`, `Harmonic Minor` |
+| **Level 3** | Interactive triggers, button labels, select options, tabs (`button`, `option`, `.pattern-btn span`) | **Title Case** | Action-oriented, semibold, concise | `Simple`, `Full`, `Reshuffle Pattern`, `Start Audio`, `Save Preset`, `Reversed Octaves`, `Drunkard's Walk`, `Harmonic Minor` |
 | **Level 4** | Descriptive guidance, helper text, radio descriptions, badges, tooltips (`p`, `.text-muted`, tooltips) | **Sentence case** | Dimmed/muted, regular weight, natural sentence syntax | `Space-separated note names (e.g. C4 E4 G4)`, `Seamless loop (WAV)`, `Include effects tail`, `Auto decay tail: ~4.5s` |
 
 > [!IMPORTANT]
@@ -178,3 +178,18 @@ Disabled controls adhere to consistent visual and accessible affordances:
 
 - **Interactive Controls**: Always use `cursor: pointer` on buttons, radios, and sliders that trigger immediate state changes (including waveform and pattern buttons with custom tooltips).
 - **Informational Badges**: Reserved for read-only help indicators (e.g. `#vu-meter-info`), which use `cursor: help`.
+
+### Header Segmented Interface Mode Switcher (`.interface-mode-segmented`)
+
+The presentation mode switcher (`#interface-mode-controls`) allows users to toggle between beginner-friendly Simple controls and the full sound design interface:
+- **Responsive Layout Adaptation**:
+  - **Mobile (`< 640px`)**: The main header stacks vertically (`flex flex-col gap-3`), centering the `Web Arpeggiator` title on top and centering the segmented pill control directly beneath it (`self-center sm:self-auto`). This gives comfortable touch clearance without crowding horizontal viewport margins.
+  - **Desktop (`>= 640px`)**: The header adopts a horizontal layout (`sm:flex-row sm:items-center sm:justify-between`), placing the title on the left and pinning the segmented switcher to the top-right.
+- **WAI-ARIA Radiogroup Pattern**:
+  - The container declares `role="radiogroup"` and links to an accessible screen-reader label via `aria-labelledby="interface-mode-label"`.
+  - Individual buttons declare `role="radio"`. The selected button receives `aria-checked="true"` and `tabindex="0"`, while the unselected button receives `aria-checked="false"` and `tabindex="-1"`.
+  - **Keyboard Navigation**: Pressing `ArrowRight` or `ArrowDown` moves focus and selection forward; pressing `ArrowLeft` or `ArrowUp` moves focus and selection backward (wrapping cyclically).
+- **Touch Ergonomics**:
+  - The buttons declare `touch-action: manipulation` in CSS to eliminate 300ms double-tap zoom delays on mobile browsers, making mode changes feel immediate.
+  - Generous padding (`0.375rem 0.75rem`) ensures an ergonomic touch target that does not conflict with the bottom-pinned sticky transport bar on mobile.
+

@@ -269,6 +269,7 @@ loadPreset(file);
 ### Main Controls
 
 - **Start Audio**: Initializes Web Audio context
+- **Interface Mode**: Header-integrated segmented pill control (`[ Simple | Full ]`) with accessible WAI-ARIA `role="radiogroup"` navigation to switch between beginner-friendly controls and the full sound design interface
 - **Play/Stop/Restart**: Transport control
 
 ### Synth Section
@@ -311,8 +312,8 @@ loadPreset(file);
 
 ### Recording & Export
 
-- Real-time record button
-- Offline export controls
+- Real-time record button (advanced control hidden in Simple mode)
+- Offline export controls (available in both Simple and Full modes)
 - Pattern cycle count, seamless/tail mode, and effects-tail duration controls
 - Format checkboxes (WAV / MP3)
 - Dedicated MIDI export button (.mid)
