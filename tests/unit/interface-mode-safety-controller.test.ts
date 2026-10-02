@@ -9,6 +9,7 @@ interface FixtureOptions {
     stopRecording?: () => Promise<boolean>;
     keyboardToggle?: HTMLInputElement | null;
     visualizer?: { isVisualizerOn: boolean; toggle: () => void } | null;
+    cancelPendingAdvancedActions?: (() => void) | null;
 }
 
 /**
@@ -35,6 +36,10 @@ function createFixture(options: FixtureOptions = {}) {
         stopRecording: options.stopRecording ?? vi.fn(async () => true),
         toggleRecording: vi.fn(async () => {}),
     };
+    const cancelPendingAdvancedActions =
+        options.cancelPendingAdvancedActions !== undefined
+            ? (options.cancelPendingAdvancedActions ?? undefined)
+            : vi.fn();
     const setInterfaceMode = vi.fn((nextMode: "simple" | "full") => {
         mode = nextMode;
     });
@@ -45,6 +50,7 @@ function createFixture(options: FixtureOptions = {}) {
         getRecorderManager: () => recorder,
         getKeyboardToggle: () => keyboardToggle,
         getVisualizer: () => visualizer,
+        cancelPendingAdvancedActions,
         setInterfaceMode,
         showToast,
         logger,
@@ -55,6 +61,7 @@ function createFixture(options: FixtureOptions = {}) {
     };
     return {
         applyMode,
+        cancelPendingAdvancedActions,
         controller,
         keyboardChange,
         keyboardToggle,
@@ -177,5 +184,44 @@ describe("interface mode safety controller", () => {
         fixture.applyMode("simple");
 
         expect(fixture.visualizer.toggle).not.toHaveBeenCalled();
+    });
+
+    it("calls cancelPendingAdvancedActions when Simple mode is applied", () => {
+        const fixture = createFixture();
+
+        fixture.applyMode("simple");
+
+        expect(fixture.cancelPendingAdvancedActions).toHaveBeenCalledOnce();
+    });
+
+    it("does not call cancelPendingAdvancedActions when Full mode is applied", () => {
+        const fixture = createFixture();
+
+        fixture.applyMode("full");
+
+        expect(fixture.cancelPendingAdvancedActions).not.toHaveBeenCalled();
+    });
+
+    it("handles missing cancelPendingAdvancedActions gracefully without throwing", () => {
+        const fixture = createFixture({ cancelPendingAdvancedActions: null });
+
+        expect(() => fixture.applyMode("simple")).not.toThrow();
+        expect(fixture.visualizer.toggle).toHaveBeenCalledOnce();
+    });
+
+    it("handles throwing cancelPendingAdvancedActions gracefully without blocking other deactivations", () => {
+        const error = new Error("Cancellation failure");
+        const cancelPendingAdvancedActions = vi.fn(() => {
+            throw error;
+        });
+        const fixture = createFixture({ cancelPendingAdvancedActions });
+
+        expect(() => fixture.applyMode("simple")).not.toThrow();
+        expect(fixture.logger.warn).toHaveBeenCalledWith(
+            "Failed to cancel pending advanced actions on Simple mode transition:",
+            error,
+        );
+        expect(fixture.visualizer.toggle).toHaveBeenCalledOnce();
+        expect(fixture.keyboardToggle.checked).toBe(false);
     });
 });

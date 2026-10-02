@@ -171,7 +171,7 @@ export function createInterfaceModeController(dependencies) {
     }
 
     /**
-     * Handles change events from the legacy interface mode dropdown selector.
+     * Handles change events from an optional select-based interface mode control.
      *
      * @returns {void}
      */

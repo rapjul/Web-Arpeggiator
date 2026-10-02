@@ -5,9 +5,15 @@
  */
 
 /**
+ * Maximum safe transition threshold before rolling over.
+ * @constant {number}
+ */
+const MAX_TRANSITION_ID = Number.MAX_SAFE_INTEGER;
+
+/**
  * Creates the lifecycle guard for controls hidden by Simple mode.
  *
- * @param {{getInterfaceMode: () => string, getRecorderManager: () => {isRecording: boolean, stopRecording?: () => Promise<boolean>, toggleRecording: () => Promise<void>}|undefined, getKeyboardToggle: () => HTMLInputElement|null|undefined, getVisualizer: () => {isVisualizerOn: boolean, toggle: () => void}|null|undefined, setInterfaceMode: (mode: "simple"|"full") => void, showToast: (message: string, type?: string) => void, logger?: {warn: (...args: unknown[]) => void}}} dependencies - Mode and transient-control dependencies.
+ * @param {{getInterfaceMode: () => string, getRecorderManager: () => {isRecording: boolean, stopRecording?: () => Promise<boolean>, toggleRecording: () => Promise<void>}|undefined, getKeyboardToggle: () => HTMLInputElement|null|undefined, getVisualizer: () => {isVisualizerOn: boolean, toggle: () => void}|null|undefined, cancelPendingAdvancedActions?: () => void, setInterfaceMode: (mode: "simple"|"full") => void, showToast: (message: string, type?: string) => void, logger?: {warn: (...args: unknown[]) => void}}} dependencies - Mode and transient-control dependencies.
  * @returns {{onModeApplied: (mode: string) => void, destroy: () => void}} Mode transition lifecycle API.
  */
 export function createInterfaceModeSafetyController(dependencies) {
@@ -16,6 +22,7 @@ export function createInterfaceModeSafetyController(dependencies) {
         getRecorderManager,
         getKeyboardToggle,
         getVisualizer,
+        cancelPendingAdvancedActions,
         setInterfaceMode,
         showToast,
         logger = console,
@@ -30,8 +37,24 @@ export function createInterfaceModeSafetyController(dependencies) {
      * @returns {void}
      */
     function onModeApplied(mode) {
-        const currentTransitionId = ++transitionId;
+        transitionId =
+            !Number.isSafeInteger(transitionId) ||
+            transitionId >= MAX_TRANSITION_ID ||
+            transitionId < 0
+                ? 1
+                : transitionId + 1;
+        const currentTransitionId = transitionId;
         if (isDestroyed || mode !== "simple") return;
+
+        // Invalidate any in-flight advanced actions queued while awaiting audio initialization.
+        try {
+            cancelPendingAdvancedActions?.();
+        } catch (error) {
+            logger.warn?.(
+                "Failed to cancel pending advanced actions on Simple mode transition:",
+                error,
+            );
+        }
 
         // Deactivate virtual keyboard and dispatch change event to tear down
         // active keyboard input listeners and reset key visual states.
@@ -105,7 +128,12 @@ export function createInterfaceModeSafetyController(dependencies) {
      */
     function destroy() {
         isDestroyed = true;
-        transitionId += 1;
+        transitionId =
+            !Number.isSafeInteger(transitionId) ||
+            transitionId >= MAX_TRANSITION_ID ||
+            transitionId < 0
+                ? 1
+                : transitionId + 1;
     }
 
     return { onModeApplied, destroy };

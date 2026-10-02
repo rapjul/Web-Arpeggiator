@@ -730,6 +730,9 @@ function initializeApp() {
         getRecorderManager,
         getKeyboardToggle: () => keyboardToggle,
         getVisualizer,
+        cancelPendingAdvancedActions: () => {
+            exportControlsController?.cancelPendingAdvancedActions?.();
+        },
         setInterfaceMode: (mode) => interfaceModeController.setMode(mode),
         showToast,
         logger: console,

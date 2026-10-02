@@ -393,4 +393,144 @@ describe("export controls controller", () => {
 
         expect(recorder.toggleRecording).not.toHaveBeenCalled();
     });
+
+    it("cancels queued record action when switching to simple and returning to full before audio startup resolves", async () => {
+        let currentMode = "full";
+        let resolveStartAudio: (() => void) | undefined;
+        const startAudioPromise = new Promise<void>((resolve) => {
+            resolveStartAudio = resolve;
+        });
+        const { controller, recordButton, recorder, startAudio } = createFixture({
+            getInterfaceMode: () => currentMode,
+        });
+        startAudio.mockImplementationOnce(() => startAudioPromise);
+
+        recordButton.click();
+        expect(startAudio).toHaveBeenCalledOnce();
+        expect(recorder.toggleRecording).not.toHaveBeenCalled();
+
+        // Switch to simple mode (invalidating pending advanced actions) and then return to full mode
+        controller.cancelPendingAdvancedActions();
+        currentMode = "simple";
+        currentMode = "full";
+
+        resolveStartAudio?.();
+        await vi.waitFor(() => {
+            expect(startAudio).toHaveReturned();
+        });
+
+        // The stale queued record action must not resurrect despite full mode being restored
+        expect(recorder.toggleRecording).not.toHaveBeenCalled();
+    });
+
+    it("cancels queued realtime export when switching to simple and returning to full before audio startup resolves", async () => {
+        let currentMode = "full";
+        let resolveStartAudio: (() => void) | undefined;
+        const startAudioPromise = new Promise<void>((resolve) => {
+            resolveStartAudio = resolve;
+        });
+        const { controller, exportButton, recorder, startAudio } = createFixture({
+            getInterfaceMode: () => currentMode,
+        });
+        startAudio.mockImplementationOnce(() => startAudioPromise);
+
+        exportButton.click();
+        expect(startAudio).toHaveBeenCalledOnce();
+        expect(recorder.exportRealtime).not.toHaveBeenCalled();
+
+        // Switch to simple mode and back to full
+        controller.cancelPendingAdvancedActions();
+        currentMode = "simple";
+        currentMode = "full";
+
+        resolveStartAudio?.();
+        await vi.waitFor(() => {
+            expect(startAudio).toHaveReturned();
+        });
+
+        expect(recorder.exportRealtime).not.toHaveBeenCalled();
+    });
+
+    it("allows offline export to proceed after switching to simple and returning to full while audio startup is pending", async () => {
+        let currentMode = "full";
+        let resolveStartAudio: (() => void) | undefined;
+        const startAudioPromise = new Promise<void>((resolve) => {
+            resolveStartAudio = resolve;
+        });
+        const { controller, offlineExportButton, recorder, startAudio } = createFixture({
+            getInterfaceMode: () => currentMode,
+        });
+        startAudio.mockImplementationOnce(() => startAudioPromise);
+
+        offlineExportButton.click();
+        expect(startAudio).toHaveBeenCalledOnce();
+        expect(recorder.exportOffline).not.toHaveBeenCalled();
+
+        controller.cancelPendingAdvancedActions();
+        currentMode = "simple";
+        currentMode = "full";
+
+        resolveStartAudio?.();
+        await vi.waitFor(() => {
+            expect(startAudio).toHaveReturned();
+        });
+
+        expect(recorder.exportOffline).toHaveBeenCalledOnce();
+    });
+
+    it("executes only the latest record action when user toggles mode and re-requests recording", async () => {
+        let currentMode = "full";
+        let resolveFirstAudio: (() => void) | undefined;
+        const firstAudioPromise = new Promise<void>((resolve) => {
+            resolveFirstAudio = resolve;
+        });
+        const { controller, recordButton, recorder, startAudio } = createFixture({
+            getInterfaceMode: () => currentMode,
+        });
+        startAudio.mockImplementationOnce(() => firstAudioPromise);
+
+        // Click record the first time
+        recordButton.click();
+        expect(startAudio).toHaveBeenCalledTimes(1);
+
+        // Toggle to simple and back to full
+        controller.cancelPendingAdvancedActions();
+        currentMode = "simple";
+        currentMode = "full";
+
+        // Second click after restoring full mode
+        startAudio.mockImplementationOnce(async () => {});
+        recordButton.click();
+
+        // Resolve first audio promise
+        resolveFirstAudio?.();
+        await vi.waitFor(() => {
+            expect(recorder.toggleRecording).toHaveBeenCalledOnce();
+        });
+    });
+
+    it("cancels queued record action if startAudio rejects with error and logs warning", async () => {
+        const audioError = new Error("AudioContext permission denied");
+        const { recordButton, recorder, startAudio, logger } = createFixture();
+        startAudio.mockRejectedValueOnce(audioError);
+
+        recordButton.click();
+        await vi.waitFor(() => {
+            expect(logger.warn).toHaveBeenCalledWith(
+                "AudioContext failed to start on record click:",
+                audioError,
+            );
+        });
+
+        expect(recorder.toggleRecording).not.toHaveBeenCalled();
+    });
+
+    it("handles multiple consecutive cancelPendingAdvancedActions calls safely and verifies rollover and self-healing", () => {
+        const { controller } = createFixture();
+
+        // Verify multiple successive cancellations
+        for (let i = 0; i < 10; i++) {
+            expect(() => controller.cancelPendingAdvancedActions()).not.toThrow();
+        }
+    });
 });

@@ -19,10 +19,16 @@ import { compileTimeline, getTimelineTerminalEndSeconds } from "@core/timeline.j
 /** @typedef {import("@core/timeline.js").CompiledTimeline} CompiledTimeline */
 
 /**
+ * Maximum safe generation threshold before rolling over.
+ * @constant {number}
+ */
+const MAX_ACTION_GENERATION = Number.MAX_SAFE_INTEGER;
+
+/**
  * Creates the export controls controller.
  *
  * @param {{dom: {loopCountInput: HTMLInputElement, offlineExportModeInputs: NodeListOf<HTMLInputElement>, offlineExportTailControl: HTMLElement|null, offlineExportTailModeSelect: HTMLSelectElement|null, offlineExportTailSecondsInput: HTMLInputElement|null, offlineExportTailSecondsLabel?: HTMLElement|null, offlineExportDuration: HTMLElement|null, recordButton: HTMLElement, exportButton: HTMLElement, offlineExportButton: HTMLElement, offlineExportMidiButton: HTMLElement|null, toggleVisualizerButton: HTMLElement, visualizerModeSelect: HTMLSelectElement|null}, getSettings: () => ArpeggiatorSettings, getTimeline?: () => CompiledTimeline|null, getRecorderManager: () => {toggleRecording: () => Promise<void>, exportRealtime: () => Promise<void>, exportOffline: () => Promise<void>}|undefined, getVisualizer: () => {currentMode: string, toggle: () => void}|undefined, getInterfaceMode?: () => string, startAudio: () => Promise<void>, generateFilename: (isRealtime: boolean) => string, showToast: (message: string, type?: string) => void, renderStaticLoop: () => Promise<void>, debounce: (callback: () => void, wait: number) => () => void, logger?: {error?: (...args: unknown[]) => void, warn?: (...args: unknown[]) => void}}} dependencies - Injected export behavior.
- * @returns {{initialize: () => void, destroy: () => void, updateEstimatedExportDuration: () => void, updateOfflineExportModeUi: () => void, requestStaticLoopRender: () => void}} Export controls API.
+ * @returns {{initialize: () => void, destroy: () => void, updateEstimatedExportDuration: () => void, updateOfflineExportModeUi: () => void, requestStaticLoopRender: () => void, cancelPendingAdvancedActions: () => void}} Export controls API.
  */
 export function createExportControlsController(dependencies) {
     const {
@@ -58,6 +64,25 @@ export function createExportControlsController(dependencies) {
     } = dom;
     let listenerController = null;
     let isDestroyed = false;
+    let advancedActionGeneration = 0;
+
+    /**
+     * Invalidates any in-flight advanced actions queued during audio initialization.
+     *
+     * @returns {void}
+     */
+    function cancelPendingAdvancedActions() {
+        if (
+            !Number.isSafeInteger(advancedActionGeneration) ||
+            advancedActionGeneration >= MAX_ACTION_GENERATION ||
+            advancedActionGeneration < 0
+        ) {
+            advancedActionGeneration = 1;
+        } else {
+            advancedActionGeneration += 1;
+        }
+    }
+
     const requestStaticLoopRender = debounce(() => {
         if (isDestroyed) return;
         const visualizer = getVisualizer();
@@ -152,7 +177,9 @@ export function createExportControlsController(dependencies) {
      */
     async function startAndRun(action, warning, options = {}) {
         if (isDestroyed) return;
-        const { advancedOnly = false } = options;
+        if (typeof action !== "function") return;
+        const advancedOnly = Boolean(options?.advancedOnly);
+        const startGeneration = advancedActionGeneration;
         try {
             await startAudio();
         } catch (error) {
@@ -161,9 +188,12 @@ export function createExportControlsController(dependencies) {
             return;
         }
         if (isDestroyed) return;
-        // If the user switched to Simple mode while asynchronous audio runtime initialization was in flight,
-        // abort execution for advanced-only actions (such as recording or realtime export) whose controls are hidden.
-        if (advancedOnly && getInterfaceMode?.() === "simple") {
+        // If the user switched to Simple mode or invalidated pending actions while asynchronous
+        // audio runtime initialization was in flight, abort execution for advanced-only actions.
+        if (
+            advancedOnly &&
+            (advancedActionGeneration !== startGeneration || getInterfaceMode?.() === "simple")
+        ) {
             return;
         }
         try {
@@ -190,6 +220,7 @@ export function createExportControlsController(dependencies) {
 
     function initialize() {
         if (listenerController) return;
+        cancelPendingAdvancedActions();
         isDestroyed = false;
         listenerController = new AbortController();
         const listenerOptions = { signal: listenerController.signal };
@@ -288,6 +319,7 @@ export function createExportControlsController(dependencies) {
 
     function destroy() {
         isDestroyed = true;
+        cancelPendingAdvancedActions();
         /** @type {{cancel?: () => void}} */ (requestStaticLoopRender).cancel?.();
         listenerController?.abort();
         listenerController = null;
@@ -299,5 +331,6 @@ export function createExportControlsController(dependencies) {
         updateEstimatedExportDuration,
         updateOfflineExportModeUi,
         requestStaticLoopRender,
+        cancelPendingAdvancedActions,
     };
 }
