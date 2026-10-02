@@ -33,6 +33,13 @@ When asynchronous audio initialization (`startAudio()`) is underway, users may c
 * The generation counter implements rollover wrapping bounded at `Number.MAX_SAFE_INTEGER` ($2^{53} - 1$), safely wrapping to `1` to maintain exact integer precision and eliminate the ABA wrap-around problem without arbitrary magic thresholds.
 * Non-advanced asynchronous workflows, specifically **Offline Audio Export**, remain available in Simple mode and proceed to render even if the interface mode is changed while audio is activating.
 
+### Background Rendering and Take Generation Isolation
+
+Background rendering and recording session lifecycles are explicitly isolated across interface mode transitions:
+
+* **Static Loop Map Render Suppression**: Loop map offline visualizations (`Tone.Offline`) are guarded against invocation when Simple mode is active (`getInterfaceMode?.() === "simple"`) or when the visualizer is inactive or not in `loopMap` mode. Any debounced pending static loop render (`requestStaticLoopRender`) is cancelled immediately upon entering Simple mode via `cancelPendingAdvancedActions()` to prevent background rendering overhead while visualizer controls are hidden.
+* **Recording Take Generation Isolation**: Real-time recording transitions track an incrementing `activeStartId` generation counter (safely wrapping at `Number.MAX_SAFE_INTEGER`). Playback auto-start recovery associates errors with its originating start generation (`abortCapture(primaryError, originatingStartId)`). If an earlier recording take is cancelled or stopped while playback startup is still awaiting and a subsequent take begins, a delayed failure from the earlier take cannot abort the active capture session of the new take.
+
 Incoming URL presets continue to bypass the first-visit choice and load their musical values unchanged. An Escape dismissal without an explicit mode choice falls back to the Full presentation.
 
 ## Consequences
