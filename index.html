@@ -27,7 +27,7 @@
         >
             <div
                 id="quick-start-modal"
-                class="quick-start-modal bg-gray-800 rounded-2xl shadow-2xl max-w-lg w-full p-6 sm:p-8 text-center"
+                class="quick-start-modal bg-gray-800 rounded-2xl shadow-2xl max-w-lg md:max-w-2xl w-full p-6 sm:p-8 text-center max-h-[90vh] flex flex-col"
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="quick-start-title"
@@ -82,7 +82,7 @@
                     </h3>
                     <div
                         id="quick-start-presets-grid"
-                        class="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-5"
+                        class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mb-5 max-h-[50vh] overflow-y-auto pr-1"
                     >
                         <!-- Populated dynamically from FACTORY_PRESETS in js/app.js -->
                     </div>
@@ -96,6 +96,7 @@
                 </div>
             </div>
         </div>
+
 
         <div
             id="reset-defaults-overlay"
@@ -405,10 +406,7 @@
                     <p class="text-xs text-gray-400 mt-2 mb-3">
                         One-click factory presets — pick a sound and start exploring
                     </p>
-                    <div
-                        id="sound-starters-grid"
-                        class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3"
-                    >
+                    <div id="sound-starters-grid">
                         <!-- Cards populated dynamically from FACTORY_PRESETS in js/app.js -->
                     </div>
                 </details>
