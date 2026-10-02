@@ -484,6 +484,22 @@ describe("Visualizer Module", () => {
         expect(mockState.recordButton.textContent).toContain("Stop Recording");
     });
 
+    it("skips elapsed recording time update when recordingStartTime is uninitialized", () => {
+        mockState.isRecording = true;
+        mockState.recordingStartTime = 0;
+        mockState.recordButton.textContent = "Starting...";
+
+        const visualizer = createVisualizer({
+            dom: mockDom,
+            audio: mockAudio,
+            state: mockState,
+            actions: mockActions,
+        });
+
+        visualizer.runUiUpdate();
+        expect(mockState.recordButton.textContent).toBe("Starting...");
+    });
+
     it("handles window resize events by recalculating canvas dimensions", () => {
         createVisualizer({
             dom: mockDom,

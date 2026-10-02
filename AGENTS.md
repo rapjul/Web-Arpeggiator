@@ -20,6 +20,8 @@ See the [Architecture Guide](./docs/architecture.md) for the detailed module own
 
 Playback, previews, offline audio, and MIDI exports share the 480-PPQ musical timeline compiler in `src/core/timeline.js`; keep note resolution, swing, gate lengths, and event boundaries in that shared contract.
 
+Recorder-aware playback must wait for `awaitCaptureReady()`, not the full recording transition, because recording startup may itself request playback. `stopRecording()` returns whether an active capture was successfully stopped; concurrent callers share the same stop result. Re-check destruction after asynchronous boundaries before creating backends, starting capture, or updating UI. Keep Simple-mode safety effects in `src/ui/interface-mode-safety-controller.js` and ignore stale transition completions.
+
 ### 1. Audio Engine
 
 The audio signal chain follows this path:
@@ -267,6 +269,7 @@ loadPreset(file);
 ### Main Controls
 
 - **Start Audio**: Initializes Web Audio context
+- **Interface Mode**: Header-integrated segmented pill control (`[ Simple | Full ]`) with accessible WAI-ARIA `role="radiogroup"` navigation to switch between beginner-friendly controls and the full sound design interface
 - **Play/Stop/Restart**: Transport control
 
 ### Synth Section
@@ -309,8 +312,8 @@ loadPreset(file);
 
 ### Recording & Export
 
-- Real-time record button
-- Offline export controls
+- Real-time record button (advanced control hidden in Simple mode)
+- Offline export controls (available in both Simple and Full modes)
 - Pattern cycle count, seamless/tail mode, and effects-tail duration controls
 - Format checkboxes (WAV / MP3)
 - Dedicated MIDI export button (.mid)
@@ -359,7 +362,8 @@ Web Arpeggiator/
 │   │   ├── 0018-awaited-recording-lifecycle-and-bounded-audio-resource-ownership.md
 │   │   ├── 0019-recommended-effects-tail-strategy.md
 │   │   ├── 0020-bounded-audio-startup-latency-and-lifecycle-benchmarking.md
-│   │   └── 0021-fluid-wrapping-and-card-aware-responsive-layout.md
+│   │   ├── 0021-fluid-wrapping-and-card-aware-responsive-layout.md
+│   │   └── 0022-persisted-interface-mode.md
 │   ├── architecture.md     # Module ownership, runtime flow, and deferred boundaries
 │   ├── development.md      # Local setup, commands, and test-runner guidance
 │   ├── improvements/       # Deferred, scoped follow-up plans
@@ -374,6 +378,7 @@ Web Arpeggiator/
 │   │   ├── export-duration.js # Offline export duration calculation & formatting
 │   │   ├── export-metadata.js # Versioned offline audio metadata encoder & binary reader
 │   │   ├── input-filters.js# Keyboard note & numeric input filtering
+│   │   ├── interface-mode.js# Interface mode constants and normalization
 │   │   ├── meter-utils.js  # Audio meter decibel & percentage calculations
 │   │   ├── midi-export.js  # Standard MIDI File (.mid) binary encoder
 │   │   ├── pattern-core.js # Core note transformations, directions, quantization math
@@ -405,6 +410,8 @@ Web Arpeggiator/
 │   │   ├── effects-controls-controller.js # Post-gain, filter, and effects control wiring
 │   │   ├── history-controller.js # Settings undo, redo, and reset interactions
 │   │   ├── input-filter-controller.js # Notes and export-count keyboard filtering
+│   │   ├── interface-mode-controller.js # Header-integrated Simple/Full presentation switcher
+│   │   ├── interface-mode-safety-controller.js # Stops transient tools hidden by Simple mode
 │   │   ├── keyboard-controller.js # Virtual keyboard input handling
 │   │   ├── note-step-controller.js # Pattern-step indicator rendering and updates
 │   │   ├── onboarding-controller.js # First-visit and quick-start onboarding flow

@@ -1,11 +1,21 @@
-import { expect, resetAppState, test } from "./fixtures/app";
+import { captureDownload, expect, parsePcmWav, resetAppState, test } from "./fixtures/app";
 
 test("starts a factory sound starter from the first-visit quick start", async ({
     pwaPage: page,
 }) => {
     await expect(page.locator("#quick-start-overlay")).toBeVisible();
     await expect(page.locator("#start-overlay")).toBeHidden();
+    await page.locator("#quick-start-simple").click();
     await expect(page.locator("#quick-start-presets-grid .sound-starter-card")).toHaveCount(6);
+    await expect(page.locator("#app-main")).toHaveAttribute("data-interface-mode", "simple");
+    await expect(page.locator("#app-main")).not.toHaveAttribute("hidden", "");
+    await expect(page.locator("#interface-mode-simple-btn")).toHaveAttribute(
+        "aria-checked",
+        "true",
+    );
+    await expect(page.locator("#interface-mode-full-btn")).toHaveAttribute("aria-checked", "false");
+    await expect(page.locator("#octave-title")).toBeHidden();
+    await expect(page.locator("#utilities-title")).toBeHidden();
     await expect(page.locator("#scale-quantize-toggle")).toBeChecked();
     await expect(page.locator("#scale-quantize-toggle-status")).toHaveText(/Enabled/);
 
@@ -27,6 +37,7 @@ test("starts a factory sound starter from the first-visit quick start", async ({
 test("loads sound starters, clears their active state on an edit, and remembers collapse", async ({
     pwaPage: page,
 }) => {
+    await page.locator("#quick-start-full").click();
     await page
         .locator('#quick-start-presets-grid button[data-preset-id="factory-ambient"]')
         .click();
@@ -49,6 +60,13 @@ test("loads sound starters, clears their active state on an edit, and remembers 
 });
 
 test("dismisses quick start from scratch or with Escape", async ({ pwaPage: page }) => {
+    await expect(page.locator("#quick-start-simple")).toBeFocused();
+    await page.keyboard.press("Shift+Tab");
+    await expect(page.locator("#quick-start-full")).toBeFocused();
+    await page.keyboard.press("Tab");
+    await expect(page.locator("#quick-start-simple")).toBeFocused();
+
+    await page.locator("#quick-start-full").click();
     await page.locator("#quick-start-scratch").click();
     await expect(page.locator("#quick-start-overlay")).toBeHidden();
     await expect(page.locator("#play-stop")).toHaveText("Start Audio");
@@ -56,9 +74,45 @@ test("dismisses quick start from scratch or with Escape", async ({ pwaPage: page
     await expect(page.locator("#sound-starters-details")).not.toHaveAttribute("open", "");
 
     await resetAppState(page);
+    await page.evaluate(() => localStorage.setItem("webArpInterfaceMode", "simple"));
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.locator("#app-main")).toHaveAttribute("data-interface-mode", "simple");
     await page.keyboard.press("Escape");
     await expect(page.locator("#quick-start-overlay")).toBeHidden();
     await expect(page.locator("#play-stop")).toBeEnabled();
+    await expect(page.locator("#interface-mode-full-btn")).toHaveAttribute("aria-checked", "true");
+    await expect(page.locator("#interface-mode-simple-btn")).toHaveAttribute(
+        "aria-checked",
+        "false",
+    );
+    await expect
+        .poll(() => page.evaluate(() => localStorage.getItem("webArpInterfaceMode")))
+        .toBe("full");
+});
+
+test("deactivates hidden interactive tools when switching to Simple controls", async ({
+    pwaPage: page,
+}) => {
+    await page.locator("#quick-start-full").click();
+    await page.locator("#quick-start-scratch").click();
+    await expect(page.locator("#play-stop")).toBeEnabled();
+
+    const keyboardToggle = page.locator("#keyboard-toggle");
+    const visualizerToggle = page.locator("#toggle-visualizer");
+    const recordButton = page.locator("#record-button");
+    await page.locator("#keyboard-details > summary").click();
+    await page.locator("section[aria-labelledby='utilities-title'] summary").click();
+    await keyboardToggle.check();
+    await visualizerToggle.click();
+    await recordButton.click();
+    await expect(recordButton).toHaveClass(/recording/);
+
+    await page.locator("#interface-mode-simple-btn").click();
+
+    await expect(keyboardToggle).not.toBeChecked();
+    await expect(visualizerToggle).toHaveText("Enable Visualizer");
+    await expect(recordButton).not.toHaveClass(/recording/);
+    await expect(page.locator("#utilities-title")).toBeHidden();
 });
 
 test("shows the simple overlay for returning visitors and URL presets", async ({
@@ -95,6 +149,7 @@ test("starts audio playback immediately when clicking the returning visitor star
 test("synchronizes a selected factory preset with its sound starter card", async ({
     pwaPage: page,
 }) => {
+    await page.locator("#quick-start-full").click();
     await page.locator("#quick-start-scratch").click();
     await expect(page.locator("#play-stop")).toBeEnabled();
 
@@ -103,4 +158,56 @@ test("synchronizes a selected factory preset with its sound starter card", async
     await expect(
         page.locator('#sound-starters-grid [data-preset-id="factory-cyberpunk"]'),
     ).toHaveClass(/active/);
+});
+
+test("generates and downloads an offline audio render in Simple mode", async ({
+    pwaPage: page,
+}) => {
+    await page.locator("#quick-start-full").click();
+    await page.locator("#quick-start-scratch").click();
+    await expect(page.locator("#play-stop")).toBeEnabled();
+
+    await page.locator("#notes").fill("C4");
+    await page.locator("#notes").dispatchEvent("change");
+    await page.locator("input[name='octave-range'][value='1']").locator("xpath=..").click();
+    await expect(page.locator("#bpm")).toHaveValue("120");
+
+    await page.locator("#interface-mode-full-btn").focus();
+    await page.keyboard.press("ArrowLeft");
+    await expect(page.locator("#interface-mode-simple-btn")).toHaveAttribute(
+        "aria-checked",
+        "true",
+    );
+    await expect(page.locator("#octave-title")).toBeHidden();
+    await expect(page.locator("#notes")).toHaveValue("C4");
+
+    const offlineExportSection = page.locator("section[aria-labelledby='offline-export-title']");
+    await expect(offlineExportSection).toBeVisible();
+    await page.locator("#offline-export-mode-seamless").check();
+    await page.locator("#loop-count").fill("1");
+    await page.locator("#offline-export-mp3").uncheck();
+
+    const download = await captureDownload(page, () =>
+        page.locator("#offline-export-button").click(),
+    );
+    const wav = parsePcmWav(download.bytes);
+
+    expect(download.filename).toMatch(/\.wav$/);
+    expect(wav.durationSeconds).toBeGreaterThan(0);
+    expect(Math.abs(wav.durationSeconds - 0.125)).toBeLessThanOrEqual(1 / wav.sampleRate);
+    expect(wav.firstAudibleFrame).toBeLessThan(wav.durationSeconds * wav.sampleRate);
+    expect(wav.peak).toBeGreaterThan(0.002);
+    expect(wav.rms).toBeGreaterThan(0.0001);
+    await expect(page.locator("#offline-export-status")).toContainText("complete");
+    await expect(page.locator("#offline-export-button")).toBeEnabled();
+
+    await expect
+        .poll(() => page.evaluate(() => localStorage.getItem("webArpInterfaceMode")))
+        .toBe("simple");
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.locator("#interface-mode-simple-btn")).toHaveAttribute(
+        "aria-checked",
+        "true",
+    );
+    await expect(page.locator("#octave-title")).toBeHidden();
 });

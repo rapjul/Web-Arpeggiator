@@ -45,22 +45,55 @@
                 <p class="text-sm text-gray-500 mb-6">
                     No music experience needed.
                 </p>
-                <h3 class="text-sm font-semibold text-gray-200 mb-3 text-left">
-                    Pick a sound to start with
-                </h3>
-                <div
-                    id="quick-start-presets-grid"
-                    class="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-5"
-                >
-                    <!-- Populated dynamically from FACTORY_PRESETS in js/app.js -->
+                <div id="quick-start-mode-choice" class="space-y-4 text-left">
+                    <h3 class="text-sm font-semibold text-gray-200">
+                        Choose your starting view
+                    </h3>
+                    <p class="text-sm text-gray-400">
+                        Simple controls keep the important musical choices close by. Full controls
+                        show every synthesis, effect, and visualization option.
+                    </p>
+                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <button
+                            id="quick-start-simple"
+                            type="button"
+                            class="rounded-lg border border-blue-500 bg-blue-600/20 p-4 text-left transition-all hover:bg-blue-600/40"
+                        >
+                            <span class="block font-semibold text-blue-200">Simple controls</span>
+                            <span class="mt-1 block text-xs text-gray-400">
+                                Sound, notes, key, tempo, pattern, and export.
+                            </span>
+                        </button>
+                        <button
+                            id="quick-start-full"
+                            type="button"
+                            class="rounded-lg border border-gray-600 bg-gray-700 p-4 text-left transition-all hover:bg-gray-600"
+                        >
+                            <span class="block font-semibold text-gray-100">Full controls</span>
+                            <span class="mt-1 block text-xs text-gray-400">
+                                Every control for detailed sound design and visualization.
+                            </span>
+                        </button>
+                    </div>
                 </div>
-                <button
-                    id="quick-start-scratch"
-                    type="button"
-                    class="w-full text-lg font-bold py-3 px-6 bg-blue-600 hover:bg-blue-700 rounded-lg shadow-lg transition-all"
-                >
-                    ▶ Start from Scratch
-                </button>
+                <div id="quick-start-mode-content" class="is-hidden" aria-hidden="true">
+                    <h3 class="text-sm font-semibold text-gray-200 mb-3 text-left">
+                        Pick a sound to start with
+                    </h3>
+                    <div
+                        id="quick-start-presets-grid"
+                        class="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-5"
+                    >
+                        <!-- Populated dynamically from FACTORY_PRESETS in js/app.js -->
+                    </div>
+                    <button
+                        id="quick-start-scratch"
+                        type="button"
+                        class="w-full text-lg font-bold py-3 px-6 bg-blue-600 hover:bg-blue-700 rounded-lg shadow-lg transition-all"
+                    >
+                        ▶ Start from Scratch
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -230,11 +263,47 @@
 
         <main
             id="app-main"
+            hidden
             class="w-full max-w-5xl bg-gray-800 rounded-2xl shadow-2xl p-4 sm:p-8 grid grid-cols-1 md:grid-cols-6 gap-4 sm:gap-6"
         >
-            <h1 class="col-span-full text-3xl font-bold text-center text-blue-400">
-                Web Arpeggiator
-            </h1>
+            <header class="col-span-full flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-2">
+                <h1 class="text-3xl font-bold text-center sm:text-left text-blue-400">
+                    Web Arpeggiator
+                </h1>
+
+                <div
+                    id="interface-mode-controls"
+                    role="radiogroup"
+                    aria-labelledby="interface-mode-label"
+                    class="interface-mode-segmented inline-flex items-center self-center sm:self-auto rounded-lg bg-gray-900/80 p-1 border border-gray-700 shadow-inner"
+                >
+                    <span class="sr-only" id="interface-mode-label">Interface mode:</span>
+                    <!-- biome-ignore lint/a11y/useSemanticElements: Segmented pill tabs follow WAI-ARIA radiogroup pattern with button elements -->
+                    <button
+                        type="button"
+                        id="interface-mode-simple-btn"
+                        role="radio"
+                        aria-checked="false"
+                        tabindex="-1"
+                        data-interface-mode="simple"
+                        class="interface-mode-btn px-3 py-1.5 text-xs font-semibold rounded-md transition-all text-gray-300 hover:text-white"
+                    >
+                        Simple
+                    </button>
+                    <!-- biome-ignore lint/a11y/useSemanticElements: Segmented pill tabs follow WAI-ARIA radiogroup pattern with button elements -->
+                    <button
+                        type="button"
+                        id="interface-mode-full-btn"
+                        role="radio"
+                        aria-checked="true"
+                        tabindex="0"
+                        data-interface-mode="full"
+                        class="interface-mode-btn px-3 py-1.5 text-xs font-semibold rounded-md transition-all bg-blue-600 text-white shadow-sm"
+                    >
+                        Full
+                    </button>
+                </div>
+            </header>
 
             <!-- Visually hidden screen reader announcements live region -->
             <div id="sr-announcements" role="status" aria-live="polite" class="sr-only"></div>
@@ -375,7 +444,7 @@
                         </p>
                         <input type="range" id="bpm" min="40" max="240" value="120" step="1" />
                     </div>
-                    <div>
+                    <div data-interface-advanced="true">
                         <label for="swing" class="block text-sm font-medium mb-1">
                             Swing:
                             <span id="swing-value">0.00</span>
@@ -1276,6 +1345,7 @@
             <section
                 class="md:col-span-3 col-span-full bg-gray-700 p-3 sm:p-4 rounded-lg shadow-inner"
                 aria-labelledby="octave-title"
+                data-interface-advanced="true"
             >
                 <h2 id="octave-title" class="text-xl font-semibold mb-3 text-blue-300">Octave</h2>
                 <div class="space-y-4">
@@ -1443,6 +1513,7 @@
             <section
                 class="bg-gray-700 p-3 sm:p-4 rounded-lg shadow-inner col-span-full"
                 aria-labelledby="keyboard-title"
+                data-interface-advanced="true"
             >
                 <details id="keyboard-details" class="card-details">
                     <summary>
@@ -1499,6 +1570,7 @@
             <section
                 class="md:col-span-3 col-span-full bg-gray-700 p-3 sm:p-4 rounded-lg shadow-inner"
                 aria-labelledby="synth-title"
+                data-interface-advanced="true"
             >
                 <h2 id="synth-title" class="text-xl font-semibold mb-3 text-blue-300">Synth</h2>
                 <div class="space-y-4">
@@ -2008,6 +2080,7 @@
             <section
                 class="md:col-span-3 col-span-full bg-gray-700 p-3 sm:p-4 rounded-lg shadow-inner"
                 aria-labelledby="envelope-title"
+                data-interface-advanced="true"
             >
                 <h2 id="envelope-title" class="text-xl font-semibold mb-3 text-blue-300">
                     Envelope (ADSR)
@@ -2102,6 +2175,7 @@
             <section
                 class="md:col-span-2 col-span-full bg-gray-700 p-3 sm:p-4 rounded-lg shadow-inner"
                 aria-labelledby="filter-title"
+                data-interface-advanced="true"
             >
                 <h2 id="filter-title" class="text-xl font-semibold mb-3 text-blue-300">Filter</h2>
                 <div class="space-y-4">
@@ -2152,6 +2226,7 @@
             <section
                 class="md:col-span-2 col-span-full bg-gray-700 p-3 sm:p-4 rounded-lg shadow-inner"
                 aria-labelledby="effects-title"
+                data-interface-advanced="true"
             >
                 <h2 id="effects-title" class="text-xl font-semibold mb-3 text-blue-300">Effects</h2>
                 <div class="space-y-4">
@@ -2247,6 +2322,7 @@
             <section
                 class="bg-gray-700 p-3 sm:p-4 rounded-lg shadow-inner col-span-full"
                 aria-labelledby="utilities-title"
+                data-interface-advanced="true"
             >
                 <details class="card-details">
                     <summary>
@@ -2381,6 +2457,7 @@
             <section
                 class="bg-gray-700 p-3 sm:p-4 rounded-lg shadow-inner md:col-span-3 col-span-full"
                 aria-labelledby="realtime-recording-title"
+                data-interface-advanced="true"
             >
                 <h2 id="realtime-recording-title" class="text-xl font-semibold mb-3 text-blue-300">
                     Real-time Recording

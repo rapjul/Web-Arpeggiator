@@ -12,7 +12,9 @@ let lastSeamlessStartFrame = 0;
 let lastSeamlessFrameCount = 0;
 let recorderLifecycle: string[] = [];
 let recorderStartPromise: Promise<void> | null = null;
+let recorderStartCalled: (() => void) | null = null;
 let recorderStopPromise: Promise<void> | null = null;
+let recorderStopCalled: (() => void) | null = null;
 let recorderStartError: Error | null = null;
 let recorderStopError: Error | null = null;
 let toneRecorderConstructorError: Error | null = null;
@@ -118,12 +120,14 @@ vi.mock("tone", async () => {
                 return this;
             }
             async start() {
+                recorderStartCalled?.();
                 if (recorderStartPromise) await recorderStartPromise;
                 if (recorderStartError) throw recorderStartError;
                 this.state = "started";
                 recorderLifecycle.push("recording-start");
             }
             async stop() {
+                recorderStopCalled?.();
                 if (recorderStopPromise) await recorderStopPromise;
                 if (recorderStopError) throw recorderStopError;
                 this.state = "stopped";
@@ -167,6 +171,7 @@ vi.mock("tone", async () => {
 });
 
 import { createRecorderManager } from "@audio/recorder.js";
+import { createPlaybackController } from "@audio/playback-controller.js";
 import {
     audioBufferToMp3Blob,
     audioBufferToWav,
@@ -194,7 +199,9 @@ describe("Recorder Manager Module", () => {
         lastSeamlessFrameCount = 0;
         recorderLifecycle = [];
         recorderStartPromise = null;
+        recorderStartCalled = null;
         recorderStopPromise = null;
+        recorderStopCalled = null;
         recorderStartError = null;
         recorderStopError = null;
         toneRecorderConstructorError = null;
@@ -884,6 +891,523 @@ describe("Recorder Manager Module", () => {
         expect(mockDom.recordButton.disabled).toBe(false);
     });
 
+    it("cancels a recording that is still starting before hidden controls can lose it", async () => {
+        let resolveStart: (() => void) | undefined;
+        recorderStartPromise = new Promise((resolve) => {
+            resolveStart = resolve;
+        });
+        const manager = createRecorderManager({
+            audio: mockAudio,
+            dom: mockDom,
+            state: mockState,
+            actions: mockActions,
+        });
+
+        const startRecording = manager.toggleRecording();
+        await Promise.resolve();
+        expect(manager.isRecording).toBe(true);
+
+        const cancelRecording = manager.toggleRecording();
+        resolveStart?.();
+        await Promise.all([startRecording, cancelRecording]);
+
+        expect(recorderLifecycle).toEqual(["recording-start", "recording-stop"]);
+        expect(mockActions.startPlayback).not.toHaveBeenCalled();
+        expect(manager.isRecording).toBe(false);
+        expect(mockDom.recordButton.textContent).toBe("Record");
+    });
+
+    it("lets concurrent playback pass the capture-ready barrier while a mode switch cancels capture", async () => {
+        let resolveCaptureStart: (() => void) | undefined;
+        let markCaptureStartCalled: (() => void) | undefined;
+        recorderStartPromise = new Promise((resolve) => {
+            resolveCaptureStart = resolve;
+        });
+        const captureStartCalled = new Promise<void>((resolve) => {
+            markCaptureStartCalled = resolve;
+        });
+        recorderStartCalled = () => markCaptureStartCalled?.();
+        const state = { ...mockState, isPlaying: false };
+        const manager = createRecorderManager({
+            audio: mockAudio,
+            dom: mockDom,
+            state,
+            actions: mockActions,
+        });
+        const transport = {
+            position: 0,
+            start: vi.fn(() => recorderLifecycle.push("transport-start")),
+            stop: vi.fn(),
+        };
+        const playbackAudioStarted = vi.fn();
+        const playback = createPlaybackController({
+            dom: { playStopButton: document.createElement("button") },
+            state,
+            getTone: () => ({
+                getContext: () => ({ state: "running", rawContext: null }),
+                getTransport: () => transport,
+            }),
+            getPattern: () => ({ start: vi.fn(), stop: vi.fn() }),
+            getSilenceActiveSynth: () => undefined,
+            getRecorderManager: () => manager,
+            getVisualizer: () => undefined,
+            startAudio: vi.fn(async () => {
+                playbackAudioStarted();
+                state.isAudioContextStarted = true;
+            }),
+            prepareForPlayback: vi.fn(),
+            createOrUpdatePattern: vi.fn(),
+            clearNoteStep: vi.fn(),
+        });
+        mockActions.startPlayback = vi.fn(() => playback.start());
+
+        const recording = manager.toggleRecording();
+        await captureStartCalled;
+        const playbackStart = playback.start();
+        await vi.waitFor(() => expect(playbackAudioStarted).toHaveBeenCalledOnce());
+        expect(transport.start).not.toHaveBeenCalled();
+        const stop = manager.stopRecording();
+
+        resolveCaptureStart?.();
+        const [recordingResult, playbackResult, stopResult] = await Promise.allSettled([
+            recording,
+            playbackStart,
+            stop,
+        ]);
+
+        expect(recordingResult.status).toBe("fulfilled");
+        expect(playbackResult.status).toBe("fulfilled");
+        expect(stopResult).toMatchObject({ status: "fulfilled", value: true });
+        expect(recorderLifecycle.indexOf("recording-start")).toBeLessThan(
+            recorderLifecycle.indexOf("transport-start"),
+        );
+        expect(recorderLifecycle.filter((event) => event === "recording-stop")).toHaveLength(1);
+        expect(manager.isRecording).toBe(false);
+        playback.destroy();
+    });
+
+    it("shares one rejected capture stop across concurrent cancellation callers", async () => {
+        let resolveCaptureStart: (() => void) | undefined;
+        let resolveCaptureStop: (() => void) | undefined;
+        let markCaptureStartCalled: (() => void) | undefined;
+        let markCaptureStopCalled: (() => void) | undefined;
+        recorderStartPromise = new Promise((resolve) => {
+            resolveCaptureStart = resolve;
+        });
+        recorderStopPromise = new Promise((resolve) => {
+            resolveCaptureStop = resolve;
+        });
+        const captureStartCalled = new Promise<void>((resolve) => {
+            markCaptureStartCalled = resolve;
+        });
+        const captureStopCalled = new Promise<void>((resolve) => {
+            markCaptureStopCalled = resolve;
+        });
+        recorderStartCalled = () => markCaptureStartCalled?.();
+        const stopRecorder = vi.fn(() => markCaptureStopCalled?.());
+        recorderStopCalled = stopRecorder;
+        const stopError = new Error("capture stop failed");
+        recorderStopError = stopError;
+        const manager = createRecorderManager({
+            audio: mockAudio,
+            dom: mockDom,
+            state: mockState,
+            actions: mockActions,
+        });
+
+        const recording = manager.toggleRecording();
+        await captureStartCalled;
+        const firstStop = manager.stopRecording();
+        const secondStop = manager.stopRecording();
+        resolveCaptureStart?.();
+        await captureStopCalled;
+        resolveCaptureStop?.();
+
+        const [recordingResult, firstStopResult, secondStopResult] = await Promise.allSettled([
+            recording,
+            firstStop,
+            secondStop,
+        ]);
+        expect(recordingResult).toMatchObject({ status: "rejected", reason: stopError });
+        expect(firstStopResult).toMatchObject({ status: "rejected", reason: stopError });
+        expect(secondStopResult).toMatchObject({ status: "rejected", reason: stopError });
+        expect(stopRecorder).toHaveBeenCalledOnce();
+        expect(mockActions.showToast).toHaveBeenCalledWith("Recording failed to stop.", "error");
+    });
+
+    it("shares one successful capture stop across concurrent callers", async () => {
+        let resolveCaptureStop: (() => void) | undefined;
+        let markCaptureStopCalled: (() => void) | undefined;
+        recorderStopPromise = new Promise((resolve) => {
+            resolveCaptureStop = resolve;
+        });
+        const captureStopCalled = new Promise<void>((resolve) => {
+            markCaptureStopCalled = resolve;
+        });
+        const stopRecorder = vi.fn(() => markCaptureStopCalled?.());
+        recorderStopCalled = stopRecorder;
+        const manager = createRecorderManager({
+            audio: mockAudio,
+            dom: mockDom,
+            state: mockState,
+            actions: mockActions,
+        });
+
+        await manager.toggleRecording();
+        const firstStop = manager.stopRecording();
+        const secondStop = manager.stopRecording();
+        await captureStopCalled;
+        resolveCaptureStop?.();
+
+        await expect(Promise.all([firstStop, secondStop])).resolves.toEqual([true, true]);
+        expect(stopRecorder).toHaveBeenCalledOnce();
+        expect(manager.isRecording).toBe(false);
+    });
+
+    it("does not create a recorder after destruction during audio activation", async () => {
+        let resolveAudioActivation: (() => void) | undefined;
+        const audioActivation = new Promise<void>((resolve) => {
+            resolveAudioActivation = resolve;
+        });
+        mockState.isAudioContextStarted = false;
+        mockActions.startAudio = vi.fn(() => audioActivation);
+        const manager = createRecorderManager({
+            audio: mockAudio,
+            dom: mockDom,
+            state: mockState,
+            actions: mockActions,
+        });
+
+        const recording = manager.toggleRecording();
+        await vi.waitFor(() => expect(mockActions.startAudio).toHaveBeenCalledOnce());
+        await manager.destroy();
+        resolveAudioActivation?.();
+        await recording;
+
+        expect(mockAudio.recordingOutput.connect).not.toHaveBeenCalled();
+        expect(mockActions.showToast).not.toHaveBeenCalled();
+        expect(manager.isRecording).toBe(false);
+    });
+
+    it("safely exits cancelPendingStart when destroyed while capture is stopping", async () => {
+        let resolveStart: (() => void) | undefined;
+        let resolveStop: (() => void) | undefined;
+        recorderStartPromise = new Promise((resolve) => {
+            resolveStart = resolve;
+        });
+        recorderStopPromise = new Promise((resolve) => {
+            resolveStop = resolve;
+        });
+        let onStopInvoked: (() => void) | undefined;
+        const stopInvokedPromise = new Promise<void>((resolve) => {
+            onStopInvoked = resolve;
+        });
+        recorderStopCalled = () => onStopInvoked?.();
+
+        const manager = createRecorderManager({
+            audio: mockAudio,
+            dom: mockDom,
+            state: mockState,
+            actions: mockActions,
+        });
+
+        const startRecording = manager.toggleRecording();
+        await Promise.resolve();
+        const cancelRecording = manager.toggleRecording();
+        resolveStart?.();
+        await stopInvokedPromise;
+
+        manager.destroy();
+        resolveStop?.();
+        await Promise.all([startRecording, cancelRecording]);
+
+        expect(manager.isRecording).toBe(false);
+    });
+
+    it("cancels in-flight recording if stop is requested while awaiting playback auto-start", async () => {
+        let resolvePlayback: (() => void) | undefined;
+        const playbackDeferred = new Promise<void>((resolve) => {
+            resolvePlayback = resolve;
+        });
+        mockActions.startPlayback = vi.fn().mockImplementation(() => playbackDeferred);
+
+        const manager = createRecorderManager({
+            audio: mockAudio,
+            dom: mockDom,
+            state: { ...mockState, isPlaying: false },
+            actions: mockActions,
+        });
+
+        const startPromise = manager.toggleRecording();
+        await vi.waitFor(() => {
+            expect(mockActions.startPlayback).toHaveBeenCalled();
+        });
+        expect(manager.isRecording).toBe(true);
+
+        const stopPromise = manager.stopRecording();
+        resolvePlayback?.();
+        await Promise.all([startPromise, stopPromise]);
+
+        expect(recorderLifecycle).toEqual(["recording-start", "recording-stop"]);
+        expect(manager.isRecording).toBe(false);
+        expect(manager.isActivelyRecording).toBe(false);
+        expect(mockDom.recordButton.textContent).toBe("Record");
+    });
+
+    it("rejects startPromise while concurrent stopPromise resolves cleanly when in-flight start encounters playback startup failure", async () => {
+        let rejectPlayback: ((error: Error) => void) | undefined;
+        const playbackDeferred = new Promise<void>((_, reject) => {
+            rejectPlayback = reject;
+        });
+        mockActions.startPlayback = vi.fn().mockImplementation(() => playbackDeferred);
+
+        const manager = createRecorderManager({
+            audio: mockAudio,
+            dom: mockDom,
+            state: { ...mockState, isPlaying: false },
+            actions: mockActions,
+        });
+
+        const startPromise = manager.toggleRecording();
+        await vi.waitFor(() => {
+            expect(mockActions.startPlayback).toHaveBeenCalled();
+        });
+        expect(manager.isRecording).toBe(true);
+
+        const stopPromise = manager.stopRecording();
+        rejectPlayback?.(new Error("Audio playback failed"));
+
+        // startPromise rejects because startPlayback threw, but stopRecording must resolve cleanly
+        await expect(startPromise).rejects.toThrow("Audio playback failed");
+        await expect(stopPromise).resolves.toBe(true);
+
+        expect(manager.isRecording).toBe(false);
+        expect(manager.isActivelyRecording).toBe(false);
+        expect(mockDom.recordButton.textContent).toBe("Record");
+    });
+
+    it("does not abort a newer recording take when a stale playback startup from an earlier stopped take rejects", async () => {
+        let rejectTake1Playback: ((error: Error) => void) | undefined;
+        const take1PlaybackDeferred = new Promise<void>((_, reject) => {
+            rejectTake1Playback = reject;
+        });
+
+        mockActions.startPlayback = vi
+            .fn()
+            .mockImplementationOnce(() => take1PlaybackDeferred)
+            .mockImplementationOnce(async () => {});
+
+        const manager = createRecorderManager({
+            audio: mockAudio,
+            dom: mockDom,
+            state: { ...mockState, isPlaying: false },
+            actions: mockActions,
+        });
+
+        const take1StartPromise = manager.toggleRecording();
+        await vi.waitFor(() => {
+            expect(mockActions.startPlayback).toHaveBeenCalledTimes(1);
+        });
+        expect(manager.isRecording).toBe(true);
+
+        const take1StopPromise = manager.stopRecording();
+        await vi.waitFor(() => {
+            expect(manager.isRecording).toBe(false);
+        });
+
+        const take2StartPromise = manager.toggleRecording();
+        await vi.waitFor(() => {
+            expect(mockActions.startPlayback).toHaveBeenCalledTimes(2);
+        });
+        await take2StartPromise;
+
+        expect(manager.isRecording).toBe(true);
+        expect(manager.isActivelyRecording).toBe(true);
+        expect(mockDom.recordButton.textContent).toContain("Stop Recording");
+
+        rejectTake1Playback?.(new Error("Take 1 playback failed"));
+        await expect(take1StartPromise).rejects.toThrow("Take 1 playback failed");
+        await expect(take1StopPromise).resolves.toBe(true);
+
+        expect(manager.isRecording).toBe(true);
+        expect(manager.isActivelyRecording).toBe(true);
+        expect(mockDom.recordButton.textContent).toContain("Stop Recording");
+
+        await manager.stopRecording();
+        expect(manager.isRecording).toBe(false);
+        expect(manager.isActivelyRecording).toBe(false);
+    });
+
+    it("preserves newer take cancellation when an earlier take completes its finally cleanup", async () => {
+        let resolveTake1Playback: (() => void) | undefined;
+        const take1PlaybackDeferred = new Promise<void>((resolve) => {
+            resolveTake1Playback = resolve;
+        });
+
+        let resolveTake2Playback: (() => void) | undefined;
+        const take2PlaybackDeferred = new Promise<void>((resolve) => {
+            resolveTake2Playback = resolve;
+        });
+
+        mockActions.startPlayback = vi
+            .fn()
+            .mockImplementationOnce(() => take1PlaybackDeferred)
+            .mockImplementationOnce(() => take2PlaybackDeferred);
+
+        const manager = createRecorderManager({
+            audio: mockAudio,
+            dom: mockDom,
+            state: { ...mockState, isPlaying: false },
+            actions: mockActions,
+        });
+
+        const take1StartPromise = manager.toggleRecording();
+        await vi.waitFor(() => {
+            expect(mockActions.startPlayback).toHaveBeenCalledTimes(1);
+        });
+
+        const take1StopPromise = manager.stopRecording();
+        await vi.waitFor(() => {
+            expect(manager.isRecording).toBe(false);
+        });
+
+        const take2StartPromise = manager.toggleRecording();
+        await vi.waitFor(() => {
+            expect(mockActions.startPlayback).toHaveBeenCalledTimes(2);
+        });
+        const take2StopPromise = manager.stopRecording();
+
+        resolveTake1Playback?.();
+        await Promise.all([take1StartPromise, take1StopPromise]);
+
+        resolveTake2Playback?.();
+        await Promise.all([take2StartPromise, take2StopPromise]);
+
+        expect(manager.isRecording).toBe(false);
+        expect(manager.isActivelyRecording).toBe(false);
+        expect(mockDom.recordButton.textContent).toBe("Record");
+    });
+
+    it("does not abort or reset take 2 when take 1 playback rejects while take 2 startup is pending", async () => {
+        let rejectTake1Playback: ((error: Error) => void) | undefined;
+        const take1PlaybackDeferred = new Promise<void>((_, reject) => {
+            rejectTake1Playback = reject;
+        });
+
+        let resolveTake2StartCapture: (() => void) | undefined;
+        const take2StartCaptureDeferred = new Promise<void>((resolve) => {
+            resolveTake2StartCapture = resolve;
+        });
+
+        mockActions.startPlayback = vi
+            .fn()
+            .mockImplementationOnce(() => take1PlaybackDeferred)
+            .mockImplementationOnce(async () => {});
+
+        const manager = createRecorderManager({
+            audio: mockAudio,
+            dom: mockDom,
+            state: { ...mockState, isPlaying: false },
+            actions: mockActions,
+        });
+
+        const take1StartPromise = manager.toggleRecording();
+        await vi.waitFor(() => {
+            expect(mockActions.startPlayback).toHaveBeenCalledTimes(1);
+        });
+
+        const take1StopPromise = manager.stopRecording();
+        await vi.waitFor(() => {
+            expect(manager.isRecording).toBe(false);
+        });
+
+        recorderStartPromise = take2StartCaptureDeferred;
+
+        const take2StartPromise = manager.toggleRecording();
+        expect(manager.isRecording).toBe(true);
+
+        rejectTake1Playback?.(new Error("Take 1 playback failed"));
+        await expect(take1StartPromise).rejects.toThrow("Take 1 playback failed");
+        await expect(take1StopPromise).resolves.toBe(true);
+
+        expect(manager.isRecording).toBe(true);
+
+        resolveTake2StartCapture?.();
+        await take2StartPromise;
+
+        expect(manager.isRecording).toBe(true);
+        expect(manager.isActivelyRecording).toBe(true);
+        expect(mockDom.recordButton.textContent).toContain("Stop Recording");
+
+        await manager.stopRecording();
+        expect(manager.isRecording).toBe(false);
+        expect(manager.isActivelyRecording).toBe(false);
+    });
+
+    it("reports start failure rather than stop failure when startup fails while cancellation is pending", async () => {
+        let rejectStartAudio: ((error: Error) => void) | undefined;
+        const startAudioDeferred = new Promise<void>((_, reject) => {
+            rejectStartAudio = reject;
+        });
+        mockActions.startAudio = vi.fn().mockImplementation(() => startAudioDeferred);
+
+        const manager = createRecorderManager({
+            audio: mockAudio,
+            dom: mockDom,
+            state: { ...mockState, isAudioContextStarted: false },
+            actions: mockActions,
+        });
+
+        const startPromise = manager.toggleRecording();
+        await vi.waitFor(() => {
+            expect(mockActions.startAudio).toHaveBeenCalled();
+        });
+
+        const stopPromise = manager.stopRecording();
+        rejectStartAudio?.(new Error("Audio activation denied"));
+
+        await expect(startPromise).rejects.toThrow("Audio activation denied");
+        await expect(stopPromise).resolves.toBe(false);
+
+        expect(mockActions.showToast).toHaveBeenCalledWith("Recording failed to start.", "error");
+        expect(mockDom.recordStatus.textContent).toBe("Recording failed to start. See console.");
+    });
+
+    it("distinguishes starting phase from actively recording and resets recordingStartTime to 0 on entry", async () => {
+        let resolveStart: (() => void) | undefined;
+        recorderStartPromise = new Promise((resolve) => {
+            resolveStart = resolve;
+        });
+        const manager = createRecorderManager({
+            audio: mockAudio,
+            dom: mockDom,
+            state: mockState,
+            actions: mockActions,
+        });
+
+        expect(manager.isRecording).toBe(false);
+        expect(manager.isActivelyRecording).toBe(false);
+        expect(manager.recordingStartTime).toBe(0);
+
+        const startPromise = manager.toggleRecording();
+        await Promise.resolve();
+
+        expect(manager.isRecording).toBe(true);
+        expect(manager.isActivelyRecording).toBe(false);
+        expect(manager.recordingStartTime).toBe(0);
+
+        resolveStart?.();
+        await startPromise;
+
+        expect(manager.isRecording).toBe(true);
+        expect(manager.isActivelyRecording).toBe(true);
+        expect(manager.recordingStartTime).toBeGreaterThan(0);
+
+        await manager.stopRecording();
+        expect(manager.isRecording).toBe(false);
+        expect(manager.isActivelyRecording).toBe(false);
+    });
+
     it("hides previous export controls while replacement capture is pending", async () => {
         let resolveStart: () => void = () => {};
         recorderStartPromise = new Promise((resolve) => {
@@ -903,7 +1427,6 @@ describe("Recorder Manager Module", () => {
             expect(mockDom.exportControls.classList.contains("hidden")).toBe(true);
         });
         expect(manager.isStarting).toBe(true);
-        expect(manager.isRecording).toBe(false);
 
         resolveStart();
         await startPromise;
@@ -930,7 +1453,7 @@ describe("Recorder Manager Module", () => {
         await manager.destroy();
     });
 
-    it("ignores a second toggle while playback startup is still pending", async () => {
+    it("stops active capture when toggled while playback startup is still pending", async () => {
         let notifyPlaybackStarted = () => {};
         let resolvePlayback: () => void = () => {};
         const playbackStarted = new Promise<void>((resolve) => {
@@ -955,8 +1478,8 @@ describe("Recorder Manager Module", () => {
         await playbackStarted;
         await manager.toggleRecording();
 
-        expect(manager.isRecording).toBe(true);
-        expect(recorderLifecycle).not.toContain("recording-stop");
+        expect(manager.isRecording).toBe(false);
+        expect(recorderLifecycle).toContain("recording-stop");
         expect(mockActions.startPlayback).toHaveBeenCalledOnce();
 
         resolvePlayback();
@@ -993,6 +1516,38 @@ describe("Recorder Manager Module", () => {
 
         expect(mockActions.startUiLoop).not.toHaveBeenCalled();
         expect(mockActions.startPlayback).toHaveBeenCalledOnce();
+        expect(manager.isRecording).toBe(false);
+        expect(recorderDispose).toHaveBeenCalled();
+    });
+
+    it("settles destroy cleanly when playback start rejects during teardown stop", async () => {
+        let notifyPlaybackStarted = () => {};
+        let rejectPlayback: (err: Error) => void = () => {};
+        const playbackStarted = new Promise<void>((resolve) => {
+            notifyPlaybackStarted = resolve;
+        });
+        const playbackPending = new Promise<void>((_resolve, reject) => {
+            rejectPlayback = reject;
+        });
+        mockActions.startPlayback = vi.fn(async () => {
+            notifyPlaybackStarted();
+            await playbackPending;
+        });
+
+        const manager = createRecorderManager({
+            audio: mockAudio,
+            dom: mockDom,
+            state: mockState,
+            actions: mockActions,
+        });
+
+        const startPromise = manager.toggleRecording();
+        await playbackStarted;
+        const destroyPromise = manager.destroy();
+        rejectPlayback(new Error("Playback failure during destruction"));
+
+        await expect(startPromise).rejects.toThrow("Playback failure during destruction");
+        await expect(destroyPromise).resolves.toBeUndefined();
         expect(manager.isRecording).toBe(false);
         expect(recorderDispose).toHaveBeenCalled();
     });
@@ -1125,6 +1680,52 @@ describe("Recorder Manager Module", () => {
         } finally {
             warnSpy.mockRestore();
         }
+    });
+
+    it("shares playback-error cleanup with a concurrent cancellation request", async () => {
+        let rejectPlaybackStart: ((error: Error) => void) | undefined;
+        let resolveCaptureStop: (() => void) | undefined;
+        let markCaptureStopCalled: (() => void) | undefined;
+        mockActions.startPlayback = vi.fn(
+            () =>
+                new Promise<void>((_resolve, reject) => {
+                    rejectPlaybackStart = reject;
+                }),
+        );
+        recorderStopPromise = new Promise((resolve) => {
+            resolveCaptureStop = resolve;
+        });
+        const captureStopCalled = new Promise<void>((resolve) => {
+            markCaptureStopCalled = resolve;
+        });
+        const stopRecorder = vi.fn(() => markCaptureStopCalled?.());
+        recorderStopCalled = stopRecorder;
+        const playbackError = new Error("playback startup failed");
+        const stopError = new Error("capture cleanup failed");
+        recorderStopError = stopError;
+        const manager = createRecorderManager({
+            audio: mockAudio,
+            dom: mockDom,
+            state: mockState,
+            actions: mockActions,
+        });
+
+        const start = manager.toggleRecording();
+        await vi.waitFor(() => expect(mockActions.startPlayback).toHaveBeenCalledOnce());
+        rejectPlaybackStart?.(playbackError);
+        await captureStopCalled;
+        const cancellation = manager.stopRecording();
+        resolveCaptureStop?.();
+
+        const [startResult, cancellationResult] = await Promise.allSettled([start, cancellation]);
+        expect(startResult).toMatchObject({ status: "rejected", reason: playbackError });
+        expect(cancellationResult).toMatchObject({ status: "rejected", reason: stopError });
+        expect(stopRecorder).toHaveBeenCalledOnce();
+        expect(mockActions.showToast).toHaveBeenCalledWith("Recording failed to stop.", "error");
+        expect(mockActions.showToast).not.toHaveBeenCalledWith(
+            "Recording stopped when Simple controls were selected.",
+            "info",
+        );
     });
 
     it("releases decoded PCM after a successful export and retains it for retry", async () => {
@@ -1424,6 +2025,40 @@ describe("Recorder Manager Module", () => {
             });
 
             await manager.toggleRecording();
+            expect(mockDom.recordButton.disabled).toBe(true);
+            expect(mockDom.recordStatus.textContent).toBe(
+                "Recording not available on this device.",
+            );
+        } finally {
+            window.isSecureContext = originalSecureContext;
+            window.MediaRecorder = originalMediaRecorder;
+        }
+    });
+
+    it("preserves the unavailable recorder state when startup is cancelled", async () => {
+        toneRecorderConstructorError = new Error("Tone.Recorder unavailable");
+        const originalSecureContext = window.isSecureContext;
+        const originalMediaRecorder = window.MediaRecorder;
+
+        window.isSecureContext = false;
+        // @ts-expect-error simulating missing MediaRecorder
+        window.MediaRecorder = undefined;
+
+        try {
+            const manager = createRecorderManager({
+                audio: mockAudio,
+                dom: mockDom,
+                state: mockState,
+                actions: mockActions,
+            });
+
+            const starting = manager.toggleRecording();
+            const cancellation = manager.stopRecording();
+            await expect(Promise.all([starting, cancellation])).resolves.toEqual([
+                undefined,
+                false,
+            ]);
+
             expect(mockDom.recordButton.disabled).toBe(true);
             expect(mockDom.recordStatus.textContent).toBe(
                 "Recording not available on this device.",
@@ -1774,7 +2409,7 @@ describe("Recorder Manager Module", () => {
         }
     });
 
-    it("stops started backend when destroy is called during start transition", async () => {
+    it("does not start capture after destroy during recorder initialization", async () => {
         let resolveStart: () => void = () => {};
         recorderStartPromise = new Promise<void>((resolve) => {
             resolveStart = resolve;
@@ -1794,8 +2429,8 @@ describe("Recorder Manager Module", () => {
         await togglePromise;
         await destroyPromise;
 
-        expect(recorderLifecycle).toContain("recording-start");
-        expect(recorderLifecycle).toContain("recording-stop");
+        expect(recorderLifecycle).not.toContain("recording-start");
+        expect(recorderLifecycle).not.toContain("recording-stop");
         expect(recorderDispose).toHaveBeenCalled();
         expect(manager.isRecording).toBe(false);
     });

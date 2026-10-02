@@ -34,6 +34,8 @@ import { createPlaybackController } from "@audio/playback-controller.js";
 import { createStaticLoopRenderer } from "@audio/static-loop-renderer.js";
 import { initializeKeyboardControls } from "@ui/keyboard-controller.js";
 import { createHistoryController } from "@ui/history-controller.js";
+import { createInterfaceModeController } from "@ui/interface-mode-controller.js";
+import { createInterfaceModeSafetyController } from "@ui/interface-mode-safety-controller.js";
 import { createInputFilterController } from "@ui/input-filter-controller.js";
 import { createNoteStepController } from "@ui/note-step-controller.js";
 import { createOnboardingController } from "@ui/onboarding-controller.js";
@@ -58,8 +60,8 @@ import { FACTORY_PRESETS } from "./config/factory-presets.js";
 /** @typedef {{oscillator: {width: NumericAudioParam}, harmonicity: NumericAudioParam, modulationIndex: NumericAudioParam, filterEnvelope: {baseFrequency: number, octaves: number}, filter: {Q: NumericAudioParam}, vibratoAmount: NumericAudioParam, dampening: number, resonance: number, attackNoise: number, pitchDecay: number, octaves: number}} ActiveSynthLike */
 /** @typedef {{activeSynth: ActiveSynthLike, currentWaveform: string, setSynth: (type: string) => void, updateEnvelope: () => void, postGain: {volume: NumericAudioParam}, distortion: {wet: NumericAudioParam}, filter: {frequency: NumericAudioParam, Q: NumericAudioParam}, chorus: {wet: NumericAudioParam}, autoPanner: {wet: NumericAudioParam}, delay: {wet: NumericAudioParam}, reverb: {wet: NumericAudioParam}, createOfflineChain: (context: unknown, settings: unknown) => {offlineSynth: {triggerAttackRelease: (note: string, duration: number, time: number) => void}}}} AudioEngineLike */
 /** @typedef {{update: (settings: object) => object|null, getPattern: () => {start: () => void, stop: () => void}|null, getTimeline?: () => CompiledTimeline|null, dispose: () => void, silenceActiveSynth?: () => void}} PatternControllerLike */
-/** @typedef {{isRecording: boolean, toggleRecording: () => Promise<void>, exportRealtime: () => Promise<void>, exportOffline: () => Promise<void>, initRecorder: () => Promise<void>}} RecorderManagerLike */
-/** @typedef {{currentMode: string, toggle: () => void, startUiLoop: () => void, stopUiLoop: () => void, onManualNoteAttack: () => void, onManualNoteRelease: () => void, updateStaticLoopMap: (buffer: unknown, markers: unknown) => void}} VisualizerLike */
+/** @typedef {{isRecording: boolean, isActivelyRecording?: boolean, toggleRecording: () => Promise<void>, stopRecording?: () => Promise<boolean>, exportRealtime: () => Promise<void>, exportOffline: () => Promise<void>, initRecorder: () => Promise<void>, awaitPendingTransition?: () => Promise<void>}} RecorderManagerLike */
+/** @typedef {{currentMode: string, isVisualizerOn: boolean, toggle: () => void, startUiLoop: () => void, stopUiLoop: () => void, onManualNoteAttack: () => void, onManualNoteRelease: () => void, updateStaticLoopMap: (buffer: unknown, markers: unknown) => void}} VisualizerLike */
 
 // --- Global Config ---
 // Keep development diagnostics out of production bundles.
@@ -169,6 +171,11 @@ function initializeApp() {
     const {
         documentRef,
         appMain,
+        interfaceModeControls,
+        interfaceModeButtons,
+        interfaceModeSimpleBtn,
+        interfaceModeFullBtn,
+        interfaceModeSelect,
         stickyTransportBar,
         playStopButton,
         undoButton,
@@ -319,6 +326,10 @@ function initializeApp() {
         liveRegion,
         quickStartModal,
         quickStartOverlay,
+        quickStartModeChoice,
+        quickStartModeContent,
+        quickStartSimpleButton,
+        quickStartFullButton,
         quickStartPresetsGrid,
         quickStartScratchButton,
         startOverlay,
@@ -696,9 +707,44 @@ function initializeApp() {
     /** @type {Promise<void>|null} */
     let initialSessionRestorePromise = null;
 
+    /** @type {ReturnType<typeof createInterfaceModeSafetyController>|null} */
+    let interfaceModeSafetyController = null;
+    const interfaceModeController = createInterfaceModeController({
+        dom: {
+            appMain,
+            interfaceModeControls,
+            interfaceModeButtons,
+            interfaceModeSimpleBtn,
+            interfaceModeFullBtn,
+            interfaceModeSelect,
+        },
+        storage: {
+            getItem: (key) => window.localStorage.getItem(key),
+            setItem: (key, value) => window.localStorage.setItem(key, value),
+        },
+        onModeApplied: (mode) => interfaceModeSafetyController?.onModeApplied(mode),
+        logger: console,
+    });
+    interfaceModeSafetyController = createInterfaceModeSafetyController({
+        getInterfaceMode: () => interfaceModeController.getMode(),
+        getRecorderManager,
+        getKeyboardToggle: () => keyboardToggle,
+        getVisualizer,
+        cancelPendingAdvancedActions: () => {
+            exportControlsController?.cancelPendingAdvancedActions?.();
+        },
+        setInterfaceMode: (mode) => interfaceModeController.setMode(mode),
+        showToast,
+        logger: console,
+    });
+
     const onboardingController = createOnboardingController({
         dom: {
             appMain,
+            quickStartModeChoice,
+            quickStartModeContent,
+            quickStartSimpleButton,
+            quickStartFullButton,
             playStopButton,
             quickStartModal,
             quickStartOverlay,
@@ -749,6 +795,9 @@ function initializeApp() {
             await startAudio();
             loadPresetFromUrl();
             await startPlayback();
+        },
+        onInterfaceModeSelected: (mode) => {
+            interfaceModeController.setMode(mode);
         },
         logger: console,
     });
@@ -1584,6 +1633,7 @@ function initializeApp() {
         getTimeline: () => getPatternController()?.getTimeline?.() ?? null,
         getRecorderManager,
         getVisualizer,
+        getInterfaceMode: () => interfaceModeController?.getMode() ?? "full",
         startAudio,
         generateFilename,
         showToast,
@@ -1634,17 +1684,21 @@ function initializeApp() {
     //    Initial Setup
     // ==================================================================
 
-    loadAllSettings(DEFAULT_SETTINGS);
-    keyboardToggle.checked = false;
-    updateKeyboardControlUi();
+    try {
+        interfaceModeController.initialize();
+        loadAllSettings(DEFAULT_SETTINGS);
+        keyboardToggle.checked = false;
+        updateKeyboardControlUi();
 
-    workspaceController.initialize(getAllSettings());
-    // Synchronize export UI and stash reset tooltip titles installed by workspaceController for initially disabled targets
-    updateOfflineExportModeUi();
-    historyController.initialize();
-    buildSoundStartersStrip();
-
-    onboardingController.initialize();
+        workspaceController.initialize(getAllSettings());
+        // Synchronize export UI and stash reset tooltip titles installed by workspaceController for initially disabled targets
+        updateOfflineExportModeUi();
+        historyController.initialize();
+        buildSoundStartersStrip();
+        onboardingController.initialize();
+    } finally {
+        if (appMain) appMain.hidden = false;
+    }
 
     log("Arpeggiator initialized and ready.");
     void refreshSavedPresetList();

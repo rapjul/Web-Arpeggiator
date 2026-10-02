@@ -106,3 +106,44 @@
     border-radius: 0;
   }
 }
+
+/* Header Segmented Interface Mode Switcher */
+.interface-mode-segmented {
+  user-select: none;
+  background-color: rgb(var(--ui-overlay-rgb) / 0.8);
+  border: 1px solid rgb(var(--ui-border-rgb) / 0.8);
+  border-radius: var(--ui-radius-md);
+  padding: 0.25rem;
+}
+
+.interface-mode-btn {
+  user-select: none;
+  touch-action: manipulation;
+  cursor: pointer;
+  border: none;
+  border-radius: var(--ui-radius-sm);
+  padding: 0.375rem 0.75rem;
+  font-size: 0.75rem;
+  line-height: 1rem;
+  font-weight: 600;
+  transition: all var(--ui-transition-fast) ease;
+  color: var(--ui-text-muted);
+  background-color: transparent;
+}
+
+.interface-mode-btn:hover {
+  color: var(--ui-key-white);
+  background-color: rgb(var(--ui-surface-rgb) / 0.6);
+}
+
+.interface-mode-btn.active,
+.interface-mode-btn[aria-checked="true"] {
+  background-color: var(--ui-accent);
+  color: var(--ui-key-white);
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.25);
+}
+
+.interface-mode-btn:focus-visible {
+  outline: var(--ui-focus-width) solid var(--ui-focus);
+  outline-offset: 1px;
+}

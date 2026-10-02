@@ -302,6 +302,47 @@ describe("playback controller", () => {
         expect(fixture.transport.start).not.toHaveBeenCalled();
     });
 
+    it("waits for capture readiness without waiting for recorder playback completion", async () => {
+        const fixture = createFixture();
+        let resolveCaptureReady: (() => void) | undefined;
+        const captureReady = new Promise<void>((resolve) => {
+            resolveCaptureReady = resolve;
+        });
+        const recorderManager = {
+            isRecording: true,
+            isStarting: true,
+            awaitCaptureReady: vi.fn(() => captureReady),
+            awaitPendingTransition: vi.fn(async () => {}),
+            initRecorder: vi.fn(async () => {}),
+        };
+        const controller = createPlaybackController({
+            dom: { playStopButton: fixture.playStopButton },
+            state: fixture.state,
+            getTone: () => ({
+                getContext: () => ({ state: "running", rawContext: fixture.rawContext }),
+                getTransport: () => fixture.transport,
+            }),
+            getPattern: () => fixture.pattern,
+            getRecorderManager: () => recorderManager,
+            getVisualizer: () => fixture.visualizer,
+            startAudio: fixture.startAudio,
+            prepareForPlayback: fixture.prepareForPlayback,
+            createOrUpdatePattern: fixture.createOrUpdatePattern,
+            clearNoteStep: fixture.clearNoteStep,
+        });
+        controllers.push(controller);
+
+        const playback = controller.start();
+        await vi.waitFor(() => expect(recorderManager.awaitCaptureReady).toHaveBeenCalledOnce());
+        expect(recorderManager.awaitPendingTransition).not.toHaveBeenCalled();
+        expect(fixture.transport.start).not.toHaveBeenCalled();
+
+        resolveCaptureReady?.();
+        await playback;
+
+        expect(fixture.transport.start).toHaveBeenCalledOnce();
+    });
+
     it("does not block transport start on recorder pre-warming", async () => {
         let resolveInit: () => void = () => {};
         const slowInitRecorder = vi.fn(

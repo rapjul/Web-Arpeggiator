@@ -58,12 +58,39 @@ describe("createDomReferences", () => {
         expect(dom.exportControls).toBe(
             isolatedDocument.getElementById("realtime-export-controls"),
         );
+        expect(dom.interfaceModeSelect).toBeNull();
+        expect(dom.interfaceModeControls).toBeNull();
+        expect(dom.interfaceModeButtons).toEqual([]);
+        expect(dom.interfaceModeSimpleBtn).toBeNull();
+        expect(dom.interfaceModeFullBtn).toBeNull();
         expect(dom.chordButtons).toHaveLength(1);
         expect(dom.offlineExportModeInputs).toHaveLength(1);
         expect(dom.resolveResetTargets(["label[for='bpm']", "#bpm-value", "#missing"])).toEqual([
             isolatedDocument.querySelector("label[for='bpm']"),
             isolatedDocument.getElementById("bpm-value"),
         ]);
+    });
+
+    it("queries segmented interface mode elements when present", () => {
+        const isolatedDocument = document.implementation.createHTMLDocument("isolated");
+        isolatedDocument.body.innerHTML = `
+            <div id="interface-mode-controls">
+                <button id="interface-mode-simple-btn" data-interface-mode="simple">Simple</button>
+                <button id="interface-mode-full-btn" data-interface-mode="full">Full</button>
+            </div>
+        `;
+
+        const dom = createDomReferences(isolatedDocument);
+        expect(dom.interfaceModeControls).toBe(
+            isolatedDocument.getElementById("interface-mode-controls"),
+        );
+        expect(dom.interfaceModeButtons).toHaveLength(2);
+        expect(dom.interfaceModeSimpleBtn).toBe(
+            isolatedDocument.getElementById("interface-mode-simple-btn"),
+        );
+        expect(dom.interfaceModeFullBtn).toBe(
+            isolatedDocument.getElementById("interface-mode-full-btn"),
+        );
     });
 
     it("queries only the supplied document", () => {
