@@ -418,7 +418,13 @@ export function createExportControlsController(dependencies) {
         offlineExportMidiButton?.addEventListener("click", handleMidiExport, listenerOptions);
         toggleVisualizerButton.addEventListener(
             "click",
-            () => getVisualizer()?.toggle(),
+            () => {
+                const wasOn = Boolean(getVisualizer()?.isVisualizerOn);
+                getVisualizer()?.toggle();
+                if (!wasOn) {
+                    requestStaticLoopRender();
+                }
+            },
             listenerOptions,
         );
         visualizerModeSelect?.addEventListener(

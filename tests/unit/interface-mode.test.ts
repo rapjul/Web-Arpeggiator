@@ -262,4 +262,27 @@ describe("interface mode", () => {
 
         controller.destroy();
     });
+
+    test("persists mode before applyMode so nested setMode calls determine the final stored value", () => {
+        const appMain = document.createElement("main");
+        let controller: ReturnType<typeof createInterfaceModeController>;
+        const onModeApplied = vi.fn((mode) => {
+            if (mode === "simple") {
+                controller.setMode("full");
+            }
+        });
+
+        controller = createInterfaceModeController({
+            dom: { appMain },
+            storage: localStorage,
+            onModeApplied,
+        });
+
+        controller.initialize();
+        controller.setMode("simple");
+
+        expect(controller.getMode()).toBe("full");
+        expect(localStorage.getItem("webArpInterfaceMode")).toBe("full");
+        controller.destroy();
+    });
 });

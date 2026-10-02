@@ -110,17 +110,18 @@ export function createInterfaceModeController(dependencies) {
         const normalizedMode = normalizeInterfaceMode(mode);
         const hasModeChanged = !hasAppliedMode || currentMode !== normalizedMode;
         currentMode = normalizedMode;
+        if (options.persist !== false) {
+            try {
+                storage.setItem(INTERFACE_MODE_STORAGE_KEY, normalizedMode);
+            } catch (error) {
+                logger.warn("Could not save interface mode:", error);
+            }
+        }
         // Only trigger transition callbacks if explicitly requested or if the mode actually changed,
         // avoiding redundant teardown side-effects during initial workspace hydration.
         const shouldNotify = options.notify !== undefined ? options.notify : hasModeChanged;
         applyMode(normalizedMode, shouldNotify);
         hasAppliedMode = true;
-        if (options.persist === false) return normalizedMode;
-        try {
-            storage.setItem(INTERFACE_MODE_STORAGE_KEY, normalizedMode);
-        } catch (error) {
-            logger.warn("Could not save interface mode:", error);
-        }
         return normalizedMode;
     }
 

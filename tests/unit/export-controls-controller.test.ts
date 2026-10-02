@@ -593,4 +593,25 @@ describe("export controls controller", () => {
         controller.requestStaticLoopRender();
         expect(renderStaticLoop).toHaveBeenCalledOnce();
     });
+
+    it("requests static loop render when toggling visualizer on in loopMap mode", () => {
+        let isVisualizerOn = false;
+        const visualizer = {
+            currentMode: "loopMap",
+            get isVisualizerOn() {
+                return isVisualizerOn;
+            },
+            toggle: vi.fn(() => {
+                isVisualizerOn = !isVisualizerOn;
+            }),
+        };
+        const { toggleVisualizerButton, renderStaticLoop } = createFixture({
+            getInterfaceMode: () => "full",
+            visualizer,
+        });
+
+        toggleVisualizerButton.click();
+        expect(visualizer.toggle).toHaveBeenCalledOnce();
+        expect(renderStaticLoop).toHaveBeenCalledOnce();
+    });
 });

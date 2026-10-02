@@ -667,6 +667,9 @@ export function createRecorderManager(context) {
                 actions.startUiLoop();
                 dom.recordButton.disabled = false;
             } catch (error) {
+                if (currentStartId !== activeStartId) {
+                    throw error;
+                }
                 if (activeStopPromise) {
                     try {
                         await activeStopPromise;
