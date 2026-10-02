@@ -19,6 +19,83 @@ import { compileTimeline, getTimelineTerminalEndSeconds } from "@core/timeline.j
 /** @typedef {import("@core/timeline.js").CompiledTimeline} CompiledTimeline */
 
 /**
+ * DOM element references required by the export controls controller.
+ *
+ * @typedef {Object} ExportControlsDom
+ * @property {HTMLInputElement} loopCountInput - Input for offline export cycle count.
+ * @property {NodeListOf<HTMLInputElement>} offlineExportModeInputs - Radio buttons for export mode.
+ * @property {HTMLElement|null} offlineExportTailControl - Container for effects tail controls.
+ * @property {HTMLSelectElement|null} offlineExportTailModeSelect - Select element for tail strategy.
+ * @property {HTMLInputElement|null} offlineExportTailSecondsInput - Custom tail duration input.
+ * @property {HTMLElement|null} [offlineExportTailSecondsLabel] - Tail duration label element.
+ * @property {HTMLElement|null} offlineExportDuration - Container displaying estimated export duration.
+ * @property {HTMLElement} recordButton - Real-time recording toggle button.
+ * @property {HTMLElement} exportButton - Real-time export trigger button.
+ * @property {HTMLElement} offlineExportButton - Offline audio export trigger button.
+ * @property {HTMLElement|null} offlineExportMidiButton - MIDI export trigger button.
+ * @property {HTMLElement} toggleVisualizerButton - Visualizer toggle button.
+ * @property {HTMLSelectElement|null} visualizerModeSelect - Visualizer mode selector dropdown.
+ */
+
+/**
+ * Recorder manager dependency interface.
+ *
+ * @typedef {Object} ExportRecorderManager
+ * @property {() => Promise<void>} toggleRecording - Toggles real-time capture.
+ * @property {() => Promise<void>} exportRealtime - Triggers real-time audio export.
+ * @property {() => Promise<void>} exportOffline - Triggers offline audio export.
+ */
+
+/**
+ * Visualizer dependency interface.
+ *
+ * @typedef {Object} ExportVisualizer
+ * @property {string} currentMode - Current visualizer mode (e.g. "oscilloscope" or "loopMap").
+ * @property {boolean} [isVisualizerOn] - Whether visualizer rendering is currently active.
+ * @property {() => void} toggle - Toggles visualizer on/off state.
+ */
+
+/**
+ * Logger dependency interface.
+ *
+ * @typedef {Object} ExportLogger
+ * @property {(...args: unknown[]) => void} [error] - Error logging method.
+ * @property {(...args: unknown[]) => void} [warn] - Warning logging method.
+ */
+
+/**
+ * Injected dependencies for the export controls controller.
+ *
+ * @typedef {Object} ExportControlsDependencies
+ * @property {ExportControlsDom} dom - Injected DOM element references.
+ * @property {() => ArpeggiatorSettings} getSettings - Accessor for current settings snapshot.
+ * @property {() => CompiledTimeline|null} [getTimeline] - Accessor for compiled musical timeline.
+ * @property {() => ExportRecorderManager|undefined} getRecorderManager - Accessor for recorder manager.
+ * @property {() => ExportVisualizer|undefined} getVisualizer - Accessor for visualizer instance.
+ * @property {() => string} [getInterfaceMode] - Accessor for current interface mode ("simple" | "full").
+ * @property {() => Promise<void>} startAudio - Initializes audio context and runtime.
+ * @property {(isRealtime: boolean) => string} generateFilename - Filename generator for exports.
+ * @property {(message: string, type?: string) => void} showToast - Toast feedback notification handler.
+ * @property {() => Promise<void>} renderStaticLoop - Triggers offline loop preview rendering.
+ * @property {<T extends (...args: unknown[]) => unknown>(callback: T, wait: number) => T & {cancel?: () => void}} debounce - Debounce helper factory.
+ * @property {number} [initialAdvancedActionGeneration] - Starting generation index for testing.
+ * @property {ExportLogger} [logger] - Optional diagnostic logger.
+ */
+
+/**
+ * Export controls controller public interface.
+ *
+ * @typedef {Object} ExportControlsController
+ * @property {() => void} initialize - Wires DOM listeners and initializes UI state.
+ * @property {() => void} destroy - Tears down event listeners and aborts pending actions.
+ * @property {() => void} updateEstimatedExportDuration - Recalculates and updates duration display.
+ * @property {() => void} updateOfflineExportModeUi - Updates visibility and labels for export mode controls.
+ * @property {() => void} requestStaticLoopRender - Requests debounced offline loop rendering.
+ * @property {() => void} cancelPendingAdvancedActions - Cancels pending renders and increments action generation.
+ * @property {() => number} getAdvancedActionGeneration - Returns the current generation counter.
+ */
+
+/**
  * Maximum safe generation threshold before rolling over.
  * @constant {number}
  */
@@ -27,8 +104,8 @@ const MAX_ACTION_GENERATION = Number.MAX_SAFE_INTEGER;
 /**
  * Creates the export controls controller.
  *
- * @param {{dom: {loopCountInput: HTMLInputElement, offlineExportModeInputs: NodeListOf<HTMLInputElement>, offlineExportTailControl: HTMLElement|null, offlineExportTailModeSelect: HTMLSelectElement|null, offlineExportTailSecondsInput: HTMLInputElement|null, offlineExportTailSecondsLabel?: HTMLElement|null, offlineExportDuration: HTMLElement|null, recordButton: HTMLElement, exportButton: HTMLElement, offlineExportButton: HTMLElement, offlineExportMidiButton: HTMLElement|null, toggleVisualizerButton: HTMLElement, visualizerModeSelect: HTMLSelectElement|null}, getSettings: () => ArpeggiatorSettings, getTimeline?: () => CompiledTimeline|null, getRecorderManager: () => {toggleRecording: () => Promise<void>, exportRealtime: () => Promise<void>, exportOffline: () => Promise<void>}|undefined, getVisualizer: () => {currentMode: string, toggle: () => void}|undefined, getInterfaceMode?: () => string, startAudio: () => Promise<void>, generateFilename: (isRealtime: boolean) => string, showToast: (message: string, type?: string) => void, renderStaticLoop: () => Promise<void>, debounce: (callback: () => void, wait: number) => () => void, logger?: {error?: (...args: unknown[]) => void, warn?: (...args: unknown[]) => void}}} dependencies - Injected export behavior.
- * @returns {{initialize: () => void, destroy: () => void, updateEstimatedExportDuration: () => void, updateOfflineExportModeUi: () => void, requestStaticLoopRender: () => void, cancelPendingAdvancedActions: () => void}} Export controls API.
+ * @param {ExportControlsDependencies} dependencies - Injected export behavior.
+ * @returns {ExportControlsController} Export controls API.
  */
 export function createExportControlsController(dependencies) {
     const {
@@ -64,7 +141,25 @@ export function createExportControlsController(dependencies) {
     } = dom;
     let listenerController = null;
     let isDestroyed = false;
-    let advancedActionGeneration = 0;
+    let advancedActionGeneration = Number.isSafeInteger(
+        dependencies.initialAdvancedActionGeneration,
+    )
+        ? dependencies.initialAdvancedActionGeneration
+        : 0;
+
+    /**
+     * Debounced request to render static loop map visualization.
+     * Guards against invocation in Simple mode or when the visualizer is inactive or not in loopMap mode.
+     *
+     * @type {(() => void) & {cancel?: () => void}}
+     */
+    const requestStaticLoopRender = debounce(() => {
+        if (isDestroyed || getInterfaceMode?.() === "simple") return;
+        const visualizer = getVisualizer();
+        if (visualizer?.isVisualizerOn && visualizer?.currentMode === "loopMap") {
+            void renderStaticLoop();
+        }
+    }, 150);
 
     /**
      * Invalidates any in-flight advanced actions queued during audio initialization.
@@ -72,6 +167,7 @@ export function createExportControlsController(dependencies) {
      * @returns {void}
      */
     function cancelPendingAdvancedActions() {
+        /** @type {{cancel?: () => void}} */ (requestStaticLoopRender).cancel?.();
         if (
             !Number.isSafeInteger(advancedActionGeneration) ||
             advancedActionGeneration >= MAX_ACTION_GENERATION ||
@@ -83,12 +179,11 @@ export function createExportControlsController(dependencies) {
         }
     }
 
-    const requestStaticLoopRender = debounce(() => {
-        if (isDestroyed) return;
-        const visualizer = getVisualizer();
-        if (visualizer?.currentMode === "loopMap") void renderStaticLoop();
-    }, 150);
-
+    /**
+     * Determines whether seamless loop or effects-tail export mode is currently selected.
+     *
+     * @returns {string} The selected offline export mode ("seamless" or "tail").
+     */
     function getSelectedOfflineExportMode() {
         return Array.from(offlineExportModeInputs).some(
             (input) => input.checked && input.value === OFFLINE_EXPORT_MODE_SEAMLESS,
@@ -97,6 +192,11 @@ export function createExportControlsController(dependencies) {
             : OFFLINE_EXPORT_MODE_TAIL;
     }
 
+    /**
+     * Synchronizes UI visibility, disabled attributes, and tooltips for offline export tail controls.
+     *
+     * @returns {void}
+     */
     function updateOfflineExportModeUi() {
         const isTailMode = getSelectedOfflineExportMode() === OFFLINE_EXPORT_MODE_TAIL;
         const tailMode = normalizeOfflineExportTailMode(
@@ -134,6 +234,11 @@ export function createExportControlsController(dependencies) {
         }
     }
 
+    /**
+     * Calculates and updates the human-readable estimated export duration label.
+     *
+     * @returns {void}
+     */
     function updateEstimatedExportDuration() {
         if (!offlineExportDuration) return;
         const settings = getSettings();
@@ -203,6 +308,11 @@ export function createExportControlsController(dependencies) {
         }
     }
 
+    /**
+     * Compiles the musical timeline and triggers standard MIDI (.mid) file download.
+     *
+     * @returns {void}
+     */
     function handleMidiExport() {
         try {
             const settings = getSettings();
@@ -218,6 +328,11 @@ export function createExportControlsController(dependencies) {
         }
     }
 
+    /**
+     * Sets up DOM event listeners, binds inputs, and initializes control states.
+     *
+     * @returns {void}
+     */
     function initialize() {
         if (listenerController) return;
         cancelPendingAdvancedActions();
@@ -317,12 +432,26 @@ export function createExportControlsController(dependencies) {
         updateEstimatedExportDuration();
     }
 
+    /**
+     * Aborts event listeners, cancels pending debounced renders, and tears down controller state.
+     *
+     * @returns {void}
+     */
     function destroy() {
         isDestroyed = true;
         cancelPendingAdvancedActions();
         /** @type {{cancel?: () => void}} */ (requestStaticLoopRender).cancel?.();
         listenerController?.abort();
         listenerController = null;
+    }
+
+    /**
+     * Returns the current generation counter for queued advanced actions.
+     *
+     * @returns {number} Current generation.
+     */
+    function getAdvancedActionGeneration() {
+        return advancedActionGeneration;
     }
 
     return {
@@ -332,5 +461,6 @@ export function createExportControlsController(dependencies) {
         updateOfflineExportModeUi,
         requestStaticLoopRender,
         cancelPendingAdvancedActions,
+        getAdvancedActionGeneration,
     };
 }

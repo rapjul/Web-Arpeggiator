@@ -1186,6 +1186,58 @@ describe("Recorder Manager Module", () => {
         expect(mockDom.recordButton.textContent).toBe("Record");
     });
 
+    it("does not abort a newer recording take when a stale playback startup from an earlier stopped take rejects", async () => {
+        let rejectTake1Playback: ((error: Error) => void) | undefined;
+        const take1PlaybackDeferred = new Promise<void>((_, reject) => {
+            rejectTake1Playback = reject;
+        });
+
+        mockActions.startPlayback = vi
+            .fn()
+            .mockImplementationOnce(() => take1PlaybackDeferred)
+            .mockImplementationOnce(async () => {});
+
+        const manager = createRecorderManager({
+            audio: mockAudio,
+            dom: mockDom,
+            state: { ...mockState, isPlaying: false },
+            actions: mockActions,
+        });
+
+        const take1StartPromise = manager.toggleRecording();
+        await vi.waitFor(() => {
+            expect(mockActions.startPlayback).toHaveBeenCalledTimes(1);
+        });
+        expect(manager.isRecording).toBe(true);
+
+        const take1StopPromise = manager.stopRecording();
+        await vi.waitFor(() => {
+            expect(manager.isRecording).toBe(false);
+        });
+
+        const take2StartPromise = manager.toggleRecording();
+        await vi.waitFor(() => {
+            expect(mockActions.startPlayback).toHaveBeenCalledTimes(2);
+        });
+        await take2StartPromise;
+
+        expect(manager.isRecording).toBe(true);
+        expect(manager.isActivelyRecording).toBe(true);
+        expect(mockDom.recordButton.textContent).toContain("Stop Recording");
+
+        rejectTake1Playback?.(new Error("Take 1 playback failed"));
+        await expect(take1StartPromise).rejects.toThrow("Take 1 playback failed");
+        await expect(take1StopPromise).resolves.toBe(true);
+
+        expect(manager.isRecording).toBe(true);
+        expect(manager.isActivelyRecording).toBe(true);
+        expect(mockDom.recordButton.textContent).toContain("Stop Recording");
+
+        await manager.stopRecording();
+        expect(manager.isRecording).toBe(false);
+        expect(manager.isActivelyRecording).toBe(false);
+    });
+
     it("reports start failure rather than stop failure when startup fails while cancellation is pending", async () => {
         let rejectStartAudio: ((error: Error) => void) | undefined;
         const startAudioDeferred = new Promise<void>((_, reject) => {

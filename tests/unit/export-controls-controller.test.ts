@@ -7,7 +7,13 @@ vi.mock("@core/midi-export.js", () => ({ exportMidiFile: vi.fn() }));
 
 const controllers: Array<ReturnType<typeof createExportControlsController>> = [];
 
-function createFixture(options: { getInterfaceMode?: () => string } = {}) {
+function createFixture(
+    options: {
+        getInterfaceMode?: () => string;
+        visualizer?: { currentMode: string; isVisualizerOn?: boolean; toggle: () => void };
+        initialAdvancedActionGeneration?: number;
+    } = {},
+) {
     document.body.replaceChildren();
     const loopCountInput = document.createElement("input");
     loopCountInput.value = "2";
@@ -62,7 +68,11 @@ function createFixture(options: { getInterfaceMode?: () => string } = {}) {
         exportRealtime: vi.fn(async () => {}),
         exportOffline: vi.fn(async () => {}),
     };
-    const visualizer = { currentMode: "loopMap", toggle: vi.fn() };
+    const visualizer = options.visualizer ?? {
+        currentMode: "loopMap",
+        isVisualizerOn: true,
+        toggle: vi.fn(),
+    };
     const startAudio = vi.fn(async () => {});
     const renderStaticLoop = vi.fn(async () => {});
     const showToast = vi.fn();
@@ -91,6 +101,7 @@ function createFixture(options: { getInterfaceMode?: () => string } = {}) {
         showToast,
         renderStaticLoop,
         debounce: (callback) => callback,
+        initialAdvancedActionGeneration: options.initialAdvancedActionGeneration,
         logger,
     });
     controller.initialize();
@@ -525,12 +536,61 @@ describe("export controls controller", () => {
         expect(recorder.toggleRecording).not.toHaveBeenCalled();
     });
 
-    it("handles multiple consecutive cancelPendingAdvancedActions calls safely and verifies rollover and self-healing", () => {
+    it("handles multiple consecutive cancelPendingAdvancedActions calls without throwing and tracks generation", () => {
         const { controller } = createFixture();
 
-        // Verify multiple successive cancellations
         for (let i = 0; i < 10; i++) {
             expect(() => controller.cancelPendingAdvancedActions()).not.toThrow();
         }
+        // Controller initialize() increments once from 0 to 1, then 10 calls increment to 11
+        expect(controller.getAdvancedActionGeneration()).toBe(11);
+    });
+
+    it("increments action generation on cancelPendingAdvancedActions and rolls over to 1 at MAX_SAFE_INTEGER", () => {
+        const { controller } = createFixture({
+            initialAdvancedActionGeneration: Number.MAX_SAFE_INTEGER,
+        });
+
+        // initialize() called during createFixture rolls over Number.MAX_SAFE_INTEGER to 1
+        expect(controller.getAdvancedActionGeneration()).toBe(1);
+    });
+
+    it("self-heals action generation to 1 if counter is non-integer or negative", () => {
+        const { controller } = createFixture({
+            initialAdvancedActionGeneration: -5,
+        });
+
+        // initialize() called during createFixture self-heals -5 to 1
+        expect(controller.getAdvancedActionGeneration()).toBe(1);
+    });
+
+    it("does not trigger renderStaticLoop when in simple mode", () => {
+        const { controller, renderStaticLoop } = createFixture({
+            getInterfaceMode: () => "simple",
+            visualizer: { currentMode: "loopMap", isVisualizerOn: true, toggle: vi.fn() },
+        });
+
+        controller.requestStaticLoopRender();
+        expect(renderStaticLoop).not.toHaveBeenCalled();
+    });
+
+    it("does not trigger renderStaticLoop when visualizer is off", () => {
+        const { controller, renderStaticLoop } = createFixture({
+            getInterfaceMode: () => "full",
+            visualizer: { currentMode: "loopMap", isVisualizerOn: false, toggle: vi.fn() },
+        });
+
+        controller.requestStaticLoopRender();
+        expect(renderStaticLoop).not.toHaveBeenCalled();
+    });
+
+    it("triggers renderStaticLoop when in full mode with active loop map visualizer", () => {
+        const { controller, renderStaticLoop } = createFixture({
+            getInterfaceMode: () => "full",
+            visualizer: { currentMode: "loopMap", isVisualizerOn: true, toggle: vi.fn() },
+        });
+
+        controller.requestStaticLoopRender();
+        expect(renderStaticLoop).toHaveBeenCalledOnce();
     });
 });

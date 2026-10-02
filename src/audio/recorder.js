@@ -136,6 +136,7 @@ export function createRecorderManager(context) {
     /** @type {(() => void)|null} */
     let captureReadyResolve = null;
     let captureStartPending = false;
+    let activeStartId = 0;
 
     // ------------------------------------------------------------------
     // Helpers
@@ -269,9 +270,14 @@ export function createRecorderManager(context) {
      * Aborts capture after a startup or playback failure, attempting guarded cleanup.
      *
      * @param {unknown} primaryError - Original failure triggering the abort.
+     * @param {number} [originatingStartId] - Start transition ID triggering the abort.
      * @returns {Promise<void>}
      */
-    async function abortCapture(primaryError) {
+    async function abortCapture(primaryError, originatingStartId) {
+        // If a subsequent take has already started, do not abort the newer capture.
+        if (originatingStartId !== undefined && originatingStartId !== activeStartId) {
+            throw primaryError;
+        }
         // An explicit stop may finish while playback startup is still pending; do not stop that take twice.
         if (activeStopPromise) {
             try {
@@ -537,6 +543,13 @@ export function createRecorderManager(context) {
 
     /** @returns {Promise<void>} Starts real-time recording. */
     async function startRecording() {
+        activeStartId =
+            !Number.isSafeInteger(activeStartId) ||
+            activeStartId >= Number.MAX_SAFE_INTEGER ||
+            activeStartId < 0
+                ? 1
+                : activeStartId + 1;
+        const currentStartId = activeStartId;
         cancelPendingStart = false;
         recordingStartTime = 0;
         recordingPhase = "starting";
@@ -631,7 +644,7 @@ export function createRecorderManager(context) {
                     try {
                         await actions.startPlayback();
                     } catch (error) {
-                        await abortCapture(error);
+                        await abortCapture(error, currentStartId);
                     }
                 }
                 // Bail out if the manager was destroyed or capture was stopped while awaiting playback start,
@@ -1174,6 +1187,12 @@ export function createRecorderManager(context) {
         }
 
         recordingPhase = "destroyed";
+        activeStartId =
+            !Number.isSafeInteger(activeStartId) ||
+            activeStartId >= Number.MAX_SAFE_INTEGER ||
+            activeStartId < 0
+                ? 1
+                : activeStartId + 1;
         mediaStopResolver = null;
         mediaStopRejecter = null;
         activeMediaRecorderError = null;
