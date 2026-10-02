@@ -554,12 +554,18 @@ export function createRecorderManager(context) {
         recordingStartTime = 0;
         recordingPhase = "starting";
         dom.recordButton.disabled = true;
+        let localCaptureReadyResolve = null;
         captureReadyPromise = new Promise((resolve) => {
             captureReadyResolve = resolve;
+            localCaptureReadyResolve = resolve;
         });
         const resolveCaptureReady = () => {
-            captureReadyResolve?.();
-            captureReadyResolve = null;
+            const resolver = localCaptureReadyResolve;
+            localCaptureReadyResolve = null;
+            resolver?.();
+            if (captureReadyResolve === resolver) {
+                captureReadyResolve = null;
+            }
         };
         /** @type {Promise<void>} */
         let startTransition;
@@ -647,9 +653,10 @@ export function createRecorderManager(context) {
                         await abortCapture(error, currentStartId);
                     }
                 }
-                // Bail out if the manager was destroyed or capture was stopped while awaiting playback start,
+                // Bail out if the manager was destroyed, capture was stopped, or a newer start began while awaiting playback start,
                 // preventing the visualizer UI loop from running or buttons being re-enabled.
-                if (isDestroyed || !isActivelyRecording()) return;
+                if (isDestroyed || !isActivelyRecording() || currentStartId !== activeStartId)
+                    return;
 
                 // Check if cancellation was requested while awaiting playback auto-start.
                 if (cancelPendingStart) {
@@ -691,7 +698,9 @@ export function createRecorderManager(context) {
                 throw error;
             } finally {
                 resolveCaptureReady();
-                cancelPendingStart = false;
+                if (currentStartId === activeStartId) {
+                    cancelPendingStart = false;
+                }
                 if (activeTransitionPromise === startTransition) {
                     activeTransitionPromise = null;
                     activeTransitionType = null;

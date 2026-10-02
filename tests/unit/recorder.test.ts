@@ -1154,7 +1154,7 @@ describe("Recorder Manager Module", () => {
         expect(mockDom.recordButton.textContent).toBe("Record");
     });
 
-    it("resolves cleanly when in-flight start transition encounters playback startup failure without bubbling error", async () => {
+    it("rejects startPromise while concurrent stopPromise resolves cleanly when in-flight start encounters playback startup failure", async () => {
         let rejectPlayback: ((error: Error) => void) | undefined;
         const playbackDeferred = new Promise<void>((_, reject) => {
             rejectPlayback = reject;
@@ -1236,6 +1236,56 @@ describe("Recorder Manager Module", () => {
         await manager.stopRecording();
         expect(manager.isRecording).toBe(false);
         expect(manager.isActivelyRecording).toBe(false);
+    });
+
+    it("preserves newer take cancellation when an earlier take completes its finally cleanup", async () => {
+        let resolveTake1Playback: (() => void) | undefined;
+        const take1PlaybackDeferred = new Promise<void>((resolve) => {
+            resolveTake1Playback = resolve;
+        });
+
+        let resolveTake2Playback: (() => void) | undefined;
+        const take2PlaybackDeferred = new Promise<void>((resolve) => {
+            resolveTake2Playback = resolve;
+        });
+
+        mockActions.startPlayback = vi
+            .fn()
+            .mockImplementationOnce(() => take1PlaybackDeferred)
+            .mockImplementationOnce(() => take2PlaybackDeferred);
+
+        const manager = createRecorderManager({
+            audio: mockAudio,
+            dom: mockDom,
+            state: { ...mockState, isPlaying: false },
+            actions: mockActions,
+        });
+
+        const take1StartPromise = manager.toggleRecording();
+        await vi.waitFor(() => {
+            expect(mockActions.startPlayback).toHaveBeenCalledTimes(1);
+        });
+
+        const take1StopPromise = manager.stopRecording();
+        await vi.waitFor(() => {
+            expect(manager.isRecording).toBe(false);
+        });
+
+        const take2StartPromise = manager.toggleRecording();
+        await vi.waitFor(() => {
+            expect(mockActions.startPlayback).toHaveBeenCalledTimes(2);
+        });
+        const take2StopPromise = manager.stopRecording();
+
+        resolveTake1Playback?.();
+        await Promise.all([take1StartPromise, take1StopPromise]);
+
+        resolveTake2Playback?.();
+        await Promise.all([take2StartPromise, take2StopPromise]);
+
+        expect(manager.isRecording).toBe(false);
+        expect(manager.isActivelyRecording).toBe(false);
+        expect(mockDom.recordButton.textContent).toBe("Record");
     });
 
     it("reports start failure rather than stop failure when startup fails while cancellation is pending", async () => {
