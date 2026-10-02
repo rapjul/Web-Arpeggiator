@@ -46,6 +46,7 @@ The custom PWA worker uses Vite PWA's `injectManifest` build integration and Wor
 - **Real-Time Visualizer**: Waveform display during playback
 - **Preset System**: Save and load complete configurations, with optional browser persistence for offline use
 - **Randomize Notes**: Generate musically coherent, scale-quantized note sequences with a single click
+- **Sound Starters**: 11 curated, musically authentic factory presets with one-click loading and multi-octave chord voicings
 - **Chord Starters**: Insert major, minor, seventh, sus4, power, or pentatonic chord notes from the selected root
 - **Simple or Full Controls**: Start with beginner-friendly musical controls and switch to the complete instrument interface whenever you need it
 
