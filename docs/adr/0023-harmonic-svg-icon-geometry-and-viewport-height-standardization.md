@@ -26,7 +26,7 @@ A comprehensive visual and mathematical audit revealed several visual discrepanc
 
 ## Decision Drivers
 
-- Standardize vertical viewport utilization across all pattern and waveform icons ($\ge 71.875\%$ [$\ge 23$ units] for patterns, $75\%$ [$24$ units, $Y \in [4, 28]$] for waveforms).
+- Standardize vertical viewport utilization across all path-based pattern and waveform icons ($\ge 71.875\%$ [$\ge 23$ units] for path-based patterns, $75\%$ [$24$ units, $Y \in [4, 28]$] for waveforms; circle-based octave cycles span 21–22 units [$65.6\%\text{--}68.75\%$]).
 - Resolve the `Random Step` duplicate bug with an authentic Sample-and-Hold stepped bar glyph.
 - Establish clear, authentic synthesizer waveform iconography with distinct 50% square and 25% pulse duty cycles.
 - Ensure the `Sine` waveform icon exhibits continuous active curvature across four congruent quadrants with broad horizontal crests and a steep zero-crossing transition, free of straight-line defects.
@@ -58,6 +58,9 @@ A comprehensive visual and mathematical audit revealed several visual discrepanc
 - **`Up-Down (Repeated)` (`d="M3 28 H7 L13 4 H19 L25 28 H29"`) & `Down-Up (Repeated)` (`d="M3 4 H7 L13 28 H19 L25 4 H29"`)**:
   - *Design*: Replaced malformed coordinate syntax with prominent trapezoidal shelves (`H19`), providing a wide 6-unit horizontal plateau at apex and base.
   - *Rationale*: Clearly distinguishes repeated boundary note playback from exclusive endpoint patterns.
+- **`Octave Cycle` (`octaveCycle`, `octaveCycleReverse`, `octaveCyclePingPong`)**:
+  - *Design*: Composed of discrete SVG `<circle>` nodes arranged across three octave tiers ($C_y \in [8, 24]$ with radius $r \in [2.5, 3.0]$), rendering 21–22 units of visual ink span ($65.6\%\text{--}68.75\%$ viewport height).
+  - *Rationale*: Employs discrete circular pitch beads rather than continuous stroke paths to convey stepping across multiple octave registers.
 
 ### 2. Synthesizer Waveform Icons ($32\times32$ Viewport)
 
@@ -94,9 +97,7 @@ The automated test suite in `tests/unit/svg-asset-integrity.test.ts` enforces th
 
 ## Consequences
 
-### Positive
-
-- All 18 pattern direction and synthesis waveform icons utilize $\ge 71.875\%\text{--}75\%$ vertical viewport height, eliminating squashing and empty padding.
+- All 15 path-based pattern direction and synthesis waveform icons utilize $\ge 71.875\%\text{--}75\%$ vertical viewport height ($\ge 23\text{--}24$ units), eliminating squashing and empty padding (with the 3 circle-based octave-cycle icons spanning 21–22 units / $65.6\%\text{--}68.75\%$, bounded by circle radii).
 - The `Random Step` duplicate bug is permanently resolved with an authentic Sample-and-Hold glyph.
 - Waveforms clearly convey their acoustic duty cycles (50% Square vs. 25% Pulse).
 - The `Sine` wave features continuous curvature across four congruent quadrants with zero straight-line artifacts.
