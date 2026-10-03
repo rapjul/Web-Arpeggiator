@@ -249,7 +249,7 @@ function extractPathPoints(pathD: string): PathPoints {
     // biome-ignore lint/suspicious/noAssignInExpressions: standard regex parsing loop
     while ((match = regex.exec(pathD)) !== null) {
         const cmd = match[1];
-        const numMatches = match[2].match(/-?\d*\.?\d+/g);
+        const numMatches = match[2].match(/[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?/g);
         const args = numMatches ? numMatches.map(Number) : [];
 
         switch (cmd) {
@@ -296,7 +296,9 @@ function extractPathPoints(pathD: string): PathPoints {
  * @returns {string} The path 'd' attribute string.
  */
 function getInlinePath(html: string, attrName: string, attrValue: string): string {
-    const regex = new RegExp(`${attrName}="${attrValue}"[\\s\\S]*?<path\\s+d="([^"]+)"`);
+    const regex = new RegExp(
+        `${attrName}="${attrValue}"(?:(?!</svg>)[\\s\\S])*?<path\\s+d="([^"]+)"`,
+    );
     const match = html.match(regex);
     expect(match, `Missing SVG path for ${attrName}="${attrValue}"`).not.toBeNull();
     return match ? match[1].trim() : "";
