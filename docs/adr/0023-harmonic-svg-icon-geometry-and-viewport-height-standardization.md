@@ -70,10 +70,10 @@ A comprehensive visual and mathematical audit revealed several visual discrepanc
 
 - **`Sine` (`d="M4 16 C5 8 7 4 10 4 C13 4 15 8 16 16 C17 24 19 28 22 28 C25 28 27 24 28 16"`)**:
   - *Design*: Four congruent, dynamically curving cubic Bézier quadrants.
-    - $Q_1$ (`(4, 16) → (10, 4)`): Enters at $(4, 16)$ with slope 8, bending smoothly into a 3-unit horizontal tangent at $(10, 4)$.
-    - $Q_2$ (`(10, 4) → (16, 16)`): Exact geometric mirror of $Q_1$, bending through $(15, 8)$ and accelerating into a steep slope 8 zero-crossing at $(16, 16)$.
-    - $Q_3$ (`(16, 16) → (22, 28)`): Exact point reflection of $Q_2$, crossing $(16, 16)$ at slope 8 and rounding into the trough at $(22, 28)$.
-    - $Q_4$ (`(22, 28) → (28, 16)`): Exact geometric mirror of $Q_3$, arcing smoothly to $(28, 16)$.
+    - $Q_1$ (`(4, 16) → (10, 4)`): Enters at $(4, 16)$ with slope 8, bending smoothly via control points $(5, 8)$ and $(7, 4)$ into a 3-unit horizontal tangent at $(10, 4)$.
+    - $Q_2$ (`(10, 4) → (16, 16)`): Exact geometric mirror of $Q_1$, departing $(10, 4)$ via tangent handle $(13, 4)$ and accelerating through second control point $(15, 8)$ into a steep slope 8 zero-crossing at $(16, 16)$.
+    - $Q_3$ (`(16, 16) → (22, 28)`): Exact point reflection of $Q_2$, departing $(16, 16)$ at slope 8 via control point $(17, 24)$ and rounding into the trough at $(22, 28)$ via tangent handle $(19, 28)$.
+    - $Q_4$ (`(22, 28) → (28, 16)`): Exact geometric mirror of $Q_3$, departing $(22, 28)$ via tangent handle $(25, 28)$ and arcing smoothly via control point $(27, 24)$ to $(28, 16)$.
   - *Elimination of Straight-Line Defect*: Replaced earlier collinear control points with active dynamic curvature ($\kappa \approx 0.089$, ~3x higher curvature), ensuring the transition through zero-crossing matches the curvature of the outer arcs.
   - *Bounds*: $X \in [4, 28]$ (24 units wide, 4px margins), $Y \in [4, 28]$ (24 units / 75% height).
 - **`Sawtooth` (`d="M4 28 L16 4 V28 L28 4 V28"`)**:
