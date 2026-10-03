@@ -42,10 +42,10 @@ A comprehensive visual and mathematical audit revealed several visual discrepanc
   - *Design*: Replaced the duplicated `Down-Up (Repeated)` path with a 4-step Sample-and-Hold waveform featuring staggered horizontal plateaus connected by vertical step transitions.
   - *Bounds*: $X \in [3, 29]$ (width 26), $Y \in [4, 28]$ (height 24 units / 75%).
   - *Rationale*: Visually communicates discrete, un-interpolated pitch steps characteristic of sample-and-hold circuits.
-- **`Random Cycle` (`d="M3 8h5c8 0 8 16 16 16h5 M24 20l5 4-5 4"`)**:
-  - *Design*: S-curved cycle trajectory entering at $(3, 8)$, undulating to $Y=24$, and terminating with a directional arrowhead at $(29, 24)$.
+- **`Random Cycle` (`d="M3 8h5c8 0 8 16 16 16h5 M24 20l5 4-5 4 M3 24h5c8 0 8-16 16-16h5 M24 4l5 4-5 4"`)**:
+  - *Design*: Dual interleaved S-curved cycle trajectories with directional arrowheads; the descending cycle enters at $(3, 8)$ and terminates at $(29, 24)$, while the mirrored ascending cycle enters at $(3, 24)$ and terminates at $(29, 8)$.
   - *Bounds*: Rendered coordinates and Bézier curves span $X \in [3, 29]$ and $Y \in [4, 28]$ (24 units / $75\%$ height).
-  - *Rationale*: Depicts cyclical shuffle playback of all active notes within each pattern cycle.
+  - *Rationale*: Depicts cyclical shuffle playback of all active notes within each pattern cycle across dual crossover paths.
 - **`Random Walk` (`d="M3 16 C 5 8, 7 4, 10 4 C 13 4, 15 28, 18 28 C 21 28, 23 10, 26 10 C 27 10, 28 14, 29 14"`)**:
   - *Design*: Multi-segment cubic Bézier S-curves entering at $(3, 16)$, arcing to a crest at $(10, 4)$, plunging to a trough at $(18, 28)$, and settling at $(29, 14)$.
   - *Bounds*: Rendered mathematical extrema tangentially touch $Y = 4$ and $Y = 28$ ($75\%$ viewport height).
