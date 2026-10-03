@@ -95,6 +95,7 @@ function getQuadraticExtrema(p0: number, p1: number, p2: number): number[] {
 interface CursorState {
     x: number;
     y: number;
+    lastQuadCp: { x: number; y: number } | null;
 }
 
 /**
@@ -112,6 +113,7 @@ function processMoveOrLine(
     cursor: CursorState,
     points: PathPoints,
 ): void {
+    cursor.lastQuadCp = null;
     const isRelative = cmd === "m" || cmd === "l";
     for (let i = 0; i < args.length; i += 2) {
         cursor.x = isRelative ? cursor.x + args[i] : args[i];
@@ -138,6 +140,7 @@ function processHorizontalOrVertical(
     cursor: CursorState,
     points: PathPoints,
 ): void {
+    cursor.lastQuadCp = null;
     for (const val of args) {
         if (cmd === "H") cursor.x = val;
         else if (cmd === "h") cursor.x += val;
@@ -164,6 +167,7 @@ function processCubicCurve(
     cursor: CursorState,
     points: PathPoints,
 ): void {
+    cursor.lastQuadCp = null;
     const isRelative = cmd === "c";
     for (let i = 0; i < args.length; i += 6) {
         const cp1X = isRelative ? cursor.x + args[i] : args[i];
@@ -207,17 +211,25 @@ function processQuadraticCurve(
             points.xs.push(...getQuadraticExtrema(cursor.x, cpX, endX));
             points.ys.push(...getQuadraticExtrema(cursor.y, cpY, endY));
 
+            cursor.lastQuadCp = { x: cpX, y: cpY };
             cursor.x = endX;
             cursor.y = endY;
         }
     } else {
-        // T / t smooth quadratic endpoint
+        // T / t smooth quadratic endpoint: reflect previous quadratic control point across cursor
         const isRelative = cmd === "t";
         for (let i = 0; i < args.length; i += 2) {
-            cursor.x = isRelative ? cursor.x + args[i] : args[i];
-            cursor.y = isRelative ? cursor.y + args[i + 1] : args[i + 1];
-            points.xs.push(cursor.x);
-            points.ys.push(cursor.y);
+            const endX = isRelative ? cursor.x + args[i] : args[i];
+            const endY = isRelative ? cursor.y + args[i + 1] : args[i + 1];
+            const cpX = cursor.lastQuadCp ? 2 * cursor.x - cursor.lastQuadCp.x : cursor.x;
+            const cpY = cursor.lastQuadCp ? 2 * cursor.y - cursor.lastQuadCp.y : cursor.y;
+
+            points.xs.push(...getQuadraticExtrema(cursor.x, cpX, endX));
+            points.ys.push(...getQuadraticExtrema(cursor.y, cpY, endY));
+
+            cursor.lastQuadCp = { x: cpX, y: cpY };
+            cursor.x = endX;
+            cursor.y = endY;
         }
     }
 }
@@ -230,7 +242,7 @@ function processQuadraticCurve(
  */
 function extractPathPoints(pathD: string): PathPoints {
     const points: PathPoints = { xs: [], ys: [] };
-    const cursor: CursorState = { x: 0, y: 0 };
+    const cursor: CursorState = { x: 0, y: 0, lastQuadCp: null };
     const regex = /([MLHVCSQTAZmlhvcsqtaz])([^MLHVCSQTAZmlhvcsqtaz]*)/g;
     let match: RegExpExecArray | null;
 
@@ -265,6 +277,7 @@ function extractPathPoints(pathD: string): PathPoints {
                 break;
             case "Z":
             case "z":
+                cursor.lastQuadCp = null;
                 break;
             default:
                 throw new Error(`Unsupported SVG command "${cmd}" in path: ${pathD}`);
