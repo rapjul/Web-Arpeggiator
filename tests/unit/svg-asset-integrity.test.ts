@@ -16,18 +16,223 @@ interface PathPoints {
 }
 
 /**
+ * Evaluates a 1D cubic Bézier curve at parameter t.
+ *
+ * @param {number} p0 - Start point.
+ * @param {number} p1 - First control point.
+ * @param {number} p2 - Second control point.
+ * @param {number} p3 - End point.
+ * @param {number} t - Parameter in [0, 1].
+ * @returns {number} Evaluated coordinate value.
+ */
+function evaluateCubic(p0: number, p1: number, p2: number, p3: number, t: number): number {
+    const oneMinusT = 1 - t;
+    return (
+        oneMinusT * oneMinusT * oneMinusT * p0 +
+        3 * oneMinusT * oneMinusT * t * p1 +
+        3 * oneMinusT * t * t * p2 +
+        t * t * t * p3
+    );
+}
+
+/**
+ * Calculates rendered extrema (min and max boundary values) for a 1D cubic Bézier segment.
+ *
+ * @param {number} p0 - Start point.
+ * @param {number} p1 - First control point.
+ * @param {number} p2 - Second control point.
+ * @param {number} p3 - End point.
+ * @returns {number[]} Array containing boundary endpoints and any local stationary values.
+ */
+function getCubicExtrema(p0: number, p1: number, p2: number, p3: number): number[] {
+    const vals = [p0, p3];
+    const a = 3 * (-p0 + 3 * p1 - 3 * p2 + p3);
+    const b = 6 * (p0 - 2 * p1 + p2);
+    const c = 3 * (-p0 + p1);
+
+    if (Math.abs(a) < 1e-9) {
+        if (Math.abs(b) > 1e-9) {
+            const t = -c / b;
+            if (t > 0 && t < 1) vals.push(evaluateCubic(p0, p1, p2, p3, t));
+        }
+    } else {
+        const disc = b * b - 4 * a * c;
+        if (disc >= 0) {
+            const sqrtDisc = Math.sqrt(disc);
+            const t1 = (-b - sqrtDisc) / (2 * a);
+            const t2 = (-b + sqrtDisc) / (2 * a);
+            if (t1 > 0 && t1 < 1) vals.push(evaluateCubic(p0, p1, p2, p3, t1));
+            if (t2 > 0 && t2 < 1) vals.push(evaluateCubic(p0, p1, p2, p3, t2));
+        }
+    }
+    return vals;
+}
+
+/**
+ * Calculates rendered extrema for a 1D quadratic Bézier segment.
+ *
+ * @param {number} p0 - Start point.
+ * @param {number} p1 - Control point.
+ * @param {number} p2 - End point.
+ * @returns {number[]} Array containing boundary endpoints and any local stationary values.
+ */
+function getQuadraticExtrema(p0: number, p1: number, p2: number): number[] {
+    const vals = [p0, p2];
+    const denom = p0 - 2 * p1 + p2;
+    if (Math.abs(denom) > 1e-9) {
+        const t = (p0 - p1) / denom;
+        if (t > 0 && t < 1) {
+            const oneMinusT = 1 - t;
+            vals.push(oneMinusT * oneMinusT * p0 + 2 * oneMinusT * t * p1 + t * t * p2);
+        }
+    }
+    return vals;
+}
+
+/**
+ * State container for cursor tracking during path point extraction.
+ */
+interface CursorState {
+    x: number;
+    y: number;
+}
+
+/**
+ * Dispatches move and line commands updating cursor state and recorded points.
+ *
+ * @param {string} cmd - Command letter.
+ * @param {number[]} args - Command arguments.
+ * @param {CursorState} cursor - Running cursor position.
+ * @param {PathPoints} points - Accumulated point arrays.
+ * @returns {void}
+ */
+function processMoveOrLine(
+    cmd: string,
+    args: number[],
+    cursor: CursorState,
+    points: PathPoints,
+): void {
+    const isRelative = cmd === "m" || cmd === "l";
+    for (let i = 0; i < args.length; i += 2) {
+        cursor.x = isRelative ? cursor.x + args[i] : args[i];
+        points.xs.push(cursor.x);
+        if (i + 1 < args.length) {
+            cursor.y = isRelative ? cursor.y + args[i + 1] : args[i + 1];
+            points.ys.push(cursor.y);
+        }
+    }
+}
+
+/**
+ * Dispatches horizontal and vertical line commands.
+ *
+ * @param {string} cmd - Command letter (H, h, V, v).
+ * @param {number[]} args - Command arguments.
+ * @param {CursorState} cursor - Running cursor position.
+ * @param {PathPoints} points - Accumulated point arrays.
+ * @returns {void}
+ */
+function processHorizontalOrVertical(
+    cmd: string,
+    args: number[],
+    cursor: CursorState,
+    points: PathPoints,
+): void {
+    for (const val of args) {
+        if (cmd === "H") cursor.x = val;
+        else if (cmd === "h") cursor.x += val;
+        else if (cmd === "V") cursor.y = val;
+        else if (cmd === "v") cursor.y += val;
+
+        points.xs.push(cursor.x);
+        points.ys.push(cursor.y);
+    }
+}
+
+/**
+ * Dispatches cubic Bézier curve commands computing true rendered curve extrema.
+ *
+ * @param {string} cmd - Command letter (C, c).
+ * @param {number[]} args - Command arguments (6 per segment).
+ * @param {CursorState} cursor - Running cursor position.
+ * @param {PathPoints} points - Accumulated point arrays.
+ * @returns {void}
+ */
+function processCubicCurve(
+    cmd: string,
+    args: number[],
+    cursor: CursorState,
+    points: PathPoints,
+): void {
+    const isRelative = cmd === "c";
+    for (let i = 0; i < args.length; i += 6) {
+        const cp1X = isRelative ? cursor.x + args[i] : args[i];
+        const cp1Y = isRelative ? cursor.y + args[i + 1] : args[i + 1];
+        const cp2X = isRelative ? cursor.x + args[i + 2] : args[i + 2];
+        const cp2Y = isRelative ? cursor.y + args[i + 3] : args[i + 3];
+        const endX = isRelative ? cursor.x + args[i + 4] : args[i + 4];
+        const endY = isRelative ? cursor.y + args[i + 5] : args[i + 5];
+
+        points.xs.push(...getCubicExtrema(cursor.x, cp1X, cp2X, endX));
+        points.ys.push(...getCubicExtrema(cursor.y, cp1Y, cp2Y, endY));
+
+        cursor.x = endX;
+        cursor.y = endY;
+    }
+}
+
+/**
+ * Dispatches quadratic Bézier curve commands computing true rendered curve extrema.
+ *
+ * @param {string} cmd - Command letter (Q, q, T, t).
+ * @param {number[]} args - Command arguments.
+ * @param {CursorState} cursor - Running cursor position.
+ * @param {PathPoints} points - Accumulated point arrays.
+ * @returns {void}
+ */
+function processQuadraticCurve(
+    cmd: string,
+    args: number[],
+    cursor: CursorState,
+    points: PathPoints,
+): void {
+    if (cmd === "Q" || cmd === "q") {
+        const isRelative = cmd === "q";
+        for (let i = 0; i < args.length; i += 4) {
+            const cpX = isRelative ? cursor.x + args[i] : args[i];
+            const cpY = isRelative ? cursor.y + args[i + 1] : args[i + 1];
+            const endX = isRelative ? cursor.x + args[i + 2] : args[i + 2];
+            const endY = isRelative ? cursor.y + args[i + 3] : args[i + 3];
+
+            points.xs.push(...getQuadraticExtrema(cursor.x, cpX, endX));
+            points.ys.push(...getQuadraticExtrema(cursor.y, cpY, endY));
+
+            cursor.x = endX;
+            cursor.y = endY;
+        }
+    } else {
+        // T / t smooth quadratic endpoint
+        const isRelative = cmd === "t";
+        for (let i = 0; i < args.length; i += 2) {
+            cursor.x = isRelative ? cursor.x + args[i] : args[i];
+            cursor.y = isRelative ? cursor.y + args[i + 1] : args[i + 1];
+            points.xs.push(cursor.x);
+            points.ys.push(cursor.y);
+        }
+    }
+}
+
+/**
  * Extracts all absolute and resolved relative numeric X and Y coordinate values from an SVG path string in a single pass.
  *
  * @param {string} pathD - SVG path definition string.
  * @returns {PathPoints} Object containing arrays of resolved X and Y coordinates.
  */
 function extractPathPoints(pathD: string): PathPoints {
-    const xs: number[] = [];
-    const ys: number[] = [];
+    const points: PathPoints = { xs: [], ys: [] };
+    const cursor: CursorState = { x: 0, y: 0 };
     const regex = /([MLHVCSQTAZmlhvcsqtaz])([^MLHVCSQTAZmlhvcsqtaz]*)/g;
     let match: RegExpExecArray | null;
-    let currentX = 0;
-    let currentY = 0;
 
     // biome-ignore lint/suspicious/noAssignInExpressions: standard regex parsing loop
     while ((match = regex.exec(pathD)) !== null) {
@@ -37,84 +242,36 @@ function extractPathPoints(pathD: string): PathPoints {
 
         switch (cmd) {
             case "M":
-            case "L": {
-                for (let i = 0; i < args.length; i += 2) {
-                    currentX = args[i];
-                    xs.push(currentX);
-                    if (i + 1 < args.length) {
-                        currentY = args[i + 1];
-                        ys.push(currentY);
-                    }
-                }
+            case "m":
+            case "L":
+            case "l":
+                processMoveOrLine(cmd, args, cursor, points);
                 break;
-            }
-            case "l": {
-                for (let i = 0; i < args.length; i += 2) {
-                    currentX += args[i];
-                    xs.push(currentX);
-                    if (i + 1 < args.length) {
-                        currentY += args[i + 1];
-                        ys.push(currentY);
-                    }
-                }
+            case "H":
+            case "h":
+            case "V":
+            case "v":
+                processHorizontalOrVertical(cmd, args, cursor, points);
                 break;
-            }
-            case "H": {
-                for (const val of args) {
-                    currentX = val;
-                    xs.push(currentX);
-                    ys.push(currentY);
-                }
+            case "C":
+            case "c":
+                processCubicCurve(cmd, args, cursor, points);
                 break;
-            }
-            case "V": {
-                for (const val of args) {
-                    currentY = val;
-                    xs.push(currentX);
-                    ys.push(currentY);
-                }
+            case "Q":
+            case "q":
+            case "T":
+            case "t":
+                processQuadraticCurve(cmd, args, cursor, points);
                 break;
-            }
-            case "C": {
-                for (let i = 0; i < args.length; i += 6) {
-                    if (i + 1 < args.length) ys.push(args[i + 1]);
-                    if (i + 3 < args.length) ys.push(args[i + 3]);
-                    if (i + 4 < args.length) currentX = args[i + 4];
-                    if (i + 5 < args.length) {
-                        currentY = args[i + 5];
-                        xs.push(currentX);
-                        ys.push(currentY);
-                    }
-                }
+            case "Z":
+            case "z":
                 break;
-            }
-            case "Q": {
-                for (let i = 0; i < args.length; i += 4) {
-                    if (i + 1 < args.length) ys.push(args[i + 1]);
-                    if (i + 2 < args.length) currentX = args[i + 2];
-                    if (i + 3 < args.length) {
-                        currentY = args[i + 3];
-                        xs.push(currentX);
-                        ys.push(currentY);
-                    }
-                }
-                break;
-            }
-            case "T": {
-                for (let i = 0; i < args.length; i += 2) {
-                    currentX = args[i];
-                    xs.push(currentX);
-                    if (i + 1 < args.length) {
-                        currentY = args[i + 1];
-                        ys.push(currentY);
-                    }
-                }
-                break;
-            }
+            default:
+                throw new Error(`Unsupported SVG command "${cmd}" in path: ${pathD}`);
         }
     }
 
-    return { xs, ys };
+    return points;
 }
 
 /**
@@ -204,7 +361,7 @@ describe("SVG Asset Integrity & Viewport Height Utilization", () => {
     it("verifies all path-based pattern direction icons in index.html utilize at least 70% viewport height", () => {
         for (const patternId of patternIds) {
             const pathD = getInlinePath(htmlContent, "data-pattern", patternId);
-            assertMinimumHeightSpan(pathD, 22, `Pattern "${patternId}"`);
+            assertMinimumHeightSpan(pathD, 23, `Pattern "${patternId}"`);
         }
     });
 
