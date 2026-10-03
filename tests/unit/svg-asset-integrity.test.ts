@@ -373,24 +373,142 @@ function assertStandaloneParity(
 }
 
 /**
- * Normalizes an SVG path definition into a canonical token string for geometry comparisons.
+ * Canonicalizes an SVG path definition into absolute geometry commands for equivalence comparisons.
+ * Resolves all relative commands (m, l, h, v, c, q, t) to absolute commands (M, L, C, Q, T)
+ * and normalizes horizontal/vertical lines (H, V) to canonical line segments (L).
  *
  * @param {string} pathD - Raw SVG path string.
- * @returns {string} Canonicalized path string with standardized command spacing and numeric representations.
+ * @returns {string} Canonicalized path string with resolved absolute coordinates and standardized spacing.
  */
-function normalizePathD(pathD: string): string {
+function canonicalizeResolvedGeometry(pathD: string): string {
     const regex = /([MLHVCSQTAZmlhvcsqtaz])([^MLHVCSQTAZmlhvcsqtaz]*)/g;
     let match: RegExpExecArray | null;
-    const tokens: string[] = [];
+    const canonicalCommands: string[] = [];
+    let curX = 0;
+    let curY = 0;
 
     // biome-ignore lint/suspicious/noAssignInExpressions: standard regex parsing loop
     while ((match = regex.exec(pathD)) !== null) {
         const cmd = match[1];
         const numMatches = match[2].match(/[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?/g);
-        const args = numMatches ? numMatches.map((n) => Number(n).toString()) : [];
-        tokens.push(`${cmd} ${args.join(" ")}`.trim());
+        const args = numMatches ? numMatches.map(Number) : [];
+
+        switch (cmd) {
+            case "M":
+                for (let i = 0; i < args.length; i += 2) {
+                    curX = args[i];
+                    curY = args[i + 1];
+                    canonicalCommands.push(`M ${curX} ${curY}`);
+                }
+                break;
+            case "m":
+                for (let i = 0; i < args.length; i += 2) {
+                    curX += args[i];
+                    curY += args[i + 1];
+                    canonicalCommands.push(`M ${curX} ${curY}`);
+                }
+                break;
+            case "L":
+                for (let i = 0; i < args.length; i += 2) {
+                    curX = args[i];
+                    curY = args[i + 1];
+                    canonicalCommands.push(`L ${curX} ${curY}`);
+                }
+                break;
+            case "l":
+                for (let i = 0; i < args.length; i += 2) {
+                    curX += args[i];
+                    curY += args[i + 1];
+                    canonicalCommands.push(`L ${curX} ${curY}`);
+                }
+                break;
+            case "H":
+                for (let i = 0; i < args.length; i++) {
+                    curX = args[i];
+                    canonicalCommands.push(`L ${curX} ${curY}`);
+                }
+                break;
+            case "h":
+                for (let i = 0; i < args.length; i++) {
+                    curX += args[i];
+                    canonicalCommands.push(`L ${curX} ${curY}`);
+                }
+                break;
+            case "V":
+                for (let i = 0; i < args.length; i++) {
+                    curY = args[i];
+                    canonicalCommands.push(`L ${curX} ${curY}`);
+                }
+                break;
+            case "v":
+                for (let i = 0; i < args.length; i++) {
+                    curY += args[i];
+                    canonicalCommands.push(`L ${curX} ${curY}`);
+                }
+                break;
+            case "C":
+                for (let i = 0; i < args.length; i += 6) {
+                    canonicalCommands.push(
+                        `C ${args[i]} ${args[i + 1]} ${args[i + 2]} ${args[i + 3]} ${args[i + 4]} ${args[i + 5]}`,
+                    );
+                    curX = args[i + 4];
+                    curY = args[i + 5];
+                }
+                break;
+            case "c":
+                for (let i = 0; i < args.length; i += 6) {
+                    const c1x = curX + args[i];
+                    const c1y = curY + args[i + 1];
+                    const c2x = curX + args[i + 2];
+                    const c2y = curY + args[i + 3];
+                    const ex = curX + args[i + 4];
+                    const ey = curY + args[i + 5];
+                    canonicalCommands.push(`C ${c1x} ${c1y} ${c2x} ${c2y} ${ex} ${ey}`);
+                    curX = ex;
+                    curY = ey;
+                }
+                break;
+            case "Q":
+                for (let i = 0; i < args.length; i += 4) {
+                    canonicalCommands.push(
+                        `Q ${args[i]} ${args[i + 1]} ${args[i + 2]} ${args[i + 3]}`,
+                    );
+                    curX = args[i + 2];
+                    curY = args[i + 3];
+                }
+                break;
+            case "q":
+                for (let i = 0; i < args.length; i += 4) {
+                    const cx = curX + args[i];
+                    const cy = curY + args[i + 1];
+                    const ex = curX + args[i + 2];
+                    const ey = curY + args[i + 3];
+                    canonicalCommands.push(`Q ${cx} ${cy} ${ex} ${ey}`);
+                    curX = ex;
+                    curY = ey;
+                }
+                break;
+            case "T":
+                for (let i = 0; i < args.length; i += 2) {
+                    canonicalCommands.push(`T ${args[i]} ${args[i + 1]}`);
+                    curX = args[i];
+                    curY = args[i + 1];
+                }
+                break;
+            case "t":
+                for (let i = 0; i < args.length; i += 2) {
+                    curX += args[i];
+                    curY += args[i + 1];
+                    canonicalCommands.push(`T ${curX} ${curY}`);
+                }
+                break;
+            case "Z":
+            case "z":
+                canonicalCommands.push("Z");
+                break;
+        }
     }
-    return tokens.join(" ");
+    return canonicalCommands.join(" ");
 }
 
 describe("SVG Asset Integrity & Viewport Height Utilization", () => {
@@ -434,7 +552,7 @@ describe("SVG Asset Integrity & Viewport Height Utilization", () => {
 
         for (const patternId of patternIds) {
             const pathD = getInlinePath(htmlContent, "data-pattern", patternId);
-            const canonicalPath = normalizePathD(pathD);
+            const canonicalPath = canonicalizeResolvedGeometry(pathD);
             const duplicateOf = seenPaths.get(canonicalPath);
             expect(
                 duplicateOf,
@@ -442,6 +560,18 @@ describe("SVG Asset Integrity & Viewport Height Utilization", () => {
             ).toBeUndefined();
             seenPaths.set(canonicalPath, patternId);
         }
+    });
+
+    it("canonicalizes equivalent relative and absolute geometry to identical representations", () => {
+        expect(canonicalizeResolvedGeometry("M4 28 L28 4")).toBe(
+            canonicalizeResolvedGeometry("M4 28 l24 -24"),
+        );
+        expect(canonicalizeResolvedGeometry("M3 28 H7")).toBe(
+            canonicalizeResolvedGeometry("M3 28 L7 28"),
+        );
+        expect(canonicalizeResolvedGeometry("M4 4 V28")).toBe(
+            canonicalizeResolvedGeometry("M4 4 L4 28"),
+        );
     });
 
     it("verifies linear pattern icons adhere to left-to-right temporal progression", () => {
