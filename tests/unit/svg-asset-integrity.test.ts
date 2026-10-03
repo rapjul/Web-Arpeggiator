@@ -315,7 +315,7 @@ function extractPathPoints(pathD: string): PathPoints {
  */
 function getInlinePath(html: string, attrName: string, attrValue: string): string {
     const regex = new RegExp(
-        `${attrName}="${attrValue}"(?:(?!</svg>)[\\s\\S])*?<path\\s+d="([^"]+)"`,
+        `${attrName}="${attrValue}"(?:(?!</svg>)[\\s\\S])*?<path[^>]*\\bd="([^"]+)"`,
     );
     const match = html.match(regex);
     expect(match, `Missing SVG path for ${attrName}="${attrValue}"`).not.toBeNull();
@@ -373,19 +373,96 @@ function assertStandaloneParity(
 }
 
 /**
+ * Represents a single normalized path segment with endpoints and optional Bézier control points.
+ */
+interface CanonicalSegment {
+    type: "L" | "Q" | "C";
+    xs: number;
+    ys: number;
+    xe: number;
+    ye: number;
+    cp1x?: number;
+    cp1y?: number;
+    cp2x?: number;
+    cp2y?: number;
+}
+
+/**
+ * Represents a contiguous subpath starting with an absolute M coordinate and containing segments.
+ */
+interface CanonicalSubpath {
+    startX: number;
+    startY: number;
+    segments: CanonicalSegment[];
+}
+
+/**
+ * Serializes a canonical subpath in its forward traversal direction.
+ *
+ * @param {CanonicalSubpath} subpath - The subpath structure to serialize.
+ * @returns {string} The forward canonical SVG command string.
+ */
+function serializeSubpathForward(subpath: CanonicalSubpath): string {
+    const parts: string[] = [`M ${subpath.startX} ${subpath.startY}`];
+    for (const seg of subpath.segments) {
+        if (seg.type === "L") {
+            parts.push(`L ${seg.xe} ${seg.ye}`);
+        } else if (seg.type === "Q") {
+            parts.push(`Q ${seg.cp1x} ${seg.cp1y} ${seg.xe} ${seg.ye}`);
+        } else if (seg.type === "C") {
+            parts.push(`C ${seg.cp1x} ${seg.cp1y} ${seg.cp2x} ${seg.cp2y} ${seg.xe} ${seg.ye}`);
+        }
+    }
+    return parts.join(" ");
+}
+
+/**
+ * Serializes a canonical subpath in its mathematically reversed traversal direction.
+ * Inverts Bézier control points to guarantee identical representation regardless of drawing order:
+ * - Line: connects ending coordinates back to start coordinates.
+ * - Quadratic Bézier: keeps single control point while swapping endpoints.
+ * - Cubic Bézier: swaps first and second control points while swapping endpoints.
+ *
+ * @param {CanonicalSubpath} subpath - The subpath structure to serialize.
+ * @returns {string} The reversed canonical SVG command string.
+ */
+function serializeSubpathReversed(subpath: CanonicalSubpath): string {
+    if (subpath.segments.length === 0) {
+        return `M ${subpath.startX} ${subpath.startY}`;
+    }
+    const lastSeg = subpath.segments[subpath.segments.length - 1];
+    const parts: string[] = [`M ${lastSeg.xe} ${lastSeg.ye}`];
+    for (let i = subpath.segments.length - 1; i >= 0; i--) {
+        const seg = subpath.segments[i];
+        if (seg.type === "L") {
+            parts.push(`L ${seg.xs} ${seg.ys}`);
+        } else if (seg.type === "Q") {
+            parts.push(`Q ${seg.cp1x} ${seg.cp1y} ${seg.xs} ${seg.ys}`);
+        } else if (seg.type === "C") {
+            parts.push(`C ${seg.cp2x} ${seg.cp2y} ${seg.cp1x} ${seg.cp1y} ${seg.xs} ${seg.ys}`);
+        }
+    }
+    return parts.join(" ");
+}
+
+/**
  * Canonicalizes an SVG path definition into absolute geometry commands for equivalence comparisons.
- * Resolves all relative commands (m, l, h, v, c, q, t) to absolute commands (M, L, C, Q, T)
- * and normalizes horizontal/vertical lines (H, V) to canonical line segments (L).
+ * Resolves all relative commands (m, l, h, v, c, q, t) to absolute commands (M, L, C, Q),
+ * normalizes horizontal/vertical lines (H, V) to canonical line segments (L),
+ * expands smooth quadratic curves (T, t) to explicit quadratic Bézier commands (Q) with reflected control points,
+ * and normalizes traversal direction so forward and reversed identical strokes yield identical keys.
  *
  * @param {string} pathD - Raw SVG path string.
- * @returns {string} Canonicalized path string with resolved absolute coordinates and standardized spacing.
+ * @returns {string} Canonicalized path string with resolved absolute coordinates, expanded curves, and traversal normalization.
  */
 function canonicalizeResolvedGeometry(pathD: string): string {
     const regex = /([MLHVCSQTAZmlhvcsqtaz])([^MLHVCSQTAZmlhvcsqtaz]*)/g;
     let match: RegExpExecArray | null;
-    const canonicalCommands: string[] = [];
+    const subpaths: CanonicalSubpath[] = [];
+    let currentSubpath: CanonicalSubpath | null = null;
     let curX = 0;
     let curY = 0;
+    let lastQuadCp: { x: number; y: number } | null = null;
 
     // biome-ignore lint/suspicious/noAssignInExpressions: standard regex parsing loop
     while ((match = regex.exec(pathD)) !== null) {
@@ -398,61 +475,158 @@ function canonicalizeResolvedGeometry(pathD: string): string {
                 for (let i = 0; i < args.length; i += 2) {
                     curX = args[i];
                     curY = args[i + 1];
-                    canonicalCommands.push(`M ${curX} ${curY}`);
+                    currentSubpath = { startX: curX, startY: curY, segments: [] };
+                    subpaths.push(currentSubpath);
+                    lastQuadCp = null;
                 }
                 break;
             case "m":
                 for (let i = 0; i < args.length; i += 2) {
                     curX += args[i];
                     curY += args[i + 1];
-                    canonicalCommands.push(`M ${curX} ${curY}`);
+                    currentSubpath = { startX: curX, startY: curY, segments: [] };
+                    subpaths.push(currentSubpath);
+                    lastQuadCp = null;
                 }
                 break;
             case "L":
                 for (let i = 0; i < args.length; i += 2) {
-                    curX = args[i];
-                    curY = args[i + 1];
-                    canonicalCommands.push(`L ${curX} ${curY}`);
+                    const endX = args[i];
+                    const endY = args[i + 1];
+                    if (!currentSubpath) {
+                        currentSubpath = { startX: curX, startY: curY, segments: [] };
+                        subpaths.push(currentSubpath);
+                    }
+                    currentSubpath.segments.push({
+                        type: "L",
+                        xs: curX,
+                        ys: curY,
+                        xe: endX,
+                        ye: endY,
+                    });
+                    curX = endX;
+                    curY = endY;
+                    lastQuadCp = null;
                 }
                 break;
             case "l":
                 for (let i = 0; i < args.length; i += 2) {
-                    curX += args[i];
-                    curY += args[i + 1];
-                    canonicalCommands.push(`L ${curX} ${curY}`);
+                    const endX = curX + args[i];
+                    const endY = curY + args[i + 1];
+                    if (!currentSubpath) {
+                        currentSubpath = { startX: curX, startY: curY, segments: [] };
+                        subpaths.push(currentSubpath);
+                    }
+                    currentSubpath.segments.push({
+                        type: "L",
+                        xs: curX,
+                        ys: curY,
+                        xe: endX,
+                        ye: endY,
+                    });
+                    curX = endX;
+                    curY = endY;
+                    lastQuadCp = null;
                 }
                 break;
             case "H":
                 for (let i = 0; i < args.length; i++) {
-                    curX = args[i];
-                    canonicalCommands.push(`L ${curX} ${curY}`);
+                    const endX = args[i];
+                    if (!currentSubpath) {
+                        currentSubpath = { startX: curX, startY: curY, segments: [] };
+                        subpaths.push(currentSubpath);
+                    }
+                    currentSubpath.segments.push({
+                        type: "L",
+                        xs: curX,
+                        ys: curY,
+                        xe: endX,
+                        ye: curY,
+                    });
+                    curX = endX;
+                    lastQuadCp = null;
                 }
                 break;
             case "h":
                 for (let i = 0; i < args.length; i++) {
-                    curX += args[i];
-                    canonicalCommands.push(`L ${curX} ${curY}`);
+                    const endX = curX + args[i];
+                    if (!currentSubpath) {
+                        currentSubpath = { startX: curX, startY: curY, segments: [] };
+                        subpaths.push(currentSubpath);
+                    }
+                    currentSubpath.segments.push({
+                        type: "L",
+                        xs: curX,
+                        ys: curY,
+                        xe: endX,
+                        ye: curY,
+                    });
+                    curX = endX;
+                    lastQuadCp = null;
                 }
                 break;
             case "V":
                 for (let i = 0; i < args.length; i++) {
-                    curY = args[i];
-                    canonicalCommands.push(`L ${curX} ${curY}`);
+                    const endY = args[i];
+                    if (!currentSubpath) {
+                        currentSubpath = { startX: curX, startY: curY, segments: [] };
+                        subpaths.push(currentSubpath);
+                    }
+                    currentSubpath.segments.push({
+                        type: "L",
+                        xs: curX,
+                        ys: curY,
+                        xe: curX,
+                        ye: endY,
+                    });
+                    curY = endY;
+                    lastQuadCp = null;
                 }
                 break;
             case "v":
                 for (let i = 0; i < args.length; i++) {
-                    curY += args[i];
-                    canonicalCommands.push(`L ${curX} ${curY}`);
+                    const endY = curY + args[i];
+                    if (!currentSubpath) {
+                        currentSubpath = { startX: curX, startY: curY, segments: [] };
+                        subpaths.push(currentSubpath);
+                    }
+                    currentSubpath.segments.push({
+                        type: "L",
+                        xs: curX,
+                        ys: curY,
+                        xe: curX,
+                        ye: endY,
+                    });
+                    curY = endY;
+                    lastQuadCp = null;
                 }
                 break;
             case "C":
                 for (let i = 0; i < args.length; i += 6) {
-                    canonicalCommands.push(
-                        `C ${args[i]} ${args[i + 1]} ${args[i + 2]} ${args[i + 3]} ${args[i + 4]} ${args[i + 5]}`,
-                    );
-                    curX = args[i + 4];
-                    curY = args[i + 5];
+                    const c1x = args[i];
+                    const c1y = args[i + 1];
+                    const c2x = args[i + 2];
+                    const c2y = args[i + 3];
+                    const endX = args[i + 4];
+                    const endY = args[i + 5];
+                    if (!currentSubpath) {
+                        currentSubpath = { startX: curX, startY: curY, segments: [] };
+                        subpaths.push(currentSubpath);
+                    }
+                    currentSubpath.segments.push({
+                        type: "C",
+                        xs: curX,
+                        ys: curY,
+                        cp1x: c1x,
+                        cp1y: c1y,
+                        cp2x: c2x,
+                        cp2y: c2y,
+                        xe: endX,
+                        ye: endY,
+                    });
+                    curX = endX;
+                    curY = endY;
+                    lastQuadCp = null;
                 }
                 break;
             case "c":
@@ -461,54 +635,228 @@ function canonicalizeResolvedGeometry(pathD: string): string {
                     const c1y = curY + args[i + 1];
                     const c2x = curX + args[i + 2];
                     const c2y = curY + args[i + 3];
-                    const ex = curX + args[i + 4];
-                    const ey = curY + args[i + 5];
-                    canonicalCommands.push(`C ${c1x} ${c1y} ${c2x} ${c2y} ${ex} ${ey}`);
-                    curX = ex;
-                    curY = ey;
+                    const endX = curX + args[i + 4];
+                    const endY = curY + args[i + 5];
+                    if (!currentSubpath) {
+                        currentSubpath = { startX: curX, startY: curY, segments: [] };
+                        subpaths.push(currentSubpath);
+                    }
+                    currentSubpath.segments.push({
+                        type: "C",
+                        xs: curX,
+                        ys: curY,
+                        cp1x: c1x,
+                        cp1y: c1y,
+                        cp2x: c2x,
+                        cp2y: c2y,
+                        xe: endX,
+                        ye: endY,
+                    });
+                    curX = endX;
+                    curY = endY;
+                    lastQuadCp = null;
                 }
                 break;
             case "Q":
                 for (let i = 0; i < args.length; i += 4) {
-                    canonicalCommands.push(
-                        `Q ${args[i]} ${args[i + 1]} ${args[i + 2]} ${args[i + 3]}`,
-                    );
-                    curX = args[i + 2];
-                    curY = args[i + 3];
+                    const cpX = args[i];
+                    const cpY = args[i + 1];
+                    const endX = args[i + 2];
+                    const endY = args[i + 3];
+                    if (!currentSubpath) {
+                        currentSubpath = { startX: curX, startY: curY, segments: [] };
+                        subpaths.push(currentSubpath);
+                    }
+                    currentSubpath.segments.push({
+                        type: "Q",
+                        xs: curX,
+                        ys: curY,
+                        cp1x: cpX,
+                        cp1y: cpY,
+                        xe: endX,
+                        ye: endY,
+                    });
+                    curX = endX;
+                    curY = endY;
+                    lastQuadCp = { x: cpX, y: cpY };
                 }
                 break;
             case "q":
                 for (let i = 0; i < args.length; i += 4) {
-                    const cx = curX + args[i];
-                    const cy = curY + args[i + 1];
-                    const ex = curX + args[i + 2];
-                    const ey = curY + args[i + 3];
-                    canonicalCommands.push(`Q ${cx} ${cy} ${ex} ${ey}`);
-                    curX = ex;
-                    curY = ey;
+                    const cpX = curX + args[i];
+                    const cpY = curY + args[i + 1];
+                    const endX = curX + args[i + 2];
+                    const endY = curY + args[i + 3];
+                    if (!currentSubpath) {
+                        currentSubpath = { startX: curX, startY: curY, segments: [] };
+                        subpaths.push(currentSubpath);
+                    }
+                    currentSubpath.segments.push({
+                        type: "Q",
+                        xs: curX,
+                        ys: curY,
+                        cp1x: cpX,
+                        cp1y: cpY,
+                        xe: endX,
+                        ye: endY,
+                    });
+                    curX = endX;
+                    curY = endY;
+                    lastQuadCp = { x: cpX, y: cpY };
                 }
                 break;
             case "T":
                 for (let i = 0; i < args.length; i += 2) {
-                    canonicalCommands.push(`T ${args[i]} ${args[i + 1]}`);
-                    curX = args[i];
-                    curY = args[i + 1];
+                    const endX = args[i];
+                    const endY = args[i + 1];
+                    const cpX = lastQuadCp ? 2 * curX - lastQuadCp.x : curX;
+                    const cpY = lastQuadCp ? 2 * curY - lastQuadCp.y : curY;
+                    if (!currentSubpath) {
+                        currentSubpath = { startX: curX, startY: curY, segments: [] };
+                        subpaths.push(currentSubpath);
+                    }
+                    currentSubpath.segments.push({
+                        type: "Q",
+                        xs: curX,
+                        ys: curY,
+                        cp1x: cpX,
+                        cp1y: cpY,
+                        xe: endX,
+                        ye: endY,
+                    });
+                    curX = endX;
+                    curY = endY;
+                    lastQuadCp = { x: cpX, y: cpY };
                 }
                 break;
             case "t":
                 for (let i = 0; i < args.length; i += 2) {
-                    curX += args[i];
-                    curY += args[i + 1];
-                    canonicalCommands.push(`T ${curX} ${curY}`);
+                    const endX = curX + args[i];
+                    const endY = curY + args[i + 1];
+                    const cpX = lastQuadCp ? 2 * curX - lastQuadCp.x : curX;
+                    const cpY = lastQuadCp ? 2 * curY - lastQuadCp.y : curY;
+                    if (!currentSubpath) {
+                        currentSubpath = { startX: curX, startY: curY, segments: [] };
+                        subpaths.push(currentSubpath);
+                    }
+                    currentSubpath.segments.push({
+                        type: "Q",
+                        xs: curX,
+                        ys: curY,
+                        cp1x: cpX,
+                        cp1y: cpY,
+                        xe: endX,
+                        ye: endY,
+                    });
+                    curX = endX;
+                    curY = endY;
+                    lastQuadCp = { x: cpX, y: cpY };
                 }
                 break;
             case "Z":
             case "z":
-                canonicalCommands.push("Z");
+                if (
+                    currentSubpath &&
+                    (curX !== currentSubpath.startX || curY !== currentSubpath.startY)
+                ) {
+                    currentSubpath.segments.push({
+                        type: "L",
+                        xs: curX,
+                        ys: curY,
+                        xe: currentSubpath.startX,
+                        ye: currentSubpath.startY,
+                    });
+                    curX = currentSubpath.startX;
+                    curY = currentSubpath.startY;
+                }
+                lastQuadCp = null;
                 break;
+            default:
+                throw new Error(`Unhandled SVG command in canonicalizeResolvedGeometry: "${cmd}"`);
         }
     }
-    return canonicalCommands.join(" ");
+
+    const canonicalSubpaths = subpaths.map((sp) => {
+        const forward = serializeSubpathForward(sp);
+        const reversed = serializeSubpathReversed(sp);
+        return forward <= reversed ? forward : reversed;
+    });
+
+    canonicalSubpaths.sort();
+    return canonicalSubpaths.join(" ");
+}
+
+/**
+ * Extracted coordinate attributes for an SVG circle element.
+ */
+interface CircleAttributes {
+    cx: number;
+    cy: number;
+    r: number;
+}
+
+/**
+ * Extracts circle element attributes from an inline SVG pattern button in the HTML source.
+ *
+ * @param {string} html - Raw HTML source content.
+ * @param {string} attrName - Attribute name matching the button (e.g. 'data-pattern').
+ * @param {string} attrValue - Target attribute value (e.g. 'octaveCycle').
+ * @returns {CircleAttributes[]} Array of parsed circle attributes.
+ */
+function getInlineCircles(html: string, attrName: string, attrValue: string): CircleAttributes[] {
+    const regex = new RegExp(
+        `${attrName}="${attrValue}"(?:(?!</svg>)[\\s\\S])*?<svg[^>]*>([\\s\\S]*?)</svg>`,
+        "i",
+    );
+    const match = html.match(regex);
+    expect(match, `Missing SVG for ${attrName}="${attrValue}"`).not.toBeNull();
+    const svgInner = match ? match[1] : "";
+    const circles: CircleAttributes[] = [];
+    const circleRegex = /<circle[^>]*\bcx="([^"]+)"[^>]*\bcy="([^"]+)"[^>]*\br="([^"]+)"/g;
+    let circleMatch: RegExpExecArray | null;
+    // biome-ignore lint/suspicious/noAssignInExpressions: standard regex parsing loop
+    while ((circleMatch = circleRegex.exec(svgInner)) !== null) {
+        circles.push({
+            cx: Number(circleMatch[1]),
+            cy: Number(circleMatch[2]),
+            r: Number(circleMatch[3]),
+        });
+    }
+    expect(
+        circles.length,
+        `No circle elements found for ${attrName}="${attrValue}"`,
+    ).toBeGreaterThan(0);
+    return circles;
+}
+
+/**
+ * Extracts circle element attributes and file content from a standalone SVG file.
+ *
+ * @param {string} rootDir - Workspace root directory.
+ * @param {string} subfolder - Asset subfolder under public/images/.
+ * @param {string} filename - Standalone SVG file name.
+ * @returns {{ circles: CircleAttributes[]; fileContent: string }} Extracted circle attributes and file content.
+ */
+function getStandaloneCircles(
+    rootDir: string,
+    subfolder: string,
+    filename: string,
+): { circles: CircleAttributes[]; fileContent: string } {
+    const filePath = resolve(rootDir, "public/images", subfolder, filename);
+    const fileContent = readFileSync(filePath, "utf-8");
+    const circles: CircleAttributes[] = [];
+    const circleRegex = /<circle[^>]*\bcx="([^"]+)"[^>]*\bcy="([^"]+)"[^>]*\br="([^"]+)"/g;
+    let match: RegExpExecArray | null;
+    // biome-ignore lint/suspicious/noAssignInExpressions: standard regex parsing loop
+    while ((match = circleRegex.exec(fileContent)) !== null) {
+        circles.push({
+            cx: Number(match[1]),
+            cy: Number(match[2]),
+            r: Number(match[3]),
+        });
+    }
+    expect(circles.length, `No circles found in ${filename}`).toBeGreaterThan(0);
+    return { circles, fileContent };
 }
 
 describe("SVG Asset Integrity & Viewport Height Utilization", () => {
@@ -547,18 +895,34 @@ describe("SVG Asset Integrity & Viewport Height Utilization", () => {
         }
     });
 
-    it("verifies every pattern direction icon has a unique visual path with zero duplicates", () => {
+    it("verifies every pattern direction and waveform icon has a unique visual path with zero duplicates", () => {
         const seenPaths = new Map<string, string>();
+        const allPathIcons: Array<{
+            id: string;
+            attr: "data-pattern" | "data-wave";
+            label: string;
+        }> = [
+            ...patternIds.map((id) => ({
+                id,
+                attr: "data-pattern" as const,
+                label: `Pattern "${id}"`,
+            })),
+            ...waveformIds.map((id) => ({
+                id,
+                attr: "data-wave" as const,
+                label: `Waveform "${id}"`,
+            })),
+        ];
 
-        for (const patternId of patternIds) {
-            const pathD = getInlinePath(htmlContent, "data-pattern", patternId);
+        for (const { id, attr, label } of allPathIcons) {
+            const pathD = getInlinePath(htmlContent, attr, id);
             const canonicalPath = canonicalizeResolvedGeometry(pathD);
             const duplicateOf = seenPaths.get(canonicalPath);
             expect(
                 duplicateOf,
-                `Pattern "${patternId}" has duplicate path of "${duplicateOf}": ${pathD}`,
+                `${label} has duplicate visual geometry of "${duplicateOf}": ${pathD}`,
             ).toBeUndefined();
-            seenPaths.set(canonicalPath, patternId);
+            seenPaths.set(canonicalPath, label);
         }
     });
 
@@ -572,16 +936,25 @@ describe("SVG Asset Integrity & Viewport Height Utilization", () => {
         expect(canonicalizeResolvedGeometry("M4 4 V28")).toBe(
             canonicalizeResolvedGeometry("M4 4 L4 28"),
         );
+        expect(canonicalizeResolvedGeometry("M4 28 L28 4")).toBe(
+            canonicalizeResolvedGeometry("M28 4 L4 28"),
+        );
+        expect(canonicalizeResolvedGeometry("M3 18 Q 7 13 11 17 T 16 4")).toBe(
+            canonicalizeResolvedGeometry("M3 18 Q 7 13 11 17 Q 15 21 16 4"),
+        );
+        expect(() => canonicalizeResolvedGeometry("M0 0 S 5 5 10 10")).toThrow(
+            'Unhandled SVG command in canonicalizeResolvedGeometry: "S"',
+        );
     });
 
-    it("verifies linear pattern icons adhere to left-to-right temporal progression", () => {
-        for (const dir of ["down", "downUp"]) {
-            const pathD = getInlinePath(htmlContent, "data-pattern", dir);
+    it("verifies all pattern direction icons adhere to left-to-right temporal progression", () => {
+        for (const patternId of patternIds) {
+            const pathD = getInlinePath(htmlContent, "data-pattern", patternId);
             const { xs } = extractPathPoints(pathD);
-            expect(xs.length, `Expected X points for "${dir}"`).toBeGreaterThan(1);
+            expect(xs.length, `Expected X points for "${patternId}"`).toBeGreaterThan(1);
             expect(
                 xs[0],
-                `Linear pattern "${dir}" should start on left and progress right`,
+                `Pattern "${patternId}" should start on left and progress right (start ${xs[0]}, end ${xs[xs.length - 1]})`,
             ).toBeLessThan(xs[xs.length - 1]);
         }
     });
@@ -603,6 +976,39 @@ describe("SVG Asset Integrity & Viewport Height Utilization", () => {
         for (const [patternId, filename] of Object.entries(patternFileMap)) {
             const inlinePath = getInlinePath(htmlContent, "data-pattern", patternId);
             assertStandaloneParity(rootDir, inlinePath, "patterns", filename);
+        }
+    });
+
+    it("verifies parity and theming between inline circle-based octave patterns and standalone SVG files", () => {
+        const octaveMap: Record<string, string> = {
+            octaveCycle: "pattern-direction-octaveCycle.svg",
+            octaveCycleReverse: "pattern-direction-octaveCycleReversed.svg",
+            octaveCyclePingPong: "pattern-direction-octaveCyclePingPong.svg",
+        };
+
+        for (const [patternId, filename] of Object.entries(octaveMap)) {
+            const inlineCircles = getInlineCircles(htmlContent, "data-pattern", patternId);
+            const { circles: standaloneCircles, fileContent } = getStandaloneCircles(
+                rootDir,
+                "patterns",
+                filename,
+            );
+
+            expect(
+                inlineCircles.length,
+                `Circle count mismatch between inline and standalone ${filename}`,
+            ).toBe(standaloneCircles.length);
+
+            for (let i = 0; i < inlineCircles.length; i++) {
+                expect(inlineCircles[i], `Circle at index ${i} mismatch in ${filename}`).toEqual(
+                    standaloneCircles[i],
+                );
+            }
+
+            expect(
+                fileContent,
+                `Standalone ${filename} must include :root color fallback styling`,
+            ).toContain(":root { color: #38bdf8; }");
         }
     });
 
