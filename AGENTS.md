@@ -272,6 +272,12 @@ loadPreset(file);
 - **Interface Mode**: Header-integrated segmented pill control (`[ Simple | Full ]`) with accessible WAI-ARIA `role="radiogroup"` navigation to switch between beginner-friendly controls and the full sound design interface
 - **Play/Stop/Restart**: Transport control
 
+### Sound Starters
+
+- Curated 11-preset factory sound library available via the collapsible Sound Starters card and first-visit Quick Start modal
+- One-click loading of complete sound design configurations with authentic multi-octave chord voicings
+- Active starter card highlights synchronized with the preset dropdown and automatically cleared upon manual edits
+
 ### Synth Section
 
 - Synth type selector (Basic/FM/AM)
