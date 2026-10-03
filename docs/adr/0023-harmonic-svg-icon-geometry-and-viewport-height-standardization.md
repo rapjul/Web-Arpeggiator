@@ -1,0 +1,122 @@
+---
+status: accepted
+date: 2026-10-02
+decision-makers: [rapjul, Antigravity]
+consulted: []
+informed: []
+---
+
+# 0023. Harmonic SVG Icon Geometry, Viewport Height Standardization, and Asset Parity
+
+## Context and Problem Statement
+
+Web Arpeggiator displays visual icons across two primary control surfaces: the **Pattern Direction** selector and the **Synthesizer Waveform** selector. These icons exist both inline within `index.html` (for direct DOM rendering with Tailwind CSS `currentColor` inheritance) and as standalone SVG files in `public/images/patterns/` and `public/images/waveforms/` (for modular assets, offline documentation, PWA previews, and OS file managers).
+
+A comprehensive visual and mathematical audit revealed several visual discrepancies, proportional squashing, and asset integrity issues:
+
+1. **Duplicate Icon Bug**: The `Random Step` pattern direction button erroneously shared the identical coordinate path of `Down-Up (Repeated)`, creating visual confusion and misrepresenting the step-and-hold musical behavior.
+2. **Viewport Squashing and Disproportionate Margins**: Linear pattern icons (`Up`, `Down`, `Up-Down`, `Down-Up`) and repeated patterns utilized only $12.5\%\text{--}44\%$ of the 32px viewport height (some spanning merely 4 to 14 coordinate units), creating large empty vertical margins and causing them to appear squashed next to synthesis waveform buttons.
+3. **Waveform Geometry and Duty Cycle Ambiguity**:
+   - **`Sawtooth`**: Displayed three cramped cycles rather than the classic synthesizer convention of two bold, spacious cycles.
+   - **`Triangle`**: Displayed a multi-cycle waveform rather than a single pure bipolar oscilloscope cycle with constant slope and clean zero-crossing entry and exit.
+   - **`Square` vs. `Pulse`**: Lacked clear visual distinction between a symmetrical 50% square wave and a narrow pulse wave.
+   - **`Sine`**: The initial path exhibited degenerate boundary control points ($P_0 = P_1$ and $P_2 = P_3$ resulting in zero-velocity boundary singularities) and stretched across $X \in [2, 30]$ while all other waveforms spanned $X \in [4, 28]$. An intermediate refactoring introduced collinear control points through the center crossover, causing the transition between crest and trough to render as a straight diagonal line.
+4. **Temporal Progression Inversion**: `Down` and `Down-Up` paths were drawn right-to-left temporally, reversing standard left-to-right musical timeline progression.
+5. **Absence of Automated Viewport and Parity Gates**: The test suite lacked automated verification for SVG icon viewport utilization, icon path uniqueness, and markup-to-asset parity.
+
+## Decision Drivers
+
+- Standardize vertical viewport utilization across all pattern and waveform icons ($\ge 71.875\%$ [$\ge 23$ units] for patterns, $75\%$ [$24$ units, $Y \in [4, 28]$] for waveforms).
+- Resolve the `Random Step` duplicate bug with an authentic Sample-and-Hold stepped bar glyph.
+- Establish clear, authentic synthesizer waveform iconography with distinct 50% square and 25% pulse duty cycles.
+- Ensure the `Sine` waveform icon exhibits continuous active curvature across four congruent quadrants with broad horizontal crests and a steep zero-crossing transition, free of straight-line defects.
+- Guarantee left-to-right temporal drawing progression ($X_{\text{start}} < X_{\text{end}}$).
+- Synchronize inline markup with standalone SVG assets, including fallback `:root { color: #38bdf8; }` styling for OS and Markdown previews.
+- Implement a dependency-free automated test suite validating rendered Bézier curve extrema, path uniqueness, and asset parity.
+
+## Considered Options & Icon Design Specifications
+
+### 1. Pattern Direction Icons ($32\times32$ Viewport)
+
+- **`Random Step` (`d="M3 20 H8 V4 H14 V28 H20 V10 H26 V18 H29"`)**:
+  - *Design*: Replaced the duplicated `Down-Up (Repeated)` path with a 4-step Sample-and-Hold waveform featuring staggered horizontal plateaus connected by vertical step transitions.
+  - *Bounds*: $X \in [3, 29]$ (width 26), $Y \in [4, 28]$ (height 24 units / 75%).
+  - *Rationale*: Visually communicates discrete, un-interpolated pitch steps characteristic of sample-and-hold circuits.
+- **`Random Walk` (`d="M3 16 C 5 8, 7 4, 10 4 C 13 4, 15 28, 18 28 C 21 28, 23 10, 26 10 C 27 10, 28 14, 29 14"`)**:
+  - *Design*: Multi-segment cubic Bézier S-curves entering at $(3, 16)$, arcing to a crest at $(10, 4)$, plunging to a trough at $(18, 28)$, and settling at $(29, 14)$.
+  - *Bounds*: Rendered mathematical extrema tangentially touch $Y = 4$ and $Y = 28$ ($75\%$ viewport height).
+  - *Rationale*: Represents smooth Brownian motion / constrained adjacent-note wander.
+- **`Drunkard's Walk` (`d="M3 18 Q 7 13, 11 17 T 16 4 L 22 28 Q 26 21, 29 16"`)**:
+  - *Design*: Smooth quadratic curve (`Q`) reflected across the running cursor (`T`) to apex $(16, 4)$, followed by a dramatic reflected leap to $(22, 28)$ and quadratic recovery.
+  - *Bounds*: $X \in [3, 29]$, $Y \in [4, 28]$ ($75\%$ viewport height).
+  - *Rationale*: Captures erratic wander with sudden, unpredictable leaps.
+- **`Up` (`d="M4 28 L28 4"`) & `Down` (`d="M4 4 L28 28"`)**:
+  - *Design*: Clean diagonal trajectories spanning $X \in [4, 28]$ and $Y \in [4, 28]$ (24 units / 75% height).
+  - *Temporal Invariant*: Both start at $X = 4$ and terminate at $X = 28$, ensuring left-to-right temporal progression.
+- **`Up-Down` (`d="M4 28 L16 4 L28 28"`) & `Down-Up` (`d="M4 4 L16 28 L28 4"`)**:
+  - *Design*: Symmetrical V-pyramids with single-point exclusive apex $(16, 4)$ or valley $(16, 28)$, spanning 24 units in height.
+- **`Up-Down (Repeated)` (`d="M3 28 H7 L13 4 H19 L25 28 H29"`) & `Down-Up (Repeated)` (`d="M3 4 H7 L13 28 H19 L25 4 H29"`)**:
+  - *Design*: Replaced malformed coordinate syntax with prominent trapezoidal shelves (`H19`), providing a wide 6-unit horizontal plateau at apex and base.
+  - *Rationale*: Clearly distinguishes repeated boundary note playback from exclusive endpoint patterns.
+
+### 2. Synthesizer Waveform Icons ($32\times32$ Viewport)
+
+- **`Sine` (`d="M4 16 C5 8 7 4 10 4 C13 4 15 8 16 16 C17 24 19 28 22 28 C25 28 27 24 28 16"`)**:
+  - *Design*: Four congruent, dynamically curving cubic Bézier quadrants.
+    - $Q_1$ (`(4, 16) → (10, 4)`): Enters at $(4, 16)$ with slope 8, bending smoothly into a 3-unit horizontal tangent at $(10, 4)$.
+    - $Q_2$ (`(10, 4) → (16, 16)`): Exact geometric mirror of $Q_1$, bending through $(15, 8)$ and accelerating into a steep slope 8 zero-crossing at $(16, 16)$.
+    - $Q_3$ (`(16, 16) → (22, 28)`): Exact point reflection of $Q_2$, crossing $(16, 16)$ at slope 8 and rounding into the trough at $(22, 28)$.
+    - $Q_4$ (`(22, 28) → (28, 16)`): Exact geometric mirror of $Q_3$, arcing smoothly to $(28, 16)$.
+  - *Elimination of Straight-Line Defect*: Replaced earlier collinear control points with active dynamic curvature ($\kappa \approx 0.089$, ~3x higher curvature), ensuring the transition through zero-crossing matches the curvature of the outer arcs.
+  - *Bounds*: $X \in [4, 28]$ (24 units wide, 4px margins), $Y \in [4, 28]$ (24 units / 75% height).
+- **`Sawtooth` (`d="M4 28 L16 4 V28 L28 4 V28"`)**:
+  - *Design*: Two symmetrical upward ramps with vertical flybacks.
+  - *Bounds*: $X \in [4, 28]$ (12px cycle width), $Y \in [4, 28]$ (24 units / 75% height).
+- **`Triangle` (`d="M4 16 L10 4 L22 28 L28 16"`)**:
+  - *Design*: One pure bipolar oscilloscope cycle with constant slope and clean zero-crossing entry/exit at $(4, 16)$ and $(28, 16)$.
+  - *Bounds*: $X \in [4, 28]$, $Y \in [4, 28]$ (24 units / 75% height).
+- **`Square` (`d="M4 28 V4 H10 V28 H16 V4 H22 V28 H28"`)**:
+  - *Design*: Two symmetrical 50% duty cycles (High = 6px, Low = 6px).
+  - *Bounds*: $X \in [4, 28]$, $Y \in [4, 28]$ (24 units / 75% height).
+- **`Pulse` (`d="M4 28 V4 H7 V28 H16 V4 H19 V28 H28"`)**:
+  - *Design*: Two distinct narrow 25% duty cycles (High = 3px, Low = 9px).
+  - *Rationale*: Visually clarifies the harmonic difference between standard square and narrow pulse waveforms.
+
+## Automated Verification Contract
+
+The automated test suite in `tests/unit/svg-asset-integrity.test.ts` enforces the following invariants:
+
+1. **Exact Mathematical Bézier Extrema**: Evaluates stationary points $B'(t) = 0$ for $t \in [0, 1]$ via quadratic formula discriminant analysis (`getCubicExtrema`, `getQuadraticExtrema`) rather than relying on control point bounding boxes.
+2. **Smooth Quadratic Cursor Tracking**: Tracks the running cursor and reflects previous control points for `T` / `t` commands.
+3. **SVG Number Grammar**: Supports scientific notation exponents, explicit leading signs, and omitted leading zeros.
+4. **Canonical Path Normalization (`canonicalizeResolvedGeometry`)**: Converts relative and absolute command variants into canonical absolute geometry commands so icon uniqueness checks compare geometric intent rather than formatting variations.
+5. **Asset Parity & Theming**: Verifies byte-exact matching between inline HTML paths and standalone SVG files, and asserts the presence of `:root { color: #38bdf8; }` in all standalone assets.
+
+## Consequences
+
+### Positive
+
+- All 18 pattern direction and synthesis waveform icons utilize $\ge 71.875\%\text{--}75\%$ vertical viewport height, eliminating squashing and empty padding.
+- The `Random Step` duplicate bug is permanently resolved with an authentic Sample-and-Hold glyph.
+- Waveforms clearly convey their acoustic duty cycles (50% Square vs. 25% Pulse).
+- The `Sine` wave features continuous curvature across four congruent quadrants with zero straight-line artifacts.
+- All linear and generative patterns strictly adhere to left-to-right temporal drawing.
+- Standalone SVGs render cleanly in OS file managers, image viewers, and documentation with theme-aware sky-blue fallbacks.
+- The automated test suite catches geometry regressions, duplicate paths, or viewport shrinking in CI in under 30ms without extra dependencies.
+
+### Negative / Trade-offs
+
+- Custom SVG path parser in `tests/unit/svg-asset-integrity.test.ts` requires maintenance if new SVG command types (e.g., elliptical arcs `A`) are added in the future.
+
+### Neutral
+
+- Viewport coordinates remain within the standard $32\times32$ box, avoiding changes to UI button layouts, Tailwind utility classes, or SVG viewBox configurations.
+
+## Links
+
+- [Architecture Guide](../architecture.md)
+- [Pattern Directions Guide](../pattern-directions.md)
+- [Styling Guide](../styling-guide.md)
+- [ADR 0007: Semantic Theme Tokens and Modular Styles](./0007-semantic-theme-tokens-and-modular-styles.md)
+- [ADR 0021: Fluid Responsive Layout, Control Sizing, and Typography Balancing](./0021-fluid-wrapping-and-card-aware-responsive-layout.md)
+- [Automated Integrity Test Suite](../../tests/unit/svg-asset-integrity.test.ts)

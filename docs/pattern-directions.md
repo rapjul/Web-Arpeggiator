@@ -94,3 +94,7 @@ This document explains the different pattern directions available in the Web Arp
 - **Visual**:
   ![Drunkard's Walk](../public/images/patterns/pattern-direction-randomWalkDrunkard.svg)
 - **Example**: C4 → D4 → E4 → A4 → G4 → F4 (mostly local with occasional leaps)
+
+---
+
+For icon design standards, vertical viewport utilization, and mathematical curve specifications, see [ADR 0023: Harmonic SVG Icon Geometry, Viewport Height Standardization, and Asset Parity](./adr/0023-harmonic-svg-icon-geometry-and-viewport-height-standardization.md).
