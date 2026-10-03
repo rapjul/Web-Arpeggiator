@@ -114,14 +114,17 @@ function processMoveOrLine(
     points: PathPoints,
 ): void {
     cursor.lastQuadCp = null;
+    if (args.length % 2 !== 0) {
+        throw new Error(
+            `Odd argument count (${args.length}) for command "${cmd}": ${args.join(" ")}`,
+        );
+    }
     const isRelative = cmd === "m" || cmd === "l";
     for (let i = 0; i < args.length; i += 2) {
         cursor.x = isRelative ? cursor.x + args[i] : args[i];
+        cursor.y = isRelative ? cursor.y + args[i + 1] : args[i + 1];
         points.xs.push(cursor.x);
-        if (i + 1 < args.length) {
-            cursor.y = isRelative ? cursor.y + args[i + 1] : args[i + 1];
-            points.ys.push(cursor.y);
-        }
+        points.ys.push(cursor.y);
     }
 }
 
@@ -168,6 +171,11 @@ function processCubicCurve(
     points: PathPoints,
 ): void {
     cursor.lastQuadCp = null;
+    if (args.length % 6 !== 0) {
+        throw new Error(
+            `Invalid argument count (${args.length}) for cubic command "${cmd}": expected multiple of 6`,
+        );
+    }
     const isRelative = cmd === "c";
     for (let i = 0; i < args.length; i += 6) {
         const cp1X = isRelative ? cursor.x + args[i] : args[i];
@@ -201,6 +209,11 @@ function processQuadraticCurve(
     points: PathPoints,
 ): void {
     if (cmd === "Q" || cmd === "q") {
+        if (args.length % 4 !== 0) {
+            throw new Error(
+                `Invalid argument count (${args.length}) for quadratic command "${cmd}": expected multiple of 4`,
+            );
+        }
         const isRelative = cmd === "q";
         for (let i = 0; i < args.length; i += 4) {
             const cpX = isRelative ? cursor.x + args[i] : args[i];
@@ -217,6 +230,11 @@ function processQuadraticCurve(
         }
     } else {
         // T / t smooth quadratic endpoint: reflect previous quadratic control point across cursor
+        if (args.length % 2 !== 0) {
+            throw new Error(
+                `Invalid argument count (${args.length}) for smooth quadratic command "${cmd}": expected multiple of 2`,
+            );
+        }
         const isRelative = cmd === "t";
         for (let i = 0; i < args.length; i += 2) {
             const endX = isRelative ? cursor.x + args[i] : args[i];
@@ -373,17 +391,20 @@ describe("SVG Asset Integrity & Viewport Height Utilization", () => {
 
     const waveformIds = ["sine", "sawtooth", "triangle", "square", "pulse"];
 
-    it("verifies all path-based pattern direction icons in index.html utilize at least 70% viewport height", () => {
+    const MIN_PATTERN_HEIGHT_SPAN = 23; // >= 71.875% of 32px viewport
+    const MIN_WAVEFORM_HEIGHT_SPAN = 24; // 75% of 32px viewport
+
+    it("verifies all path-based pattern direction icons in index.html utilize at least 71% viewport height (>= 23 units)", () => {
         for (const patternId of patternIds) {
             const pathD = getInlinePath(htmlContent, "data-pattern", patternId);
-            assertMinimumHeightSpan(pathD, 23, `Pattern "${patternId}"`);
+            assertMinimumHeightSpan(pathD, MIN_PATTERN_HEIGHT_SPAN, `Pattern "${patternId}"`);
         }
     });
 
-    it("verifies all waveform icons in index.html utilize at least 70% viewport height", () => {
+    it("verifies all waveform icons in index.html utilize at least 75% viewport height (>= 24 units)", () => {
         for (const waveId of waveformIds) {
             const pathD = getInlinePath(htmlContent, "data-wave", waveId);
-            assertMinimumHeightSpan(pathD, 24, `Waveform "${waveId}"`);
+            assertMinimumHeightSpan(pathD, MIN_WAVEFORM_HEIGHT_SPAN, `Waveform "${waveId}"`);
         }
     });
 
