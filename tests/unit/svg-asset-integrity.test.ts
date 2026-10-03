@@ -372,6 +372,27 @@ function assertStandaloneParity(
     ).toContain(":root { color: #38bdf8; }");
 }
 
+/**
+ * Normalizes an SVG path definition into a canonical token string for geometry comparisons.
+ *
+ * @param {string} pathD - Raw SVG path string.
+ * @returns {string} Canonicalized path string with standardized command spacing and numeric representations.
+ */
+function normalizePathD(pathD: string): string {
+    const regex = /([MLHVCSQTAZmlhvcsqtaz])([^MLHVCSQTAZmlhvcsqtaz]*)/g;
+    let match: RegExpExecArray | null;
+    const tokens: string[] = [];
+
+    // biome-ignore lint/suspicious/noAssignInExpressions: standard regex parsing loop
+    while ((match = regex.exec(pathD)) !== null) {
+        const cmd = match[1];
+        const numMatches = match[2].match(/[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?/g);
+        const args = numMatches ? numMatches.map((n) => Number(n).toString()) : [];
+        tokens.push(`${cmd} ${args.join(" ")}`.trim());
+    }
+    return tokens.join(" ");
+}
+
 describe("SVG Asset Integrity & Viewport Height Utilization", () => {
     const rootDir = resolve(__dirname, "../../");
     const htmlContent = readFileSync(resolve(rootDir, "index.html"), "utf-8");
@@ -413,12 +434,13 @@ describe("SVG Asset Integrity & Viewport Height Utilization", () => {
 
         for (const patternId of patternIds) {
             const pathD = getInlinePath(htmlContent, "data-pattern", patternId);
-            const duplicateOf = seenPaths.get(pathD);
+            const canonicalPath = normalizePathD(pathD);
+            const duplicateOf = seenPaths.get(canonicalPath);
             expect(
                 duplicateOf,
                 `Pattern "${patternId}" has duplicate path of "${duplicateOf}": ${pathD}`,
             ).toBeUndefined();
-            seenPaths.set(pathD, patternId);
+            seenPaths.set(canonicalPath, patternId);
         }
     });
 
