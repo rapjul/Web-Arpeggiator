@@ -50,7 +50,7 @@ This document explains the different pattern directions available in the Web Arp
 
 - **Description**: Selects a seeded random note independently on every step, so notes may repeat before others play
 - **Visual**:
-  ![Random Pattern](../public/images/patterns/pattern-direction-random.svg)
+  ![Random Step](../public/images/patterns/pattern-direction-random.svg)
 - **Example**: E4 → E4 → C4 → G4 (repeats are allowed)
 
 ### 8. Random Cycle
