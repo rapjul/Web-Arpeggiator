@@ -36,6 +36,32 @@ function evaluateCubic(p0: number, p1: number, p2: number, p3: number, t: number
 }
 
 /**
+ * Evaluates whether a cubic Bézier curve segment progresses monotonically forward in X without interior backtracking.
+ *
+ * @param {number} xs - Starting X coordinate.
+ * @param {number} cp1x - First control point X coordinate.
+ * @param {number} cp2x - Second control point X coordinate.
+ * @param {number} xe - Ending X coordinate.
+ * @returns {boolean} True if the X derivative B'(t) >= 0 across t in [0, 1].
+ */
+function isCubicMonotonicForwardX(xs: number, cp1x: number, cp2x: number, xe: number): boolean {
+    if (xs > xe) return false;
+    const a = 3 * (-xs + 3 * cp1x - 3 * cp2x + xe);
+    const b = 6 * (xs - 2 * cp1x + cp2x);
+    const c = 3 * (-xs + cp1x);
+    if (c < 0 || a + b + c < 0) return false;
+    const disc = b * b - 4 * a * c;
+    if (disc > 0 && Math.abs(a) > 1e-9) {
+        const tMin = -b / (2 * a);
+        if (tMin > 0 && tMin < 1) {
+            const minDeriv = a * tMin * tMin + b * tMin + c;
+            if (minDeriv < -1e-6) return false;
+        }
+    }
+    return true;
+}
+
+/**
  * Calculates rendered extrema (min and max boundary values) for a 1D cubic Bézier segment.
  *
  * @param {number} p0 - Start point.
@@ -114,9 +140,9 @@ function processMoveOrLine(
     points: PathPoints,
 ): void {
     cursor.lastQuadCp = null;
-    if (args.length % 2 !== 0) {
+    if (args.length === 0 || args.length % 2 !== 0) {
         throw new Error(
-            `Odd argument count (${args.length}) for command "${cmd}": ${args.join(" ")}`,
+            `Invalid argument count (${args.length}) for command "${cmd}": expected positive multiple of 2`,
         );
     }
     const isRelative = cmd === "m" || cmd === "l";
@@ -144,6 +170,11 @@ function processHorizontalOrVertical(
     points: PathPoints,
 ): void {
     cursor.lastQuadCp = null;
+    if (args.length === 0) {
+        throw new Error(
+            `Invalid argument count (0) for command "${cmd}": expected at least 1 argument`,
+        );
+    }
     for (const val of args) {
         if (cmd === "H") cursor.x = val;
         else if (cmd === "h") cursor.x += val;
@@ -171,9 +202,9 @@ function processCubicCurve(
     points: PathPoints,
 ): void {
     cursor.lastQuadCp = null;
-    if (args.length % 6 !== 0) {
+    if (args.length === 0 || args.length % 6 !== 0) {
         throw new Error(
-            `Invalid argument count (${args.length}) for cubic command "${cmd}": expected multiple of 6`,
+            `Invalid argument count (${args.length}) for cubic command "${cmd}": expected positive multiple of 6`,
         );
     }
     const isRelative = cmd === "c";
@@ -209,9 +240,9 @@ function processQuadraticCurve(
     points: PathPoints,
 ): void {
     if (cmd === "Q" || cmd === "q") {
-        if (args.length % 4 !== 0) {
+        if (args.length === 0 || args.length % 4 !== 0) {
             throw new Error(
-                `Invalid argument count (${args.length}) for quadratic command "${cmd}": expected multiple of 4`,
+                `Invalid argument count (${args.length}) for quadratic command "${cmd}": expected positive multiple of 4`,
             );
         }
         const isRelative = cmd === "q";
@@ -230,9 +261,9 @@ function processQuadraticCurve(
         }
     } else {
         // T / t smooth quadratic endpoint: reflect previous quadratic control point across cursor
-        if (args.length % 2 !== 0) {
+        if (args.length === 0 || args.length % 2 !== 0) {
             throw new Error(
-                `Invalid argument count (${args.length}) for smooth quadratic command "${cmd}": expected multiple of 2`,
+                `Invalid argument count (${args.length}) for smooth quadratic command "${cmd}": expected positive multiple of 2`,
             );
         }
         const isRelative = cmd === "t";
@@ -290,6 +321,14 @@ function validateSvgPathSyntax(pathD: string): void {
         }
         const cmd = match[1];
         const rawArgs = match[2];
+        if (cmd !== "Z" && cmd !== "z") {
+            const trimmedArgs = rawArgs.trim();
+            if (trimmedArgs.length === 0) {
+                throw new Error(
+                    `Invalid SVG command "${cmd}": missing required arguments in path: "${pathD}"`,
+                );
+            }
+        }
         const stripped = rawArgs
             .replace(/[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?/g, "")
             .replace(/[\s,]/g, "");
@@ -409,6 +448,16 @@ interface InlineCircleData {
 }
 
 /**
+ * Strips HTML and XML comment blocks from source markup to prevent commented-out elements from being matched as active geometry.
+ *
+ * @param {string} source - Raw markup string.
+ * @returns {string} Markup string with all comment blocks removed.
+ */
+function stripComments(source: string): string {
+    return source.replace(/<!--[\s\S]*?-->/g, "");
+}
+
+/**
  * Helper to retrieve an inline SVG path string, viewBox, and presentation attributes from index.html markup.
  *
  * @param {string} html - Raw HTML source content.
@@ -417,11 +466,12 @@ interface InlineCircleData {
  * @returns {InlinePathData} The path 'd' string, parsed viewBox, and presentation attributes.
  */
 function getInlinePath(html: string, attrName: string, attrValue: string): InlinePathData {
+    const cleanHtml = stripComments(html);
     const regex = new RegExp(
         `${attrName}="${attrValue}"(?:(?!</svg>)[\\s\\S])*?<svg([^>]*)>([\\s\\S]*?)</svg>`,
         "i",
     );
-    const match = html.match(regex);
+    const match = cleanHtml.match(regex);
     expect(match, `Missing SVG for ${attrName}="${attrValue}"`).not.toBeNull();
     const svgAttrs = match ? match[1] : "";
     const svgInner = match ? match[2] : "";
@@ -559,12 +609,36 @@ function assertMinimumHeightSpan(
 }
 
 /**
+ * Asserts that styles/components.css defines the standard 2-unit stroke width rule for inline button SVGs,
+ * ensuring stylesheet-level presentation parity with standalone SVG assets.
+ *
+ * @param {string} rootDir - Workspace root directory.
+ * @returns {void}
+ */
+function assertStylesheetStrokeWidthParity(rootDir: string): void {
+    const cssPath = resolve(rootDir, "styles/components.css");
+    const cssContent = stripComments(readFileSync(cssPath, "utf-8"));
+    const ruleMatch = cssContent.match(
+        /\.(?:waveform-btn|pattern-btn|octave-btn)\s+svg[\s\S]*?stroke-width:\s*(\d+)/,
+    );
+    expect(
+        ruleMatch,
+        "Missing stroke-width rule in styles/components.css for button SVGs",
+    ).not.toBeNull();
+    expect(
+        ruleMatch ? Number(ruleMatch[1]) : 0,
+        "Inline button SVG stroke-width in styles/components.css must be 2",
+    ).toBe(2);
+}
+
+/**
  * Asserts parity between an inline HTML SVG path and its standalone SVG asset file across geometry and presentation attributes.
  *
  * @param {string} rootDir - Workspace root directory.
  * @param {InlinePathData} inlineData - Extracted inline path and presentation data.
  * @param {string} subfolder - Asset subfolder under public/images/ ('patterns' or 'waveforms').
  * @param {string} filename - Standalone file name.
+ * @param {string} [rawContentOverride] - Optional standalone SVG file content override for testing.
  * @returns {void}
  */
 function assertStandaloneParity(
@@ -572,9 +646,11 @@ function assertStandaloneParity(
     inlineData: InlinePathData,
     subfolder: string,
     filename: string,
+    rawContentOverride?: string,
 ): void {
+    assertStylesheetStrokeWidthParity(rootDir);
     const filePath = resolve(rootDir, "public/images", subfolder, filename);
-    const fileContent = readFileSync(filePath, "utf-8");
+    const fileContent = stripComments(rawContentOverride ?? readFileSync(filePath, "utf-8"));
     const viewBoxMatch = fileContent.match(/viewBox="([^"]+)"/);
     expect(viewBoxMatch, `Standalone file ${filename} missing viewBox`).not.toBeNull();
     expect(
@@ -1200,11 +1276,12 @@ function canonicalizeCircleGeometry(circles: CircleAttributes[]): string {
  * @returns {InlineCircleData} Parsed circle attributes and viewBox geometry.
  */
 function getInlineCircles(html: string, attrName: string, attrValue: string): InlineCircleData {
+    const cleanHtml = stripComments(html);
     const regex = new RegExp(
         `${attrName}="${attrValue}"(?:(?!</svg>)[\\s\\S])*?<svg([^>]*)>([\\s\\S]*?)</svg>`,
         "i",
     );
-    const match = html.match(regex);
+    const match = cleanHtml.match(regex);
     expect(match, `Missing SVG for ${attrName}="${attrValue}"`).not.toBeNull();
     const svgAttrs = match ? match[1] : "";
     expect(
@@ -1282,15 +1359,17 @@ function getInlineCircles(html: string, attrName: string, attrValue: string): In
  * @param {string} rootDir - Workspace root directory.
  * @param {string} subfolder - Asset subfolder under public/images/.
  * @param {string} filename - Standalone SVG file name.
+ * @param {string} [rawContentOverride] - Optional standalone SVG file content override for testing.
  * @returns {{ circles: CircleAttributes[]; fileContent: string; viewBox: ViewBoxRect }} Extracted circle attributes, file content, and viewBox.
  */
 function getStandaloneCircles(
     rootDir: string,
     subfolder: string,
     filename: string,
+    rawContentOverride?: string,
 ): { circles: CircleAttributes[]; fileContent: string; viewBox: ViewBoxRect } {
     const filePath = resolve(rootDir, "public/images", subfolder, filename);
-    const fileContent = readFileSync(filePath, "utf-8");
+    const fileContent = stripComments(rawContentOverride ?? readFileSync(filePath, "utf-8"));
     const viewBoxMatch = fileContent.match(/viewBox="([^"]+)"/);
     expect(viewBoxMatch, `Standalone file ${filename} missing viewBox`).not.toBeNull();
     const viewBoxNumbers = (viewBoxMatch ? viewBoxMatch[1] : "").trim().split(/\s+/).map(Number);
@@ -1540,6 +1619,25 @@ describe("SVG Asset Integrity & Viewport Height Utilization", () => {
         expect(() => parseCanonicalSubpaths("M4 28 L28 4 Y")).toThrow(
             'Invalid token(s) "Y" in SVG command "L28 4 Y" in path',
         );
+
+        expect(() => extractPathPoints("M4 28 L L28 4")).toThrow(
+            'Invalid SVG command "L": missing required arguments in path: "M4 28 L L28 4"',
+        );
+        expect(() => extractPathPoints("M4 28 C L28 4")).toThrow(
+            'Invalid SVG command "C": missing required arguments in path: "M4 28 C L28 4"',
+        );
+        expect(() => extractPathPoints("M4 28 Q L28 4")).toThrow(
+            'Invalid SVG command "Q": missing required arguments in path: "M4 28 Q L28 4"',
+        );
+        expect(() => extractPathPoints("M4 28 H L28 4")).toThrow(
+            'Invalid SVG command "H": missing required arguments in path: "M4 28 H L28 4"',
+        );
+        expect(() => extractPathPoints("M")).toThrow(
+            'Invalid SVG command "M": missing required arguments in path: "M"',
+        );
+        expect(() => parseCanonicalSubpaths("M4 28 L L28 4")).toThrow(
+            'Invalid SVG command "L": missing required arguments in path: "M4 28 L L28 4"',
+        );
     });
 
     it("verifies transform attributes are rejected when parsing inline and standalone SVGs", () => {
@@ -1581,6 +1679,73 @@ describe("SVG Asset Integrity & Viewport Height Utilization", () => {
         ).toThrow(
             'Inline <circle> in data-pattern="testCircleTransform" must not declare transform attributes',
         );
+
+        const mockInlineData: InlinePathData = {
+            d: "M4 4 L28 28",
+            viewBox: { minX: 0, minY: 0, width: 32, height: 32 },
+            svgFill: "none",
+            svgClass: "stroke-current",
+            paths: [{ d: "M4 4 L28 28", strokeLinecap: "round", strokeLinejoin: "round" }],
+        };
+        const mockStandaloneSvgWithTransform = `<svg viewBox="0 0 32 32" transform="scale(2)" fill="none"><path d="M4 4 L28 28" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+        expect(() =>
+            assertStandaloneParity(
+                rootDir,
+                mockInlineData,
+                "patterns",
+                "test.svg",
+                mockStandaloneSvgWithTransform,
+            ),
+        ).toThrow("Standalone test.svg <svg> must not declare transform attributes");
+
+        const mockStandalonePathWithTransform = `<svg viewBox="0 0 32 32" fill="none"><path d="M4 4 L28 28" transform="rotate(45)" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+        expect(() =>
+            assertStandaloneParity(
+                rootDir,
+                mockInlineData,
+                "patterns",
+                "test.svg",
+                mockStandalonePathWithTransform,
+            ),
+        ).toThrow("Standalone test.svg <path> must not declare transform attributes");
+
+        const mockStandaloneCircleSvgWithTransform = `<svg viewBox="0 0 32 32" transform="translate(1, 1)" fill="none"><circle cx="16" cy="16" r="4" fill="currentColor"/></svg>`;
+        expect(() =>
+            getStandaloneCircles(
+                rootDir,
+                "patterns",
+                "test.svg",
+                mockStandaloneCircleSvgWithTransform,
+            ),
+        ).toThrow("Standalone test.svg <svg> must not declare transform attributes");
+
+        const mockStandaloneCircleWithTransform = `<svg viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="4" transform="scale(1.5)" fill="currentColor"/></svg>`;
+        expect(() =>
+            getStandaloneCircles(
+                rootDir,
+                "patterns",
+                "test.svg",
+                mockStandaloneCircleWithTransform,
+            ),
+        ).toThrow("Standalone test.svg <circle> must not declare transform attributes");
+    });
+
+    it("ignores SVG markup enclosed inside HTML or XML comments", () => {
+        const commentedHtml = `
+            <!--
+            <button data-pattern="commentedPattern">
+                <svg viewBox="0 0 32 32" fill="none" class="stroke-current">
+                    <path d="M4 4 L28 28" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+            </button>
+            -->
+        `;
+        expect(() => getInlinePath(commentedHtml, "data-pattern", "commentedPattern")).toThrow(
+            'Missing SVG for data-pattern="commentedPattern"',
+        );
+        expect(() => getInlineCircles(commentedHtml, "data-pattern", "commentedPattern")).toThrow(
+            'Missing SVG for data-pattern="commentedPattern"',
+        );
     });
 
     it("verifies all pattern direction icons adhere to left-to-right temporal progression for each trajectory", () => {
@@ -1599,6 +1764,33 @@ describe("SVG Asset Integrity & Viewport Height Utilization", () => {
                         startX,
                         `Pattern "${patternId}" trajectory ${index + 1} must progress left-to-right (startX ${startX} should be < endX ${endX})`,
                     ).toBeLessThan(endX);
+
+                    for (const [segIdx, seg] of sp.segments.entries()) {
+                        expect(
+                            seg.xe,
+                            `Pattern "${patternId}" trajectory ${index + 1} segment ${segIdx + 1} backtracks (xs ${seg.xs} > xe ${seg.xe})`,
+                        ).toBeGreaterThanOrEqual(seg.xs);
+
+                        if (seg.type === "Q" && seg.cp1x !== undefined) {
+                            expect(
+                                seg.cp1x,
+                                `Pattern "${patternId}" trajectory ${index + 1} quadratic curve ${segIdx + 1} control point X backtracks before startX (${seg.xs})`,
+                            ).toBeGreaterThanOrEqual(seg.xs);
+                            expect(
+                                seg.cp1x,
+                                `Pattern "${patternId}" trajectory ${index + 1} quadratic curve ${segIdx + 1} control point X overshoots endX (${seg.xe})`,
+                            ).toBeLessThanOrEqual(seg.xe);
+                        } else if (
+                            seg.type === "C" &&
+                            seg.cp1x !== undefined &&
+                            seg.cp2x !== undefined
+                        ) {
+                            expect(
+                                isCubicMonotonicForwardX(seg.xs, seg.cp1x, seg.cp2x, seg.xe),
+                                `Pattern "${patternId}" trajectory ${index + 1} cubic curve ${segIdx + 1} backtracks in X`,
+                            ).toBe(true);
+                        }
+                    }
                 }
             }
             expect(
@@ -1606,6 +1798,24 @@ describe("SVG Asset Integrity & Viewport Height Utilization", () => {
                 `Pattern "${patternId}" must have at least one progression trajectory`,
             ).toBeGreaterThan(0);
         }
+    });
+
+    it("detects and rejects temporal backtracking within progression trajectories", () => {
+        const backtrackingSubpaths = parseCanonicalSubpaths("M3 16 L29 4 L10 28 L30 16");
+        const sp = backtrackingSubpaths[0];
+        expect(sp.startX).toBeLessThan(sp.segments[sp.segments.length - 1].xe);
+        const segmentBacktracks = sp.segments.some((seg) => seg.xe < seg.xs);
+        expect(segmentBacktracks).toBe(true);
+
+        const loopingCubicSubpaths = parseCanonicalSubpaths("M3 16 C 35 16, 0 16, 29 16");
+        const cubicSeg = loopingCubicSubpaths[0].segments[0];
+        const isMonotonic = isCubicMonotonicForwardX(
+            cubicSeg.xs,
+            cubicSeg.cp1x ?? 0,
+            cubicSeg.cp2x ?? 0,
+            cubicSeg.xe,
+        );
+        expect(isMonotonic).toBe(false);
     });
 
     it("verifies parity between inline HTML paths and standalone pattern SVG files", () => {
