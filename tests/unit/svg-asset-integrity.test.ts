@@ -253,12 +253,68 @@ function processQuadraticCurve(
 }
 
 /**
+ * Validates that an SVG path string consists strictly of legal SVG commands, numbers, and separators.
+ * Throws an error if any illegal token, stray character, or unconsumed input is encountered.
+ *
+ * @param {string} pathD - SVG path definition string.
+ * @returns {void}
+ */
+function validateSvgPathSyntax(pathD: string): void {
+    const trimmed = pathD.trim();
+    if (!trimmed) {
+        throw new Error("SVG path is empty");
+    }
+    const regex = /([MLHVCSQTAZmlhvcsqtaz])([^MLHVCSQTAZmlhvcsqtaz]*)/g;
+    let match: RegExpExecArray | null;
+    let lastIndex = 0;
+
+    const firstMatch = regex.exec(pathD);
+    if (!firstMatch) {
+        throw new Error(`Invalid SVG path: no valid commands found in "${pathD}"`);
+    }
+    const leading = pathD.slice(0, firstMatch.index).replace(/[\s,]/g, "");
+    if (leading.length > 0) {
+        throw new Error(`Invalid leading token(s) "${leading}" in SVG path: "${pathD}"`);
+    }
+
+    regex.lastIndex = 0;
+    // biome-ignore lint/suspicious/noAssignInExpressions: standard regex parsing loop
+    while ((match = regex.exec(pathD)) !== null) {
+        if (match.index > lastIndex) {
+            const gap = pathD.slice(lastIndex, match.index).replace(/[\s,]/g, "");
+            if (gap.length > 0) {
+                throw new Error(
+                    `Invalid token(s) "${gap}" before command "${match[1]}" in path: "${pathD}"`,
+                );
+            }
+        }
+        const cmd = match[1];
+        const rawArgs = match[2];
+        const stripped = rawArgs
+            .replace(/[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?/g, "")
+            .replace(/[\s,]/g, "");
+        if (stripped.length > 0) {
+            throw new Error(
+                `Invalid token(s) "${stripped}" in SVG command "${cmd}${rawArgs}" in path: "${pathD}"`,
+            );
+        }
+        lastIndex = regex.lastIndex;
+    }
+
+    const trailing = pathD.slice(lastIndex).replace(/[\s,]/g, "");
+    if (trailing.length > 0) {
+        throw new Error(`Invalid trailing token(s) "${trailing}" in SVG path: "${pathD}"`);
+    }
+}
+
+/**
  * Extracts all absolute and resolved relative numeric X and Y coordinate values from an SVG path string in a single pass.
  *
  * @param {string} pathD - SVG path definition string.
  * @returns {PathPoints} Object containing arrays of resolved X and Y coordinates.
  */
 function extractPathPoints(pathD: string): PathPoints {
+    validateSvgPathSyntax(pathD);
     const points: PathPoints = { xs: [], ys: [] };
     const cursor: CursorState = { x: 0, y: 0, lastQuadCp: null };
     const regex = /([MLHVCSQTAZmlhvcsqtaz])([^MLHVCSQTAZmlhvcsqtaz]*)/g;
@@ -370,6 +426,11 @@ function getInlinePath(html: string, attrName: string, attrValue: string): Inlin
     const svgAttrs = match ? match[1] : "";
     const svgInner = match ? match[2] : "";
 
+    expect(
+        svgAttrs,
+        `Inline SVG for ${attrName}="${attrValue}" must not declare transform attributes`,
+    ).not.toMatch(/\btransform\s*=/);
+
     const viewBoxMatch = svgAttrs.match(/\bviewBox="([^"]+)"/);
     expect(viewBoxMatch, `Missing viewBox in ${attrName}="${attrValue}"`).not.toBeNull();
     const viewBoxNumbers = (viewBoxMatch ? viewBoxMatch[1] : "").trim().split(/\s+/).map(Number);
@@ -400,6 +461,10 @@ function getInlinePath(html: string, attrName: string, attrValue: string): Inlin
     const paths: InlinePathElement[] = [];
     for (const pm of pathMatches) {
         const attrs = pm[1];
+        expect(
+            attrs,
+            `Inline <path> in ${attrName}="${attrValue}" must not declare transform attributes`,
+        ).not.toMatch(/\btransform\s*=/);
         const dMatch = attrs.match(/\bd="([^"]+)"/);
         expect(
             dMatch,
@@ -525,6 +590,10 @@ function assertStandaloneParity(
     const svgTagMatch = fileContent.match(/<svg\b([^>]*)>/);
     expect(svgTagMatch, `Standalone file ${filename} missing <svg> element`).not.toBeNull();
     const svgAttrs = svgTagMatch ? svgTagMatch[1] : "";
+    expect(
+        svgAttrs,
+        `Standalone ${filename} <svg> must not declare transform attributes`,
+    ).not.toMatch(/\btransform\s*=/);
     const svgFillMatch = svgAttrs.match(/\bfill="([^"]+)"/);
     expect(
         svgFillMatch ? svgFillMatch[1] : "",
@@ -561,6 +630,10 @@ function assertStandaloneParity(
 
     for (const [index, match] of pathMatches.entries()) {
         const attrs = match[1];
+        expect(
+            attrs,
+            `Standalone ${filename} <path> must not declare transform attributes`,
+        ).not.toMatch(/\btransform\s*=/);
         expect(attrs, `Standalone ${filename} <path> missing stroke="currentColor"`).toContain(
             'stroke="currentColor"',
         );
@@ -718,6 +791,7 @@ function collapseCollinearSegments(segments: CanonicalSegment[]): CanonicalSegme
  * @returns {CanonicalSubpath[]} Array of parsed and normalized canonical subpaths.
  */
 function parseCanonicalSubpaths(pathD: string): CanonicalSubpath[] {
+    validateSvgPathSyntax(pathD);
     const regex = /([MLHVCSQTAZmlhvcsqtaz])([^MLHVCSQTAZmlhvcsqtaz]*)/g;
     let match: RegExpExecArray | null;
     const subpaths: CanonicalSubpath[] = [];
@@ -1133,6 +1207,10 @@ function getInlineCircles(html: string, attrName: string, attrValue: string): In
     const match = html.match(regex);
     expect(match, `Missing SVG for ${attrName}="${attrValue}"`).not.toBeNull();
     const svgAttrs = match ? match[1] : "";
+    expect(
+        svgAttrs,
+        `Inline circle SVG for ${attrName}="${attrValue}" must not declare transform attributes`,
+    ).not.toMatch(/\btransform\s*=/);
     const viewBoxMatch = svgAttrs.match(/\bviewBox="([^"]+)"/);
     expect(viewBoxMatch, `Missing viewBox in ${attrName}="${attrValue}"`).not.toBeNull();
     const viewBoxNumbers = (viewBoxMatch ? viewBoxMatch[1] : "").trim().split(/\s+/).map(Number);
@@ -1161,6 +1239,10 @@ function getInlineCircles(html: string, attrName: string, attrValue: string): In
     // biome-ignore lint/suspicious/noAssignInExpressions: standard regex parsing loop
     while ((circleMatch = circleRegex.exec(svgInner)) !== null) {
         const attrs = circleMatch[1];
+        expect(
+            attrs,
+            `Inline <circle> in ${attrName}="${attrValue}" must not declare transform attributes`,
+        ).not.toMatch(/\btransform\s*=/);
         const cxMatch = attrs.match(/\bcx="([^"]+)"/);
         const cyMatch = attrs.match(/\bcy="([^"]+)"/);
         const rMatch = attrs.match(/\br="([^"]+)"/);
@@ -1220,6 +1302,10 @@ function getStandaloneCircles(
     const svgTagMatch = fileContent.match(/<svg\b([^>]*)>/);
     expect(svgTagMatch, `Standalone file ${filename} missing <svg> element`).not.toBeNull();
     const svgAttrs = svgTagMatch ? svgTagMatch[1] : "";
+    expect(
+        svgAttrs,
+        `Standalone ${filename} <svg> must not declare transform attributes`,
+    ).not.toMatch(/\btransform\s*=/);
     const svgFillMatch = svgAttrs.match(/\bfill="([^"]+)"/);
     expect(
         svgFillMatch ? svgFillMatch[1] : "",
@@ -1232,6 +1318,10 @@ function getStandaloneCircles(
     // biome-ignore lint/suspicious/noAssignInExpressions: standard regex parsing loop
     while ((match = circleRegex.exec(fileContent)) !== null) {
         const attrs = match[1];
+        expect(
+            attrs,
+            `Standalone ${filename} <circle> must not declare transform attributes`,
+        ).not.toMatch(/\btransform\s*=/);
         const cxMatch = attrs.match(/\bcx="([^"]+)"/);
         const cyMatch = attrs.match(/\bcy="([^"]+)"/);
         const rMatch = attrs.match(/\br="([^"]+)"/);
@@ -1416,6 +1506,80 @@ describe("SVG Asset Integrity & Viewport Height Utilization", () => {
         );
         expect(() => canonicalizeResolvedGeometry("M0 0 S 5 5 10 10")).toThrow(
             'Unhandled SVG command in parseCanonicalSubpaths: "S"',
+        );
+    });
+
+    it("strictly validates SVG path command syntax and rejects unconsumed input or invalid tokens", () => {
+        expect(() => extractPathPoints("")).toThrow("SVG path is empty");
+        expect(() => extractPathPoints("   ")).toThrow("SVG path is empty");
+        expect(() => extractPathPoints("999")).toThrow(
+            'Invalid SVG path: no valid commands found in "999"',
+        );
+        expect(() => extractPathPoints("invalid")).toThrow(
+            'Invalid leading token(s) "in" in SVG path: "invalid"',
+        );
+        expect(() => extractPathPoints("X M4 28 L28 4")).toThrow(
+            'Invalid leading token(s) "X" in SVG path',
+        );
+        expect(() => extractPathPoints("M4 28 X L28 4")).toThrow(
+            'Invalid token(s) "X" in SVG command "M4 28 X " in path',
+        );
+        expect(() => extractPathPoints("M4 28 L28 4 Y")).toThrow(
+            'Invalid token(s) "Y" in SVG command "L28 4 Y" in path',
+        );
+        expect(() => extractPathPoints("M4 28foo L28 4")).toThrow(
+            'Invalid token(s) "foo" in SVG command "M4 28foo " in path',
+        );
+
+        expect(() => parseCanonicalSubpaths("M4 28 X L28 4")).toThrow(
+            'Invalid token(s) "X" in SVG command "M4 28 X " in path',
+        );
+        expect(() => parseCanonicalSubpaths("X M4 28 L28 4")).toThrow(
+            'Invalid leading token(s) "X" in SVG path',
+        );
+        expect(() => parseCanonicalSubpaths("M4 28 L28 4 Y")).toThrow(
+            'Invalid token(s) "Y" in SVG command "L28 4 Y" in path',
+        );
+    });
+
+    it("verifies transform attributes are rejected when parsing inline and standalone SVGs", () => {
+        const mockInlineHtmlWithTransform = `
+            <button data-pattern="testTransform">
+                <svg viewBox="0 0 32 32" fill="none" class="stroke-current" transform="scale(2)">
+                    <path d="M4 4 L28 28" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+            </button>
+        `;
+        expect(() =>
+            getInlinePath(mockInlineHtmlWithTransform, "data-pattern", "testTransform"),
+        ).toThrow(
+            'Inline SVG for data-pattern="testTransform" must not declare transform attributes',
+        );
+
+        const mockInlinePathWithTransform = `
+            <button data-pattern="testPathTransform">
+                <svg viewBox="0 0 32 32" fill="none" class="stroke-current">
+                    <path d="M4 4 L28 28" transform="rotate(45)" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+            </button>
+        `;
+        expect(() =>
+            getInlinePath(mockInlinePathWithTransform, "data-pattern", "testPathTransform"),
+        ).toThrow(
+            'Inline <path> in data-pattern="testPathTransform" must not declare transform attributes',
+        );
+
+        const mockInlineCircleWithTransform = `
+            <button data-pattern="testCircleTransform">
+                <svg viewBox="0 0 32 32" fill="none" class="stroke-current">
+                    <circle cx="16" cy="16" r="4" fill="var(--ui-accent-soft)" transform="translate(2, 2)" />
+                </svg>
+            </button>
+        `;
+        expect(() =>
+            getInlineCircles(mockInlineCircleWithTransform, "data-pattern", "testCircleTransform"),
+        ).toThrow(
+            'Inline <circle> in data-pattern="testCircleTransform" must not declare transform attributes',
         );
     });
 
