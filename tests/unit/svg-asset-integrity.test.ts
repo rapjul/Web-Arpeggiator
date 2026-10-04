@@ -464,21 +464,24 @@ function assertMinimumHeightSpan(
     const minX = Math.min(...xs);
     const maxX = Math.max(...xs);
 
+    // Half of the 2-unit stroke width with round caps/joins (extends 1 unit beyond centerline)
+    const halfStroke = 1;
+
     expect(
-        minY,
-        `${label} geometry minY (${minY}) clips above viewBox minY (${viewBox.minY})`,
+        minY - halfStroke,
+        `${label} stroke minY (${minY - halfStroke}) clips above viewBox minY (${viewBox.minY})`,
     ).toBeGreaterThanOrEqual(viewBox.minY);
     expect(
-        maxY,
-        `${label} geometry maxY (${maxY}) clips below viewBox maxY (${viewBox.minY + viewBox.height})`,
+        maxY + halfStroke,
+        `${label} stroke maxY (${maxY + halfStroke}) clips below viewBox maxY (${viewBox.minY + viewBox.height})`,
     ).toBeLessThanOrEqual(viewBox.minY + viewBox.height);
     expect(
-        minX,
-        `${label} geometry minX (${minX}) clips left of viewBox minX (${viewBox.minX})`,
+        minX - halfStroke,
+        `${label} stroke minX (${minX - halfStroke}) clips left of viewBox minX (${viewBox.minX})`,
     ).toBeGreaterThanOrEqual(viewBox.minX);
     expect(
-        maxX,
-        `${label} geometry maxX (${maxX}) clips right of viewBox maxX (${viewBox.minX + viewBox.width})`,
+        maxX + halfStroke,
+        `${label} stroke maxX (${maxX + halfStroke}) clips right of viewBox maxX (${viewBox.minX + viewBox.width})`,
     ).toBeLessThanOrEqual(viewBox.minX + viewBox.width);
 
     const span = maxY - minY;
@@ -519,9 +522,14 @@ function assertStandaloneParity(
         `Inline viewBox for ${filename} must match standalone 0 0 32 32`,
     ).toEqual({ minX: 0, minY: 0, width: 32, height: 32 });
 
-    expect(fileContent, `Standalone ${filename} <svg> must declare fill="none"`).toContain(
-        'fill="none"',
-    );
+    const svgTagMatch = fileContent.match(/<svg\b([^>]*)>/);
+    expect(svgTagMatch, `Standalone file ${filename} missing <svg> element`).not.toBeNull();
+    const svgAttrs = svgTagMatch ? svgTagMatch[1] : "";
+    const svgFillMatch = svgAttrs.match(/\bfill="([^"]+)"/);
+    expect(
+        svgFillMatch ? svgFillMatch[1] : "",
+        `Standalone ${filename} <svg> must declare fill="none"`,
+    ).toBe("none");
     expect(inlineData.svgFill, `Inline SVG for ${filename} must declare fill="none"`).toBe("none");
     expect(
         inlineData.svgClass,
@@ -1209,9 +1217,14 @@ function getStandaloneCircles(
         0, 0, 32, 32,
     ]);
 
-    expect(fileContent, `Standalone ${filename} <svg> must declare fill="none"`).toContain(
-        'fill="none"',
-    );
+    const svgTagMatch = fileContent.match(/<svg\b([^>]*)>/);
+    expect(svgTagMatch, `Standalone file ${filename} missing <svg> element`).not.toBeNull();
+    const svgAttrs = svgTagMatch ? svgTagMatch[1] : "";
+    const svgFillMatch = svgAttrs.match(/\bfill="([^"]+)"/);
+    expect(
+        svgFillMatch ? svgFillMatch[1] : "",
+        `Standalone ${filename} <svg> must declare fill="none"`,
+    ).toBe("none");
 
     const circles: CircleAttributes[] = [];
     const circleRegex = /<circle\b([^>]*)\/?>/g;
