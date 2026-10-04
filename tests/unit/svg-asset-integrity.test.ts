@@ -422,13 +422,41 @@ function assertStandaloneParity(
         `Standalone file ${filename} viewBox must be "0 0 32 32"`,
     ).toBe("0 0 32 32");
 
-    const fileMatch = fileContent.match(/<path[^>]*\bd="([^"]+)"/);
-    expect(fileMatch, `Standalone file ${filename} missing <path>`).not.toBeNull();
-    const standalonePath = fileMatch ? fileMatch[1].trim() : "";
+    const pathMatches = [...fileContent.matchAll(/<path\b([^>]*)\/?>/g)];
+    expect(
+        pathMatches.length,
+        `Standalone file ${filename} must contain at least one <path>`,
+    ).toBeGreaterThan(0);
+
+    const standalonePath = pathMatches
+        .map((m) => {
+            const dMatch = m[1].match(/\bd="([^"]+)"/);
+            expect(dMatch, `Standalone file ${filename} path missing d attribute`).not.toBeNull();
+            return dMatch ? dMatch[1].trim() : "";
+        })
+        .join(" ");
 
     expect(inlinePath, `Mismatch between inline HTML and standalone ${filename}`).toBe(
         standalonePath,
     );
+
+    for (const match of pathMatches) {
+        const attrs = match[1];
+        expect(attrs, `Standalone ${filename} <path> missing stroke="currentColor"`).toContain(
+            'stroke="currentColor"',
+        );
+        expect(attrs, `Standalone ${filename} <path> missing stroke-width="2"`).toContain(
+            'stroke-width="2"',
+        );
+        expect(attrs, `Standalone ${filename} <path> missing fill="none"`).toContain('fill="none"');
+        expect(attrs, `Standalone ${filename} <path> missing stroke-linecap="round"`).toContain(
+            'stroke-linecap="round"',
+        );
+        expect(attrs, `Standalone ${filename} <path> missing stroke-linejoin="round"`).toContain(
+            'stroke-linejoin="round"',
+        );
+    }
+
     expect(
         fileContent,
         `Standalone ${filename} must include :root color fallback styling`,
@@ -555,16 +583,12 @@ function collapseCollinearSegments(segments: CanonicalSegment[]): CanonicalSegme
 }
 
 /**
- * Canonicalizes an SVG path definition into absolute geometry commands for equivalence comparisons.
- * Resolves all relative commands (m, l, h, v, c, q, t) to absolute commands (M, L, C, Q),
- * normalizes horizontal/vertical lines (H, V) to canonical line segments (L),
- * expands smooth quadratic curves (T, t) to explicit quadratic Bézier commands (Q) with reflected control points,
- * and normalizes traversal direction so forward and reversed identical strokes yield identical keys.
+ * Parses an SVG path definition into canonical subpaths with resolved absolute coordinates, expanded curves, and collapsed collinear segments.
  *
  * @param {string} pathD - Raw SVG path string.
- * @returns {string} Canonicalized path string with resolved absolute coordinates, expanded curves, and traversal normalization.
+ * @returns {CanonicalSubpath[]} Array of parsed and normalized canonical subpaths.
  */
-function canonicalizeResolvedGeometry(pathD: string): string {
+function parseCanonicalSubpaths(pathD: string): CanonicalSubpath[] {
     const regex = /([MLHVCSQTAZmlhvcsqtaz])([^MLHVCSQTAZmlhvcsqtaz]*)/g;
     let match: RegExpExecArray | null;
     const subpaths: CanonicalSubpath[] = [];
@@ -917,12 +941,29 @@ function canonicalizeResolvedGeometry(pathD: string): string {
                 lastQuadCp = null;
                 break;
             default:
-                throw new Error(`Unhandled SVG command in canonicalizeResolvedGeometry: "${cmd}"`);
+                throw new Error(`Unhandled SVG command in parseCanonicalSubpaths: "${cmd}"`);
         }
     }
 
-    const canonicalSubpaths = subpaths.map((sp) => {
+    for (const sp of subpaths) {
         sp.segments = collapseCollinearSegments(sp.segments);
+    }
+    return subpaths;
+}
+
+/**
+ * Canonicalizes an SVG path definition into absolute geometry commands for equivalence comparisons.
+ * Resolves all relative commands (m, l, h, v, c, q, t) to absolute commands (M, L, C, Q),
+ * normalizes horizontal/vertical lines (H, V) to canonical line segments (L),
+ * expands smooth quadratic curves (T, t) to explicit quadratic Bézier commands (Q) with reflected control points,
+ * merges consecutive collinear line segments, and normalizes traversal direction so forward and reversed identical strokes yield identical keys.
+ *
+ * @param {string} pathD - Raw SVG path string.
+ * @returns {string} Canonicalized path string with resolved absolute coordinates, expanded curves, and traversal normalization.
+ */
+function canonicalizeResolvedGeometry(pathD: string): string {
+    const subpaths = parseCanonicalSubpaths(pathD);
+    const canonicalSubpaths = subpaths.map((sp) => {
         const forward = serializeSubpathForward(sp);
         const reversed = serializeSubpathReversed(sp);
         return forward <= reversed ? forward : reversed;
@@ -1015,15 +1056,27 @@ function getStandaloneCircles(
         `Standalone file ${filename} viewBox must be "0 0 32 32"`,
     ).toBe("0 0 32 32");
 
+    expect(fileContent, `Standalone ${filename} <svg> must declare fill="none"`).toContain(
+        'fill="none"',
+    );
+
     const circles: CircleAttributes[] = [];
-    const circleRegex = /<circle[^>]*\bcx="([^"]+)"[^>]*\bcy="([^"]+)"[^>]*\br="([^"]+)"/g;
+    const circleRegex = /<circle\b([^>]*)\/?>/g;
     let match: RegExpExecArray | null;
     // biome-ignore lint/suspicious/noAssignInExpressions: standard regex parsing loop
     while ((match = circleRegex.exec(fileContent)) !== null) {
+        const attrs = match[1];
+        const cxMatch = attrs.match(/\bcx="([^"]+)"/);
+        const cyMatch = attrs.match(/\bcy="([^"]+)"/);
+        const rMatch = attrs.match(/\br="([^"]+)"/);
+        expect(cxMatch && cyMatch && rMatch, `Malformed <circle> in ${filename}`).toBeTruthy();
+        expect(attrs, `Standalone ${filename} <circle> missing fill="currentColor"`).toContain(
+            'fill="currentColor"',
+        );
         circles.push({
-            cx: Number(match[1]),
-            cy: Number(match[2]),
-            r: Number(match[3]),
+            cx: Number(cxMatch ? cxMatch[1] : 0),
+            cy: Number(cyMatch ? cyMatch[1] : 0),
+            r: Number(rMatch ? rMatch[1] : 0),
         });
     }
     expect(circles.length, `No circles found in ${filename}`).toBeGreaterThan(0);
@@ -1060,6 +1113,7 @@ describe("SVG Asset Integrity & Viewport Height Utilization", () => {
 
     const MIN_PATTERN_HEIGHT_SPAN = 23; // >= 71.875% of 32px viewport
     const MIN_WAVEFORM_HEIGHT_SPAN = 24; // 75% of 32px viewport
+    const MIN_CIRCLE_PATTERN_HEIGHT_SPAN = 21; // >= 65.625% of 32px viewport
 
     it("verifies all path-based pattern direction icons in index.html utilize at least 71% viewport height (>= 23 units)", () => {
         for (const patternId of patternIds) {
@@ -1070,6 +1124,24 @@ describe("SVG Asset Integrity & Viewport Height Utilization", () => {
                 MIN_PATTERN_HEIGHT_SPAN,
                 `Pattern "${patternId}"`,
             );
+        }
+    });
+
+    it("verifies all circle-based octave pattern icons in index.html utilize at least 65% viewport height (>= 21 units)", () => {
+        const octaveIds = ["octaveCycle", "octaveCycleReverse", "octaveCyclePingPong"];
+        for (const id of octaveIds) {
+            const { circles, viewBox } = getInlineCircles(htmlContent, "data-pattern", id);
+            expect(viewBox.width, `Octave "${id}" viewBox width must be 32`).toBe(32);
+            expect(viewBox.height, `Octave "${id}" viewBox height must be 32`).toBe(32);
+            const minY = Math.min(...circles.map((c) => c.cy - c.r));
+            const maxY = Math.max(...circles.map((c) => c.cy + c.r));
+            const span = maxY - minY;
+            const heightRatio = span / viewBox.height;
+            const minRatio = MIN_CIRCLE_PATTERN_HEIGHT_SPAN / viewBox.height;
+            expect(
+                span,
+                `Octave "${id}" vertical span (${span} units, ${(heightRatio * 100).toFixed(1)}%) is less than ${MIN_CIRCLE_PATTERN_HEIGHT_SPAN} units (${(minRatio * 100).toFixed(1)}%) of viewBox height ${viewBox.height} (${minY} to ${maxY})`,
+            ).toBeGreaterThanOrEqual(MIN_CIRCLE_PATTERN_HEIGHT_SPAN);
         }
     });
 
@@ -1155,19 +1227,32 @@ describe("SVG Asset Integrity & Viewport Height Utilization", () => {
             canonicalizeResolvedGeometry("M3 18 Q 7 13 11 17 Q 15 21 16 4"),
         );
         expect(() => canonicalizeResolvedGeometry("M0 0 S 5 5 10 10")).toThrow(
-            'Unhandled SVG command in canonicalizeResolvedGeometry: "S"',
+            'Unhandled SVG command in parseCanonicalSubpaths: "S"',
         );
     });
 
-    it("verifies all pattern direction icons adhere to left-to-right temporal progression", () => {
+    it("verifies all pattern direction icons adhere to left-to-right temporal progression for each trajectory", () => {
         for (const patternId of patternIds) {
             const { d: pathD } = getInlinePath(htmlContent, "data-pattern", patternId);
-            const { xs } = extractPathPoints(pathD);
-            expect(xs.length, `Expected X points for "${patternId}"`).toBeGreaterThan(1);
+            const subpaths = parseCanonicalSubpaths(pathD);
+            expect(subpaths.length, `Expected subpaths for "${patternId}"`).toBeGreaterThan(0);
+            let progressionTrajectoriesFound = 0;
+            for (const [index, sp] of subpaths.entries()) {
+                if (sp.segments.length === 0) continue;
+                const startX = sp.startX;
+                const endX = sp.segments[sp.segments.length - 1].xe;
+                if (startX !== endX) {
+                    progressionTrajectoriesFound++;
+                    expect(
+                        startX,
+                        `Pattern "${patternId}" trajectory ${index + 1} must progress left-to-right (startX ${startX} should be < endX ${endX})`,
+                    ).toBeLessThan(endX);
+                }
+            }
             expect(
-                xs[0],
-                `Pattern "${patternId}" should start on left and progress right (start ${xs[0]}, end ${xs[xs.length - 1]})`,
-            ).toBeLessThan(xs[xs.length - 1]);
+                progressionTrajectoriesFound,
+                `Pattern "${patternId}" must have at least one progression trajectory`,
+            ).toBeGreaterThan(0);
         }
     });
 
