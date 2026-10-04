@@ -316,11 +316,23 @@ interface ViewBoxRect {
 }
 
 /**
- * Result container for extracted inline SVG path data and viewBox geometry.
+ * Extracted presentation and geometry attributes for an inline SVG path element.
+ */
+interface InlinePathElement {
+    d: string;
+    strokeLinecap: string;
+    strokeLinejoin: string;
+}
+
+/**
+ * Result container for extracted inline SVG path data, viewBox geometry, and presentation attributes.
  */
 interface InlinePathData {
     d: string;
     viewBox: ViewBoxRect;
+    svgFill: string;
+    svgClass: string;
+    paths: InlinePathElement[];
 }
 
 /**
@@ -341,34 +353,91 @@ interface InlineCircleData {
 }
 
 /**
- * Helper to retrieve an inline SVG path string and viewBox from index.html markup for a given element attribute.
+ * Helper to retrieve an inline SVG path string, viewBox, and presentation attributes from index.html markup.
  *
  * @param {string} html - Raw HTML source content.
  * @param {string} attrName - Target attribute name (e.g. 'data-pattern', 'data-wave').
  * @param {string} attrValue - Attribute value to match.
- * @returns {InlinePathData} The path 'd' string and parsed viewBox.
+ * @returns {InlinePathData} The path 'd' string, parsed viewBox, and presentation attributes.
  */
 function getInlinePath(html: string, attrName: string, attrValue: string): InlinePathData {
     const regex = new RegExp(
-        `${attrName}="${attrValue}"(?:(?!</svg>)[\\s\\S])*?<svg[^>]*\\bviewBox="([^"]+)"(?:(?!</svg>)[\\s\\S])*?<path[^>]*\\bd="([^"]+)"`,
+        `${attrName}="${attrValue}"(?:(?!</svg>)[\\s\\S])*?<svg([^>]*)>([\\s\\S]*?)</svg>`,
+        "i",
     );
     const match = html.match(regex);
-    expect(match, `Missing SVG path with viewBox for ${attrName}="${attrValue}"`).not.toBeNull();
-    const viewBoxNumbers = (match ? match[1] : "").trim().split(/\s+/).map(Number);
+    expect(match, `Missing SVG for ${attrName}="${attrValue}"`).not.toBeNull();
+    const svgAttrs = match ? match[1] : "";
+    const svgInner = match ? match[2] : "";
+
+    const viewBoxMatch = svgAttrs.match(/\bviewBox="([^"]+)"/);
+    expect(viewBoxMatch, `Missing viewBox in ${attrName}="${attrValue}"`).not.toBeNull();
+    const viewBoxNumbers = (viewBoxMatch ? viewBoxMatch[1] : "").trim().split(/\s+/).map(Number);
     expect(viewBoxNumbers.length, `Invalid viewBox in ${attrName}="${attrValue}"`).toBe(4);
+    expect(
+        viewBoxNumbers,
+        `Inline SVG viewBox must be "0 0 32 32" for ${attrName}="${attrValue}"`,
+    ).toEqual([0, 0, 32, 32]);
+
+    const fillMatch = svgAttrs.match(/\bfill="([^"]+)"/);
+    expect(
+        fillMatch ? fillMatch[1] : "",
+        `Inline SVG for ${attrName}="${attrValue}" must declare fill="none"`,
+    ).toBe("none");
+
+    const classMatch = svgAttrs.match(/\bclass="([^"]+)"/);
+    expect(
+        classMatch ? classMatch[1] : "",
+        `Inline SVG for ${attrName}="${attrValue}" must declare stroke-current class`,
+    ).toContain("stroke-current");
+
+    const pathMatches = [...svgInner.matchAll(/<path\b([^>]*)\/?>/g)];
+    expect(
+        pathMatches.length,
+        `Missing <path> in SVG for ${attrName}="${attrValue}"`,
+    ).toBeGreaterThan(0);
+
+    const paths: InlinePathElement[] = [];
+    for (const pm of pathMatches) {
+        const attrs = pm[1];
+        const dMatch = attrs.match(/\bd="([^"]+)"/);
+        expect(
+            dMatch,
+            `Missing d attribute in <path> for ${attrName}="${attrValue}"`,
+        ).not.toBeNull();
+        const capMatch = attrs.match(/\bstroke-linecap="([^"]+)"/);
+        const joinMatch = attrs.match(/\bstroke-linejoin="([^"]+)"/);
+        expect(
+            capMatch ? capMatch[1] : "",
+            `Inline <path> in ${attrName}="${attrValue}" must declare stroke-linecap="round"`,
+        ).toBe("round");
+        expect(
+            joinMatch ? joinMatch[1] : "",
+            `Inline <path> in ${attrName}="${attrValue}" must declare stroke-linejoin="round"`,
+        ).toBe("round");
+        paths.push({
+            d: dMatch ? dMatch[1].trim() : "",
+            strokeLinecap: capMatch ? capMatch[1] : "",
+            strokeLinejoin: joinMatch ? joinMatch[1] : "",
+        });
+    }
+
     return {
-        d: match ? match[2].trim() : "",
+        d: paths.map((p) => p.d).join(" "),
         viewBox: {
             minX: viewBoxNumbers[0],
             minY: viewBoxNumbers[1],
             width: viewBoxNumbers[2],
             height: viewBoxNumbers[3],
         },
+        svgFill: fillMatch ? fillMatch[1] : "",
+        svgClass: classMatch ? classMatch[1] : "",
+        paths,
     };
 }
 
 /**
- * Asserts that an SVG path spans a minimum vertical height within its viewport viewBox.
+ * Asserts that an SVG path spans a minimum vertical height within its viewport viewBox and does not clip outside.
  *
  * @param {string} pathD - Path definition string.
  * @param {ViewBoxRect} viewBox - Parsed SVG viewBox rectangle.
@@ -382,13 +451,36 @@ function assertMinimumHeightSpan(
     minSpan: number,
     label: string,
 ): void {
+    expect(viewBox.minX, `${label} SVG viewBox minX must be 0`).toBe(0);
+    expect(viewBox.minY, `${label} SVG viewBox minY must be 0`).toBe(0);
     expect(viewBox.width, `${label} SVG viewBox width must be 32 units`).toBe(32);
     expect(viewBox.height, `${label} SVG viewBox height must be 32 units`).toBe(32);
 
-    const { ys } = extractPathPoints(pathD);
+    const { xs, ys } = extractPathPoints(pathD);
     expect(ys.length, `No Y coordinates parsed for ${label}`).toBeGreaterThan(0);
+    expect(xs.length, `No X coordinates parsed for ${label}`).toBeGreaterThan(0);
     const minY = Math.min(...ys);
     const maxY = Math.max(...ys);
+    const minX = Math.min(...xs);
+    const maxX = Math.max(...xs);
+
+    expect(
+        minY,
+        `${label} geometry minY (${minY}) clips above viewBox minY (${viewBox.minY})`,
+    ).toBeGreaterThanOrEqual(viewBox.minY);
+    expect(
+        maxY,
+        `${label} geometry maxY (${maxY}) clips below viewBox maxY (${viewBox.minY + viewBox.height})`,
+    ).toBeLessThanOrEqual(viewBox.minY + viewBox.height);
+    expect(
+        minX,
+        `${label} geometry minX (${minX}) clips left of viewBox minX (${viewBox.minX})`,
+    ).toBeGreaterThanOrEqual(viewBox.minX);
+    expect(
+        maxX,
+        `${label} geometry maxX (${maxX}) clips right of viewBox maxX (${viewBox.minX + viewBox.width})`,
+    ).toBeLessThanOrEqual(viewBox.minX + viewBox.width);
+
     const span = maxY - minY;
     const heightRatio = span / viewBox.height;
     const minRatio = minSpan / viewBox.height;
@@ -399,17 +491,17 @@ function assertMinimumHeightSpan(
 }
 
 /**
- * Asserts parity between an inline HTML SVG path and its standalone SVG asset file.
+ * Asserts parity between an inline HTML SVG path and its standalone SVG asset file across geometry and presentation attributes.
  *
  * @param {string} rootDir - Workspace root directory.
- * @param {string} inlinePath - Extracted inline path definition.
+ * @param {InlinePathData} inlineData - Extracted inline path and presentation data.
  * @param {string} subfolder - Asset subfolder under public/images/ ('patterns' or 'waveforms').
  * @param {string} filename - Standalone file name.
  * @returns {void}
  */
 function assertStandaloneParity(
     rootDir: string,
-    inlinePath: string,
+    inlineData: InlinePathData,
     subfolder: string,
     filename: string,
 ): void {
@@ -422,11 +514,30 @@ function assertStandaloneParity(
         `Standalone file ${filename} viewBox must be "0 0 32 32"`,
     ).toBe("0 0 32 32");
 
+    expect(
+        inlineData.viewBox,
+        `Inline viewBox for ${filename} must match standalone 0 0 32 32`,
+    ).toEqual({ minX: 0, minY: 0, width: 32, height: 32 });
+
+    expect(fileContent, `Standalone ${filename} <svg> must declare fill="none"`).toContain(
+        'fill="none"',
+    );
+    expect(inlineData.svgFill, `Inline SVG for ${filename} must declare fill="none"`).toBe("none");
+    expect(
+        inlineData.svgClass,
+        `Inline SVG for ${filename} must declare stroke-current class for theming parity`,
+    ).toContain("stroke-current");
+
     const pathMatches = [...fileContent.matchAll(/<path\b([^>]*)\/?>/g)];
     expect(
         pathMatches.length,
         `Standalone file ${filename} must contain at least one <path>`,
     ).toBeGreaterThan(0);
+
+    expect(
+        pathMatches.length,
+        `Path element count mismatch between inline (${inlineData.paths.length}) and standalone (${pathMatches.length}) for ${filename}`,
+    ).toBe(inlineData.paths.length);
 
     const standalonePath = pathMatches
         .map((m) => {
@@ -436,11 +547,11 @@ function assertStandaloneParity(
         })
         .join(" ");
 
-    expect(inlinePath, `Mismatch between inline HTML and standalone ${filename}`).toBe(
+    expect(inlineData.d, `Mismatch between inline HTML and standalone ${filename}`).toBe(
         standalonePath,
     );
 
-    for (const match of pathMatches) {
+    for (const [index, match] of pathMatches.entries()) {
         const attrs = match[1];
         expect(attrs, `Standalone ${filename} <path> missing stroke="currentColor"`).toContain(
             'stroke="currentColor"',
@@ -455,6 +566,16 @@ function assertStandaloneParity(
         expect(attrs, `Standalone ${filename} <path> missing stroke-linejoin="round"`).toContain(
             'stroke-linejoin="round"',
         );
+
+        const inlinePath = inlineData.paths[index];
+        expect(
+            inlinePath.strokeLinecap,
+            `Inline ${filename} path ${index + 1} stroke-linecap must match standalone "round"`,
+        ).toBe("round");
+        expect(
+            inlinePath.strokeLinejoin,
+            `Inline ${filename} path ${index + 1} stroke-linejoin must match standalone "round"`,
+        ).toBe("round");
     }
 
     expect(
@@ -998,23 +1119,56 @@ function canonicalizeCircleGeometry(circles: CircleAttributes[]): string {
  */
 function getInlineCircles(html: string, attrName: string, attrValue: string): InlineCircleData {
     const regex = new RegExp(
-        `${attrName}="${attrValue}"(?:(?!</svg>)[\\s\\S])*?<svg[^>]*\\bviewBox="([^"]+)"[^>]*>([\\s\\S]*?)</svg>`,
+        `${attrName}="${attrValue}"(?:(?!</svg>)[\\s\\S])*?<svg([^>]*)>([\\s\\S]*?)</svg>`,
         "i",
     );
     const match = html.match(regex);
     expect(match, `Missing SVG for ${attrName}="${attrValue}"`).not.toBeNull();
-    const viewBoxNumbers = (match ? match[1] : "").trim().split(/\s+/).map(Number);
+    const svgAttrs = match ? match[1] : "";
+    const viewBoxMatch = svgAttrs.match(/\bviewBox="([^"]+)"/);
+    expect(viewBoxMatch, `Missing viewBox in ${attrName}="${attrValue}"`).not.toBeNull();
+    const viewBoxNumbers = (viewBoxMatch ? viewBoxMatch[1] : "").trim().split(/\s+/).map(Number);
     expect(viewBoxNumbers.length, `Invalid viewBox in ${attrName}="${attrValue}"`).toBe(4);
+    expect(
+        viewBoxNumbers,
+        `Inline circle SVG viewBox must be "0 0 32 32" for ${attrName}="${attrValue}"`,
+    ).toEqual([0, 0, 32, 32]);
+
+    const fillMatch = svgAttrs.match(/\bfill="([^"]+)"/);
+    expect(
+        fillMatch ? fillMatch[1] : "",
+        `Inline circle SVG for ${attrName}="${attrValue}" must declare fill="none"`,
+    ).toBe("none");
+
+    const classMatch = svgAttrs.match(/\bclass="([^"]+)"/);
+    expect(
+        classMatch ? classMatch[1] : "",
+        `Inline circle SVG for ${attrName}="${attrValue}" must declare stroke-current class`,
+    ).toContain("stroke-current");
+
     const svgInner = match ? match[2] : "";
     const circles: CircleAttributes[] = [];
-    const circleRegex = /<circle[^>]*\bcx="([^"]+)"[^>]*\bcy="([^"]+)"[^>]*\br="([^"]+)"/g;
+    const circleRegex = /<circle\b([^>]*)\/?>/g;
     let circleMatch: RegExpExecArray | null;
     // biome-ignore lint/suspicious/noAssignInExpressions: standard regex parsing loop
     while ((circleMatch = circleRegex.exec(svgInner)) !== null) {
+        const attrs = circleMatch[1];
+        const cxMatch = attrs.match(/\bcx="([^"]+)"/);
+        const cyMatch = attrs.match(/\bcy="([^"]+)"/);
+        const rMatch = attrs.match(/\br="([^"]+)"/);
+        const circleFillMatch = attrs.match(/\bfill="([^"]+)"/);
+        expect(
+            cxMatch && cyMatch && rMatch,
+            `Malformed <circle> in ${attrName}="${attrValue}"`,
+        ).toBeTruthy();
+        expect(
+            circleFillMatch ? circleFillMatch[1] : "",
+            `Inline <circle> in ${attrName}="${attrValue}" must declare fill="var(--ui-accent-soft)"`,
+        ).toBe("var(--ui-accent-soft)");
         circles.push({
-            cx: Number(circleMatch[1]),
-            cy: Number(circleMatch[2]),
-            r: Number(circleMatch[3]),
+            cx: Number(cxMatch ? cxMatch[1] : 0),
+            cy: Number(cyMatch ? cyMatch[1] : 0),
+            r: Number(rMatch ? rMatch[1] : 0),
         });
     }
     expect(
@@ -1051,10 +1205,9 @@ function getStandaloneCircles(
     expect(viewBoxMatch, `Standalone file ${filename} missing viewBox`).not.toBeNull();
     const viewBoxNumbers = (viewBoxMatch ? viewBoxMatch[1] : "").trim().split(/\s+/).map(Number);
     expect(viewBoxNumbers.length, `Invalid viewBox in standalone ${filename}`).toBe(4);
-    expect(
-        viewBoxMatch ? viewBoxMatch[1].trim() : "",
-        `Standalone file ${filename} viewBox must be "0 0 32 32"`,
-    ).toBe("0 0 32 32");
+    expect(viewBoxNumbers, `Standalone file ${filename} viewBox must be "0 0 32 32"`).toEqual([
+        0, 0, 32, 32,
+    ]);
 
     expect(fileContent, `Standalone ${filename} <svg> must declare fill="none"`).toContain(
         'fill="none"',
@@ -1131,10 +1284,32 @@ describe("SVG Asset Integrity & Viewport Height Utilization", () => {
         const octaveIds = ["octaveCycle", "octaveCycleReverse", "octaveCyclePingPong"];
         for (const id of octaveIds) {
             const { circles, viewBox } = getInlineCircles(htmlContent, "data-pattern", id);
+            expect(viewBox.minX, `Octave "${id}" viewBox minX must be 0`).toBe(0);
+            expect(viewBox.minY, `Octave "${id}" viewBox minY must be 0`).toBe(0);
             expect(viewBox.width, `Octave "${id}" viewBox width must be 32`).toBe(32);
             expect(viewBox.height, `Octave "${id}" viewBox height must be 32`).toBe(32);
             const minY = Math.min(...circles.map((c) => c.cy - c.r));
             const maxY = Math.max(...circles.map((c) => c.cy + c.r));
+            const minX = Math.min(...circles.map((c) => c.cx - c.r));
+            const maxX = Math.max(...circles.map((c) => c.cx + c.r));
+
+            expect(
+                minY,
+                `Octave "${id}" circle geometry minY (${minY}) clips above viewBox minY (${viewBox.minY})`,
+            ).toBeGreaterThanOrEqual(viewBox.minY);
+            expect(
+                maxY,
+                `Octave "${id}" circle geometry maxY (${maxY}) clips below viewBox maxY (${viewBox.minY + viewBox.height})`,
+            ).toBeLessThanOrEqual(viewBox.minY + viewBox.height);
+            expect(
+                minX,
+                `Octave "${id}" circle geometry minX (${minX}) clips left of viewBox minX (${viewBox.minX})`,
+            ).toBeGreaterThanOrEqual(viewBox.minX);
+            expect(
+                maxX,
+                `Octave "${id}" circle geometry maxX (${maxX}) clips right of viewBox maxX (${viewBox.minX + viewBox.width})`,
+            ).toBeLessThanOrEqual(viewBox.minX + viewBox.width);
+
             const span = maxY - minY;
             const heightRatio = span / viewBox.height;
             const minRatio = MIN_CIRCLE_PATTERN_HEIGHT_SPAN / viewBox.height;
@@ -1271,8 +1446,8 @@ describe("SVG Asset Integrity & Viewport Height Utilization", () => {
         };
 
         for (const [patternId, filename] of Object.entries(patternFileMap)) {
-            const { d: inlinePath } = getInlinePath(htmlContent, "data-pattern", patternId);
-            assertStandaloneParity(rootDir, inlinePath, "patterns", filename);
+            const inlineData = getInlinePath(htmlContent, "data-pattern", patternId);
+            assertStandaloneParity(rootDir, inlineData, "patterns", filename);
         }
     });
 
@@ -1295,10 +1470,16 @@ describe("SVG Asset Integrity & Viewport Height Utilization", () => {
                 viewBox: standaloneViewBox,
             } = getStandaloneCircles(rootDir, "patterns", filename);
 
-            expect(inlineViewBox.width).toBe(32);
-            expect(inlineViewBox.height).toBe(32);
-            expect(standaloneViewBox.width).toBe(32);
-            expect(standaloneViewBox.height).toBe(32);
+            expect(inlineViewBox, `Inline viewBox for ${filename} must be 0 0 32 32`).toEqual({
+                minX: 0,
+                minY: 0,
+                width: 32,
+                height: 32,
+            });
+            expect(
+                standaloneViewBox,
+                `Standalone viewBox for ${filename} must be 0 0 32 32`,
+            ).toEqual({ minX: 0, minY: 0, width: 32, height: 32 });
 
             expect(
                 inlineCircles.length,
@@ -1328,8 +1509,8 @@ describe("SVG Asset Integrity & Viewport Height Utilization", () => {
         };
 
         for (const [waveId, filename] of Object.entries(waveFileMap)) {
-            const { d: inlinePath } = getInlinePath(htmlContent, "data-wave", waveId);
-            assertStandaloneParity(rootDir, inlinePath, "waveforms", filename);
+            const inlineData = getInlinePath(htmlContent, "data-wave", waveId);
+            assertStandaloneParity(rootDir, inlineData, "waveforms", filename);
         }
     });
 });
