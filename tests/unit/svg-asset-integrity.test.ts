@@ -45,7 +45,7 @@ function evaluateCubic(p0: number, p1: number, p2: number, p3: number, t: number
  * @returns {number[]} Array containing boundary endpoints and any local stationary values.
  */
 function getCubicExtrema(p0: number, p1: number, p2: number, p3: number): number[] {
-    const vals = [p0, p3];
+    const interior: number[] = [];
     const a = 3 * (-p0 + 3 * p1 - 3 * p2 + p3);
     const b = 6 * (p0 - 2 * p1 + p2);
     const c = 3 * (-p0 + p1);
@@ -53,7 +53,7 @@ function getCubicExtrema(p0: number, p1: number, p2: number, p3: number): number
     if (Math.abs(a) < 1e-9) {
         if (Math.abs(b) > 1e-9) {
             const t = -c / b;
-            if (t > 0 && t < 1) vals.push(evaluateCubic(p0, p1, p2, p3, t));
+            if (t > 0 && t < 1) interior.push(evaluateCubic(p0, p1, p2, p3, t));
         }
     } else {
         const disc = b * b - 4 * a * c;
@@ -61,11 +61,11 @@ function getCubicExtrema(p0: number, p1: number, p2: number, p3: number): number
             const sqrtDisc = Math.sqrt(disc);
             const t1 = (-b - sqrtDisc) / (2 * a);
             const t2 = (-b + sqrtDisc) / (2 * a);
-            if (t1 > 0 && t1 < 1) vals.push(evaluateCubic(p0, p1, p2, p3, t1));
-            if (t2 > 0 && t2 < 1) vals.push(evaluateCubic(p0, p1, p2, p3, t2));
+            if (t1 > 0 && t1 < 1) interior.push(evaluateCubic(p0, p1, p2, p3, t1));
+            if (t2 > 0 && t2 < 1) interior.push(evaluateCubic(p0, p1, p2, p3, t2));
         }
     }
-    return vals;
+    return [p0, ...interior, p3];
 }
 
 /**
@@ -77,16 +77,16 @@ function getCubicExtrema(p0: number, p1: number, p2: number, p3: number): number
  * @returns {number[]} Array containing boundary endpoints and any local stationary values.
  */
 function getQuadraticExtrema(p0: number, p1: number, p2: number): number[] {
-    const vals = [p0, p2];
+    const interior: number[] = [];
     const denom = p0 - 2 * p1 + p2;
     if (Math.abs(denom) > 1e-9) {
         const t = (p0 - p1) / denom;
         if (t > 0 && t < 1) {
             const oneMinusT = 1 - t;
-            vals.push(oneMinusT * oneMinusT * p0 + 2 * oneMinusT * t * p1 + t * t * p2);
+            interior.push(oneMinusT * oneMinusT * p0 + 2 * oneMinusT * t * p1 + t * t * p2);
         }
     }
-    return vals;
+    return [p0, ...interior, p2];
 }
 
 /**
@@ -306,39 +306,95 @@ function extractPathPoints(pathD: string): PathPoints {
 }
 
 /**
- * Helper to retrieve an inline SVG path string from index.html markup for a given element attribute.
+ * Parsed SVG viewBox rectangle.
+ */
+interface ViewBoxRect {
+    minX: number;
+    minY: number;
+    width: number;
+    height: number;
+}
+
+/**
+ * Result container for extracted inline SVG path data and viewBox geometry.
+ */
+interface InlinePathData {
+    d: string;
+    viewBox: ViewBoxRect;
+}
+
+/**
+ * Extracted coordinate attributes for an SVG circle element.
+ */
+interface CircleAttributes {
+    cx: number;
+    cy: number;
+    r: number;
+}
+
+/**
+ * Result container for extracted inline SVG circle data and viewBox geometry.
+ */
+interface InlineCircleData {
+    circles: CircleAttributes[];
+    viewBox: ViewBoxRect;
+}
+
+/**
+ * Helper to retrieve an inline SVG path string and viewBox from index.html markup for a given element attribute.
  *
  * @param {string} html - Raw HTML source content.
  * @param {string} attrName - Target attribute name (e.g. 'data-pattern', 'data-wave').
  * @param {string} attrValue - Attribute value to match.
- * @returns {string} The path 'd' attribute string.
+ * @returns {InlinePathData} The path 'd' string and parsed viewBox.
  */
-function getInlinePath(html: string, attrName: string, attrValue: string): string {
+function getInlinePath(html: string, attrName: string, attrValue: string): InlinePathData {
     const regex = new RegExp(
-        `${attrName}="${attrValue}"(?:(?!</svg>)[\\s\\S])*?<path[^>]*\\bd="([^"]+)"`,
+        `${attrName}="${attrValue}"(?:(?!</svg>)[\\s\\S])*?<svg[^>]*\\bviewBox="([^"]+)"(?:(?!</svg>)[\\s\\S])*?<path[^>]*\\bd="([^"]+)"`,
     );
     const match = html.match(regex);
-    expect(match, `Missing SVG path for ${attrName}="${attrValue}"`).not.toBeNull();
-    return match ? match[1].trim() : "";
+    expect(match, `Missing SVG path with viewBox for ${attrName}="${attrValue}"`).not.toBeNull();
+    const viewBoxNumbers = (match ? match[1] : "").trim().split(/\s+/).map(Number);
+    expect(viewBoxNumbers.length, `Invalid viewBox in ${attrName}="${attrValue}"`).toBe(4);
+    return {
+        d: match ? match[2].trim() : "",
+        viewBox: {
+            minX: viewBoxNumbers[0],
+            minY: viewBoxNumbers[1],
+            width: viewBoxNumbers[2],
+            height: viewBoxNumbers[3],
+        },
+    };
 }
 
 /**
- * Asserts that an SVG path spans a minimum vertical height within its viewport.
+ * Asserts that an SVG path spans a minimum vertical height within its viewport viewBox.
  *
  * @param {string} pathD - Path definition string.
+ * @param {ViewBoxRect} viewBox - Parsed SVG viewBox rectangle.
  * @param {number} minSpan - Expected minimum vertical span in units.
  * @param {string} label - Context label for descriptive assertion failures.
  * @returns {void}
  */
-function assertMinimumHeightSpan(pathD: string, minSpan: number, label: string): void {
+function assertMinimumHeightSpan(
+    pathD: string,
+    viewBox: ViewBoxRect,
+    minSpan: number,
+    label: string,
+): void {
+    expect(viewBox.width, `${label} SVG viewBox width must be 32 units`).toBe(32);
+    expect(viewBox.height, `${label} SVG viewBox height must be 32 units`).toBe(32);
+
     const { ys } = extractPathPoints(pathD);
     expect(ys.length, `No Y coordinates parsed for ${label}`).toBeGreaterThan(0);
     const minY = Math.min(...ys);
     const maxY = Math.max(...ys);
     const span = maxY - minY;
+    const heightRatio = span / viewBox.height;
+    const minRatio = minSpan / viewBox.height;
     expect(
         span,
-        `${label} vertical span (${span}) is less than ${minSpan} units (${minY} to ${maxY})`,
+        `${label} vertical span (${span} units, ${(heightRatio * 100).toFixed(1)}%) is less than ${minSpan} units (${(minRatio * 100).toFixed(1)}%) of viewBox height ${viewBox.height} (${minY} to ${maxY})`,
     ).toBeGreaterThanOrEqual(minSpan);
 }
 
@@ -359,6 +415,13 @@ function assertStandaloneParity(
 ): void {
     const filePath = resolve(rootDir, "public/images", subfolder, filename);
     const fileContent = readFileSync(filePath, "utf-8");
+    const viewBoxMatch = fileContent.match(/viewBox="([^"]+)"/);
+    expect(viewBoxMatch, `Standalone file ${filename} missing viewBox`).not.toBeNull();
+    expect(
+        viewBoxMatch ? viewBoxMatch[1].trim() : "",
+        `Standalone file ${filename} viewBox must be "0 0 32 32"`,
+    ).toBe("0 0 32 32");
+
     const fileMatch = fileContent.match(/<path[^>]*\bd="([^"]+)"/);
     expect(fileMatch, `Standalone file ${filename} missing <path>`).not.toBeNull();
     const standalonePath = fileMatch ? fileMatch[1].trim() : "";
@@ -446,6 +509,52 @@ function serializeSubpathReversed(subpath: CanonicalSubpath): string {
 }
 
 /**
+ * Collapses consecutive collinear line segments within a subpath to eliminate redundant intermediate waypoints.
+ *
+ * @param {CanonicalSegment[]} segments - Raw segments of a subpath.
+ * @returns {CanonicalSegment[]} Normalized segments with consecutive collinear lines merged.
+ */
+function collapseCollinearSegments(segments: CanonicalSegment[]): CanonicalSegment[] {
+    if (segments.length <= 1) return segments;
+    const result: CanonicalSegment[] = [];
+
+    for (const seg of segments) {
+        if (result.length === 0) {
+            result.push({ ...seg });
+            continue;
+        }
+
+        const prev = result[result.length - 1];
+        if (prev.type === "L" && seg.type === "L") {
+            const dx1 = prev.xe - prev.xs;
+            const dy1 = prev.ye - prev.ys;
+            const dx2 = seg.xe - seg.xs;
+            const dy2 = seg.ye - seg.ys;
+
+            // Skip zero-length segment
+            if (Math.abs(dx2) < 1e-9 && Math.abs(dy2) < 1e-9) {
+                continue;
+            }
+            if (Math.abs(dx1) < 1e-9 && Math.abs(dy1) < 1e-9) {
+                result[result.length - 1] = { ...seg };
+                continue;
+            }
+
+            // Collinear if cross product is 0 and dot product > 0 (same direction)
+            const cross = dx1 * dy2 - dy1 * dx2;
+            const dot = dx1 * dx2 + dy1 * dy2;
+            if (Math.abs(cross) < 1e-9 && dot > 0) {
+                prev.xe = seg.xe;
+                prev.ye = seg.ye;
+                continue;
+            }
+        }
+        result.push({ ...seg });
+    }
+    return result;
+}
+
+/**
  * Canonicalizes an SVG path definition into absolute geometry commands for equivalence comparisons.
  * Resolves all relative commands (m, l, h, v, c, q, t) to absolute commands (M, L, C, Q),
  * normalizes horizontal/vertical lines (H, V) to canonical line segments (L),
@@ -472,21 +581,57 @@ function canonicalizeResolvedGeometry(pathD: string): string {
 
         switch (cmd) {
             case "M":
-                for (let i = 0; i < args.length; i += 2) {
-                    curX = args[i];
-                    curY = args[i + 1];
+                if (args.length % 2 !== 0) {
+                    throw new Error(
+                        `Odd argument count (${args.length}) for command "M": ${args.join(" ")}`,
+                    );
+                }
+                if (args.length >= 2) {
+                    curX = args[0];
+                    curY = args[1];
                     currentSubpath = { startX: curX, startY: curY, segments: [] };
                     subpaths.push(currentSubpath);
                     lastQuadCp = null;
+                    for (let i = 2; i < args.length; i += 2) {
+                        const endX = args[i];
+                        const endY = args[i + 1];
+                        currentSubpath.segments.push({
+                            type: "L",
+                            xs: curX,
+                            ys: curY,
+                            xe: endX,
+                            ye: endY,
+                        });
+                        curX = endX;
+                        curY = endY;
+                    }
                 }
                 break;
             case "m":
-                for (let i = 0; i < args.length; i += 2) {
-                    curX += args[i];
-                    curY += args[i + 1];
+                if (args.length % 2 !== 0) {
+                    throw new Error(
+                        `Odd argument count (${args.length}) for command "m": ${args.join(" ")}`,
+                    );
+                }
+                if (args.length >= 2) {
+                    curX += args[0];
+                    curY += args[1];
                     currentSubpath = { startX: curX, startY: curY, segments: [] };
                     subpaths.push(currentSubpath);
                     lastQuadCp = null;
+                    for (let i = 2; i < args.length; i += 2) {
+                        const endX = curX + args[i];
+                        const endY = curY + args[i + 1];
+                        currentSubpath.segments.push({
+                            type: "L",
+                            xs: curX,
+                            ys: curY,
+                            xe: endX,
+                            ye: endY,
+                        });
+                        curX = endX;
+                        curY = endY;
+                    }
                 }
                 break;
             case "L":
@@ -777,6 +922,7 @@ function canonicalizeResolvedGeometry(pathD: string): string {
     }
 
     const canonicalSubpaths = subpaths.map((sp) => {
+        sp.segments = collapseCollinearSegments(sp.segments);
         const forward = serializeSubpathForward(sp);
         const reversed = serializeSubpathReversed(sp);
         return forward <= reversed ? forward : reversed;
@@ -787,30 +933,38 @@ function canonicalizeResolvedGeometry(pathD: string): string {
 }
 
 /**
- * Extracted coordinate attributes for an SVG circle element.
+ * Canonicalizes a collection of circle elements into a deterministic sorted string representation.
+ *
+ * @param {CircleAttributes[]} circles - Array of circle attribute objects.
+ * @returns {string} Deterministic geometry key for circle-based glyph visual equivalence checks.
  */
-interface CircleAttributes {
-    cx: number;
-    cy: number;
-    r: number;
+function canonicalizeCircleGeometry(circles: CircleAttributes[]): string {
+    const sorted = [...circles].sort((a, b) => {
+        if (a.cx !== b.cx) return a.cx - b.cx;
+        if (a.cy !== b.cy) return a.cy - b.cy;
+        return a.r - b.r;
+    });
+    return sorted.map((c) => `circle(cx=${c.cx},cy=${c.cy},r=${c.r})`).join(" ");
 }
 
 /**
- * Extracts circle element attributes from an inline SVG pattern button in the HTML source.
+ * Extracts circle element attributes and viewBox geometry from an inline SVG pattern button in the HTML source.
  *
  * @param {string} html - Raw HTML source content.
  * @param {string} attrName - Attribute name matching the button (e.g. 'data-pattern').
  * @param {string} attrValue - Target attribute value (e.g. 'octaveCycle').
- * @returns {CircleAttributes[]} Array of parsed circle attributes.
+ * @returns {InlineCircleData} Parsed circle attributes and viewBox geometry.
  */
-function getInlineCircles(html: string, attrName: string, attrValue: string): CircleAttributes[] {
+function getInlineCircles(html: string, attrName: string, attrValue: string): InlineCircleData {
     const regex = new RegExp(
-        `${attrName}="${attrValue}"(?:(?!</svg>)[\\s\\S])*?<svg[^>]*>([\\s\\S]*?)</svg>`,
+        `${attrName}="${attrValue}"(?:(?!</svg>)[\\s\\S])*?<svg[^>]*\\bviewBox="([^"]+)"[^>]*>([\\s\\S]*?)</svg>`,
         "i",
     );
     const match = html.match(regex);
     expect(match, `Missing SVG for ${attrName}="${attrValue}"`).not.toBeNull();
-    const svgInner = match ? match[1] : "";
+    const viewBoxNumbers = (match ? match[1] : "").trim().split(/\s+/).map(Number);
+    expect(viewBoxNumbers.length, `Invalid viewBox in ${attrName}="${attrValue}"`).toBe(4);
+    const svgInner = match ? match[2] : "";
     const circles: CircleAttributes[] = [];
     const circleRegex = /<circle[^>]*\bcx="([^"]+)"[^>]*\bcy="([^"]+)"[^>]*\br="([^"]+)"/g;
     let circleMatch: RegExpExecArray | null;
@@ -826,24 +980,41 @@ function getInlineCircles(html: string, attrName: string, attrValue: string): Ci
         circles.length,
         `No circle elements found for ${attrName}="${attrValue}"`,
     ).toBeGreaterThan(0);
-    return circles;
+    return {
+        circles,
+        viewBox: {
+            minX: viewBoxNumbers[0],
+            minY: viewBoxNumbers[1],
+            width: viewBoxNumbers[2],
+            height: viewBoxNumbers[3],
+        },
+    };
 }
 
 /**
- * Extracts circle element attributes and file content from a standalone SVG file.
+ * Extracts circle element attributes, viewBox geometry, and file content from a standalone SVG file.
  *
  * @param {string} rootDir - Workspace root directory.
  * @param {string} subfolder - Asset subfolder under public/images/.
  * @param {string} filename - Standalone SVG file name.
- * @returns {{ circles: CircleAttributes[]; fileContent: string }} Extracted circle attributes and file content.
+ * @returns {{ circles: CircleAttributes[]; fileContent: string; viewBox: ViewBoxRect }} Extracted circle attributes, file content, and viewBox.
  */
 function getStandaloneCircles(
     rootDir: string,
     subfolder: string,
     filename: string,
-): { circles: CircleAttributes[]; fileContent: string } {
+): { circles: CircleAttributes[]; fileContent: string; viewBox: ViewBoxRect } {
     const filePath = resolve(rootDir, "public/images", subfolder, filename);
     const fileContent = readFileSync(filePath, "utf-8");
+    const viewBoxMatch = fileContent.match(/viewBox="([^"]+)"/);
+    expect(viewBoxMatch, `Standalone file ${filename} missing viewBox`).not.toBeNull();
+    const viewBoxNumbers = (viewBoxMatch ? viewBoxMatch[1] : "").trim().split(/\s+/).map(Number);
+    expect(viewBoxNumbers.length, `Invalid viewBox in standalone ${filename}`).toBe(4);
+    expect(
+        viewBoxMatch ? viewBoxMatch[1].trim() : "",
+        `Standalone file ${filename} viewBox must be "0 0 32 32"`,
+    ).toBe("0 0 32 32");
+
     const circles: CircleAttributes[] = [];
     const circleRegex = /<circle[^>]*\bcx="([^"]+)"[^>]*\bcy="([^"]+)"[^>]*\br="([^"]+)"/g;
     let match: RegExpExecArray | null;
@@ -856,7 +1027,16 @@ function getStandaloneCircles(
         });
     }
     expect(circles.length, `No circles found in ${filename}`).toBeGreaterThan(0);
-    return { circles, fileContent };
+    return {
+        circles,
+        fileContent,
+        viewBox: {
+            minX: viewBoxNumbers[0],
+            minY: viewBoxNumbers[1],
+            width: viewBoxNumbers[2],
+            height: viewBoxNumbers[3],
+        },
+    };
 }
 
 describe("SVG Asset Integrity & Viewport Height Utilization", () => {
@@ -883,20 +1063,30 @@ describe("SVG Asset Integrity & Viewport Height Utilization", () => {
 
     it("verifies all path-based pattern direction icons in index.html utilize at least 71% viewport height (>= 23 units)", () => {
         for (const patternId of patternIds) {
-            const pathD = getInlinePath(htmlContent, "data-pattern", patternId);
-            assertMinimumHeightSpan(pathD, MIN_PATTERN_HEIGHT_SPAN, `Pattern "${patternId}"`);
+            const { d: pathD, viewBox } = getInlinePath(htmlContent, "data-pattern", patternId);
+            assertMinimumHeightSpan(
+                pathD,
+                viewBox,
+                MIN_PATTERN_HEIGHT_SPAN,
+                `Pattern "${patternId}"`,
+            );
         }
     });
 
     it("verifies all waveform icons in index.html utilize at least 75% viewport height (>= 24 units)", () => {
         for (const waveId of waveformIds) {
-            const pathD = getInlinePath(htmlContent, "data-wave", waveId);
-            assertMinimumHeightSpan(pathD, MIN_WAVEFORM_HEIGHT_SPAN, `Waveform "${waveId}"`);
+            const { d: pathD, viewBox } = getInlinePath(htmlContent, "data-wave", waveId);
+            assertMinimumHeightSpan(
+                pathD,
+                viewBox,
+                MIN_WAVEFORM_HEIGHT_SPAN,
+                `Waveform "${waveId}"`,
+            );
         }
     });
 
-    it("verifies every pattern direction and waveform icon has a unique visual path with zero duplicates", () => {
-        const seenPaths = new Map<string, string>();
+    it("verifies every pattern direction and waveform icon has a unique visual representation with zero duplicates", () => {
+        const seenRepresentations = new Map<string, string>();
         const allPathIcons: Array<{
             id: string;
             attr: "data-pattern" | "data-wave";
@@ -915,20 +1105,42 @@ describe("SVG Asset Integrity & Viewport Height Utilization", () => {
         ];
 
         for (const { id, attr, label } of allPathIcons) {
-            const pathD = getInlinePath(htmlContent, attr, id);
+            const { d: pathD } = getInlinePath(htmlContent, attr, id);
             const canonicalPath = canonicalizeResolvedGeometry(pathD);
-            const duplicateOf = seenPaths.get(canonicalPath);
+            const duplicateOf = seenRepresentations.get(canonicalPath);
             expect(
                 duplicateOf,
                 `${label} has duplicate visual geometry of "${duplicateOf}": ${pathD}`,
             ).toBeUndefined();
-            seenPaths.set(canonicalPath, label);
+            seenRepresentations.set(canonicalPath, label);
+        }
+
+        const octaveCircleIds = ["octaveCycle", "octaveCycleReverse", "octaveCyclePingPong"];
+        for (const id of octaveCircleIds) {
+            const { circles } = getInlineCircles(htmlContent, "data-pattern", id);
+            const canonicalCircles = canonicalizeCircleGeometry(circles);
+            const label = `Pattern "${id}" (circle-based)`;
+            const duplicateOf = seenRepresentations.get(canonicalCircles);
+            expect(
+                duplicateOf,
+                `${label} has duplicate visual geometry of "${duplicateOf}"`,
+            ).toBeUndefined();
+            seenRepresentations.set(canonicalCircles, label);
         }
     });
 
     it("canonicalizes equivalent relative and absolute geometry to identical representations", () => {
         expect(canonicalizeResolvedGeometry("M4 28 L28 4")).toBe(
             canonicalizeResolvedGeometry("M4 28 l24 -24"),
+        );
+        expect(canonicalizeResolvedGeometry("M4 28 28 4")).toBe(
+            canonicalizeResolvedGeometry("M4 28 L28 4"),
+        );
+        expect(canonicalizeResolvedGeometry("m4 28 24 -24")).toBe(
+            canonicalizeResolvedGeometry("M4 28 L28 4"),
+        );
+        expect(canonicalizeResolvedGeometry("M4 28 L16 16 L28 4")).toBe(
+            canonicalizeResolvedGeometry("M4 28 L28 4"),
         );
         expect(canonicalizeResolvedGeometry("M3 28 H7")).toBe(
             canonicalizeResolvedGeometry("M3 28 L7 28"),
@@ -949,7 +1161,7 @@ describe("SVG Asset Integrity & Viewport Height Utilization", () => {
 
     it("verifies all pattern direction icons adhere to left-to-right temporal progression", () => {
         for (const patternId of patternIds) {
-            const pathD = getInlinePath(htmlContent, "data-pattern", patternId);
+            const { d: pathD } = getInlinePath(htmlContent, "data-pattern", patternId);
             const { xs } = extractPathPoints(pathD);
             expect(xs.length, `Expected X points for "${patternId}"`).toBeGreaterThan(1);
             expect(
@@ -974,7 +1186,7 @@ describe("SVG Asset Integrity & Viewport Height Utilization", () => {
         };
 
         for (const [patternId, filename] of Object.entries(patternFileMap)) {
-            const inlinePath = getInlinePath(htmlContent, "data-pattern", patternId);
+            const { d: inlinePath } = getInlinePath(htmlContent, "data-pattern", patternId);
             assertStandaloneParity(rootDir, inlinePath, "patterns", filename);
         }
     });
@@ -987,12 +1199,21 @@ describe("SVG Asset Integrity & Viewport Height Utilization", () => {
         };
 
         for (const [patternId, filename] of Object.entries(octaveMap)) {
-            const inlineCircles = getInlineCircles(htmlContent, "data-pattern", patternId);
-            const { circles: standaloneCircles, fileContent } = getStandaloneCircles(
-                rootDir,
-                "patterns",
-                filename,
+            const { circles: inlineCircles, viewBox: inlineViewBox } = getInlineCircles(
+                htmlContent,
+                "data-pattern",
+                patternId,
             );
+            const {
+                circles: standaloneCircles,
+                fileContent,
+                viewBox: standaloneViewBox,
+            } = getStandaloneCircles(rootDir, "patterns", filename);
+
+            expect(inlineViewBox.width).toBe(32);
+            expect(inlineViewBox.height).toBe(32);
+            expect(standaloneViewBox.width).toBe(32);
+            expect(standaloneViewBox.height).toBe(32);
 
             expect(
                 inlineCircles.length,
@@ -1022,7 +1243,7 @@ describe("SVG Asset Integrity & Viewport Height Utilization", () => {
         };
 
         for (const [waveId, filename] of Object.entries(waveFileMap)) {
-            const inlinePath = getInlinePath(htmlContent, "data-wave", waveId);
+            const { d: inlinePath } = getInlinePath(htmlContent, "data-wave", waveId);
             assertStandaloneParity(rootDir, inlinePath, "waveforms", filename);
         }
     });

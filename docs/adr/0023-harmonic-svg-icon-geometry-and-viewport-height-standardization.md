@@ -93,11 +93,13 @@ A comprehensive visual and mathematical audit revealed several visual discrepanc
 
 The automated test suite in `tests/unit/svg-asset-integrity.test.ts` enforces the following invariants:
 
-1. **Exact Mathematical Bézier Extrema**: Evaluates stationary points $B'(t) = 0$ for $t \in [0, 1]$ via quadratic formula discriminant analysis (`getCubicExtrema`, `getQuadraticExtrema`) rather than relying on control point bounding boxes.
+1. **Exact Mathematical Bézier Extrema**: Evaluates stationary points $B'(t) = 0$ for $t \in [0, 1]$ via quadratic formula discriminant analysis (`getCubicExtrema`, `getQuadraticExtrema`) rather than relying on control point bounding boxes, ordering curve endpoints chronologically after any interior stationary values so terminal coordinates represent true path boundaries.
 2. **Smooth Quadratic Cursor Tracking**: Tracks the running cursor and reflects previous control points for `T` / `t` commands.
 3. **SVG Number Grammar**: Supports scientific notation exponents, explicit leading signs, and omitted leading zeros.
-4. **Canonical Path Normalization (`canonicalizeResolvedGeometry`)**: Converts relative and absolute command variants into canonical absolute geometry commands so icon uniqueness checks compare geometric intent rather than formatting variations.
-5. **Asset Parity & Theming**: Verifies byte-exact matching between inline HTML paths and standalone SVG files, and asserts the presence of `:root { color: #38bdf8; }` in all standalone assets.
+4. **Canonical Path Normalization (`canonicalizeResolvedGeometry`)**: Converts relative and absolute command variants into canonical absolute geometry commands, expands multi-pair `moveto` commands into implicit line segments per W3C SVG specifications, collapses redundant consecutive collinear line segments, and normalizes traversal direction so forward and reversed identical strokes yield identical keys.
+5. **ViewBox Height Utilization**: Validates declared SVG `viewBox` dimensions ($32\times32$) and calculates vertical span ratios relative to `viewBox.height` to enforce the $\ge 71.875\%\text{--}75\%$ height utilization contract.
+6. **Universal Visual Uniqueness**: Registers all 18 icons (10 path-based patterns, 5 waveforms, and 3 circle-based octave patterns canonicalized via sorted geometric signatures) in a unified duplicate detection registry, asserting zero duplicate visual representations.
+7. **Asset Parity & Theming**: Verifies byte-exact matching and $32\times32$ `viewBox` conformance between inline HTML paths and standalone SVG files, and asserts the presence of `:root { color: #38bdf8; }` in all standalone assets.
 
 ## Consequences
 
