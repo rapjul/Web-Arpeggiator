@@ -1,4 +1,7 @@
 <svg id="pattern-direction-randomCycle" xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none">
-  <title>Random Cycle</title>
-  <path d="M3 8h5c8 0 8 16 16 16h5M24 20l5 4-5 4M3 24h5c8 0 8-16 16-16h5M24 4l5 4-5 4" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/>
+  <title>Pattern Direction: Random Cycle</title>
+  <style>
+    :root { color: #38bdf8; }
+  </style>
+  <path d="M3 8h5c8 0 8 16 16 16h5 M24 20l5 4-5 4 M3 24h5c8 0 8-16 16-16h5 M24 4l5 4-5 4" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>

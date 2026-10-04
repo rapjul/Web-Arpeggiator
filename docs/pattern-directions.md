@@ -50,7 +50,7 @@ This document explains the different pattern directions available in the Web Arp
 
 - **Description**: Selects a seeded random note independently on every step, so notes may repeat before others play
 - **Visual**:
-  ![Random Pattern](../public/images/patterns/pattern-direction-random.svg)
+  ![Random Step](../public/images/patterns/pattern-direction-random.svg)
 - **Example**: E4 → E4 → C4 → G4 (repeats are allowed)
 
 ### 8. Random Cycle
@@ -94,3 +94,7 @@ This document explains the different pattern directions available in the Web Arp
 - **Visual**:
   ![Drunkard's Walk](../public/images/patterns/pattern-direction-randomWalkDrunkard.svg)
 - **Example**: C4 → D4 → E4 → A4 → G4 → F4 (mostly local with occasional leaps)
+
+---
+
+For icon design standards, vertical viewport utilization, and mathematical curve specifications, see [ADR 0023: Harmonic SVG Icon Geometry, Viewport Height Standardization, and Asset Parity](./adr/0023-harmonic-svg-icon-geometry-and-viewport-height-standardization.md).
