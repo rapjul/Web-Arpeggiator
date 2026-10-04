@@ -308,6 +308,13 @@ function validateSvgPathSyntax(pathD: string): void {
         throw new Error(`Invalid leading token(s) "${leading}" in SVG path: "${pathD}"`);
     }
 
+    const firstCmd = firstMatch[1];
+    if (firstCmd !== "M" && firstCmd !== "m") {
+        throw new Error(
+            `Invalid SVG path: path must begin with a "moveto" command ("M" or "m"), but found "${firstCmd}" in "${pathD}"`,
+        );
+    }
+
     regex.lastIndex = 0;
     // biome-ignore lint/suspicious/noAssignInExpressions: standard regex parsing loop
     while ((match = regex.exec(pathD)) !== null) {
@@ -449,12 +456,21 @@ interface InlineCircleData {
 
 /**
  * Strips HTML and XML comment blocks from source markup to prevent commented-out elements from being matched as active geometry.
+ * Uses an iterative loop until all comment delimiters are removed to prevent incomplete sanitization or nested comment bypasses.
  *
  * @param {string} source - Raw markup string.
  * @returns {string} Markup string with all comment blocks removed.
  */
 function stripComments(source: string): string {
-    return source.replace(/<!--[\s\S]*?-->/g, "");
+    let sanitized = source;
+    while (sanitized.includes("<!--")) {
+        const next = sanitized.replace(/<!--(?:(?!<!--)[\s\S])*?-->/g, "");
+        if (next === sanitized) {
+            break;
+        }
+        sanitized = next;
+    }
+    return sanitized;
 }
 
 /**
@@ -613,13 +629,16 @@ function assertMinimumHeightSpan(
  * ensuring stylesheet-level presentation parity with standalone SVG assets.
  *
  * @param {string} rootDir - Workspace root directory.
+ * @param {string} [cssContentOverride] - Optional CSS content override for testing assertion behavior.
  * @returns {void}
  */
-function assertStylesheetStrokeWidthParity(rootDir: string): void {
-    const cssPath = resolve(rootDir, "styles/components.css");
-    const cssContent = stripComments(readFileSync(cssPath, "utf-8"));
+function assertStylesheetStrokeWidthParity(rootDir: string, cssContentOverride?: string): void {
+    const cssContent =
+        cssContentOverride !== undefined
+            ? stripComments(cssContentOverride)
+            : stripComments(readFileSync(resolve(rootDir, "styles/components.css"), "utf-8"));
     const ruleMatch = cssContent.match(
-        /\.(?:waveform-btn|pattern-btn|octave-btn)\s+svg[\s\S]*?stroke-width:\s*(\d+)/,
+        /\.(?:waveform-btn|pattern-btn|octave-btn)\s+svg[^{}]*\{[^{}]*stroke-width:\s*(\d+)/,
     );
     expect(
         ruleMatch,
@@ -1638,6 +1657,28 @@ describe("SVG Asset Integrity & Viewport Height Utilization", () => {
         expect(() => parseCanonicalSubpaths("M4 28 L L28 4")).toThrow(
             'Invalid SVG command "L": missing required arguments in path: "M4 28 L L28 4"',
         );
+
+        expect(() => extractPathPoints("L4 28 L28 4")).toThrow(
+            'Invalid SVG path: path must begin with a "moveto" command ("M" or "m"), but found "L" in "L4 28 L28 4"',
+        );
+        expect(() => extractPathPoints("C4 28 10 10 28 4")).toThrow(
+            'Invalid SVG path: path must begin with a "moveto" command ("M" or "m"), but found "C" in "C4 28 10 10 28 4"',
+        );
+        expect(() => extractPathPoints("Q4 28 16 16 28 4")).toThrow(
+            'Invalid SVG path: path must begin with a "moveto" command ("M" or "m"), but found "Q" in "Q4 28 16 16 28 4"',
+        );
+        expect(() => extractPathPoints("H28")).toThrow(
+            'Invalid SVG path: path must begin with a "moveto" command ("M" or "m"), but found "H" in "H28"',
+        );
+        expect(() => extractPathPoints("V28")).toThrow(
+            'Invalid SVG path: path must begin with a "moveto" command ("M" or "m"), but found "V" in "V28"',
+        );
+        expect(() => extractPathPoints("Z")).toThrow(
+            'Invalid SVG path: path must begin with a "moveto" command ("M" or "m"), but found "Z" in "Z"',
+        );
+        expect(() => parseCanonicalSubpaths("L4 28 L28 4")).toThrow(
+            'Invalid SVG path: path must begin with a "moveto" command ("M" or "m"), but found "L" in "L4 28 L28 4"',
+        );
     });
 
     it("verifies transform attributes are rejected when parsing inline and standalone SVGs", () => {
@@ -1745,6 +1786,43 @@ describe("SVG Asset Integrity & Viewport Height Utilization", () => {
         );
         expect(() => getInlineCircles(commentedHtml, "data-pattern", "commentedPattern")).toThrow(
             'Missing SVG for data-pattern="commentedPattern"',
+        );
+
+        const nestedCommentedHtml = `
+            <!-- outer comment
+                <!-- inner comment -->
+                <button data-pattern="nestedCommentedPattern">
+                    <svg viewBox="0 0 32 32" fill="none" class="stroke-current">
+                        <path d="M4 4 L28 28" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                </button>
+            -->
+        `;
+        expect(() =>
+            getInlinePath(nestedCommentedHtml, "data-pattern", "nestedCommentedPattern"),
+        ).toThrow('Missing SVG for data-pattern="nestedCommentedPattern"');
+    });
+
+    it("verifies stylesheet stroke-width parity and rejects cross-rule bridging or non-2px stroke widths", () => {
+        assertStylesheetStrokeWidthParity(rootDir);
+
+        const malformedCrossRuleCss = `
+            .waveform-btn svg { width: 1.5rem; height: 1.5rem; }
+            .unrelated-rule { stroke-width: 2; }
+        `;
+        expect(() => assertStylesheetStrokeWidthParity(rootDir, malformedCrossRuleCss)).toThrow(
+            "Missing stroke-width rule in styles/components.css for button SVGs",
+        );
+
+        const wrongStrokeWidthCss = `
+            .waveform-btn svg {
+                width: 1.5rem;
+                height: 1.5rem;
+                stroke-width: 4;
+            }
+        `;
+        expect(() => assertStylesheetStrokeWidthParity(rootDir, wrongStrokeWidthCss)).toThrow(
+            "Inline button SVG stroke-width in styles/components.css must be 2",
         );
     });
 
