@@ -1,6 +1,14 @@
 /**
  * @file Unit tests validating SVG icon viewport height utilization, path uniqueness,
- * temporal progression, and markup-to-asset parity.
+ * temporal progression, and markup-to-asset parity across the application's 18 curated icons.
+ *
+ * SCOPE & NON-GOALS:
+ * This test suite is an asset integrity and design regression suite dedicated strictly to
+ * Web Arpeggiator's fixed set of 18 handcrafted icons and single button SVG stylesheet rule.
+ * It is NOT a general-purpose SVG rendering engine or full CSS cascade specificity parser.
+ * It intentionally does not implement edge-case handling for theoretical syntax anomalies
+ * (such as malformed separators, relative commands after closepath, or complex selector specificity)
+ * that do not exist in the repository's assets.
  */
 
 import { readFileSync } from "node:fs";
