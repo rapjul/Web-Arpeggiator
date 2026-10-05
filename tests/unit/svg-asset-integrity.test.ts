@@ -656,7 +656,7 @@ function assertStylesheetStrokeWidthParity(rootDir: string, cssContentOverride?:
         if (strokeWidthMatch) {
             const widthVal = strokeWidthMatch[1].trim();
             for (const target of requiredSelectors) {
-                if (rawSelectors.some((s) => s === target || s.endsWith(target))) {
+                if (rawSelectors.some((s) => s === target || s.endsWith(` ${target}`))) {
                     declarationsPerSelector.get(target)?.push(widthVal);
                 }
             }
@@ -1866,6 +1866,17 @@ describe("SVG Asset Integrity & Viewport Height Utilization", () => {
         `;
         expect(() => assertStylesheetStrokeWidthParity(rootDir, wrongStrokeWidthCss)).toThrow(
             'Effective stroke-width for ".waveform-btn svg" in styles/components.css must be 2, but resolved to 3',
+        );
+
+        const collidingSelectorCss = `
+            .waveform-btn svg,
+            .icon-pattern-btn svg,
+            .octave-btn svg {
+                stroke-width: 2;
+            }
+        `;
+        expect(() => assertStylesheetStrokeWidthParity(rootDir, collidingSelectorCss)).toThrow(
+            'Missing stroke-width declaration in styles/components.css for selector ".pattern-btn svg"',
         );
     });
 
