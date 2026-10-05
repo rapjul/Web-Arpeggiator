@@ -625,8 +625,9 @@ function assertMinimumHeightSpan(
 }
 
 /**
- * Asserts that styles/components.css defines the standard 2-unit stroke width rule for inline button SVGs,
- * ensuring stylesheet-level presentation parity with standalone SVG assets.
+ * Asserts that styles/components.css defines the standard 2-unit stroke width rule for all inline button SVGs
+ * (.waveform-btn svg, .pattern-btn svg, .octave-btn svg), verifying that each selector resolves to 2
+ * in cascade order and that no subsequent rule overrides the stroke width.
  *
  * @param {string} rootDir - Workspace root directory.
  * @param {string} [cssContentOverride] - Optional CSS content override for testing assertion behavior.
@@ -637,17 +638,44 @@ function assertStylesheetStrokeWidthParity(rootDir: string, cssContentOverride?:
         cssContentOverride !== undefined
             ? stripComments(cssContentOverride)
             : stripComments(readFileSync(resolve(rootDir, "styles/components.css"), "utf-8"));
-    const ruleMatch = cssContent.match(
-        /\.(?:waveform-btn|pattern-btn|octave-btn)\s+svg[^{}]*\{[^{}]*stroke-width:\s*(\d+)/,
-    );
-    expect(
-        ruleMatch,
-        "Missing stroke-width rule in styles/components.css for button SVGs",
-    ).not.toBeNull();
-    expect(
-        ruleMatch ? Number(ruleMatch[1]) : 0,
-        "Inline button SVG stroke-width in styles/components.css must be 2",
-    ).toBe(2);
+
+    const requiredSelectors = [".waveform-btn svg", ".pattern-btn svg", ".octave-btn svg"];
+    const ruleRegex = /([^{}]+)\{([^{}]+)\}/g;
+    let match: RegExpExecArray | null;
+
+    const declarationsPerSelector = new Map<string, string[]>();
+    for (const sel of requiredSelectors) {
+        declarationsPerSelector.set(sel, []);
+    }
+
+    // biome-ignore lint/suspicious/noAssignInExpressions: standard regex parsing loop
+    while ((match = ruleRegex.exec(cssContent)) !== null) {
+        const rawSelectors = match[1].split(",").map((s) => s.trim().replace(/\s+/g, " "));
+        const declarations = match[2];
+        const strokeWidthMatch = declarations.match(/\bstroke-width:\s*([^;]+)/);
+        if (strokeWidthMatch) {
+            const widthVal = strokeWidthMatch[1].trim();
+            for (const target of requiredSelectors) {
+                if (rawSelectors.some((s) => s === target || s.endsWith(target))) {
+                    declarationsPerSelector.get(target)?.push(widthVal);
+                }
+            }
+        }
+    }
+
+    for (const target of requiredSelectors) {
+        const widths = declarationsPerSelector.get(target) ?? [];
+        expect(
+            widths.length,
+            `Missing stroke-width declaration in styles/components.css for selector "${target}"`,
+        ).toBeGreaterThan(0);
+
+        const effectiveWidth = Number.parseInt(widths[widths.length - 1], 10);
+        expect(
+            effectiveWidth,
+            `Effective stroke-width for "${target}" in styles/components.css must be 2, but resolved to ${widths[widths.length - 1]}`,
+        ).toBe(2);
+    }
 }
 
 /**
@@ -1803,26 +1831,41 @@ describe("SVG Asset Integrity & Viewport Height Utilization", () => {
         ).toThrow('Missing SVG for data-pattern="nestedCommentedPattern"');
     });
 
-    it("verifies stylesheet stroke-width parity and rejects cross-rule bridging or non-2px stroke widths", () => {
+    it("verifies stylesheet stroke-width parity across all icon selectors and rejects cascade overrides or missing declarations", () => {
         assertStylesheetStrokeWidthParity(rootDir);
 
-        const malformedCrossRuleCss = `
-            .waveform-btn svg { width: 1.5rem; height: 1.5rem; }
-            .unrelated-rule { stroke-width: 2; }
-        `;
-        expect(() => assertStylesheetStrokeWidthParity(rootDir, malformedCrossRuleCss)).toThrow(
-            "Missing stroke-width rule in styles/components.css for button SVGs",
-        );
-
-        const wrongStrokeWidthCss = `
-            .waveform-btn svg {
-                width: 1.5rem;
-                height: 1.5rem;
+        const cascadeOverrideCss = `
+            .waveform-btn svg,
+            .pattern-btn svg,
+            .octave-btn svg {
+                stroke-width: 2;
+            }
+            .pattern-btn svg {
                 stroke-width: 4;
             }
         `;
+        expect(() => assertStylesheetStrokeWidthParity(rootDir, cascadeOverrideCss)).toThrow(
+            'Effective stroke-width for ".pattern-btn svg" in styles/components.css must be 2, but resolved to 4',
+        );
+
+        const missingSelectorCss = `
+            .waveform-btn svg {
+                stroke-width: 2;
+            }
+        `;
+        expect(() => assertStylesheetStrokeWidthParity(rootDir, missingSelectorCss)).toThrow(
+            'Missing stroke-width declaration in styles/components.css for selector ".pattern-btn svg"',
+        );
+
+        const wrongStrokeWidthCss = `
+            .waveform-btn svg,
+            .pattern-btn svg,
+            .octave-btn svg {
+                stroke-width: 3;
+            }
+        `;
         expect(() => assertStylesheetStrokeWidthParity(rootDir, wrongStrokeWidthCss)).toThrow(
-            "Inline button SVG stroke-width in styles/components.css must be 2",
+            'Effective stroke-width for ".waveform-btn svg" in styles/components.css must be 2, but resolved to 3',
         );
     });
 
