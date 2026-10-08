@@ -370,7 +370,8 @@ Web Arpeggiator/
 │   │   ├── 0020-bounded-audio-startup-latency-and-lifecycle-benchmarking.md
 │   │   ├── 0021-fluid-wrapping-and-card-aware-responsive-layout.md
 │   │   ├── 0022-persisted-interface-mode.md
-│   │   └── 0023-on-demand-quick-start-and-workflow-guidance.md
+│   │   ├── 0023-harmonic-svg-icon-geometry-and-viewport-height-standardization.md
+│   │   └── 0024-on-demand-quick-start-and-workflow-guidance.md
 │   ├── architecture.md     # Module ownership, runtime flow, and deferred boundaries
 │   ├── development.md      # Local setup, commands, and test-runner guidance
 │   ├── improvements/       # Deferred, scoped follow-up plans
