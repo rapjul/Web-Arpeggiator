@@ -229,3 +229,34 @@ test("starts the Lo-Fi Chillhop preset and applies its tempo and notes", async (
         page.locator('#sound-starters-grid [data-preset-id="factory-lofi-beats"]'),
     ).toHaveClass(/active/);
 });
+
+test("re-opens quick start modal on demand via header Guide button and dismisses without altering state", async ({
+    pwaPage: page,
+}) => {
+    await page.locator("#quick-start-full").click();
+    await page.locator("#quick-start-scratch").click();
+    await expect(page.locator("#quick-start-overlay")).toBeHidden();
+    await expect(page.locator("#play-stop")).toBeEnabled();
+
+    await expect(page.locator("#notes")).toHaveValue("C4 E4 G4");
+    await expect(page.locator("#bpm")).toHaveValue("120");
+
+    await page.locator("#quick-start-help-btn").click();
+    await expect(page.locator("#quick-start-overlay")).toBeVisible();
+    await expect(page.locator("#quick-start-mode-choice")).toBeHidden();
+    await expect(page.locator("#quick-start-mode-content")).toBeVisible();
+    await expect(page.locator("#quick-start-workflow-guide")).toBeVisible();
+    await expect(page.locator("#quick-start-presets-grid .sound-starter-card")).toHaveCount(11);
+
+    await page.locator("#quick-start-close").click();
+    await expect(page.locator("#quick-start-overlay")).toBeHidden();
+    await expect(page.locator("#notes")).toHaveValue("C4 E4 G4");
+    await expect(page.locator("#bpm")).toHaveValue("120");
+    await expect(page.locator("#quick-start-help-btn")).toBeFocused();
+
+    await page.locator("#quick-start-help-btn").click();
+    await expect(page.locator("#quick-start-overlay")).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(page.locator("#quick-start-overlay")).toBeHidden();
+    await expect(page.locator("#quick-start-help-btn")).toBeFocused();
+});
