@@ -829,5 +829,37 @@ describe("onboarding controller", () => {
             expect(onStartFromScratch).toHaveBeenCalledOnce();
             expect(onInterfaceModeSelected).not.toHaveBeenCalled();
         });
+
+        test("preserves active playing state of playStopButton when dismissing or starting from scratch", () => {
+            const memoryStorage = new Map<string, string>([["webArpHasVisited", "true"]]);
+            const mockStorage = {
+                getItem: (key: string) => memoryStorage.get(key) ?? null,
+                setItem: (key: string, value: string) => memoryStorage.set(key, value),
+            };
+
+            const { controller, quickStartHelpButton, quickStartScratchButton, playStopButton } =
+                createFixture({
+                    withModeChoice: true,
+                    storage: mockStorage,
+                    hasHelpButton: true,
+                    hasCloseButton: true,
+                });
+
+            // Simulate active playback on the transport button
+            playStopButton.textContent = "Stop Audio";
+            playStopButton.classList.remove("bg-blue-600", "hover:bg-blue-700");
+            playStopButton.classList.add("bg-yellow-600", "hover:bg-yellow-700");
+
+            controller.initialize();
+            quickStartHelpButton?.dispatchEvent(new Event("click"));
+
+            quickStartScratchButton?.dispatchEvent(new Event("click"));
+
+            // Must preserve Stop Audio text and yellow styling
+            expect(playStopButton.textContent).toBe("Stop Audio");
+            expect(playStopButton.classList.contains("bg-yellow-600")).toBe(true);
+            expect(playStopButton.classList.contains("bg-blue-600")).toBe(false);
+            expect(playStopButton.disabled).toBe(false);
+        });
     });
 });
