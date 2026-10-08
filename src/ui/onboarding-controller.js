@@ -108,9 +108,12 @@ export function createOnboardingController(dependencies) {
     function enablePlayStopButton() {
         if (!playStopButton) return;
         playStopButton.disabled = false;
+        playStopButton.classList.remove("opacity-50", "cursor-not-allowed", "bg-gray-600");
+        if (playStopButton.classList.contains("bg-yellow-600")) {
+            return;
+        }
         playStopButton.textContent = "Start Audio";
         playStopButton.setAttribute("aria-label", "Press to play arpeggio");
-        playStopButton.classList.remove("opacity-50", "cursor-not-allowed", "bg-gray-600");
         playStopButton.classList.add("bg-blue-600", "hover:bg-blue-700");
     }
 
