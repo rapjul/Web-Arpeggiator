@@ -133,4 +133,50 @@ describe("PWA Asset Manifest & SVG Integrity", () => {
             expect(fs.existsSync(path.join(root, asset))).toBe(true);
         }
     });
+
+    it("verifies mobile viewport and Apple PWA configuration in index.html", () => {
+        const indexPath = path.resolve(currentDir, "../../index.html");
+        expect(fs.existsSync(indexPath)).toBe(true);
+        const indexHtml = fs.readFileSync(indexPath, "utf8");
+
+        // Viewport metadata with cover fit for WebKit safe-area support
+        expect(indexHtml).toMatch(
+            /<meta[^>]+name="viewport"[^>]+content="[^"]*viewport-fit=cover[^"]*"/,
+        );
+
+        // Apple standalone PWA configuration
+        expect(indexHtml).toMatch(
+            /<meta[^>]+name="apple-mobile-web-app-capable"[^>]+content="yes"/,
+        );
+        expect(indexHtml).toMatch(
+            /<meta[^>]+name="apple-mobile-web-app-status-bar-style"[^>]+content="black-translucent"/,
+        );
+        expect(indexHtml).toMatch(
+            /<meta[^>]+name="apple-mobile-web-app-title"[^>]+content="Web Arpeggiator"/,
+        );
+
+        // Dynamic viewport height units for mobile browser toolbars
+        expect(indexHtml).toContain("min-h-[100dvh]");
+        expect(indexHtml).toContain("max-h-[90dvh]");
+    });
+
+    it("verifies mobile safe-area insets, touch-action, and overscroll styles", () => {
+        const baseCssPath = path.resolve(currentDir, "../../styles/base.css");
+        const keyboardCssPath = path.resolve(currentDir, "../../styles/keyboard.css");
+        expect(fs.existsSync(baseCssPath)).toBe(true);
+        expect(fs.existsSync(keyboardCssPath)).toBe(true);
+
+        const baseCss = fs.readFileSync(baseCssPath, "utf8");
+        const keyboardCss = fs.readFileSync(keyboardCssPath, "utf8");
+
+        // Top safe-area inset for Dynamic Island / notch clearance
+        expect(baseCss).toContain("padding-top: calc(0.5rem + env(safe-area-inset-top, 0px));");
+
+        // Overscroll bounce prevention and transparent tap highlight
+        expect(baseCss).toContain("overscroll-behavior-y: none;");
+        expect(baseCss).toContain("-webkit-tap-highlight-color: transparent;");
+
+        // Suppressed double-tap zoom delay on piano keys
+        expect(keyboardCss).toMatch(/\.piano-key\s*\{[^}]*touch-action:\s*none;/);
+    });
 });

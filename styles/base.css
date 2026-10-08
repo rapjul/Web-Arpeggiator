@@ -1,3 +1,10 @@
+/* Prevent rubber-band jitter on fixed controls and suppress mobile tap highlight */
+html,
+body {
+  overscroll-behavior-y: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
 /* Card section container configuration for Container Queries */
 section {
   container-type: inline-size;
@@ -156,9 +163,10 @@ select:disabled {
   pointer-events: none;
 }
 
-/* Mobile padding to prevent fixed transport bar from obscuring content */
+/* Mobile padding to prevent fixed transport bar and Dynamic Island/notch from obscuring content */
 @media (max-width: 639px) {
   body {
+    padding-top: calc(0.5rem + env(safe-area-inset-top, 0px));
     padding-bottom: calc(var(--ui-mobile-bar-height) + env(safe-area-inset-bottom, 0px));
   }
 }
