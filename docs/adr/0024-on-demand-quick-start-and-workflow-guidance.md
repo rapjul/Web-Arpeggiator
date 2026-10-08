@@ -1,4 +1,4 @@
-# 0023. On-Demand Quick Start Reopening and Static Creation Workflow Guidance
+# 0024. On-Demand Quick Start Reopening and Static Creation Workflow Guidance
 
 * Status: accepted
 * Deciders: rapjul, Antigravity
