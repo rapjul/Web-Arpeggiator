@@ -414,7 +414,11 @@ export function createOnboardingController(dependencies) {
      * @returns {void}
      */
     function handleScratchClick() {
-        void handleStartFromScratch();
+        if (isOnDemand) {
+            closeQuickStartModal();
+        } else {
+            void handleStartFromScratch();
+        }
     }
 
     /**
