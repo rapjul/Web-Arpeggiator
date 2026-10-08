@@ -1,4 +1,7 @@
 <svg id="pattern-direction-downUp" xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none">
   <title>Pattern Direction: Down-Up</title>
-  <path d="M30 2L16 16 2 2" stroke="#38bdf8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+  <style>
+    :root { color: #38bdf8; }
+  </style>
+  <path d="M4 4 L16 28 L28 4" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
 </svg>

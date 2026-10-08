@@ -369,7 +369,8 @@ Web Arpeggiator/
 │   │   ├── 0019-recommended-effects-tail-strategy.md
 │   │   ├── 0020-bounded-audio-startup-latency-and-lifecycle-benchmarking.md
 │   │   ├── 0021-fluid-wrapping-and-card-aware-responsive-layout.md
-│   │   └── 0022-persisted-interface-mode.md
+│   │   ├── 0022-persisted-interface-mode.md
+│   │   └── 0023-harmonic-svg-icon-geometry-and-viewport-height-standardization.md
 │   ├── architecture.md     # Module ownership, runtime flow, and deferred boundaries
 │   ├── development.md      # Local setup, commands, and test-runner guidance
 │   ├── improvements/       # Deferred, scoped follow-up plans
