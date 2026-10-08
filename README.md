@@ -82,6 +82,8 @@ The custom PWA worker uses Vite PWA's `injectManifest` build integration and Wor
 
 The header-integrated segmented pill control (`[ Simple | Full ]`) remains available at the top of the app. Your choice is remembered in this browser and never changes the musical settings in a preset or session. Moving to Simple controls turns off the hidden virtual keyboard and visualizer and safely stops an active or still-starting real-time recording; if that stop fails, Full controls are restored. Returning to Full controls does not restart them automatically.
 
+The **Guide** button next to the interface mode control allows you to re-open the Quick Start dialog and review the 4-step creation workflow (Sound Selection, Note Definition, Rhythm Shaping, and Performance/Export) at any time without resetting active parameters or playback.
+
 ### Basic Workflow
 
 ```
