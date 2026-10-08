@@ -40,8 +40,9 @@ The application needs an on-demand mechanism to reopen the Quick Start modal at 
    - **Step 4: Perform & Export**: Play live with interactive keyboard feedback, or export offline to WAV, MP3, and MIDI.
    This section uses semantic Tailwind CSS tokens and incurs zero runtime computation, zero DOM listeners, and zero mutable state.
 
-4. **Non-Destructive On-Demand Dismissal & Focus Restoration**:
-   A dedicated close button (`#quick-start-close`) is positioned at the top-right of the modal. When the modal is dismissed while in on-demand mode (via `#quick-start-close`, pressing `Escape`, or clicking the background overlay), the controller cleanly closes the overlay and restores keyboard focus to `#quick-start-help-btn` without calling `onStartFromScratch()`, ensuring active synth parameters, pattern notes, transport playback, and undo/redo histories are completely untouched.
+4. **Non-Destructive On-Demand Dismissal, Activation Coordination & Focus Restoration**:
+   A dedicated close button (`#quick-start-close`) is positioned at the top-right of the modal. When the modal is dismissed while in on-demand mode (via `#quick-start-close`, pressing `Escape`, clicking the background overlay, or clicking `#quick-start-scratch`), the controller cleanly closes the overlay and restores keyboard focus to `#quick-start-help-btn` without calling `onStartFromScratch()`, ensuring active synth parameters, pattern notes, transport playback, undo/redo histories, and URL preset imports are completely untouched.
+   Furthermore, for returning visitors who reopen the Guide prior to starting audio, `#start-overlay` is safely suspended with `is-hidden` so it cannot obscure the guide, and is restored if the modal is dismissed without choosing a preset or starting playback.
 
 5. **First-Visit Invariants Preserved**:
    First-visit onboarding continues to show the interface mode choice first, ensures `markVisited()` is invoked upon dismissal or preset selection, and establishes default audio state when dismissed from scratch.
