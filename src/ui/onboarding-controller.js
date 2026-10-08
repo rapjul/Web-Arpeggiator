@@ -70,6 +70,7 @@ export function createOnboardingController(dependencies) {
     let hasSelectedInterfaceMode = false;
     let lastFocusedTrigger = /** @type {HTMLElement | null} */ (null);
     let isOnDemand = false;
+    let wasStartOverlaySuspended = false;
 
     /**
      * Checks whether a shared preset URL should bypass first-visit onboarding.
@@ -177,6 +178,12 @@ export function createOnboardingController(dependencies) {
         const { onDemand = false } = options;
         if (!quickStartOverlay) return;
         isOnDemand = Boolean(onDemand);
+
+        if (startOverlay && !startOverlay.classList.contains("is-hidden")) {
+            wasStartOverlaySuspended = true;
+            startOverlay.classList.add("is-hidden");
+        }
+
         quickStartOverlay.classList.remove("is-hidden");
         appMain?.setAttribute("inert", "");
 
@@ -261,6 +268,11 @@ export function createOnboardingController(dependencies) {
         }
         lastFocusedTrigger = null;
         isOnDemand = false;
+
+        if (wasStartOverlaySuspended) {
+            startOverlay?.classList.remove("is-hidden");
+            wasStartOverlaySuspended = false;
+        }
     }
 
     /**
@@ -270,6 +282,8 @@ export function createOnboardingController(dependencies) {
      * @returns {Promise<void>}
      */
     async function handleQuickStartPresetClick(preset) {
+        wasStartOverlaySuspended = false;
+        startOverlay?.classList.add("is-hidden");
         closeQuickStartModal();
         enablePlayStopButton();
         markVisited();
@@ -286,9 +300,15 @@ export function createOnboardingController(dependencies) {
      * @returns {Promise<void>}
      */
     async function handleStartFromScratch() {
-        if (!isOnDemand && quickStartModeChoice && !hasSelectedInterfaceMode) {
+        if (isOnDemand) {
+            closeQuickStartModal();
+            return;
+        }
+        if (quickStartModeChoice && !hasSelectedInterfaceMode) {
             onInterfaceModeSelected?.("full");
         }
+        wasStartOverlaySuspended = false;
+        startOverlay?.classList.add("is-hidden");
         closeQuickStartModal();
         if (soundStartersDetails) {
             soundStartersDetails.removeAttribute("open");
@@ -313,6 +333,7 @@ export function createOnboardingController(dependencies) {
      * @returns {Promise<void>}
      */
     async function handleStartOverlayClick() {
+        wasStartOverlaySuspended = false;
         startOverlay?.classList.add("is-hidden");
         try {
             await onStartOverlay();
@@ -366,6 +387,7 @@ export function createOnboardingController(dependencies) {
      * @returns {void}
      */
     function prepareForPlayback() {
+        wasStartOverlaySuspended = false;
         startOverlay?.classList.add("is-hidden");
         closeQuickStartModal();
         enablePlayStopButton();
@@ -517,6 +539,7 @@ export function createOnboardingController(dependencies) {
         quickStartModal?.removeEventListener("keydown", trapQuickStartFocus);
         documentRef.defaultView?.removeEventListener("keydown", handleWindowKeydown);
         quickStartPresetsGrid?.replaceChildren();
+        wasStartOverlaySuspended = false;
         isInitialized = false;
     }
 

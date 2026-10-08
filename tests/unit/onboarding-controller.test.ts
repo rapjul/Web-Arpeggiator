@@ -878,5 +878,81 @@ describe("onboarding controller", () => {
             expect(playStopButton.classList.contains("bg-blue-600")).toBe(false);
             expect(playStopButton.disabled).toBe(false);
         });
+
+        test("suspends startOverlay when guide is opened before audio activation and restores on dismissal", () => {
+            const memoryStorage = new Map<string, string>([["webArpHasVisited", "true"]]);
+            const mockStorage = {
+                getItem: (key: string) => memoryStorage.get(key) ?? null,
+                setItem: (key: string, value: string) => memoryStorage.set(key, value),
+            };
+
+            const {
+                controller,
+                quickStartHelpButton,
+                quickStartCloseButton,
+                quickStartOverlay,
+                startOverlay,
+            } = createFixture({
+                withModeChoice: true,
+                storage: mockStorage,
+                hasHelpButton: true,
+                hasCloseButton: true,
+            });
+
+            controller.initialize();
+            // Start overlay is visible for returning visitor who has not activated audio
+            expect(startOverlay?.classList.contains("is-hidden")).toBe(false);
+
+            // Reopen guide on demand
+            quickStartHelpButton?.dispatchEvent(new Event("click"));
+            expect(quickStartOverlay?.classList.contains("is-hidden")).toBe(false);
+            // Start overlay must be suspended with is-hidden so it does not obscure the guide
+            expect(startOverlay?.classList.contains("is-hidden")).toBe(true);
+
+            // Dismiss the guide via close button without activating audio
+            quickStartCloseButton?.dispatchEvent(new Event("click"));
+            expect(quickStartOverlay?.classList.contains("is-hidden")).toBe(true);
+            // Start overlay must be cleanly restored
+            expect(startOverlay?.classList.contains("is-hidden")).toBe(false);
+        });
+
+        test("keeps startOverlay hidden when selecting a sound starter preset from on-demand guide", async () => {
+            const memoryStorage = new Map<string, string>([["webArpHasVisited", "true"]]);
+            const mockStorage = {
+                getItem: (key: string) => memoryStorage.get(key) ?? null,
+                setItem: (key: string, value: string) => memoryStorage.set(key, value),
+            };
+            const onPresetSelected = vi.fn().mockResolvedValue(undefined);
+
+            const {
+                controller,
+                quickStartHelpButton,
+                quickStartPresetsGrid,
+                quickStartOverlay,
+                startOverlay,
+            } = createFixture({
+                withModeChoice: true,
+                storage: mockStorage,
+                hasHelpButton: true,
+                hasCloseButton: true,
+                onPresetSelected,
+            });
+
+            controller.initialize();
+            expect(startOverlay?.classList.contains("is-hidden")).toBe(false);
+
+            quickStartHelpButton?.dispatchEvent(new Event("click"));
+            expect(startOverlay?.classList.contains("is-hidden")).toBe(true);
+
+            // Select a preset
+            const firstPresetButton = quickStartPresetsGrid?.querySelector("button");
+            firstPresetButton?.dispatchEvent(new Event("click"));
+            await Promise.resolve();
+
+            // Preset selection closes modal and starts audio, so startOverlay remains hidden
+            expect(quickStartOverlay?.classList.contains("is-hidden")).toBe(true);
+            expect(startOverlay?.classList.contains("is-hidden")).toBe(true);
+            expect(onPresetSelected).toHaveBeenCalled();
+        });
     });
 });
