@@ -13,7 +13,7 @@ import { normalizeInterfaceMode } from "@core/interface-mode.js";
 /** @typedef {import("../config/factory-presets.js").FactoryPreset} FactoryPreset */
 
 /** @typedef {object} OnboardingControllerDependencies
- * @property {{startOverlay?: HTMLElement|null, quickStartOverlay?: HTMLElement|null, quickStartModal?: HTMLElement|null, quickStartModeChoice?: HTMLElement|null, quickStartModeContent?: HTMLElement|null, quickStartSimpleButton?: HTMLButtonElement|null, quickStartFullButton?: HTMLButtonElement|null, quickStartPresetsGrid?: HTMLElement|null, quickStartScratchButton?: HTMLButtonElement|null, appMain?: HTMLElement|null, playStopButton?: HTMLButtonElement|null, soundStartersDetails?: HTMLDetailsElement|null}} dom
+ * @property {{startOverlay?: HTMLElement|null, quickStartOverlay?: HTMLElement|null, quickStartModal?: HTMLElement|null, quickStartModeChoice?: HTMLElement|null, quickStartModeContent?: HTMLElement|null, quickStartSimpleButton?: HTMLButtonElement|null, quickStartFullButton?: HTMLButtonElement|null, quickStartPresetsGrid?: HTMLElement|null, quickStartScratchButton?: HTMLButtonElement|null, quickStartHelpButton?: HTMLButtonElement|null, quickStartCloseButton?: HTMLButtonElement|null, appMain?: HTMLElement|null, playStopButton?: HTMLButtonElement|null, soundStartersDetails?: HTMLDetailsElement|null}} dom
  * @property {Document} documentRef
  * @property {Pick<Storage, "getItem"|"setItem">} storage
  * @property {() => string} getLocationSearch
@@ -34,7 +34,7 @@ const SOUND_STARTERS_OPEN_KEY = "soundStartersOpen";
  * settings, or browser-global application state.
  *
  * @param {OnboardingControllerDependencies} dependencies - Injected UI and app behavior.
- * @returns {{initialize: () => void, destroy: () => void, closeQuickStartModal: () => void, prepareForPlayback: () => void}}
+ * @returns {{initialize: () => void, destroy: () => void, openQuickStartModal: (options?: {onDemand?: boolean}) => void, closeQuickStartModal: () => void, prepareForPlayback: () => void}}
  */
 export function createOnboardingController(dependencies) {
     const {
@@ -61,11 +61,15 @@ export function createOnboardingController(dependencies) {
         quickStartOverlay,
         quickStartPresetsGrid,
         quickStartScratchButton,
+        quickStartHelpButton,
+        quickStartCloseButton,
         soundStartersDetails,
         startOverlay,
     } = dom;
     let isInitialized = false;
     let hasSelectedInterfaceMode = false;
+    let lastFocusedTrigger = /** @type {HTMLElement | null} */ (null);
+    let isOnDemand = false;
 
     /**
      * Checks whether a shared preset URL should bypass first-visit onboarding.
@@ -163,12 +167,38 @@ export function createOnboardingController(dependencies) {
     /**
      * Opens the Quick Start modal and makes the application background inert.
      *
+     * @param {{ onDemand?: boolean }} [options={}] - Modal opening options.
      * @returns {void}
      */
-    function openQuickStartModal() {
+    function openQuickStartModal(options = {}) {
+        const { onDemand = false } = options;
         if (!quickStartOverlay) return;
+        isOnDemand = Boolean(onDemand);
         quickStartOverlay.classList.remove("is-hidden");
         appMain?.setAttribute("inert", "");
+
+        if (isOnDemand || storage.getItem(FIRST_VISIT_KEY) === "true") {
+            if (quickStartCloseButton) {
+                quickStartCloseButton.hidden = false;
+                quickStartCloseButton.classList.remove("hidden");
+            }
+            if (quickStartModeChoice && quickStartModeContent) {
+                quickStartModeChoice.hidden = true;
+                quickStartModeChoice.setAttribute("aria-hidden", "true");
+                quickStartModeContent.hidden = false;
+                quickStartModeContent.classList.remove("is-hidden");
+                quickStartModeContent.setAttribute("aria-hidden", "false");
+            }
+            buildQuickStartPresetCards();
+            const firstPresetButton = quickStartPresetsGrid?.querySelector("button");
+            (quickStartCloseButton || firstPresetButton || quickStartScratchButton)?.focus();
+            return;
+        }
+
+        if (quickStartCloseButton) {
+            quickStartCloseButton.hidden = true;
+            quickStartCloseButton.classList.add("hidden");
+        }
         if (quickStartModeChoice && quickStartModeContent) {
             hasSelectedInterfaceMode = false;
             quickStartModeChoice.hidden = false;
@@ -194,6 +224,10 @@ export function createOnboardingController(dependencies) {
         const normalizedMode = normalizeInterfaceMode(mode);
         hasSelectedInterfaceMode = true;
         onInterfaceModeSelected?.(normalizedMode);
+        if (quickStartCloseButton) {
+            quickStartCloseButton.hidden = false;
+            quickStartCloseButton.classList.remove("hidden");
+        }
         if (quickStartModeChoice && quickStartModeContent) {
             quickStartModeChoice.hidden = true;
             quickStartModeChoice.setAttribute("aria-hidden", "true");
@@ -212,8 +246,17 @@ export function createOnboardingController(dependencies) {
      * @returns {void}
      */
     function closeQuickStartModal() {
+        if (quickStartCloseButton) {
+            quickStartCloseButton.hidden = true;
+            quickStartCloseButton.classList.add("hidden");
+        }
         quickStartOverlay?.classList.add("is-hidden");
         appMain?.removeAttribute("inert");
+        if (lastFocusedTrigger && typeof lastFocusedTrigger.focus === "function") {
+            lastFocusedTrigger.focus();
+        }
+        lastFocusedTrigger = null;
+        isOnDemand = false;
     }
 
     /**
@@ -294,7 +337,12 @@ export function createOnboardingController(dependencies) {
             /** @type {NodeListOf<HTMLButtonElement>} */ (
                 quickStartModal.querySelectorAll("button:not([disabled])")
             ),
-        ).filter((element) => !element.closest("[hidden], .is-hidden, [aria-hidden='true']"));
+        ).filter(
+            (element) =>
+                !element.hidden &&
+                !element.classList.contains("hidden") &&
+                !element.closest("[hidden], .is-hidden, [aria-hidden='true']"),
+        );
         if (focusable.length === 0) return;
         const firstElement = focusable[0];
         const lastElement = focusable[focusable.length - 1];
@@ -333,6 +381,8 @@ export function createOnboardingController(dependencies) {
         quickStartScratchButton?.addEventListener("click", handleScratchClick);
         quickStartSimpleButton?.addEventListener("click", handleSimpleModeClick);
         quickStartFullButton?.addEventListener("click", handleFullModeClick);
+        quickStartHelpButton?.addEventListener("click", handleHelpButtonClick);
+        quickStartCloseButton?.addEventListener("click", handleCloseButtonClick);
         quickStartOverlay?.addEventListener("click", handleQuickStartOverlayClick);
         quickStartModal?.addEventListener("keydown", trapQuickStartFocus);
         documentRef.defaultView?.addEventListener("keydown", handleWindowKeydown);
@@ -363,6 +413,31 @@ export function createOnboardingController(dependencies) {
     }
 
     /**
+     * Handles clicking the header help / guide button to reopen on demand.
+     *
+     * @returns {void}
+     */
+    function handleHelpButtonClick() {
+        lastFocusedTrigger =
+            quickStartHelpButton ||
+            (documentRef.activeElement instanceof HTMLElement ? documentRef.activeElement : null);
+        openQuickStartModal({ onDemand: true });
+    }
+
+    /**
+     * Handles clicking the modal close button.
+     *
+     * @returns {void}
+     */
+    function handleCloseButtonClick() {
+        if (isOnDemand) {
+            closeQuickStartModal();
+        } else {
+            void handleStartFromScratch();
+        }
+    }
+
+    /**
      * Handles simple mode button click event.
      *
      * @returns {void}
@@ -387,7 +462,13 @@ export function createOnboardingController(dependencies) {
      * @returns {void}
      */
     function handleQuickStartOverlayClick(event) {
-        if (event.target === quickStartOverlay) void handleStartFromScratch();
+        if (event.target === quickStartOverlay) {
+            if (isOnDemand) {
+                closeQuickStartModal();
+            } else {
+                void handleStartFromScratch();
+            }
+        }
     }
 
     /**
@@ -402,7 +483,11 @@ export function createOnboardingController(dependencies) {
             quickStartOverlay &&
             !quickStartOverlay.classList.contains("is-hidden")
         ) {
-            void handleStartFromScratch();
+            if (isOnDemand) {
+                closeQuickStartModal();
+            } else {
+                void handleStartFromScratch();
+            }
         }
     }
 
@@ -417,6 +502,8 @@ export function createOnboardingController(dependencies) {
         quickStartScratchButton?.removeEventListener("click", handleScratchClick);
         quickStartSimpleButton?.removeEventListener("click", handleSimpleModeClick);
         quickStartFullButton?.removeEventListener("click", handleFullModeClick);
+        quickStartHelpButton?.removeEventListener("click", handleHelpButtonClick);
+        quickStartCloseButton?.removeEventListener("click", handleCloseButtonClick);
         quickStartOverlay?.removeEventListener("click", handleQuickStartOverlayClick);
         quickStartModal?.removeEventListener("keydown", trapQuickStartFocus);
         documentRef.defaultView?.removeEventListener("keydown", handleWindowKeydown);
@@ -424,5 +511,5 @@ export function createOnboardingController(dependencies) {
         isInitialized = false;
     }
 
-    return { initialize, destroy, closeQuickStartModal, prepareForPlayback };
+    return { initialize, destroy, openQuickStartModal, closeQuickStartModal, prepareForPlayback };
 }
