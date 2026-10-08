@@ -767,16 +767,23 @@ describe("onboarding controller", () => {
             };
             const onStartFromScratch = vi.fn();
 
-            const { controller, quickStartOverlay, quickStartCloseButton } = createFixture({
-                withModeChoice: true,
-                storage: mockStorage,
-                hasHelpButton: true,
-                hasCloseButton: true,
-                onStartFromScratch,
-            });
+            const { controller, quickStartOverlay, quickStartSimpleButton, quickStartCloseButton } =
+                createFixture({
+                    withModeChoice: true,
+                    storage: mockStorage,
+                    hasHelpButton: true,
+                    hasCloseButton: true,
+                    onStartFromScratch,
+                });
 
             controller.initialize();
             expect(quickStartOverlay?.classList.contains("is-hidden")).toBe(false);
+            // On first visit before mode selection, close button is hidden to retain 2-element focus trap
+            expect(quickStartCloseButton?.hidden).toBe(true);
+
+            // Select an interface mode to reveal the close button alongside mode content
+            quickStartSimpleButton?.dispatchEvent(new Event("click"));
+            expect(quickStartCloseButton?.hidden).toBe(false);
 
             quickStartCloseButton?.dispatchEvent(new Event("click"));
             expect(onStartFromScratch).toHaveBeenCalledOnce();
@@ -804,7 +811,7 @@ describe("onboarding controller", () => {
             expect(quickStartOverlay?.classList.contains("is-hidden")).toBe(true);
         });
 
-        test("preserves existing interface mode for returning users when starting from scratch", () => {
+        test("dismisses on-demand guide on scratch click without resetting settings or invoking onStartFromScratch", () => {
             const memoryStorage = new Map<string, string>([["webArpHasVisited", "true"]]);
             const mockStorage = {
                 getItem: (key: string) => memoryStorage.get(key) ?? null,
@@ -813,7 +820,13 @@ describe("onboarding controller", () => {
             const onInterfaceModeSelected = vi.fn();
             const onStartFromScratch = vi.fn();
 
-            const { controller, quickStartHelpButton, quickStartScratchButton } = createFixture({
+            const {
+                controller,
+                quickStartOverlay,
+                quickStartHelpButton,
+                quickStartScratchButton,
+                appMain,
+            } = createFixture({
                 withModeChoice: true,
                 storage: mockStorage,
                 hasHelpButton: true,
@@ -824,9 +837,12 @@ describe("onboarding controller", () => {
 
             controller.initialize();
             quickStartHelpButton?.dispatchEvent(new Event("click"));
+            expect(quickStartOverlay?.classList.contains("is-hidden")).toBe(false);
 
             quickStartScratchButton?.dispatchEvent(new Event("click"));
-            expect(onStartFromScratch).toHaveBeenCalledOnce();
+            expect(quickStartOverlay?.classList.contains("is-hidden")).toBe(true);
+            expect(appMain.hasAttribute("inert")).toBe(false);
+            expect(onStartFromScratch).not.toHaveBeenCalled();
             expect(onInterfaceModeSelected).not.toHaveBeenCalled();
         });
 
@@ -846,6 +862,7 @@ describe("onboarding controller", () => {
                 });
 
             // Simulate active playback on the transport button
+            playStopButton.disabled = false;
             playStopButton.textContent = "Stop Audio";
             playStopButton.classList.remove("bg-blue-600", "hover:bg-blue-700");
             playStopButton.classList.add("bg-yellow-600", "hover:bg-yellow-700");
