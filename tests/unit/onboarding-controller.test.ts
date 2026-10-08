@@ -803,5 +803,31 @@ describe("onboarding controller", () => {
             quickStartHelpButton?.dispatchEvent(new Event("click"));
             expect(quickStartOverlay?.classList.contains("is-hidden")).toBe(true);
         });
+
+        test("preserves existing interface mode for returning users when starting from scratch", () => {
+            const memoryStorage = new Map<string, string>([["webArpHasVisited", "true"]]);
+            const mockStorage = {
+                getItem: (key: string) => memoryStorage.get(key) ?? null,
+                setItem: (key: string, value: string) => memoryStorage.set(key, value),
+            };
+            const onInterfaceModeSelected = vi.fn();
+            const onStartFromScratch = vi.fn();
+
+            const { controller, quickStartHelpButton, quickStartScratchButton } = createFixture({
+                withModeChoice: true,
+                storage: mockStorage,
+                hasHelpButton: true,
+                hasCloseButton: true,
+                onInterfaceModeSelected,
+                onStartFromScratch,
+            });
+
+            controller.initialize();
+            quickStartHelpButton?.dispatchEvent(new Event("click"));
+
+            quickStartScratchButton?.dispatchEvent(new Event("click"));
+            expect(onStartFromScratch).toHaveBeenCalledOnce();
+            expect(onInterfaceModeSelected).not.toHaveBeenCalled();
+        });
     });
 });

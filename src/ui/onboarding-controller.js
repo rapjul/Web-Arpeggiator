@@ -177,7 +177,8 @@ export function createOnboardingController(dependencies) {
         quickStartOverlay.classList.remove("is-hidden");
         appMain?.setAttribute("inert", "");
 
-        if (isOnDemand || storage.getItem(FIRST_VISIT_KEY) === "true") {
+        if (isOnDemand || !isFirstVisit()) {
+            hasSelectedInterfaceMode = true;
             if (quickStartCloseButton) {
                 quickStartCloseButton.hidden = false;
                 quickStartCloseButton.classList.remove("hidden");
@@ -282,7 +283,7 @@ export function createOnboardingController(dependencies) {
      * @returns {Promise<void>}
      */
     async function handleStartFromScratch() {
-        if (quickStartModeChoice && !hasSelectedInterfaceMode) {
+        if (!isOnDemand && quickStartModeChoice && !hasSelectedInterfaceMode) {
             onInterfaceModeSelected?.("full");
         }
         closeQuickStartModal();
@@ -390,6 +391,7 @@ export function createOnboardingController(dependencies) {
         if (isFirstVisit()) {
             openQuickStartModal();
         } else {
+            hasSelectedInterfaceMode = true;
             startOverlay?.classList.remove("is-hidden");
         }
     }
