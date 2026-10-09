@@ -63,6 +63,11 @@ function createFixture(
     const quickStartCloseButton = hasCloseButton ? document.createElement("button") : null;
     const startOverlay = hasOverlay ? document.createElement("div") : null;
     startOverlay?.classList.add("is-hidden");
+    const startButton = hasOverlay ? document.createElement("button") : null;
+    if (startButton && startOverlay) {
+        startButton.id = "start-button";
+        startOverlay.appendChild(startButton);
+    }
     const quickStartOverlay = hasOverlay ? document.createElement("div") : null;
     quickStartOverlay?.classList.add("is-hidden");
     const quickStartModal = document.createElement("div");
@@ -153,6 +158,7 @@ function createFixture(
         quickStartScratchButton,
         soundStartersDetails,
         startOverlay,
+        startButton,
         quickStartModeChoice,
         quickStartModeContent,
         quickStartSimpleButton,
@@ -698,6 +704,7 @@ describe("onboarding controller", () => {
                 quickStartHelpButton,
                 quickStartCloseButton,
                 appMain,
+                startOverlay,
             } = createFixture({
                 withModeChoice: true,
                 storage: mockStorage,
@@ -707,6 +714,8 @@ describe("onboarding controller", () => {
             });
 
             controller.initialize();
+            // Simulate audio already enabled in active session so startOverlay is dismissed
+            startOverlay?.classList.add("is-hidden");
             if (quickStartHelpButton) {
                 quickStartHelpButton.focus = vi.fn();
             }
@@ -892,6 +901,7 @@ describe("onboarding controller", () => {
                 quickStartCloseButton,
                 quickStartOverlay,
                 startOverlay,
+                startButton,
             } = createFixture({
                 withModeChoice: true,
                 storage: mockStorage,
@@ -914,6 +924,8 @@ describe("onboarding controller", () => {
             expect(quickStartOverlay?.classList.contains("is-hidden")).toBe(true);
             // Start overlay must be cleanly restored
             expect(startOverlay?.classList.contains("is-hidden")).toBe(false);
+            // Focus must be restored inside the activation overlay rather than on a background control
+            expect(document.activeElement).toBe(startButton);
         });
 
         test("keeps startOverlay hidden when selecting a sound starter preset from on-demand guide", async () => {

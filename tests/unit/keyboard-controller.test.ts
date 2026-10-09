@@ -258,4 +258,47 @@ describe("Virtual Keyboard Controller", () => {
         window.dispatchEvent(new KeyboardEvent("keydown", { key: "1" }));
         expect(mockActions.onNoteAttack).not.toHaveBeenCalled();
     });
+
+    it("suppresses keyboard shortcuts while quickStartOverlay is open, appMain is inert, or focus is in a dialog", () => {
+        const appMain = document.createElement("main");
+        const quickStartOverlay = document.createElement("div");
+        quickStartOverlay.classList.add("is-hidden");
+        const dialog = document.createElement("div");
+        dialog.setAttribute("role", "dialog");
+        const dialogButton = document.createElement("button");
+        dialog.appendChild(dialogButton);
+        document.body.append(appMain, quickStartOverlay, dialog);
+
+        initializeKeyboardControls({
+            state: mockState,
+            dom: {
+                ...mockDom,
+                appMain,
+                quickStartOverlay,
+            },
+            actions: mockActions,
+        });
+
+        mockActions.onNoteAttack.mockClear();
+
+        // 1. When quickStartOverlay is open
+        quickStartOverlay.classList.remove("is-hidden");
+        window.dispatchEvent(new KeyboardEvent("keydown", { key: "z" }));
+        expect(mockActions.onNoteAttack).not.toHaveBeenCalled();
+        quickStartOverlay.classList.add("is-hidden");
+
+        // 2. When appMain is inert
+        appMain.setAttribute("inert", "");
+        window.dispatchEvent(new KeyboardEvent("keydown", { key: "z" }));
+        expect(mockActions.onNoteAttack).not.toHaveBeenCalled();
+        appMain.removeAttribute("inert");
+
+        // 3. When event originates inside a dialog
+        dialogButton.dispatchEvent(new KeyboardEvent("keydown", { key: "z", bubbles: true }));
+        expect(mockActions.onNoteAttack).not.toHaveBeenCalled();
+
+        // Normal keydown works when no modal is open
+        window.dispatchEvent(new KeyboardEvent("keydown", { key: "z" }));
+        expect(mockActions.onNoteAttack).toHaveBeenCalledWith("C4");
+    });
 });

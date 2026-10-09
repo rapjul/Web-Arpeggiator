@@ -824,6 +824,8 @@ function initializeApp() {
     const keyboardControls = initializeKeyboardControls({
         state: appState,
         dom: {
+            appMain,
+            quickStartOverlay,
             keyboardVisual,
             keyboardToggle,
             keyboardToggleStatus,
