@@ -222,6 +222,19 @@ describe("workspace controller", () => {
         expect(onSettingsInteraction).not.toHaveBeenCalled();
     });
 
+    it("does not mark settings interaction on no-op recordCurrentSettings when settings did not change", () => {
+        const onSettingsInteraction = vi.fn();
+        const { controller } = createFixture({ onSettingsInteraction });
+
+        expect(controller.hasUserModifiedSettings()).toBe(false);
+
+        // Recording current settings without modifying values returns false and does not mark interaction
+        const changed = controller.recordCurrentSettings();
+        expect(changed).toBe(false);
+        expect(controller.hasUserModifiedSettings()).toBe(false);
+        expect(onSettingsInteraction).not.toHaveBeenCalled();
+    });
+
     it("supports undo, redo, and checking isAtDefault status", () => {
         const { controller, settings } = createFixture();
 

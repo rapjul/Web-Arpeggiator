@@ -863,7 +863,12 @@ function initializeApp() {
                     // Session restoration error handled on initial startup; proceed with available settings
                 }
             }
-            loadPresetFromUrl();
+            if (hasAppliedOnboardingChoice || !quickStartOverlay?.classList.contains("is-hidden")) {
+                return;
+            }
+            if (!hasUserModifiedSettings) {
+                loadPresetFromUrl();
+            }
             await startPlayback();
         },
         onInterfaceModeSelected: (mode) => {
