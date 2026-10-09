@@ -766,6 +766,13 @@ function initializeApp() {
         presetUrlKeys: PRESET_URL_KEYS,
         factoryPresets: FACTORY_PRESETS,
         onPresetSelected: async (preset) => {
+            if (initialSessionRestorePromise) {
+                try {
+                    await initialSessionRestorePromise;
+                } catch {
+                    // Session restoration error handled on initial startup; proceed with available settings
+                }
+            }
             applySettingsWithHistory(mergeSettings(DEFAULT_SETTINGS, preset.settings));
             if (presetNameInput) {
                 presetNameInput.value = preset.name;
@@ -784,6 +791,13 @@ function initializeApp() {
             scheduleLastSessionSave();
         },
         onStartFromScratch: async () => {
+            if (initialSessionRestorePromise) {
+                try {
+                    await initialSessionRestorePromise;
+                } catch {
+                    // Session restoration error handled on initial startup; proceed with available settings
+                }
+            }
             await startAudio();
             clearMark(STARTUP_MARKS.USER_START_GESTURE);
             loadPresetFromUrl();
@@ -1022,6 +1036,7 @@ function initializeApp() {
             resetDefaultsCancelButton,
             resetDefaultsConfirmButton,
             presetNameInput,
+            quickStartOverlay,
         },
         documentRef,
         getStatus: workspaceController.getStatus,

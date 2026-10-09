@@ -29,6 +29,8 @@ function createFixture(status = {}) {
     const resetDefaultsCancelButton = document.createElement("button");
     const resetDefaultsConfirmButton = document.createElement("button");
     const presetNameInput = document.createElement("input");
+    const quickStartOverlay = document.createElement("div");
+    quickStartOverlay.classList.add("is-hidden");
 
     historyMenu.append(historyMenuUndoButton, historyMenuRedoButton, resetDefaultsButton);
     resetDefaultsDialog.append(resetDefaultsCancelButton, resetDefaultsConfirmButton);
@@ -42,6 +44,7 @@ function createFixture(status = {}) {
         resetDefaultsDesktopButton,
         resetDefaultsOverlay,
         presetNameInput,
+        quickStartOverlay,
     );
 
     const currentStatus = {
@@ -70,6 +73,7 @@ function createFixture(status = {}) {
             resetDefaultsCancelButton,
             resetDefaultsConfirmButton,
             presetNameInput,
+            quickStartOverlay,
         },
         documentRef: document,
         getStatus: () => currentStatus,
@@ -93,6 +97,7 @@ function createFixture(status = {}) {
         onResetDefaults,
         onUndo,
         presetNameInput,
+        quickStartOverlay,
         redoButton,
         resetDefaultsButton,
         resetDefaultsCancelButton,
@@ -226,5 +231,58 @@ describe("history controller", () => {
         window.dispatchEvent(escapeEvent);
         expect(onEscapeReset).toHaveBeenCalled();
         expect(escapeEvent.defaultPrevented).toBe(true);
+    });
+
+    test("suppresses shortcuts and escape reset while appMain is inert or quickStartOverlay is open", () => {
+        const { controller, appMain, quickStartOverlay, onUndo, onRedo, onEscapeReset } =
+            createFixture({ canUndo: true, canRedo: true });
+        controller.initialize();
+
+        // 1. When quickStartOverlay is open
+        quickStartOverlay.classList.remove("is-hidden");
+        const undoInModal = new KeyboardEvent("keydown", {
+            key: "z",
+            ctrlKey: true,
+            cancelable: true,
+        });
+        window.dispatchEvent(undoInModal);
+        expect(onUndo).not.toHaveBeenCalled();
+
+        const redoInModal = new KeyboardEvent("keydown", {
+            key: "z",
+            metaKey: true,
+            shiftKey: true,
+        });
+        window.dispatchEvent(redoInModal);
+        expect(onRedo).not.toHaveBeenCalled();
+
+        onEscapeReset.mockReturnValue(true);
+        const escapeInModal = new KeyboardEvent("keydown", { key: "Escape", cancelable: true });
+        window.dispatchEvent(escapeInModal);
+        expect(onEscapeReset).not.toHaveBeenCalled();
+
+        // Close quickStartOverlay
+        quickStartOverlay.classList.add("is-hidden");
+
+        // 2. When appMain has inert attribute
+        appMain.setAttribute("inert", "");
+        window.dispatchEvent(undoInModal);
+        expect(onUndo).not.toHaveBeenCalled();
+
+        window.dispatchEvent(redoInModal);
+        expect(onRedo).not.toHaveBeenCalled();
+
+        window.dispatchEvent(escapeInModal);
+        expect(onEscapeReset).not.toHaveBeenCalled();
+
+        // Remove inert and verify shortcuts work again
+        appMain.removeAttribute("inert");
+        const workingUndo = new KeyboardEvent("keydown", {
+            key: "z",
+            ctrlKey: true,
+            cancelable: true,
+        });
+        window.dispatchEvent(workingUndo);
+        expect(onUndo).toHaveBeenCalledOnce();
     });
 });

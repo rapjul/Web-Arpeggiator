@@ -9,7 +9,7 @@
 
 /**
  * @typedef {object} HistoryControllerDependencies
- * @property {{appMain?: HTMLElement|null, undoButton?: HTMLButtonElement|null, redoButton?: HTMLButtonElement|null, historyMenuButton?: HTMLButtonElement|null, historyMenu?: HTMLElement|null, historyMenuUndoButton?: HTMLButtonElement|null, historyMenuRedoButton?: HTMLButtonElement|null, resetDefaultsButton?: HTMLButtonElement|null, resetDefaultsDesktopButton?: HTMLButtonElement|null, resetDefaultsOverlay?: HTMLElement|null, resetDefaultsDialog?: HTMLElement|null, resetDefaultsCancelButton?: HTMLButtonElement|null, resetDefaultsConfirmButton?: HTMLButtonElement|null, presetNameInput?: HTMLInputElement|null}} dom
+ * @property {{appMain?: HTMLElement|null, undoButton?: HTMLButtonElement|null, redoButton?: HTMLButtonElement|null, historyMenuButton?: HTMLButtonElement|null, historyMenu?: HTMLElement|null, historyMenuUndoButton?: HTMLButtonElement|null, historyMenuRedoButton?: HTMLButtonElement|null, resetDefaultsButton?: HTMLButtonElement|null, resetDefaultsDesktopButton?: HTMLButtonElement|null, resetDefaultsOverlay?: HTMLElement|null, resetDefaultsDialog?: HTMLElement|null, resetDefaultsCancelButton?: HTMLButtonElement|null, resetDefaultsConfirmButton?: HTMLButtonElement|null, presetNameInput?: HTMLInputElement|null, quickStartOverlay?: HTMLElement|null}} dom
  * @property {Document} documentRef
  * @property {() => {canUndo: boolean, canRedo: boolean, isAtDefault: boolean}} getStatus
  * @property {() => void} onUndo
@@ -35,6 +35,7 @@ export function createHistoryController(dependencies) {
         historyMenuRedoButton,
         historyMenuUndoButton,
         presetNameInput,
+        quickStartOverlay,
         redoButton,
         resetDefaultsButton,
         resetDefaultsCancelButton,
@@ -175,6 +176,13 @@ export function createHistoryController(dependencies) {
             event.preventDefault();
             setHistoryMenuOpen(false);
             historyMenuButton?.focus();
+            return;
+        }
+
+        if (
+            appMain?.hasAttribute("inert") ||
+            (quickStartOverlay && !quickStartOverlay.classList.contains("is-hidden"))
+        ) {
             return;
         }
 
