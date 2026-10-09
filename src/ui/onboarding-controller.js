@@ -188,7 +188,9 @@ export function createOnboardingController(dependencies) {
         appMain?.setAttribute("inert", "");
 
         if (isOnDemand || !isFirstVisit()) {
-            hasSelectedInterfaceMode = true;
+            if (!isFirstVisit()) {
+                hasSelectedInterfaceMode = true;
+            }
             if (quickStartCloseButton) {
                 quickStartCloseButton.hidden = false;
                 quickStartCloseButton.classList.remove("hidden");
