@@ -978,22 +978,32 @@ describe("onboarding controller", () => {
                 setItem: (key: string, value: string) => memoryStorage.set(key, value),
             };
 
-            const { controller, quickStartOverlay, quickStartCloseButton, playStopButton } =
-                createFixture({
-                    withModeChoice: true,
-                    storage: mockStorage,
-                    hasHelpButton: true,
-                    hasCloseButton: true,
-                });
+            const {
+                controller,
+                quickStartOverlay,
+                quickStartFullButton,
+                quickStartCloseButton,
+                playStopButton,
+            } = createFixture({
+                withModeChoice: true,
+                storage: mockStorage,
+                hasHelpButton: true,
+                hasCloseButton: true,
+            });
 
             expect(playStopButton).not.toBeNull();
             if (!playStopButton) throw new Error("playStopButton fixture missing");
 
             controller.initialize();
             expect(quickStartOverlay?.classList.contains("is-hidden")).toBe(false);
+            expect(quickStartCloseButton?.hidden).toBe(true);
+
+            // Select interface mode on first visit to reveal the close button
+            quickStartFullButton?.click();
+            expect(quickStartCloseButton?.hidden).toBe(false);
 
             // Close button clicked on first visit
-            quickStartCloseButton?.dispatchEvent(new Event("click"));
+            quickStartCloseButton?.click();
             await Promise.resolve();
 
             expect(quickStartOverlay?.classList.contains("is-hidden")).toBe(true);
