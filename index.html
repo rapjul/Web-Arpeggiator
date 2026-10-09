@@ -2,7 +2,10 @@
 <html lang="en">
     <head>
         <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta
+            name="viewport"
+            content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+        />
         <title>Web Arpeggiator</title>
         <meta
             name="description"
@@ -14,11 +17,14 @@
         <link rel="icon" type="image/png" sizes="512x512" href="/images/icons/pwa-icon-512.png" />
         <link rel="apple-touch-icon" href="/images/icons/pwa-icon-192.png" />
         <meta name="theme-color" content="#0f172a" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-title" content="Web Arpeggiator" />
         <link rel="stylesheet" href="./styles.css" />
     </head>
 
     <body
-        class="bg-gray-900 text-gray-100 min-h-screen font-sans flex items-center justify-center px-2 pt-2 sm:p-4"
+        class="bg-gray-900 text-gray-100 min-h-[100dvh] font-sans flex items-center justify-center px-2 pt-2 sm:p-4"
     >
         <!-- Fullscreen overlay for Quick Start onboarding (first-time visitors) -->
         <div
@@ -27,7 +33,7 @@
         >
             <div
                 id="quick-start-modal"
-                class="quick-start-modal bg-gray-800 rounded-2xl shadow-2xl max-w-lg md:max-w-2xl w-full p-6 sm:p-8 text-center max-h-[90vh] flex flex-col overflow-y-auto"
+                class="quick-start-modal bg-gray-800 rounded-2xl shadow-2xl max-w-lg md:max-w-2xl w-full p-6 sm:p-8 text-center max-h-[90dvh] flex flex-col overflow-y-auto"
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="quick-start-title"

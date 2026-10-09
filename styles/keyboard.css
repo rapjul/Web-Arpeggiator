@@ -48,6 +48,7 @@
 
 /* KEYBOARD KEY STYLES - General properties for both white and black keys */
 .piano-key {
+  touch-action: none;
   appearance: none;
   background: none;
   border: none;
