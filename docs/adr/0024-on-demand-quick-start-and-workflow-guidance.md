@@ -51,7 +51,7 @@ The application needs an on-demand mechanism to reopen the Quick Start modal at 
 
 * Returning users can easily explore curated factory sound starters and review the core creation workflow at any point during a session.
 * Developers can inspect and test the Quick Start dialog without wiping `localStorage` or resetting browser state.
-* Zero runtime listeners or mutable state tracking eliminate memory leaks, performance overhead, and state synchronization bugs.
+* A static, purely declarative workflow guide card incurs zero runtime computation, DOM listeners, or progression state tracking, eliminating the state synchronization bugs of active walkthroughs.
 * Modal dismissal for returning users is completely non-destructive to active musical compositions.
 * The WAI-ARIA focus trap properly contains keyboard navigation within the dialog and returns focus to the header trigger upon closing.
 

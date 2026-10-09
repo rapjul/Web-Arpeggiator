@@ -4,7 +4,7 @@ import { createWorkspaceController } from "@ui/workspace-controller.js";
 
 const controllers: Array<ReturnType<typeof createWorkspaceController>> = [];
 
-function createFixture(overrides: Record<string, unknown> = {}) {
+function createFixture(overrides: Partial<Parameters<typeof createWorkspaceController>[0]> = {}) {
     const bpmInput = document.createElement("input");
     bpmInput.id = "bpm";
     const presetNameInput = document.createElement("input");
