@@ -706,8 +706,44 @@ function initializeApp() {
 
     const { getAllSettings, loadAllSettings, generateFilename } = settingsManager;
 
+    /**
+     * Maximum milliseconds to wait for initial session restoration before proceeding
+     * with user onboarding actions, preventing storage contention (such as a blocked
+     * IndexedDB upgrade) from stranding audio activation or preset application.
+     */
+    const INITIAL_SESSION_RESTORE_TIMEOUT_MS = 1000;
+
     /** @type {Promise<void>|null} */
     let initialSessionRestorePromise = null;
+    let hasAppliedOnboardingChoice = false;
+
+    /**
+     * Waits for initial session restoration up to a bounded timeout, ensuring
+     * that storage contention or a blocked IndexedDB upgrade cannot hang onboarding.
+     *
+     * @param {number} [timeoutMs=INITIAL_SESSION_RESTORE_TIMEOUT_MS] - Maximum wait time in milliseconds.
+     * @returns {Promise<void>} Resolves when initial session restore completes or timeout elapses.
+     */
+    function waitForInitialSessionRestore(timeoutMs = INITIAL_SESSION_RESTORE_TIMEOUT_MS) {
+        if (!initialSessionRestorePromise) {
+            return Promise.resolve();
+        }
+        let timeoutId;
+        const timeoutPromise = new Promise((resolve) => {
+            timeoutId = setTimeout(() => {
+                log(
+                    `Initial session restore wait timed out after ${timeoutMs}ms; proceeding with user action.`,
+                );
+                resolve(undefined);
+            }, timeoutMs);
+        });
+
+        return Promise.race([initialSessionRestorePromise, timeoutPromise]).finally(() => {
+            if (timeoutId !== undefined) {
+                clearTimeout(timeoutId);
+            }
+        });
+    }
 
     /** @type {ReturnType<typeof createInterfaceModeSafetyController>|null} */
     let interfaceModeSafetyController = null;
@@ -766,9 +802,15 @@ function initializeApp() {
         presetUrlKeys: PRESET_URL_KEYS,
         factoryPresets: FACTORY_PRESETS,
         onPresetSelected: async (preset) => {
+            hasAppliedOnboardingChoice = true;
+            try {
+                await startAudio();
+            } catch (error) {
+                console.warn("AudioContext failed to start on quick start click:", error);
+            }
             if (initialSessionRestorePromise) {
                 try {
-                    await initialSessionRestorePromise;
+                    await waitForInitialSessionRestore();
                 } catch {
                     // Session restoration error handled on initial startup; proceed with available settings
                 }
@@ -782,7 +824,6 @@ function initializeApp() {
             }
             setActiveSoundStarterCard(preset.id);
             try {
-                await startAudio();
                 await startPlayback();
                 showToast(`Started with preset: ${preset.name}`, "success");
             } catch (error) {
@@ -791,26 +832,36 @@ function initializeApp() {
             scheduleLastSessionSave();
         },
         onStartFromScratch: async () => {
+            hasAppliedOnboardingChoice = true;
+            try {
+                await startAudio();
+            } catch (error) {
+                console.warn("AudioContext failed to start on scratch click:", error);
+            }
             if (initialSessionRestorePromise) {
                 try {
-                    await initialSessionRestorePromise;
+                    await waitForInitialSessionRestore();
                 } catch {
                     // Session restoration error handled on initial startup; proceed with available settings
                 }
             }
-            await startAudio();
             clearMark(STARTUP_MARKS.USER_START_GESTURE);
             loadPresetFromUrl();
         },
         onStartOverlay: async () => {
+            try {
+                await startAudio();
+            } catch (error) {
+                console.warn("AudioContext failed to start on start overlay click:", error);
+            }
             if (initialSessionRestorePromise) {
                 try {
-                    await initialSessionRestorePromise;
+                    await waitForInitialSessionRestore();
                 } catch {
                     // Session restoration error handled on initial startup; proceed with available settings
                 }
             }
-            await startAudio();
+            hasAppliedOnboardingChoice = true;
             loadPresetFromUrl();
             await startPlayback();
         },
@@ -1007,6 +1058,7 @@ function initializeApp() {
         getSelectedPatternDirection: patternControlsController.getSelectedPatternDirection,
         setSelectedPatternDirection: patternControlsController.setSelectedPatternDirection,
         clearActiveSoundStarterCard,
+        canRestoreSession: () => !hasAppliedOnboardingChoice,
         onStaticLoopChange: requestStaticLoopRender,
         onHistoryChange: () => historyController?.updateControls(),
         showToast,
@@ -1725,7 +1777,9 @@ function initializeApp() {
     void refreshSavedPresetList();
     initialSessionRestorePromise = restoreLastSession()
         .then(() => {
-            loadPresetFromUrl();
+            if (!hasAppliedOnboardingChoice) {
+                loadPresetFromUrl();
+            }
         })
         .catch((error) => {
             log("Could not restore initial session:", error);
