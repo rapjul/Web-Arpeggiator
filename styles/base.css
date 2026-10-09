@@ -163,11 +163,20 @@ select:disabled {
   pointer-events: none;
 }
 
-/* Mobile padding to prevent fixed transport bar and Dynamic Island/notch from obscuring content */
-@media (max-width: 639px) {
+/* Screen and viewport padding with safe area compensation for all widths and orientations */
+body {
+  padding-top: max(0.5rem, calc(0.5rem + env(safe-area-inset-top, 0px)));
+  padding-right: max(0.5rem, calc(0.5rem + env(safe-area-inset-right, 0px)));
+  padding-bottom: calc(var(--ui-mobile-bar-height) + env(safe-area-inset-bottom, 0px));
+  padding-left: max(0.5rem, calc(0.5rem + env(safe-area-inset-left, 0px)));
+}
+
+@media (min-width: 640px) {
   body {
-    padding-top: calc(0.5rem + env(safe-area-inset-top, 0px));
-    padding-bottom: calc(var(--ui-mobile-bar-height) + env(safe-area-inset-bottom, 0px));
+    padding-top: max(1rem, calc(0.5rem + env(safe-area-inset-top, 0px)));
+    padding-right: max(1rem, calc(0.5rem + env(safe-area-inset-right, 0px)));
+    padding-bottom: max(1rem, calc(0.5rem + env(safe-area-inset-bottom, 0px)));
+    padding-left: max(1rem, calc(0.5rem + env(safe-area-inset-left, 0px)));
   }
 }
 
