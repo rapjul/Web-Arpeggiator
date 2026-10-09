@@ -804,6 +804,15 @@ function initializeApp() {
         factoryPresets: FACTORY_PRESETS,
         onPresetSelected: async (preset) => {
             hasAppliedOnboardingChoice = true;
+            applySettingsWithHistory(mergeSettings(DEFAULT_SETTINGS, preset.settings));
+            if (presetNameInput) {
+                presetNameInput.value = preset.name;
+            }
+            if (savedPresetSelect) {
+                savedPresetSelect.value = preset.id;
+            }
+            setActiveSoundStarterCard(preset.id);
+
             try {
                 await startAudio();
             } catch (error) {
@@ -816,14 +825,6 @@ function initializeApp() {
                     // Session restoration error handled on initial startup; proceed with available settings
                 }
             }
-            applySettingsWithHistory(mergeSettings(DEFAULT_SETTINGS, preset.settings));
-            if (presetNameInput) {
-                presetNameInput.value = preset.name;
-            }
-            if (savedPresetSelect) {
-                savedPresetSelect.value = preset.id;
-            }
-            setActiveSoundStarterCard(preset.id);
             try {
                 await startPlayback();
                 showToast(`Started with preset: ${preset.name}`, "success");

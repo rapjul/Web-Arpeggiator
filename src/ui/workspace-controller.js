@@ -171,16 +171,18 @@ export function createWorkspaceController(dependencies) {
 
     /** @returns {void} */
     function undoSettings() {
-        markUserSettingsInteraction();
         const settings = settingsHistory.undo();
-        if (settings) applyHistorySnapshot(settings);
+        if (!settings) return;
+        markUserSettingsInteraction();
+        applyHistorySnapshot(settings);
     }
 
     /** @returns {void} */
     function redoSettings() {
-        markUserSettingsInteraction();
         const settings = settingsHistory.redo();
-        if (settings) applyHistorySnapshot(settings);
+        if (!settings) return;
+        markUserSettingsInteraction();
+        applyHistorySnapshot(settings);
     }
 
     /** @returns {void} */
