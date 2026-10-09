@@ -4,7 +4,7 @@ import { createWorkspaceController } from "@ui/workspace-controller.js";
 
 const controllers: Array<ReturnType<typeof createWorkspaceController>> = [];
 
-function createFixture() {
+function createFixture(overrides: Record<string, unknown> = {}) {
     const bpmInput = document.createElement("input");
     bpmInput.id = "bpm";
     const presetNameInput = document.createElement("input");
@@ -55,6 +55,7 @@ function createFixture() {
         onStaticLoopChange,
         onHistoryChange,
         showToast,
+        ...overrides,
     });
     controller.initialize(settings);
     controllers.push(controller);
@@ -142,6 +143,19 @@ describe("workspace controller", () => {
         expect(loadAllSettings).toHaveBeenCalledWith(restored);
         expect(onHistoryChange).toHaveBeenCalled();
         expect(controller.getStatus()).toMatchObject({ canUndo: true });
+    });
+
+    it("skips restoring session when canRestoreSession guard returns false", async () => {
+        const allowRestore = false;
+        const { controller, loadAllSettings, store, settings } = createFixture({
+            canRestoreSession: () => allowRestore,
+        });
+        store.loadLastSession.mockResolvedValueOnce({
+            settings: { ...settings(), bpm: 150 },
+        });
+
+        await expect(controller.restoreLastSession()).resolves.toBe(true);
+        expect(loadAllSettings).not.toHaveBeenCalled();
     });
 
     it("supports undo, redo, and checking isAtDefault status", () => {

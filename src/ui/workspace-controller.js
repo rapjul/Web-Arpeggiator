@@ -33,6 +33,7 @@ import { createSessionManager } from "@storage/session-manager.js";
  * @property {() => string|null} getSelectedPatternDirection - Reads the selected pattern direction.
  * @property {(direction: string) => void} setSelectedPatternDirection - Restores the selected direction.
  * @property {() => void} clearActiveSoundStarterCard - Clears factory-preset selection.
+ * @property {(() => boolean)} [canRestoreSession] - Optional guard determining whether a pending session restore may still apply settings.
  * @property {() => void} onStaticLoopChange - Requests a debounced static loop refresh.
  * @property {() => void} onHistoryChange - Refreshes the history UI.
  * @property {(message: string, type: "success"|"info"|"error") => void} showToast - Displays user feedback.
@@ -55,6 +56,7 @@ export function createWorkspaceController(dependencies) {
         getSelectedPatternDirection,
         setSelectedPatternDirection,
         clearActiveSoundStarterCard,
+        canRestoreSession,
         onStaticLoopChange,
         onHistoryChange,
         showToast,
@@ -81,6 +83,9 @@ export function createWorkspaceController(dependencies) {
         getSettings: getAllSettings,
         getHistoryState: () => settingsHistory.exportState(),
         onRestore: (settings, persistedHistory) => {
+            if (typeof canRestoreSession === "function" && !canRestoreSession()) {
+                return;
+            }
             const result = loadAllSettings(settings);
             if (!result.ok) return;
 
