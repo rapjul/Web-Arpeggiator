@@ -263,16 +263,19 @@ export function createOnboardingController(dependencies) {
         }
         quickStartOverlay?.classList.add("is-hidden");
         appMain?.removeAttribute("inert");
-        if (lastFocusedTrigger && typeof lastFocusedTrigger.focus === "function") {
-            lastFocusedTrigger.focus();
-        }
-        lastFocusedTrigger = null;
-        isOnDemand = false;
 
         if (wasStartOverlaySuspended) {
             startOverlay?.classList.remove("is-hidden");
             wasStartOverlaySuspended = false;
+            const startButton = startOverlay?.querySelector("button");
+            (startButton || startOverlay)?.focus();
+            lastFocusedTrigger = null;
+        } else if (lastFocusedTrigger && typeof lastFocusedTrigger.focus === "function") {
+            lastFocusedTrigger.focus();
+            lastFocusedTrigger = null;
         }
+
+        isOnDemand = false;
     }
 
     /**

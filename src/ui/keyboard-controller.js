@@ -11,6 +11,8 @@
 
 /**
  * @typedef {object} KeyboardControllerDom
+ * @property {HTMLElement} [appMain]
+ * @property {HTMLElement} [quickStartOverlay]
  * @property {HTMLElement} keyboardVisual
  * @property {HTMLInputElement} keyboardToggle
  * @property {HTMLElement} keyboardToggleStatus
@@ -342,7 +344,11 @@ export function initializeKeyboardControls(context) {
         if (
             event.repeat ||
             (event.target instanceof HTMLElement && event.target.tagName === "INPUT") ||
-            !dom.keyboardToggle.checked
+            !dom.keyboardToggle.checked ||
+            dom.appMain?.hasAttribute("inert") ||
+            (dom.quickStartOverlay && !dom.quickStartOverlay.classList.contains("is-hidden")) ||
+            (event.target instanceof Element &&
+                Boolean(event.target.closest("[role='dialog'], [aria-modal='true']")))
         )
             return;
         const key = event.key.toLowerCase();
