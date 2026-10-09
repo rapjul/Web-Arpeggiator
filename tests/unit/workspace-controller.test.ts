@@ -235,6 +235,18 @@ describe("workspace controller", () => {
         expect(onSettingsInteraction).not.toHaveBeenCalled();
     });
 
+    it("does not mark settings interaction when applySettingsWithHistory fails", () => {
+        const onSettingsInteraction = vi.fn();
+        const { controller } = createFixture({ onSettingsInteraction });
+
+        expect(controller.hasUserModifiedSettings()).toBe(false);
+
+        const result = controller.applySettingsWithHistory(null);
+        expect(result.ok).toBe(false);
+        expect(controller.hasUserModifiedSettings()).toBe(false);
+        expect(onSettingsInteraction).not.toHaveBeenCalled();
+    });
+
     it("supports undo, redo, and checking isAtDefault status", () => {
         const { controller, settings } = createFixture();
 

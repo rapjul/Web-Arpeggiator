@@ -160,10 +160,10 @@ export function createWorkspaceController(dependencies) {
      * @returns {{ok: boolean, error?: unknown}} Application result.
      */
     function applySettingsWithHistory(settings, options = {}) {
-        markUserSettingsInteraction();
         settingsHistory.endTransaction();
         const result = loadAllSettings(settings, options);
         if (!result.ok) return result;
+        markUserSettingsInteraction();
         recordCurrentSettings();
         clearActiveSoundStarterCard();
         sessionManager.scheduleSave();
