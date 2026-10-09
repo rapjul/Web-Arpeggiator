@@ -142,11 +142,13 @@ export function createWorkspaceController(dependencies) {
      * @returns {boolean} Whether history changed.
      */
     function recordCurrentSettings(coalesced = false) {
-        markUserSettingsInteraction();
         const changed = coalesced
             ? settingsHistory.recordCoalesced(getAllSettings())
             : settingsHistory.record(getAllSettings());
-        if (changed) onHistoryChange();
+        if (changed) {
+            markUserSettingsInteraction();
+            onHistoryChange();
+        }
         return changed;
     }
 

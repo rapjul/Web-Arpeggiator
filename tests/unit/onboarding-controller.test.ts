@@ -970,5 +970,78 @@ describe("onboarding controller", () => {
             expect(startOverlay?.classList.contains("is-hidden")).toBe(true);
             expect(onPresetSelected).toHaveBeenCalled();
         });
+
+        it("restores focus to playStopButton when closing modal on first visit without prior trigger element", async () => {
+            const memoryStorage = new Map<string, string>();
+            const mockStorage = {
+                getItem: (key: string) => memoryStorage.get(key) ?? null,
+                setItem: (key: string, value: string) => memoryStorage.set(key, value),
+            };
+
+            const { controller, quickStartOverlay, quickStartCloseButton, playStopButton } =
+                createFixture({
+                    withModeChoice: true,
+                    storage: mockStorage,
+                    hasHelpButton: true,
+                    hasCloseButton: true,
+                });
+
+            expect(playStopButton).not.toBeNull();
+            if (!playStopButton) throw new Error("playStopButton fixture missing");
+
+            controller.initialize();
+            expect(quickStartOverlay?.classList.contains("is-hidden")).toBe(false);
+
+            // Close button clicked on first visit
+            quickStartCloseButton?.dispatchEvent(new Event("click"));
+            await Promise.resolve();
+
+            expect(quickStartOverlay?.classList.contains("is-hidden")).toBe(true);
+            expect(document.activeElement).toBe(playStopButton);
+        });
+
+        it("prevents reopening Quick Start modal while audio activation from start overlay is in flight", async () => {
+            const memoryStorage = new Map<string, string>([["webArpHasVisited", "true"]]);
+            const mockStorage = {
+                getItem: (key: string) => memoryStorage.get(key) ?? null,
+                setItem: (key: string, value: string) => memoryStorage.set(key, value),
+            };
+
+            let resolveStartOverlay: (() => void) | null = null;
+            const onStartOverlay = vi.fn().mockReturnValue(
+                new Promise<void>((resolve) => {
+                    resolveStartOverlay = resolve;
+                }),
+            );
+
+            const { controller, quickStartHelpButton, quickStartOverlay, startOverlay } =
+                createFixture({
+                    withModeChoice: true,
+                    storage: mockStorage,
+                    hasHelpButton: true,
+                    onStartOverlay,
+                });
+
+            controller.initialize();
+            expect(startOverlay?.classList.contains("is-hidden")).toBe(false);
+
+            // User clicks activation overlay start button
+            startOverlay?.dispatchEvent(new Event("click"));
+
+            expect(onStartOverlay).toHaveBeenCalled();
+            expect(startOverlay?.classList.contains("is-hidden")).toBe(true);
+
+            // While audio activation is in flight, clicking guide help button does not open modal
+            quickStartHelpButton?.dispatchEvent(new Event("click"));
+            expect(quickStartOverlay?.classList.contains("is-hidden")).toBe(true);
+
+            // Finish activation
+            resolveStartOverlay?.();
+            await Promise.resolve();
+
+            // Once activation completes, guide help button works normally
+            quickStartHelpButton?.dispatchEvent(new Event("click"));
+            expect(quickStartOverlay?.classList.contains("is-hidden")).toBe(false);
+        });
     });
 });

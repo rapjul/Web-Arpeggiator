@@ -71,6 +71,7 @@ export function createOnboardingController(dependencies) {
     let lastFocusedTrigger = /** @type {HTMLElement | null} */ (null);
     let isOnDemand = false;
     let wasStartOverlaySuspended = false;
+    let isActivatingAudio = false;
 
     /**
      * Checks whether a shared preset URL should bypass first-visit onboarding.
@@ -176,7 +177,7 @@ export function createOnboardingController(dependencies) {
      */
     function openQuickStartModal(options = {}) {
         const { onDemand = false } = options;
-        if (!quickStartOverlay) return;
+        if (!quickStartOverlay || isActivatingAudio) return;
         isOnDemand = Boolean(onDemand);
 
         if (startOverlay && !startOverlay.classList.contains("is-hidden")) {
@@ -276,6 +277,9 @@ export function createOnboardingController(dependencies) {
         } else if (lastFocusedTrigger && typeof lastFocusedTrigger.focus === "function") {
             lastFocusedTrigger.focus();
             lastFocusedTrigger = null;
+        } else if (playStopButton) {
+            enablePlayStopButton();
+            playStopButton.focus();
         }
 
         isOnDemand = false;
@@ -339,6 +343,7 @@ export function createOnboardingController(dependencies) {
      * @returns {Promise<void>}
      */
     async function handleStartOverlayClick() {
+        isActivatingAudio = true;
         wasStartOverlaySuspended = false;
         startOverlay?.classList.add("is-hidden");
         try {
@@ -346,6 +351,7 @@ export function createOnboardingController(dependencies) {
         } catch (error) {
             logger.warn("Could not start audio from the activation overlay:", error);
         } finally {
+            isActivatingAudio = false;
             if (playStopButton) {
                 playStopButton.disabled = false;
                 playStopButton.classList.remove("opacity-50", "cursor-not-allowed", "bg-gray-600");
@@ -455,6 +461,7 @@ export function createOnboardingController(dependencies) {
      * @returns {void}
      */
     function handleHelpButtonClick() {
+        if (isActivatingAudio) return;
         lastFocusedTrigger =
             quickStartHelpButton ||
             (documentRef.activeElement instanceof HTMLElement ? documentRef.activeElement : null);
