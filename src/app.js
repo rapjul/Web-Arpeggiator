@@ -716,6 +716,7 @@ function initializeApp() {
     /** @type {Promise<void>|null} */
     let initialSessionRestorePromise = null;
     let hasAppliedOnboardingChoice = false;
+    let hasUserModifiedSettings = false;
 
     /**
      * Waits for initial session restoration up to a bounded timeout, ensuring
@@ -1057,7 +1058,10 @@ function initializeApp() {
         getSelectedPatternDirection: patternControlsController.getSelectedPatternDirection,
         setSelectedPatternDirection: patternControlsController.setSelectedPatternDirection,
         clearActiveSoundStarterCard,
-        canRestoreSession: () => !hasAppliedOnboardingChoice,
+        canRestoreSession: () => !hasAppliedOnboardingChoice && !hasUserModifiedSettings,
+        onSettingsInteraction: () => {
+            hasUserModifiedSettings = true;
+        },
         onStaticLoopChange: requestStaticLoopRender,
         onHistoryChange: () => historyController?.updateControls(),
         showToast,
@@ -1776,7 +1780,7 @@ function initializeApp() {
     void refreshSavedPresetList();
     initialSessionRestorePromise = restoreLastSession()
         .then(() => {
-            if (!hasAppliedOnboardingChoice) {
+            if (!hasAppliedOnboardingChoice && !hasUserModifiedSettings) {
                 loadPresetFromUrl();
             }
         })
