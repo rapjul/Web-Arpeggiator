@@ -861,7 +861,6 @@ function initializeApp() {
                     // Session restoration error handled on initial startup; proceed with available settings
                 }
             }
-            hasAppliedOnboardingChoice = true;
             loadPresetFromUrl();
             await startPlayback();
         },
