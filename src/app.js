@@ -855,6 +855,7 @@ function initializeApp() {
                 await startAudio();
             } catch (error) {
                 console.warn("AudioContext failed to start on start overlay click:", error);
+                return;
             }
             if (initialSessionRestorePromise) {
                 try {
