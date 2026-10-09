@@ -158,6 +158,53 @@ describe("workspace controller", () => {
         expect(loadAllSettings).not.toHaveBeenCalled();
     });
 
+    it("supersedes pending session restoration and notifies onSettingsInteraction when user modifies settings", async () => {
+        const onSettingsInteraction = vi.fn();
+        let resolveRestore: ((value: unknown) => void) | null = null;
+        const store = {
+            saveLastSession: vi.fn().mockResolvedValue(undefined),
+            loadLastSession: vi.fn().mockReturnValue(
+                new Promise((resolve) => {
+                    resolveRestore = resolve;
+                }),
+            ),
+        };
+
+        const { bpmInput, controller, loadAllSettings, settings } = createFixture({
+            getPresetStore: () => store,
+            onSettingsInteraction,
+        });
+
+        expect(controller.hasUserModifiedSettings()).toBe(false);
+        expect(onSettingsInteraction).not.toHaveBeenCalled();
+
+        // Start pending session restore in background
+        const restorePromise = controller.restoreLastSession();
+
+        // User interacts with a control before delayed restore completes
+        settings().bpm = 145;
+        bpmInput.dispatchEvent(new Event("input", { bubbles: true }));
+
+        expect(controller.hasUserModifiedSettings()).toBe(true);
+        expect(onSettingsInteraction).toHaveBeenCalledTimes(1);
+
+        // Subsequent user interaction does not re-trigger callback once marked
+        settings().bpm = 150;
+        bpmInput.dispatchEvent(new Event("change", { bubbles: true }));
+        expect(onSettingsInteraction).toHaveBeenCalledTimes(1);
+
+        // Delayed storage read now resolves with stale saved settings
+        loadAllSettings.mockClear();
+        resolveRestore?.({
+            settings: { ...settings(), bpm: 90 },
+            history: null,
+        });
+        await expect(restorePromise).resolves.toBe(true);
+
+        // Stale saved settings must NOT be loaded over user's edits
+        expect(loadAllSettings).not.toHaveBeenCalled();
+    });
+
     it("supports undo, redo, and checking isAtDefault status", () => {
         const { controller, settings } = createFixture();
 
