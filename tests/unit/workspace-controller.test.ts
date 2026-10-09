@@ -182,14 +182,16 @@ describe("workspace controller", () => {
         const restorePromise = controller.restoreLastSession();
 
         // User interacts with a control before delayed restore completes
-        settings().bpm = 145;
+        bpmInput.value = "145";
+        loadAllSettings({ bpm: 145 });
         bpmInput.dispatchEvent(new Event("input", { bubbles: true }));
 
         expect(controller.hasUserModifiedSettings()).toBe(true);
         expect(onSettingsInteraction).toHaveBeenCalledTimes(1);
 
         // Subsequent user interaction does not re-trigger callback once marked
-        settings().bpm = 150;
+        bpmInput.value = "150";
+        loadAllSettings({ bpm: 150 });
         bpmInput.dispatchEvent(new Event("change", { bubbles: true }));
         expect(onSettingsInteraction).toHaveBeenCalledTimes(1);
 
