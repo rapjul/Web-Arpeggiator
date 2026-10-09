@@ -871,6 +871,10 @@ describe("onboarding controller", () => {
                 });
 
             // Simulate active playback on the transport button
+            expect(playStopButton).not.toBeNull();
+            if (!playStopButton) {
+                throw new Error("playStopButton fixture missing");
+            }
             playStopButton.disabled = false;
             playStopButton.textContent = "Stop Audio";
             playStopButton.classList.remove("bg-blue-600", "hover:bg-blue-700");

@@ -187,8 +187,9 @@ export function createOnboardingController(dependencies) {
         quickStartOverlay.classList.remove("is-hidden");
         appMain?.setAttribute("inert", "");
 
-        if (isOnDemand || !isFirstVisit()) {
-            if (!isFirstVisit()) {
+        const firstVisit = isFirstVisit();
+        if (isOnDemand || !firstVisit) {
+            if (!firstVisit) {
                 hasSelectedInterfaceMode = true;
             }
             if (quickStartCloseButton) {

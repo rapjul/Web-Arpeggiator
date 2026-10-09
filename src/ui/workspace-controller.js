@@ -186,7 +186,6 @@ export function createWorkspaceController(dependencies) {
     /** @returns {void} */
     function resetAllSettings() {
         if (!defaultSettings) return;
-        markUserSettingsInteraction();
         applySettingsWithHistory(defaultSettings);
         showToast("Restored default settings. Undo is available.", "info");
     }
@@ -199,7 +198,6 @@ export function createWorkspaceController(dependencies) {
      */
     function resetIndividualSettings(definition) {
         if (!defaultSettings) return;
-        markUserSettingsInteraction();
         const next = { ...getAllSettings() };
         definition.keys.forEach((key) => {
             next[key] = defaultSettings[key];
