@@ -4,7 +4,7 @@ import { createWorkspaceController } from "@ui/workspace-controller.js";
 
 const controllers: Array<ReturnType<typeof createWorkspaceController>> = [];
 
-function createFixture() {
+function createFixture(overrides: Partial<Parameters<typeof createWorkspaceController>[0]> = {}) {
     const bpmInput = document.createElement("input");
     bpmInput.id = "bpm";
     const presetNameInput = document.createElement("input");
@@ -55,6 +55,7 @@ function createFixture() {
         onStaticLoopChange,
         onHistoryChange,
         showToast,
+        ...overrides,
     });
     controller.initialize(settings);
     controllers.push(controller);
@@ -142,6 +143,108 @@ describe("workspace controller", () => {
         expect(loadAllSettings).toHaveBeenCalledWith(restored);
         expect(onHistoryChange).toHaveBeenCalled();
         expect(controller.getStatus()).toMatchObject({ canUndo: true });
+    });
+
+    it("skips restoring session when canRestoreSession guard returns false", async () => {
+        const allowRestore = false;
+        const { controller, loadAllSettings, store, settings } = createFixture({
+            canRestoreSession: () => allowRestore,
+        });
+        store.loadLastSession.mockResolvedValueOnce({
+            settings: { ...settings(), bpm: 150 },
+        });
+
+        await expect(controller.restoreLastSession()).resolves.toBe(true);
+        expect(loadAllSettings).not.toHaveBeenCalled();
+    });
+
+    it("supersedes pending session restoration and notifies onSettingsInteraction when user modifies settings", async () => {
+        const onSettingsInteraction = vi.fn();
+        let resolveRestore: ((value: unknown) => void) | null = null;
+        const store = {
+            saveLastSession: vi.fn().mockResolvedValue(undefined),
+            loadLastSession: vi.fn().mockReturnValue(
+                new Promise((resolve) => {
+                    resolveRestore = resolve;
+                }),
+            ),
+        };
+
+        const { bpmInput, controller, loadAllSettings, settings } = createFixture({
+            getPresetStore: () => store,
+            onSettingsInteraction,
+        });
+
+        expect(controller.hasUserModifiedSettings()).toBe(false);
+        expect(onSettingsInteraction).not.toHaveBeenCalled();
+
+        // Start pending session restore in background
+        const restorePromise = controller.restoreLastSession();
+
+        // User interacts with a control before delayed restore completes
+        bpmInput.value = "145";
+        loadAllSettings({ bpm: 145 });
+        bpmInput.dispatchEvent(new Event("input", { bubbles: true }));
+
+        expect(controller.hasUserModifiedSettings()).toBe(true);
+        expect(onSettingsInteraction).toHaveBeenCalledTimes(1);
+
+        // Subsequent user interaction does not re-trigger callback once marked
+        bpmInput.value = "150";
+        loadAllSettings({ bpm: 150 });
+        bpmInput.dispatchEvent(new Event("change", { bubbles: true }));
+        expect(onSettingsInteraction).toHaveBeenCalledTimes(1);
+
+        // Delayed storage read now resolves with stale saved settings
+        loadAllSettings.mockClear();
+        resolveRestore?.({
+            settings: { ...settings(), bpm: 90 },
+            history: null,
+        });
+        await expect(restorePromise).resolves.toBe(true);
+
+        // Stale saved settings must NOT be loaded over user's edits
+        expect(loadAllSettings).not.toHaveBeenCalled();
+    });
+
+    it("does not mark settings interaction on no-op undo or redo when history is empty", () => {
+        const onSettingsInteraction = vi.fn();
+        const { controller } = createFixture({ onSettingsInteraction });
+
+        expect(controller.hasUserModifiedSettings()).toBe(false);
+
+        controller.undoSettings();
+        expect(controller.hasUserModifiedSettings()).toBe(false);
+        expect(onSettingsInteraction).not.toHaveBeenCalled();
+
+        controller.redoSettings();
+        expect(controller.hasUserModifiedSettings()).toBe(false);
+        expect(onSettingsInteraction).not.toHaveBeenCalled();
+    });
+
+    it("does not mark settings interaction on no-op recordCurrentSettings when settings did not change", () => {
+        const onSettingsInteraction = vi.fn();
+        const { controller } = createFixture({ onSettingsInteraction });
+
+        expect(controller.hasUserModifiedSettings()).toBe(false);
+
+        // Recording current settings without modifying values returns false and does not mark interaction
+        const changed = controller.recordCurrentSettings();
+        expect(changed).toBe(false);
+        expect(controller.hasUserModifiedSettings()).toBe(false);
+        expect(onSettingsInteraction).not.toHaveBeenCalled();
+    });
+
+    it("does not mark settings interaction when applySettingsWithHistory fails", () => {
+        const onSettingsInteraction = vi.fn();
+        const { controller } = createFixture({ onSettingsInteraction });
+
+        expect(controller.hasUserModifiedSettings()).toBe(false);
+
+        const result = controller.applySettingsWithHistory(null);
+        expect(result.ok).toBe(false);
+        expect(controller.hasUserModifiedSettings()).toBe(false);
+        expect(onSettingsInteraction).not.toHaveBeenCalled();
     });
 
     it("supports undo, redo, and checking isAtDefault status", () => {

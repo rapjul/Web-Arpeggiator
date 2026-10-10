@@ -370,7 +370,8 @@ Web Arpeggiator/
 │   │   ├── 0020-bounded-audio-startup-latency-and-lifecycle-benchmarking.md
 │   │   ├── 0021-fluid-wrapping-and-card-aware-responsive-layout.md
 │   │   ├── 0022-persisted-interface-mode.md
-│   │   └── 0023-harmonic-svg-icon-geometry-and-viewport-height-standardization.md
+│   │   ├── 0023-harmonic-svg-icon-geometry-and-viewport-height-standardization.md
+│   │   └── 0024-on-demand-quick-start-and-workflow-guidance.md
 │   ├── architecture.md     # Module ownership, runtime flow, and deferred boundaries
 │   ├── development.md      # Local setup, commands, and test-runner guidance
 │   ├── improvements/       # Deferred, scoped follow-up plans
@@ -421,7 +422,7 @@ Web Arpeggiator/
 │   │   ├── interface-mode-safety-controller.js # Stops transient tools hidden by Simple mode
 │   │   ├── keyboard-controller.js # Virtual keyboard input handling
 │   │   ├── note-step-controller.js # Pattern-step indicator rendering and updates
-│   │   ├── onboarding-controller.js # First-visit and quick-start onboarding flow
+│   │   ├── onboarding-controller.js # First-visit onboarding, on-demand guide reopening, and workflow reference
 │   │   ├── pattern-controls-controller.js # Notes, scale, octave, interval, and gate controls
 │   │   ├── preset-controller.js # Factory and saved preset list interactions
 │   │   ├── preset-workflow-controller.js # URL, file, and browser-preset workflows

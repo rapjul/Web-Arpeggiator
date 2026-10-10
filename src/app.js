@@ -332,6 +332,8 @@ function initializeApp() {
         quickStartFullButton,
         quickStartPresetsGrid,
         quickStartScratchButton,
+        quickStartHelpButton,
+        quickStartCloseButton,
         startOverlay,
         chordConflictOverlay,
         chordConflictDialog,
@@ -704,8 +706,45 @@ function initializeApp() {
 
     const { getAllSettings, loadAllSettings, generateFilename } = settingsManager;
 
+    /**
+     * Maximum milliseconds to wait for initial session restoration before proceeding
+     * with user onboarding actions, preventing storage contention (such as a blocked
+     * IndexedDB upgrade) from stranding audio activation or preset application.
+     */
+    const INITIAL_SESSION_RESTORE_TIMEOUT_MS = 1000;
+
     /** @type {Promise<void>|null} */
     let initialSessionRestorePromise = null;
+    let hasAppliedOnboardingChoice = false;
+    let hasUserModifiedSettings = false;
+
+    /**
+     * Waits for initial session restoration up to a bounded timeout, ensuring
+     * that storage contention or a blocked IndexedDB upgrade cannot hang onboarding.
+     *
+     * @param {number} [timeoutMs=INITIAL_SESSION_RESTORE_TIMEOUT_MS] - Maximum wait time in milliseconds.
+     * @returns {Promise<void>} Resolves when initial session restore completes or timeout elapses.
+     */
+    function waitForInitialSessionRestore(timeoutMs = INITIAL_SESSION_RESTORE_TIMEOUT_MS) {
+        if (!initialSessionRestorePromise) {
+            return Promise.resolve();
+        }
+        let timeoutId;
+        const timeoutPromise = new Promise((resolve) => {
+            timeoutId = setTimeout(() => {
+                log(
+                    `Initial session restore wait timed out after ${timeoutMs}ms; proceeding with user action.`,
+                );
+                resolve(undefined);
+            }, timeoutMs);
+        });
+
+        return Promise.race([initialSessionRestorePromise, timeoutPromise]).finally(() => {
+            if (timeoutId !== undefined) {
+                clearTimeout(timeoutId);
+            }
+        });
+    }
 
     /** @type {ReturnType<typeof createInterfaceModeSafetyController>|null} */
     let interfaceModeSafetyController = null;
@@ -750,6 +789,8 @@ function initializeApp() {
             quickStartOverlay,
             quickStartPresetsGrid,
             quickStartScratchButton,
+            quickStartHelpButton,
+            quickStartCloseButton,
             soundStartersDetails,
             startOverlay,
         },
@@ -762,6 +803,7 @@ function initializeApp() {
         presetUrlKeys: PRESET_URL_KEYS,
         factoryPresets: FACTORY_PRESETS,
         onPresetSelected: async (preset) => {
+            hasAppliedOnboardingChoice = true;
             applySettingsWithHistory(mergeSettings(DEFAULT_SETTINGS, preset.settings));
             if (presetNameInput) {
                 presetNameInput.value = preset.name;
@@ -770,8 +812,20 @@ function initializeApp() {
                 savedPresetSelect.value = preset.id;
             }
             setActiveSoundStarterCard(preset.id);
+
             try {
                 await startAudio();
+            } catch (error) {
+                console.warn("AudioContext failed to start on quick start click:", error);
+            }
+            if (initialSessionRestorePromise) {
+                try {
+                    await waitForInitialSessionRestore();
+                } catch {
+                    // Session restoration error handled on initial startup; proceed with available settings
+                }
+            }
+            try {
                 await startPlayback();
                 showToast(`Started with preset: ${preset.name}`, "success");
             } catch (error) {
@@ -780,20 +834,42 @@ function initializeApp() {
             scheduleLastSessionSave();
         },
         onStartFromScratch: async () => {
-            await startAudio();
-            clearMark(STARTUP_MARKS.USER_START_GESTURE);
-            loadPresetFromUrl();
-        },
-        onStartOverlay: async () => {
+            hasAppliedOnboardingChoice = true;
+            try {
+                await startAudio();
+            } catch (error) {
+                console.warn("AudioContext failed to start on scratch click:", error);
+            }
             if (initialSessionRestorePromise) {
                 try {
-                    await initialSessionRestorePromise;
+                    await waitForInitialSessionRestore();
                 } catch {
                     // Session restoration error handled on initial startup; proceed with available settings
                 }
             }
-            await startAudio();
+            clearMark(STARTUP_MARKS.USER_START_GESTURE);
             loadPresetFromUrl();
+        },
+        onStartOverlay: async () => {
+            try {
+                await startAudio();
+            } catch (error) {
+                console.warn("AudioContext failed to start on start overlay click:", error);
+                return;
+            }
+            if (initialSessionRestorePromise) {
+                try {
+                    await waitForInitialSessionRestore();
+                } catch {
+                    // Session restoration error handled on initial startup; proceed with available settings
+                }
+            }
+            if (hasAppliedOnboardingChoice || !quickStartOverlay?.classList.contains("is-hidden")) {
+                return;
+            }
+            if (!hasUserModifiedSettings) {
+                loadPresetFromUrl();
+            }
             await startPlayback();
         },
         onInterfaceModeSelected: (mode) => {
@@ -806,6 +882,8 @@ function initializeApp() {
     const keyboardControls = initializeKeyboardControls({
         state: appState,
         dom: {
+            appMain,
+            quickStartOverlay,
             keyboardVisual,
             keyboardToggle,
             keyboardToggleStatus,
@@ -987,6 +1065,10 @@ function initializeApp() {
         getSelectedPatternDirection: patternControlsController.getSelectedPatternDirection,
         setSelectedPatternDirection: patternControlsController.setSelectedPatternDirection,
         clearActiveSoundStarterCard,
+        canRestoreSession: () => !hasAppliedOnboardingChoice && !hasUserModifiedSettings,
+        onSettingsInteraction: () => {
+            hasUserModifiedSettings = true;
+        },
         onStaticLoopChange: requestStaticLoopRender,
         onHistoryChange: () => historyController?.updateControls(),
         showToast,
@@ -1018,6 +1100,7 @@ function initializeApp() {
             resetDefaultsCancelButton,
             resetDefaultsConfirmButton,
             presetNameInput,
+            quickStartOverlay,
         },
         documentRef,
         getStatus: workspaceController.getStatus,
@@ -1704,7 +1787,9 @@ function initializeApp() {
     void refreshSavedPresetList();
     initialSessionRestorePromise = restoreLastSession()
         .then(() => {
-            loadPresetFromUrl();
+            if (!hasAppliedOnboardingChoice && !hasUserModifiedSettings) {
+                loadPresetFromUrl();
+            }
         })
         .catch((error) => {
             log("Could not restore initial session:", error);

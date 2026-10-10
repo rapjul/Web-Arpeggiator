@@ -33,6 +33,8 @@ import { createSessionManager } from "@storage/session-manager.js";
  * @property {() => string|null} getSelectedPatternDirection - Reads the selected pattern direction.
  * @property {(direction: string) => void} setSelectedPatternDirection - Restores the selected direction.
  * @property {() => void} clearActiveSoundStarterCard - Clears factory-preset selection.
+ * @property {(() => boolean)} [canRestoreSession] - Optional guard determining whether a pending session restore may still apply settings.
+ * @property {(() => void)} [onSettingsInteraction] - Optional callback notified when user settings interactions occur.
  * @property {() => void} onStaticLoopChange - Requests a debounced static loop refresh.
  * @property {() => void} onHistoryChange - Refreshes the history UI.
  * @property {(message: string, type: "success"|"info"|"error") => void} showToast - Displays user feedback.
@@ -42,7 +44,7 @@ import { createSessionManager } from "@storage/session-manager.js";
  * Creates the workspace history and autosave coordinator.
  *
  * @param {WorkspaceControllerDependencies} dependencies - Injected workspace behavior.
- * @returns {{initialize: (defaults: Record<string, unknown>) => void, destroy: () => void, getStatus: () => {canUndo: boolean, canRedo: boolean, isAtDefault: boolean}, applySettingsWithHistory: (settings: Record<string, unknown>, options?: Record<string, unknown>) => {ok: boolean, error?: unknown}, recordCurrentSettings: (coalesced?: boolean) => boolean, undoSettings: () => void, redoSettings: () => void, resetAllSettings: () => void, resetIndividualSettings: (definition: ResetDefinition) => void, getFocusedResetDefinition: (element: Element|null) => ResetDefinition|null, scheduleLastSessionSave: () => void, restoreLastSession: () => Promise<boolean>}}
+ * @returns {{initialize: (defaults: Record<string, unknown>) => void, destroy: () => void, getStatus: () => {canUndo: boolean, canRedo: boolean, isAtDefault: boolean}, applySettingsWithHistory: (settings: Record<string, unknown>, options?: Record<string, unknown>) => {ok: boolean, error?: unknown}, recordCurrentSettings: (coalesced?: boolean) => boolean, undoSettings: () => void, redoSettings: () => void, resetAllSettings: () => void, resetIndividualSettings: (definition: ResetDefinition) => void, getFocusedResetDefinition: (element: Element|null) => ResetDefinition|null, scheduleLastSessionSave: () => void, restoreLastSession: () => Promise<boolean>, hasUserModifiedSettings: () => boolean}}
  */
 export function createWorkspaceController(dependencies) {
     const {
@@ -55,6 +57,8 @@ export function createWorkspaceController(dependencies) {
         getSelectedPatternDirection,
         setSelectedPatternDirection,
         clearActiveSoundStarterCard,
+        canRestoreSession,
+        onSettingsInteraction,
         onStaticLoopChange,
         onHistoryChange,
         showToast,
@@ -63,6 +67,20 @@ export function createWorkspaceController(dependencies) {
     const settingsHistory = createSettingsHistory();
     let defaultSettings = null;
     let listenerController = null;
+    let hasUserModifiedSettings = false;
+
+    /**
+     * Marks that the user has interacted with or modified workspace settings,
+     * superseding any pending initial session restoration.
+     *
+     * @returns {void}
+     */
+    function markUserSettingsInteraction() {
+        if (!hasUserModifiedSettings) {
+            hasUserModifiedSettings = true;
+            onSettingsInteraction?.();
+        }
+    }
 
     /**
      * Keeps the captured default independent from the settings object supplied
@@ -81,6 +99,12 @@ export function createWorkspaceController(dependencies) {
         getSettings: getAllSettings,
         getHistoryState: () => settingsHistory.exportState(),
         onRestore: (settings, persistedHistory) => {
+            if (hasUserModifiedSettings) {
+                return;
+            }
+            if (typeof canRestoreSession === "function" && !canRestoreSession()) {
+                return;
+            }
             const result = loadAllSettings(settings);
             if (!result.ok) return;
 
@@ -121,7 +145,10 @@ export function createWorkspaceController(dependencies) {
         const changed = coalesced
             ? settingsHistory.recordCoalesced(getAllSettings())
             : settingsHistory.record(getAllSettings());
-        if (changed) onHistoryChange();
+        if (changed) {
+            markUserSettingsInteraction();
+            onHistoryChange();
+        }
         return changed;
     }
 
@@ -136,6 +163,7 @@ export function createWorkspaceController(dependencies) {
         settingsHistory.endTransaction();
         const result = loadAllSettings(settings, options);
         if (!result.ok) return result;
+        markUserSettingsInteraction();
         recordCurrentSettings();
         clearActiveSoundStarterCard();
         sessionManager.scheduleSave();
@@ -146,13 +174,17 @@ export function createWorkspaceController(dependencies) {
     /** @returns {void} */
     function undoSettings() {
         const settings = settingsHistory.undo();
-        if (settings) applyHistorySnapshot(settings);
+        if (!settings) return;
+        markUserSettingsInteraction();
+        applyHistorySnapshot(settings);
     }
 
     /** @returns {void} */
     function redoSettings() {
         const settings = settingsHistory.redo();
-        if (settings) applyHistorySnapshot(settings);
+        if (!settings) return;
+        markUserSettingsInteraction();
+        applyHistorySnapshot(settings);
     }
 
     /** @returns {void} */
@@ -359,5 +391,6 @@ export function createWorkspaceController(dependencies) {
         getFocusedResetDefinition,
         scheduleLastSessionSave: sessionManager.scheduleSave,
         restoreLastSession: sessionManager.restoreSession,
+        hasUserModifiedSettings: () => hasUserModifiedSettings,
     };
 }

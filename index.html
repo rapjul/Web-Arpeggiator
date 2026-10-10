@@ -39,12 +39,26 @@
                 aria-labelledby="quick-start-title"
                 tabindex="-1"
             >
-                <h2
-                    id="quick-start-title"
-                    class="text-2xl font-bold text-blue-400 mb-2"
-                >
-                    Web Arpeggiator
-                </h2>
+                <div class="relative mb-2">
+                    <h2
+                        id="quick-start-title"
+                        class="text-2xl font-bold text-blue-400"
+                    >
+                        Web Arpeggiator
+                    </h2>
+                    <button
+                        id="quick-start-close"
+                        type="button"
+                        hidden
+                        class="hidden absolute right-0 top-0 inline-flex items-center justify-center rounded-lg p-1.5 text-gray-400 hover:bg-gray-700 hover:text-white transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                        aria-label="Close Quick Start guide"
+                        title="Close guide"
+                    >
+                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
                 <p class="text-gray-300 mb-1">
                     Create mesmerizing musical patterns in your browser.
                 </p>
@@ -92,6 +106,57 @@
                     >
                         <!-- Populated dynamically from FACTORY_PRESETS in js/app.js -->
                     </div>
+                    <!-- Static 4-Step Creation Workflow Guide -->
+                    <section
+                        id="quick-start-workflow-guide"
+                        class="mb-5 rounded-xl border border-gray-700/60 bg-gray-900/40 p-4 text-left"
+                        aria-labelledby="quick-start-workflow-heading"
+                    >
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 id="quick-start-workflow-heading" class="text-sm font-semibold text-gray-200">
+                                Creation Workflow
+                            </h3>
+                            <span class="text-xs text-gray-400">4 Core Steps</span>
+                        </div>
+                        <div class="grid grid-cols-1 gap-2.5 sm:grid-cols-2 text-xs">
+                            <div class="rounded-lg border border-gray-700/40 bg-gray-800/60 p-3">
+                                <div class="flex items-center gap-2 font-semibold text-blue-400 mb-1">
+                                    <span class="flex h-5 w-5 items-center justify-center rounded-full bg-blue-500/20 text-xs font-bold">1</span>
+                                    <span>Choose a Sound</span>
+                                </div>
+                                <p class="text-gray-300">
+                                    Start with a curated Sound Starter preset, or craft custom synth waveforms and envelopes in Full mode.
+                                </p>
+                            </div>
+                            <div class="rounded-lg border border-gray-700/40 bg-gray-800/60 p-3">
+                                <div class="flex items-center gap-2 font-semibold text-blue-400 mb-1">
+                                    <span class="flex h-5 w-5 items-center justify-center rounded-full bg-blue-500/20 text-xs font-bold">2</span>
+                                    <span>Define Notes</span>
+                                </div>
+                                <p class="text-gray-300">
+                                    Input note sequences, tap scale-aware chord starters, or generate randomized melodies.
+                                </p>
+                            </div>
+                            <div class="rounded-lg border border-gray-700/40 bg-gray-800/60 p-3">
+                                <div class="flex items-center gap-2 font-semibold text-blue-400 mb-1">
+                                    <span class="flex h-5 w-5 items-center justify-center rounded-full bg-blue-500/20 text-xs font-bold">3</span>
+                                    <span>Shape the Rhythm</span>
+                                </div>
+                                <p class="text-gray-300">
+                                    Dial in BPM tempo, note intervals, gate sustain, and choose from 13 pattern directions.
+                                </p>
+                            </div>
+                            <div class="rounded-lg border border-gray-700/40 bg-gray-800/60 p-3">
+                                <div class="flex items-center gap-2 font-semibold text-blue-400 mb-1">
+                                    <span class="flex h-5 w-5 items-center justify-center rounded-full bg-blue-500/20 text-xs font-bold">4</span>
+                                    <span>Perform &amp; Export</span>
+                                </div>
+                                <p class="text-gray-300">
+                                    Listen with live visualizer feedback, jam on the keyboard, and export offline to WAV, MP3, or MIDI.
+                                </p>
+                            </div>
+                        </div>
+                    </section>
                     <button
                         id="quick-start-scratch"
                         type="button"
@@ -278,36 +343,56 @@
                     Web Arpeggiator
                 </h1>
 
-                <div
-                    id="interface-mode-controls"
-                    role="radiogroup"
-                    aria-labelledby="interface-mode-label"
-                    class="interface-mode-segmented inline-flex items-center self-center sm:self-auto rounded-lg bg-gray-900/80 p-1 border border-gray-700 shadow-inner"
-                >
-                    <span class="sr-only" id="interface-mode-label">Interface mode:</span>
-                    <!-- biome-ignore lint/a11y/useSemanticElements: Segmented pill tabs follow WAI-ARIA radiogroup pattern with button elements -->
-                    <button
-                        type="button"
-                        id="interface-mode-simple-btn"
-                        role="radio"
-                        aria-checked="false"
-                        tabindex="-1"
-                        data-interface-mode="simple"
-                        class="interface-mode-btn px-3 py-1.5 text-xs font-semibold rounded-md transition-all text-gray-300 hover:text-white"
+                <div class="flex items-center gap-2 self-center sm:self-auto">
+                    <div
+                        id="interface-mode-controls"
+                        role="radiogroup"
+                        aria-labelledby="interface-mode-label"
+                        class="interface-mode-segmented inline-flex items-center rounded-lg bg-gray-900/80 p-1 border border-gray-700 shadow-inner"
                     >
-                        Simple
-                    </button>
-                    <!-- biome-ignore lint/a11y/useSemanticElements: Segmented pill tabs follow WAI-ARIA radiogroup pattern with button elements -->
+                        <span class="sr-only" id="interface-mode-label">Interface mode:</span>
+                        <!-- biome-ignore lint/a11y/useSemanticElements: Segmented pill tabs follow WAI-ARIA radiogroup pattern with button elements -->
+                        <button
+                            type="button"
+                            id="interface-mode-simple-btn"
+                            role="radio"
+                            aria-checked="false"
+                            tabindex="-1"
+                            data-interface-mode="simple"
+                            data-placement="bottom"
+                            data-tooltip="Streamlined view: focus on presets, notes, and tempo without advanced sound design"
+                            class="interface-mode-btn has-custom-tooltip px-3 py-1.5 text-xs font-semibold rounded-md transition-all text-gray-300 hover:text-white"
+                        >
+                            Simple
+                        </button>
+                        <!-- biome-ignore lint/a11y/useSemanticElements: Segmented pill tabs follow WAI-ARIA radiogroup pattern with button elements -->
+                        <button
+                            type="button"
+                            id="interface-mode-full-btn"
+                            role="radio"
+                            aria-checked="true"
+                            tabindex="0"
+                            data-interface-mode="full"
+                            data-placement="bottom"
+                            data-tooltip="Complete sound design: customize synthesizers, envelopes, directions, effects, and visualizer"
+                            class="interface-mode-btn has-custom-tooltip px-3 py-1.5 text-xs font-semibold rounded-md transition-all bg-blue-600 text-white shadow-sm"
+                        >
+                            Full
+                        </button>
+                    </div>
+
                     <button
+                        id="quick-start-help-btn"
                         type="button"
-                        id="interface-mode-full-btn"
-                        role="radio"
-                        aria-checked="true"
-                        tabindex="0"
-                        data-interface-mode="full"
-                        class="interface-mode-btn px-3 py-1.5 text-xs font-semibold rounded-md transition-all bg-blue-600 text-white shadow-sm"
+                        data-placement="bottom"
+                        data-tooltip="Reopen Quick Start presets and 4-step creation workflow guide"
+                        class="has-custom-tooltip inline-flex items-center gap-1.5 rounded-lg border border-gray-700 bg-gray-900/80 px-2.5 py-1.5 text-xs font-semibold text-gray-300 transition-all hover:border-gray-600 hover:bg-gray-800 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                        aria-label="Open Quick Start and Workflow Guide"
                     >
-                        Full
+                        <svg class="h-3.5 w-3.5 text-blue-400" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span>Guide</span>
                     </button>
                 </div>
             </header>

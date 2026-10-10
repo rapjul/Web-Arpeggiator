@@ -11,6 +11,8 @@ interface FixtureOptions {
     hasPlayStopButton?: boolean;
     hasPresetsGrid?: boolean;
     hasOverlay?: boolean;
+    hasHelpButton?: boolean;
+    hasCloseButton?: boolean;
     onPresetSelected?: ReturnType<typeof vi.fn>;
     onStartFromScratch?: ReturnType<typeof vi.fn>;
     onStartOverlay?: ReturnType<typeof vi.fn>;
@@ -43,6 +45,8 @@ function createFixture(
         hasPlayStopButton = true,
         hasPresetsGrid = true,
         hasOverlay = true,
+        hasHelpButton = false,
+        hasCloseButton = false,
         onPresetSelected = vi.fn(),
         onStartFromScratch = vi.fn(),
         onStartOverlay = vi.fn(),
@@ -55,11 +59,21 @@ function createFixture(
         playStopButton.disabled = true;
         playStopButton.classList.add("opacity-50", "cursor-not-allowed", "bg-gray-600");
     }
+    const quickStartHelpButton = hasHelpButton ? document.createElement("button") : null;
+    const quickStartCloseButton = hasCloseButton ? document.createElement("button") : null;
     const startOverlay = hasOverlay ? document.createElement("div") : null;
     startOverlay?.classList.add("is-hidden");
+    const startButton = hasOverlay ? document.createElement("button") : null;
+    if (startButton && startOverlay) {
+        startButton.id = "start-button";
+        startOverlay.appendChild(startButton);
+    }
     const quickStartOverlay = hasOverlay ? document.createElement("div") : null;
     quickStartOverlay?.classList.add("is-hidden");
     const quickStartModal = document.createElement("div");
+    if (quickStartCloseButton) {
+        quickStartModal.append(quickStartCloseButton);
+    }
     const quickStartModeChoice = withModeChoice ? document.createElement("div") : null;
     const quickStartModeContent = withModeChoice ? document.createElement("div") : null;
     const quickStartSimpleButton = withModeChoice ? document.createElement("button") : null;
@@ -91,6 +105,7 @@ function createFixture(
     document.body.append(
         appMain,
         ...(playStopButton ? [playStopButton] : []),
+        ...(quickStartHelpButton ? [quickStartHelpButton] : []),
         ...(startOverlay ? [startOverlay] : []),
         ...(quickStartOverlay ? [quickStartOverlay] : []),
         soundStartersDetails,
@@ -108,6 +123,8 @@ function createFixture(
             quickStartOverlay,
             quickStartPresetsGrid,
             quickStartScratchButton,
+            quickStartHelpButton,
+            quickStartCloseButton,
             soundStartersDetails,
             startOverlay,
         },
@@ -133,12 +150,15 @@ function createFixture(
         onStartOverlay,
         onInterfaceModeSelected,
         playStopButton,
+        quickStartHelpButton,
+        quickStartCloseButton,
         quickStartModal,
         quickStartOverlay,
         quickStartPresetsGrid,
         quickStartScratchButton,
         soundStartersDetails,
         startOverlay,
+        startButton,
         quickStartModeChoice,
         quickStartModeContent,
         quickStartSimpleButton,
@@ -631,6 +651,407 @@ describe("onboarding controller", () => {
         freshScratchButton.dispatchEvent(new Event("click"));
         await vi.waitFor(() => {
             expect(onNoDetailsScratch).toHaveBeenCalledOnce();
+        });
+    });
+
+    describe("on-demand reopening and workflow reference guide", () => {
+        test("opens the modal on demand via quickStartHelpButton, bypassing mode choice and showing presets", () => {
+            const memoryStorage = new Map<string, string>([["webArpHasVisited", "true"]]);
+            const mockStorage = {
+                getItem: (key: string) => memoryStorage.get(key) ?? null,
+                setItem: (key: string, value: string) => memoryStorage.set(key, value),
+            };
+
+            const {
+                controller,
+                quickStartOverlay,
+                quickStartHelpButton,
+                quickStartModeChoice,
+                quickStartModeContent,
+                quickStartPresetsGrid,
+                appMain,
+            } = createFixture({
+                withModeChoice: true,
+                storage: mockStorage,
+                hasHelpButton: true,
+                hasCloseButton: true,
+            });
+
+            controller.initialize();
+            expect(quickStartOverlay?.classList.contains("is-hidden")).toBe(true);
+
+            quickStartHelpButton?.dispatchEvent(new Event("click"));
+
+            expect(quickStartOverlay?.classList.contains("is-hidden")).toBe(false);
+            expect(appMain.hasAttribute("inert")).toBe(true);
+            expect(quickStartModeChoice?.hidden).toBe(true);
+            expect(quickStartModeContent?.hidden).toBe(false);
+            expect(quickStartModeContent?.classList.contains("is-hidden")).toBe(false);
+            expect(quickStartPresetsGrid?.children.length).toBeGreaterThan(0);
+        });
+
+        test("closes the modal on demand via quickStartCloseButton without resetting settings and restores focus", () => {
+            const memoryStorage = new Map<string, string>([["webArpHasVisited", "true"]]);
+            const mockStorage = {
+                getItem: (key: string) => memoryStorage.get(key) ?? null,
+                setItem: (key: string, value: string) => memoryStorage.set(key, value),
+            };
+            const onStartFromScratch = vi.fn();
+
+            const {
+                controller,
+                quickStartOverlay,
+                quickStartHelpButton,
+                quickStartCloseButton,
+                appMain,
+                startOverlay,
+            } = createFixture({
+                withModeChoice: true,
+                storage: mockStorage,
+                hasHelpButton: true,
+                hasCloseButton: true,
+                onStartFromScratch,
+            });
+
+            controller.initialize();
+            // Simulate audio already enabled in active session so startOverlay is dismissed
+            startOverlay?.classList.add("is-hidden");
+            if (quickStartHelpButton) {
+                quickStartHelpButton.focus = vi.fn();
+            }
+
+            quickStartHelpButton?.dispatchEvent(new Event("click"));
+            expect(quickStartOverlay?.classList.contains("is-hidden")).toBe(false);
+
+            quickStartCloseButton?.dispatchEvent(new Event("click"));
+
+            expect(quickStartOverlay?.classList.contains("is-hidden")).toBe(true);
+            expect(appMain.hasAttribute("inert")).toBe(false);
+            expect(onStartFromScratch).not.toHaveBeenCalled();
+            expect(quickStartHelpButton?.focus).toHaveBeenCalled();
+        });
+
+        test("dismisses on demand via Escape key or backdrop click without calling onStartFromScratch", () => {
+            const memoryStorage = new Map<string, string>([["webArpHasVisited", "true"]]);
+            const mockStorage = {
+                getItem: (key: string) => memoryStorage.get(key) ?? null,
+                setItem: (key: string, value: string) => memoryStorage.set(key, value),
+            };
+            const onStartFromScratch = vi.fn();
+
+            const { controller, quickStartOverlay, quickStartHelpButton, appMain } = createFixture({
+                withModeChoice: true,
+                storage: mockStorage,
+                hasHelpButton: true,
+                hasCloseButton: true,
+                onStartFromScratch,
+            });
+
+            controller.initialize();
+
+            // Test Escape dismissal on demand
+            quickStartHelpButton?.dispatchEvent(new Event("click"));
+            expect(quickStartOverlay?.classList.contains("is-hidden")).toBe(false);
+
+            document.defaultView?.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+            expect(quickStartOverlay?.classList.contains("is-hidden")).toBe(true);
+            expect(appMain.hasAttribute("inert")).toBe(false);
+            expect(onStartFromScratch).not.toHaveBeenCalled();
+
+            // Test backdrop click dismissal on demand
+            quickStartHelpButton?.dispatchEvent(new Event("click"));
+            expect(quickStartOverlay?.classList.contains("is-hidden")).toBe(false);
+
+            quickStartOverlay?.dispatchEvent(new MouseEvent("click"));
+            expect(quickStartOverlay?.classList.contains("is-hidden")).toBe(true);
+            expect(appMain.hasAttribute("inert")).toBe(false);
+            expect(onStartFromScratch).not.toHaveBeenCalled();
+        });
+
+        test("first-visit close button dismissal calls onStartFromScratch and marks visited", () => {
+            const memoryStorage = new Map<string, string>();
+            const mockStorage = {
+                getItem: (key: string) => memoryStorage.get(key) ?? null,
+                setItem: (key: string, value: string) => memoryStorage.set(key, value),
+            };
+            const onStartFromScratch = vi.fn();
+
+            const { controller, quickStartOverlay, quickStartSimpleButton, quickStartCloseButton } =
+                createFixture({
+                    withModeChoice: true,
+                    storage: mockStorage,
+                    hasHelpButton: true,
+                    hasCloseButton: true,
+                    onStartFromScratch,
+                });
+
+            controller.initialize();
+            expect(quickStartOverlay?.classList.contains("is-hidden")).toBe(false);
+            // On first visit before mode selection, close button is hidden to retain 2-element focus trap
+            expect(quickStartCloseButton?.hidden).toBe(true);
+
+            // Select an interface mode to reveal the close button alongside mode content
+            quickStartSimpleButton?.dispatchEvent(new Event("click"));
+            expect(quickStartCloseButton?.hidden).toBe(false);
+
+            quickStartCloseButton?.dispatchEvent(new Event("click"));
+            expect(onStartFromScratch).toHaveBeenCalledOnce();
+            expect(memoryStorage.get("webArpHasVisited")).toBe("true");
+        });
+
+        test("cleans up help and close button listeners on destroy", () => {
+            const memoryStorage = new Map<string, string>([["webArpHasVisited", "true"]]);
+            const mockStorage = {
+                getItem: (key: string) => memoryStorage.get(key) ?? null,
+                setItem: (key: string, value: string) => memoryStorage.set(key, value),
+            };
+
+            const { controller, quickStartOverlay, quickStartHelpButton } = createFixture({
+                withModeChoice: true,
+                storage: mockStorage,
+                hasHelpButton: true,
+                hasCloseButton: true,
+            });
+
+            controller.initialize();
+            controller.destroy();
+
+            quickStartHelpButton?.dispatchEvent(new Event("click"));
+            expect(quickStartOverlay?.classList.contains("is-hidden")).toBe(true);
+        });
+
+        test("dismisses on-demand guide on scratch click without resetting settings or invoking onStartFromScratch", () => {
+            const memoryStorage = new Map<string, string>([["webArpHasVisited", "true"]]);
+            const mockStorage = {
+                getItem: (key: string) => memoryStorage.get(key) ?? null,
+                setItem: (key: string, value: string) => memoryStorage.set(key, value),
+            };
+            const onInterfaceModeSelected = vi.fn();
+            const onStartFromScratch = vi.fn();
+
+            const {
+                controller,
+                quickStartOverlay,
+                quickStartHelpButton,
+                quickStartScratchButton,
+                appMain,
+            } = createFixture({
+                withModeChoice: true,
+                storage: mockStorage,
+                hasHelpButton: true,
+                hasCloseButton: true,
+                onInterfaceModeSelected,
+                onStartFromScratch,
+            });
+
+            controller.initialize();
+            quickStartHelpButton?.dispatchEvent(new Event("click"));
+            expect(quickStartOverlay?.classList.contains("is-hidden")).toBe(false);
+
+            quickStartScratchButton?.dispatchEvent(new Event("click"));
+            expect(quickStartOverlay?.classList.contains("is-hidden")).toBe(true);
+            expect(appMain.hasAttribute("inert")).toBe(false);
+            expect(onStartFromScratch).not.toHaveBeenCalled();
+            expect(onInterfaceModeSelected).not.toHaveBeenCalled();
+        });
+
+        test("preserves active playing state of playStopButton when dismissing or starting from scratch", () => {
+            const memoryStorage = new Map<string, string>([["webArpHasVisited", "true"]]);
+            const mockStorage = {
+                getItem: (key: string) => memoryStorage.get(key) ?? null,
+                setItem: (key: string, value: string) => memoryStorage.set(key, value),
+            };
+
+            const { controller, quickStartHelpButton, quickStartScratchButton, playStopButton } =
+                createFixture({
+                    withModeChoice: true,
+                    storage: mockStorage,
+                    hasHelpButton: true,
+                    hasCloseButton: true,
+                });
+
+            // Simulate active playback on the transport button
+            expect(playStopButton).not.toBeNull();
+            if (!playStopButton) {
+                throw new Error("playStopButton fixture missing");
+            }
+            playStopButton.disabled = false;
+            playStopButton.textContent = "Stop Audio";
+            playStopButton.classList.remove("bg-blue-600", "hover:bg-blue-700");
+            playStopButton.classList.add("bg-yellow-600", "hover:bg-yellow-700");
+
+            controller.initialize();
+            quickStartHelpButton?.dispatchEvent(new Event("click"));
+
+            quickStartScratchButton?.dispatchEvent(new Event("click"));
+
+            // Must preserve Stop Audio text and yellow styling
+            expect(playStopButton.textContent).toBe("Stop Audio");
+            expect(playStopButton.classList.contains("bg-yellow-600")).toBe(true);
+            expect(playStopButton.classList.contains("bg-blue-600")).toBe(false);
+            expect(playStopButton.disabled).toBe(false);
+        });
+
+        test("suspends startOverlay when guide is opened before audio activation and restores on dismissal", () => {
+            const memoryStorage = new Map<string, string>([["webArpHasVisited", "true"]]);
+            const mockStorage = {
+                getItem: (key: string) => memoryStorage.get(key) ?? null,
+                setItem: (key: string, value: string) => memoryStorage.set(key, value),
+            };
+
+            const {
+                controller,
+                quickStartHelpButton,
+                quickStartCloseButton,
+                quickStartOverlay,
+                startOverlay,
+                startButton,
+            } = createFixture({
+                withModeChoice: true,
+                storage: mockStorage,
+                hasHelpButton: true,
+                hasCloseButton: true,
+            });
+
+            controller.initialize();
+            // Start overlay is visible for returning visitor who has not activated audio
+            expect(startOverlay?.classList.contains("is-hidden")).toBe(false);
+
+            // Reopen guide on demand
+            quickStartHelpButton?.dispatchEvent(new Event("click"));
+            expect(quickStartOverlay?.classList.contains("is-hidden")).toBe(false);
+            // Start overlay must be suspended with is-hidden so it does not obscure the guide
+            expect(startOverlay?.classList.contains("is-hidden")).toBe(true);
+
+            // Dismiss the guide via close button without activating audio
+            quickStartCloseButton?.dispatchEvent(new Event("click"));
+            expect(quickStartOverlay?.classList.contains("is-hidden")).toBe(true);
+            // Start overlay must be cleanly restored
+            expect(startOverlay?.classList.contains("is-hidden")).toBe(false);
+            // Focus must be restored inside the activation overlay rather than on a background control
+            expect(document.activeElement).toBe(startButton);
+        });
+
+        test("keeps startOverlay hidden when selecting a sound starter preset from on-demand guide", async () => {
+            const memoryStorage = new Map<string, string>([["webArpHasVisited", "true"]]);
+            const mockStorage = {
+                getItem: (key: string) => memoryStorage.get(key) ?? null,
+                setItem: (key: string, value: string) => memoryStorage.set(key, value),
+            };
+            const onPresetSelected = vi.fn().mockResolvedValue(undefined);
+
+            const {
+                controller,
+                quickStartHelpButton,
+                quickStartPresetsGrid,
+                quickStartOverlay,
+                startOverlay,
+            } = createFixture({
+                withModeChoice: true,
+                storage: mockStorage,
+                hasHelpButton: true,
+                hasCloseButton: true,
+                onPresetSelected,
+            });
+
+            controller.initialize();
+            expect(startOverlay?.classList.contains("is-hidden")).toBe(false);
+
+            quickStartHelpButton?.dispatchEvent(new Event("click"));
+            expect(startOverlay?.classList.contains("is-hidden")).toBe(true);
+
+            // Select a preset
+            const firstPresetButton = quickStartPresetsGrid?.querySelector("button");
+            firstPresetButton?.dispatchEvent(new Event("click"));
+            await Promise.resolve();
+
+            // Preset selection closes modal and starts audio, so startOverlay remains hidden
+            expect(quickStartOverlay?.classList.contains("is-hidden")).toBe(true);
+            expect(startOverlay?.classList.contains("is-hidden")).toBe(true);
+            expect(onPresetSelected).toHaveBeenCalled();
+        });
+
+        it("restores focus to playStopButton when closing modal on first visit without prior trigger element", async () => {
+            const memoryStorage = new Map<string, string>();
+            const mockStorage = {
+                getItem: (key: string) => memoryStorage.get(key) ?? null,
+                setItem: (key: string, value: string) => memoryStorage.set(key, value),
+            };
+
+            const {
+                controller,
+                quickStartOverlay,
+                quickStartFullButton,
+                quickStartCloseButton,
+                playStopButton,
+            } = createFixture({
+                withModeChoice: true,
+                storage: mockStorage,
+                hasHelpButton: true,
+                hasCloseButton: true,
+            });
+
+            expect(playStopButton).not.toBeNull();
+            if (!playStopButton) throw new Error("playStopButton fixture missing");
+
+            controller.initialize();
+            expect(quickStartOverlay?.classList.contains("is-hidden")).toBe(false);
+            expect(quickStartCloseButton?.hidden).toBe(true);
+
+            // Select interface mode on first visit to reveal the close button
+            quickStartFullButton?.click();
+            expect(quickStartCloseButton?.hidden).toBe(false);
+
+            // Close button clicked on first visit
+            quickStartCloseButton?.click();
+            await Promise.resolve();
+
+            expect(quickStartOverlay?.classList.contains("is-hidden")).toBe(true);
+            expect(document.activeElement).toBe(playStopButton);
+        });
+
+        it("prevents reopening Quick Start modal while audio activation from start overlay is in flight", async () => {
+            const memoryStorage = new Map<string, string>([["webArpHasVisited", "true"]]);
+            const mockStorage = {
+                getItem: (key: string) => memoryStorage.get(key) ?? null,
+                setItem: (key: string, value: string) => memoryStorage.set(key, value),
+            };
+
+            let resolveStartOverlay: (() => void) | null = null;
+            const onStartOverlay = vi.fn().mockReturnValue(
+                new Promise<void>((resolve) => {
+                    resolveStartOverlay = resolve;
+                }),
+            );
+
+            const { controller, quickStartHelpButton, quickStartOverlay, startOverlay } =
+                createFixture({
+                    withModeChoice: true,
+                    storage: mockStorage,
+                    hasHelpButton: true,
+                    onStartOverlay,
+                });
+
+            controller.initialize();
+            expect(startOverlay?.classList.contains("is-hidden")).toBe(false);
+
+            // User clicks activation overlay start button
+            startOverlay?.dispatchEvent(new Event("click"));
+
+            expect(onStartOverlay).toHaveBeenCalled();
+            expect(startOverlay?.classList.contains("is-hidden")).toBe(true);
+
+            // While audio activation is in flight, clicking guide help button does not open modal
+            quickStartHelpButton?.dispatchEvent(new Event("click"));
+            expect(quickStartOverlay?.classList.contains("is-hidden")).toBe(true);
+
+            // Finish activation
+            resolveStartOverlay?.();
+            await Promise.resolve();
+
+            // Once activation completes, guide help button works normally
+            quickStartHelpButton?.dispatchEvent(new Event("click"));
+            expect(quickStartOverlay?.classList.contains("is-hidden")).toBe(false);
         });
     });
 });

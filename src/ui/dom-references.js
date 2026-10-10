@@ -242,6 +242,12 @@ export function createDomReferences(documentRef) {
         quickStartScratchButton: /** @type {HTMLButtonElement | null} */ (
             getById("quick-start-scratch")
         ),
+        quickStartHelpButton: /** @type {HTMLButtonElement | null} */ (
+            getById("quick-start-help-btn")
+        ),
+        quickStartCloseButton: /** @type {HTMLButtonElement | null} */ (
+            getById("quick-start-close")
+        ),
         startOverlay: getById("start-overlay"),
         chordConflictOverlay: getById("chord-conflict-overlay"),
         chordConflictDialog: getById("chord-conflict-dialog"),

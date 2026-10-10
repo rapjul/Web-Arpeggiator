@@ -39,6 +39,8 @@ describe("createDomReferences", () => {
         expect(dom.presetNameInput).toBe(document.getElementById("preset-name-input"));
         expect(dom.liveRegion).toBe(document.getElementById("sr-announcements"));
         expect(dom.quickStartModal).toBe(document.getElementById("quick-start-modal"));
+        expect(dom.quickStartHelpButton).toBe(document.getElementById("quick-start-help-btn"));
+        expect(dom.quickStartCloseButton).toBe(document.getElementById("quick-start-close"));
     });
 
     it("preserves fallback elements and selector collections", () => {

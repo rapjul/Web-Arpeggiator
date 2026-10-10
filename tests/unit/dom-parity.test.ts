@@ -314,6 +314,33 @@ describe("Production DOM Parity Suite", () => {
     });
 
     /**
+     * Verifies that header control buttons declare downward-facing custom tooltips and accessible labels.
+     */
+    it("verifies header control buttons declare downward-facing custom tooltips and accessible labels", () => {
+        const simpleBtn = document.getElementById("interface-mode-simple-btn");
+        expect(simpleBtn).not.toBeNull();
+        expect(simpleBtn?.classList.contains("has-custom-tooltip")).toBe(true);
+        expect(simpleBtn?.getAttribute("data-placement")).toBe("bottom");
+        expect(simpleBtn?.getAttribute("data-tooltip")).toBeTruthy();
+
+        const fullBtn = document.getElementById("interface-mode-full-btn");
+        expect(fullBtn).not.toBeNull();
+        expect(fullBtn?.classList.contains("has-custom-tooltip")).toBe(true);
+        expect(fullBtn?.getAttribute("data-placement")).toBe("bottom");
+        expect(fullBtn?.getAttribute("data-tooltip")).toBeTruthy();
+
+        const guideBtn = document.getElementById("quick-start-help-btn");
+        expect(guideBtn).not.toBeNull();
+        expect(guideBtn?.classList.contains("has-custom-tooltip")).toBe(true);
+        expect(guideBtn?.getAttribute("data-placement")).toBe("bottom");
+        expect(guideBtn?.getAttribute("data-tooltip")).toBe(
+            "Reopen Quick Start presets and 4-step creation workflow guide",
+        );
+        expect(guideBtn?.hasAttribute("title")).toBe(false);
+        expect(guideBtn?.getAttribute("aria-label")).toBeTruthy();
+    });
+
+    /**
      * Verifies that Level 2 control group labels, modal subheadings, and details summaries follow Title Case.
      */
     it("verifies Level 2 control labels and recovery summary follow Title Case", () => {
