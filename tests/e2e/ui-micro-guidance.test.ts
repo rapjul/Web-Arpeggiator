@@ -238,3 +238,58 @@ test("renders custom tooltips with discrete display transitions and honors reduc
     });
     expect(reducedMotionTransition === "0s" || reducedMotionTransition === "").toBe(true);
 });
+
+/**
+ * Verifies that header control buttons (Simple mode, Full mode, and Guide button)
+ * display their downward custom tooltips when hovered over.
+ */
+test("displays downward custom tooltips on hover for header control buttons", async ({
+    pwaPage: page,
+}) => {
+    await dismissOnboarding(page);
+
+    const headerButtonSelectors = [
+        "#interface-mode-simple-btn",
+        "#interface-mode-full-btn",
+        "#quick-start-help-btn",
+    ];
+
+    for (const selector of headerButtonSelectors) {
+        const button = page.locator(selector);
+        await expect(button).toBeVisible();
+        await expect(button).toHaveAttribute("data-placement", "bottom");
+
+        // Resting state: tooltip pseudo-element is display: none and opacity: 0
+        const restingState = await button.evaluate((el) => {
+            const afterStyle = window.getComputedStyle(el, "::after");
+            return {
+                display: afterStyle.display,
+                opacity: afterStyle.opacity,
+            };
+        });
+        expect(restingState.display).toBe("none");
+        expect(restingState.opacity).toBe("0");
+
+        // Hovered state: reveals with display: block, opacity: 1, and visibility: visible
+        await button.hover();
+        await expect
+            .poll(async () => {
+                return await button.evaluate((el) => {
+                    const afterStyle = window.getComputedStyle(el, "::after");
+                    return {
+                        display: afterStyle.display,
+                        opacity: afterStyle.opacity,
+                        visibility: afterStyle.visibility,
+                    };
+                });
+            })
+            .toEqual({
+                display: "block",
+                opacity: "1",
+                visibility: "visible",
+            });
+
+        // Move mouse away to reset hover state
+        await page.mouse.move(0, 0);
+    }
+});

@@ -26,8 +26,8 @@ The application needs an on-demand mechanism to reopen the Quick Start modal at 
 
 ## Decision Outcome
 
-1. **Header On-Demand Trigger (`#quick-start-help-btn`)**:
-   A dedicated button is placed in `<header>` adjacent to the interface mode segmented control (`#interface-mode-controls`). Clicking this button invokes `openQuickStartModal({ onDemand: true })`, reveals the Quick Start modal overlay, applies `inert` to `#app-main`, and stores the originating trigger element for post-dismissal focus restoration.
+1. **Header On-Demand Trigger (`#quick-start-help-btn`) and Header Tooltips**:
+   A dedicated button is placed in `<header>` adjacent to the interface mode segmented control (`#interface-mode-controls`). The Guide button (`#quick-start-help-btn`) and both interface mode segmented buttons (`#interface-mode-simple-btn` and `#interface-mode-full-btn`) declare downward-facing custom tooltips (`has-custom-tooltip`, `data-placement="bottom"`, and `data-tooltip="..."`) while omitting native browser `title` attributes to avoid duplicate tooltip collisions. Clicking the Guide button invokes `openQuickStartModal({ onDemand: true })`, reveals the Quick Start modal overlay, applies `inert` to `#app-main`, and stores the originating trigger element for post-dismissal focus restoration.
 
 2. **Direct Content Display for Returning Users**:
    When opened on demand (or when `webArpHasVisited === "true"`), the modal bypasses the first-visit interface mode choice (`#quick-start-mode-choice`) and directly presents the Sound Starters grid and workflow guide (`#quick-start-mode-content`). Returning users can freely adjust their interface mode at any time using the header segmented pill control without re-selecting it inside the modal.
