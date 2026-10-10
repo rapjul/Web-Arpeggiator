@@ -33,11 +33,11 @@ The application needs an on-demand mechanism to reopen the Quick Start modal at 
    When opened on demand (or when `webArpHasVisited === "true"`), the modal bypasses the first-visit interface mode choice (`#quick-start-mode-choice`) and directly presents the Sound Starters grid and workflow guide (`#quick-start-mode-content`). Returning users can freely adjust their interface mode at any time using the header segmented pill control without re-selecting it inside the modal.
 
 3. **Static 4-Step Creation Workflow Reference Guide (`#quick-start-workflow-guide`)**:
-   A purely declarative semantic card is embedded within `#quick-start-mode-content` outlining the four fundamental phases of arpeggiator sound design:
-   - **Step 1: Choose a Sound**: Select a curated Sound Starter preset or design custom synth waveforms.
-   - **Step 2: Define Notes**: Input note sequences, click chord starters, or use scale-quantized randomization.
-   - **Step 3: Shape the Rhythm**: Configure BPM tempo, note duration intervals, gate sustain, and pattern directions.
-   - **Step 4: Perform & Export**: Play live with interactive keyboard feedback, or export offline to WAV, MP3, and MIDI.
+   A purely declarative semantic card is embedded within `#quick-start-mode-content` outlining the four fundamental phases of arpeggiator sound design with smoothed phrasing that reads naturally without repetitive mode disclaimers:
+   - **Step 1: Choose a Sound**: Start with a curated Sound Starter preset, or craft custom synth waveforms and envelopes in Full mode.
+   - **Step 2: Define Notes**: Input note sequences, tap scale-aware chord starters, or generate randomized melodies.
+   - **Step 3: Shape the Rhythm**: Dial in BPM tempo, note intervals, gate sustain, and choose from 13 pattern directions.
+   - **Step 4: Perform & Export**: Listen with live visualizer feedback, jam on the keyboard, and export offline to WAV, MP3, or MIDI.
    This section uses semantic Tailwind CSS tokens and incurs zero runtime computation, zero DOM listeners, and zero mutable state.
 
 4. **Non-Destructive On-Demand Dismissal, Activation Coordination & Focus Restoration**:
