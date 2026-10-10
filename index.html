@@ -353,7 +353,9 @@
                             aria-checked="false"
                             tabindex="-1"
                             data-interface-mode="simple"
-                            class="interface-mode-btn px-3 py-1.5 text-xs font-semibold rounded-md transition-all text-gray-300 hover:text-white"
+                            data-placement="bottom"
+                            data-tooltip="Streamlined view: focus on presets, notes, and tempo without advanced sound design"
+                            class="interface-mode-btn has-custom-tooltip px-3 py-1.5 text-xs font-semibold rounded-md transition-all text-gray-300 hover:text-white"
                         >
                             Simple
                         </button>
@@ -365,7 +367,9 @@
                             aria-checked="true"
                             tabindex="0"
                             data-interface-mode="full"
-                            class="interface-mode-btn px-3 py-1.5 text-xs font-semibold rounded-md transition-all bg-blue-600 text-white shadow-sm"
+                            data-placement="bottom"
+                            data-tooltip="Complete sound design: customize synthesizers, envelopes, directions, effects, and visualizer"
+                            class="interface-mode-btn has-custom-tooltip px-3 py-1.5 text-xs font-semibold rounded-md transition-all bg-blue-600 text-white shadow-sm"
                         >
                             Full
                         </button>
@@ -374,9 +378,10 @@
                     <button
                         id="quick-start-help-btn"
                         type="button"
-                        class="inline-flex items-center gap-1.5 rounded-lg border border-gray-700 bg-gray-900/80 px-2.5 py-1.5 text-xs font-semibold text-gray-300 transition-all hover:border-gray-600 hover:bg-gray-800 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                        data-placement="bottom"
+                        data-tooltip="Reopen Quick Start presets and 4-step creation workflow guide"
+                        class="has-custom-tooltip inline-flex items-center gap-1.5 rounded-lg border border-gray-700 bg-gray-900/80 px-2.5 py-1.5 text-xs font-semibold text-gray-300 transition-all hover:border-gray-600 hover:bg-gray-800 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
                         aria-label="Open Quick Start and Workflow Guide"
-                        title="Quick Start & Workflow Guide"
                     >
                         <svg class="h-3.5 w-3.5 text-blue-400" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
