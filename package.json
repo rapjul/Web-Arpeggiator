@@ -31,7 +31,7 @@
   },
   "dependencies": {
     "@breezystack/lamejs": "^1.2.7",
-    "tonal": "^6.4.2",
+    "tonal": "^6.5.0",
     "tone": "^15.1.22"
   },
   "devDependencies": {
