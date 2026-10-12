@@ -26,7 +26,7 @@ import { createFuturePresetDialogController } from "@ui/future-preset-dialog-con
 /**
  * Creates the preset workflow controller.
  *
- * @param {{dom: {sharePresetButton: HTMLElement, savePresetButton: HTMLElement, savePresetToBrowserButton: HTMLElement|null, loadPresetButton: HTMLElement, loadPresetInput: HTMLInputElement, loadSavedPresetButton: HTMLElement|null, clearSavedPresetButton: HTMLElement|null, deleteSavedPresetButton: HTMLElement|null, presetNameInput: HTMLInputElement|null, savedPresetSelect: HTMLSelectElement|null}, windowRef: {location: {origin: string, pathname: string, search: string}}, navigatorRef: {clipboard?: {writeText: (value: string) => Promise<void>}}, fileReaderFactory: () => FileReader, confirm: (message: string) => boolean, factoryPresets: readonly FactoryPreset[], getPresetStore: () => {save: (settings: Record<string, unknown>, metadata: Record<string, string>) => Promise<{id: string}>, get: (id: string) => Promise<StoredPresetRecord|null>, loadLatest: () => Promise<StoredPresetRecord|null>, clear: () => Promise<void>, remove: (id: string) => Promise<void>}|undefined, getAllSettings: () => Record<string, unknown>, applySettingsWithHistory: (settings: unknown, options?: {allowFutureVersion?: boolean}) => {ok: boolean, error?: unknown}, generateFilename: (isRealtime: boolean) => string, refreshSavedPresetList: (selectedId?: string) => Promise<void>, setActiveSoundStarterCard: (presetId?: string|null) => void, showStorageRecovery: () => void, hideStorageRecovery: () => void, showToast: (message: string, type?: string) => void, logger?: {log?: (...args: unknown[]) => void, warn?: (...args: unknown[]) => void, error?: (...args: unknown[]) => void}}} dependencies - Injected preset workflow behavior.
+ * @param {{dom: {sharePresetButton: HTMLElement, savePresetButton: HTMLElement, savePresetToBrowserButton: HTMLElement|null, loadPresetButton: HTMLElement, loadPresetInput: HTMLInputElement, loadSavedPresetButton: HTMLElement|null, clearSavedPresetButton: HTMLElement|null, deleteSavedPresetButton: HTMLElement|null, presetNameInput: HTMLInputElement|null, savedPresetSelect: HTMLSelectElement|null}, windowRef: {location: {origin: string, pathname: string, search: string}}, navigatorRef: {clipboard?: {writeText: (value: string) => Promise<void>}}, fileReaderFactory: () => FileReader, confirm: (message: string) => boolean, factoryPresets: readonly FactoryPreset[], getPresetStore: () => {save: (settings: Record<string, unknown>, metadata: Record<string, string>) => Promise<{id: string}>, get: (id: string) => Promise<StoredPresetRecord|null>, loadLatest: () => Promise<StoredPresetRecord|null>, clear: () => Promise<void>, remove: (id: string) => Promise<void>}|undefined, getAllSettings: () => Record<string, unknown>, applySettingsWithHistory: (settings: unknown, options?: {allowFutureVersion?: boolean}) => {ok: boolean, error?: unknown}, generateFilename: (isRealtime: boolean) => string, refreshSavedPresetList: (selectedId?: string) => Promise<void>, setActiveSoundStarterCard: (presetId?: string|null) => void, showStorageRecovery: () => void, hideStorageRecovery: () => void, showToast: (message: string, type?: string) => void, onUrlPresetRecognized?: () => void, logger?: {log?: (...args: unknown[]) => void, warn?: (...args: unknown[]) => void, error?: (...args: unknown[]) => void}}} dependencies - Injected preset workflow behavior.
  * @returns {{initialize: () => void, destroy: () => void, loadPresetFromUrl: () => void}} Preset workflow API.
  */
 export function createPresetWorkflowController(dependencies) {
@@ -46,6 +46,7 @@ export function createPresetWorkflowController(dependencies) {
         showStorageRecovery,
         hideStorageRecovery,
         showToast,
+        onUrlPresetRecognized,
         logger = console,
     } = dependencies;
     const {
@@ -77,10 +78,19 @@ export function createPresetWorkflowController(dependencies) {
             });
     }
 
+    /**
+     * Reconciles preset configuration encoded in the current URL query string,
+     * signaling precedence to prevent late storage restoration from overwriting
+     * identical default values.
+     *
+     * @returns {void}
+     */
     function loadPresetFromUrl() {
         const current = getAllSettings();
         const settings = parsePresetFromUrlParams(windowRef.location.search, current);
-        if (!settings || !hasPresetChanges(settings, current)) return;
+        if (!settings) return;
+        onUrlPresetRecognized?.();
+        if (!hasPresetChanges(settings, current)) return;
         applySettingsWithHistory(settings);
         showToast("Preset loaded from URL link!", "success");
     }

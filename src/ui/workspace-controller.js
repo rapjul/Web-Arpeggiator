@@ -44,7 +44,7 @@ import { createSessionManager } from "@storage/session-manager.js";
  * Creates the workspace history and autosave coordinator.
  *
  * @param {WorkspaceControllerDependencies} dependencies - Injected workspace behavior.
- * @returns {{initialize: (defaults: Record<string, unknown>) => void, destroy: () => void, getStatus: () => {canUndo: boolean, canRedo: boolean, isAtDefault: boolean}, applySettingsWithHistory: (settings: Record<string, unknown>, options?: Record<string, unknown>) => {ok: boolean, error?: unknown}, recordCurrentSettings: (coalesced?: boolean) => boolean, undoSettings: () => void, redoSettings: () => void, resetAllSettings: () => void, resetIndividualSettings: (definition: ResetDefinition) => void, getFocusedResetDefinition: (element: Element|null) => ResetDefinition|null, scheduleLastSessionSave: () => void, restoreLastSession: () => Promise<boolean>, hasUserModifiedSettings: () => boolean}}
+ * @returns {{initialize: (defaults: Record<string, unknown>) => void, destroy: () => void, getStatus: () => {canUndo: boolean, canRedo: boolean, isAtDefault: boolean}, applySettingsWithHistory: (settings: Record<string, unknown>, options?: Record<string, unknown>) => {ok: boolean, error?: unknown}, recordCurrentSettings: (coalesced?: boolean) => boolean, undoSettings: () => void, redoSettings: () => void, resetAllSettings: () => void, resetIndividualSettings: (definition: ResetDefinition) => void, getFocusedResetDefinition: (element: Element|null) => ResetDefinition|null, scheduleLastSessionSave: () => void, restoreLastSession: () => Promise<boolean>, hasUserModifiedSettings: () => boolean, markUserSettingsInteraction: () => void}}
  */
 export function createWorkspaceController(dependencies) {
     const {
@@ -391,5 +391,6 @@ export function createWorkspaceController(dependencies) {
         scheduleLastSessionSave: sessionManager.scheduleSave,
         restoreLastSession: sessionManager.restoreSession,
         hasUserModifiedSettings: () => hasUserModifiedSettings,
+        markUserSettingsInteraction,
     };
 }

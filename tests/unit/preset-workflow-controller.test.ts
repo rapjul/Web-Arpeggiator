@@ -9,6 +9,7 @@ interface CreateFixtureOptions {
     confirm?: (message: string) => boolean;
     getPresetStore?: () => unknown;
     navigatorRef?: { clipboard?: { writeText: (value: string) => Promise<void> } };
+    onUrlPresetRecognized?: () => void;
     search?: string;
 }
 
@@ -124,6 +125,7 @@ function createFixture(options: CreateFixtureOptions = {}) {
         showStorageRecovery,
         hideStorageRecovery,
         showToast,
+        onUrlPresetRecognized: options.onUrlPresetRecognized,
         logger,
     });
     controller.initialize();
@@ -300,6 +302,33 @@ describe("preset workflow controller", () => {
         const fixture = createFixture({ search: "" });
         fixture.controller.loadPresetFromUrl();
 
+        expect(fixture.applySettingsWithHistory).not.toHaveBeenCalled();
+    });
+
+    it("notifies onUrlPresetRecognized when URL search parameters contain recognized preset keys matching current settings", () => {
+        const onUrlPresetRecognized = vi.fn();
+        const fixture = createFixture({
+            search: "?bpm=120",
+            onUrlPresetRecognized,
+        });
+
+        fixture.controller.loadPresetFromUrl();
+
+        expect(onUrlPresetRecognized).toHaveBeenCalledOnce();
+        // Since bpm=120 matches default settings, no history change is applied
+        expect(fixture.applySettingsWithHistory).not.toHaveBeenCalled();
+    });
+
+    it("does not notify onUrlPresetRecognized when search parameters are empty or contain only unrecognized keys", () => {
+        const onUrlPresetRecognized = vi.fn();
+        const fixture = createFixture({
+            search: "?foo=bar&utm_source=test",
+            onUrlPresetRecognized,
+        });
+
+        fixture.controller.loadPresetFromUrl();
+
+        expect(onUrlPresetRecognized).not.toHaveBeenCalled();
         expect(fixture.applySettingsWithHistory).not.toHaveBeenCalled();
     });
 

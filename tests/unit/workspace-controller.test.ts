@@ -259,6 +259,20 @@ describe("workspace controller", () => {
         expect(onSettingsInteraction).not.toHaveBeenCalled();
     });
 
+    it("marks user settings interaction explicitly via markUserSettingsInteraction", () => {
+        const onSettingsInteraction = vi.fn();
+        const { controller } = createFixture({ onSettingsInteraction });
+
+        expect(controller.hasUserModifiedSettings()).toBe(false);
+        controller.markUserSettingsInteraction();
+        expect(controller.hasUserModifiedSettings()).toBe(true);
+        expect(onSettingsInteraction).toHaveBeenCalledOnce();
+
+        // Repeated invocation is idempotent
+        controller.markUserSettingsInteraction();
+        expect(onSettingsInteraction).toHaveBeenCalledOnce();
+    });
+
     it("supports undo, redo, and checking isAtDefault status", () => {
         const { controller, settings } = createFixture();
 

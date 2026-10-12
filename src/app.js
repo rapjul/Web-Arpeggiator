@@ -1076,6 +1076,7 @@ function initializeApp() {
     const {
         applySettingsWithHistory,
         getFocusedResetDefinition,
+        markUserSettingsInteraction,
         redoSettings,
         resetAllSettings,
         resetIndividualSettings,
@@ -1757,6 +1758,7 @@ function initializeApp() {
         showStorageRecovery: showBrowserStorageRecovery,
         hideStorageRecovery: hideBrowserStorageRecovery,
         showToast,
+        onUrlPresetRecognized: markUserSettingsInteraction,
         logger: console,
     });
     presetWorkflowController.initialize();
