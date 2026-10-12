@@ -109,7 +109,9 @@ The composition root orchestrates initial configuration, onboarding presentation
 5. **Precedence and Restoration Gating**:
    - Explicit onboarding selections (`onPresetSelected`, `onStartFromScratch`) mark `hasAppliedOnboardingChoice = true`, strictly rejecting any pending or late IndexedDB session restoration via `canRestoreSession()`.
    - Start overlay activation (`onStartOverlay`) allows slow session restores to apply only if the workspace remains untouched. If a user modifies settings, `recordCurrentSettings()` marks `hasUserModifiedSettings = true` strictly upon an actual settings transition, discarding delayed reads to protect active edits.
-   - For an untouched returning session, the restored state applies cleanly, followed by optional URL query preset reconciliation (`loadPresetFromUrl()`) and playback start.
+   - When a shared URL query contains recognized preset parameters, `loadPresetFromUrl()` marks user settings interaction immediately via `onUrlPresetRecognized` even if the settings match default values (a no-op history transition), preventing late session restoration from overwriting the requested URL preset after timeout.
+   - The audio activation guard (`isActivatingAudio`) spans start overlay activation, Sound Starter selection, and scratch initialization, blocking Guide modal reopening while asynchronous startup is in flight. Furthermore, `onPresetSelected` skips background playback initiation if the Quick Start modal remains visible.
+   - For an untouched returning session without URL preset parameters, the restored state applies cleanly, followed by optional URL query preset reconciliation and playback start.
 
 ## Source Layout
 
