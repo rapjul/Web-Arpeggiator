@@ -1802,6 +1802,10 @@ function initializeApp() {
         if (appMain) appMain.hidden = false;
     }
 
+    if (hasSharedUrlPreset) {
+        scheduleLastSessionSave();
+    }
+
     log("Arpeggiator initialized and ready.");
     void refreshSavedPresetList();
     initialSessionRestorePromise = restoreLastSession()

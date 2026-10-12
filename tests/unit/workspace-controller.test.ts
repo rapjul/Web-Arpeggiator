@@ -385,4 +385,31 @@ describe("workspace controller", () => {
         expect(settings().bpm).toBe(120);
         expect(showToast).toHaveBeenCalledWith("Reset BPM to default.", "info");
     });
+
+    it("does not schedule autosave on no-op interactions or identical resets", async () => {
+        vi.useFakeTimers();
+        try {
+            const { bpmInput, controller, resetTarget, store } = createFixture();
+
+            // 1. Dispatching input without changing value
+            bpmInput.dispatchEvent(new Event("input", { bubbles: true }));
+            bpmInput.dispatchEvent(new Event("change", { bubbles: true }));
+
+            // 2. Double-clicking reset target when already at default
+            resetTarget.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+
+            // 3. Applying identical settings
+            controller.applySettingsWithHistory({ ...DEFAULT_SETTINGS, direction: "up" });
+
+            // Fast forward timers past debounce interval
+            vi.advanceTimersByTime(3000);
+            await Promise.resolve();
+
+            // No save was scheduled because no actual changes occurred
+            expect(store.saveLastSession).not.toHaveBeenCalled();
+            expect(controller.hasUserModifiedSettings()).toBe(false);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
 });

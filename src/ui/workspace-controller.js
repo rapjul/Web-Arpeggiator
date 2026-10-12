@@ -163,9 +163,11 @@ export function createWorkspaceController(dependencies) {
         settingsHistory.endTransaction();
         const result = loadAllSettings(settings, options);
         if (!result.ok) return result;
-        recordCurrentSettings();
+        const changed = recordCurrentSettings();
+        if (changed) {
+            sessionManager.scheduleSave();
+        }
         clearActiveSoundStarterCard();
-        sessionManager.scheduleSave();
         onStaticLoopChange();
         return result;
     }
@@ -298,9 +300,11 @@ export function createWorkspaceController(dependencies) {
     function handleInput(event) {
         const target = /** @type {Element|null} */ (event.target);
         if (!isTrackedFormTarget(target)) return;
-        recordCurrentSettings(true);
+        const changed = recordCurrentSettings(true);
+        if (changed) {
+            sessionManager.scheduleSave();
+        }
         clearActiveSoundStarterCard();
-        sessionManager.scheduleSave();
         if (affectsStaticLoop(target)) onStaticLoopChange();
     }
 
@@ -314,9 +318,11 @@ export function createWorkspaceController(dependencies) {
         const target = /** @type {Element|null} */ (event.target);
         if (!isTrackedFormTarget(target)) return;
         settingsHistory.endTransaction();
-        recordCurrentSettings();
+        const changed = recordCurrentSettings();
+        if (changed) {
+            sessionManager.scheduleSave();
+        }
         clearActiveSoundStarterCard();
-        sessionManager.scheduleSave();
         if (affectsStaticLoop(target)) onStaticLoopChange();
     }
 
@@ -334,9 +340,11 @@ export function createWorkspaceController(dependencies) {
             )
         )
             return;
-        recordCurrentSettings();
+        const changed = recordCurrentSettings();
+        if (changed) {
+            sessionManager.scheduleSave();
+        }
         clearActiveSoundStarterCard();
-        sessionManager.scheduleSave();
         onStaticLoopChange();
     }
 

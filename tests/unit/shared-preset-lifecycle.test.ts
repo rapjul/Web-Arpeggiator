@@ -80,6 +80,10 @@ describe("Shared Preset URL Lifecycle & State Matrix", () => {
 
         workspaceController.initialize(initialSettings);
 
+        if (hasUrlPreset) {
+            workspaceController.scheduleLastSessionSave();
+        }
+
         const presetWorkflowController = createPresetWorkflowController({
             dom: {
                 sharePresetButton: document.createElement("button"),
@@ -284,5 +288,28 @@ describe("Shared Preset URL Lifecycle & State Matrix", () => {
         // Standard session restore applies
         await fixture.workspaceController.restoreLastSession();
         expect(fixture.currentSettings().bpm).toBe(95);
+    });
+
+    it("S11: persists synchronously loaded URL preset into storage after debounce", async () => {
+        vi.useFakeTimers();
+        try {
+            const fixture = createLifecycleFixture({
+                search: "?bpm=145&synth=duoSynth",
+                storedSession: null,
+            });
+
+            expect(fixture.hasUrlPreset).toBe(true);
+            expect(fixture.store.saveLastSession).not.toHaveBeenCalled();
+
+            vi.advanceTimersByTime(2500);
+            await Promise.resolve();
+
+            expect(fixture.store.saveLastSession).toHaveBeenCalledWith(
+                expect.objectContaining({ bpm: 145, synthType: "duoSynth" }),
+                expect.anything(),
+            );
+        } finally {
+            vi.useRealTimers();
+        }
     });
 });
