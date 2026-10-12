@@ -98,6 +98,19 @@ settings + pattern direction
  playback    audio     export
 ```
 
+### Startup, Onboarding & Session Restoration Flow
+
+The composition root orchestrates initial configuration, onboarding presentations, and IndexedDB session restoration in a defined order:
+
+1. **Synchronous Baseline**: `loadAllSettings(DEFAULT_SETTINGS)` establishes initial DOM control state; `workspaceController.initialize()` captures the baseline history tip and reset definitions; `onboardingController.initialize()` renders either the Quick Start modal (first-time visitor) or the start overlay (returning visitor).
+2. **Background Restoration Launch**: `initialSessionRestorePromise = restoreLastSession()` initiates reading saved workspace state from IndexedDB asynchronously.
+3. **Immediate Audio Activation**: When a user clicks a Sound Starter preset, "Start from scratch", or the Start Overlay, `startAudio()` runs first to capture the transient browser audio gesture token before awaiting storage.
+4. **Bounded Storage Race**: The activation callback races `initialSessionRestorePromise` against a strict 1,000ms timeout (`waitForInitialSessionRestore()`), ensuring storage latency or a blocked IndexedDB upgrade cannot hang the interface.
+5. **Precedence and Restoration Gating**:
+   - Explicit onboarding selections (`onPresetSelected`, `onStartFromScratch`) mark `hasAppliedOnboardingChoice = true`, strictly rejecting any pending or late IndexedDB session restoration via `canRestoreSession()`.
+   - Start overlay activation (`onStartOverlay`) allows slow session restores to apply only if the workspace remains untouched. If a user modifies settings, `recordCurrentSettings()` marks `hasUserModifiedSettings = true` strictly upon an actual settings transition, discarding delayed reads to protect active edits.
+   - For an untouched returning session, the restored state applies cleanly, followed by optional URL query preset reconciliation (`loadPresetFromUrl()`) and playback start.
+
 ## Source Layout
 
 ```text
