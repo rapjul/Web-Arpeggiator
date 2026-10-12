@@ -24,7 +24,7 @@ import {
     mark,
     STARTUP_MARKS,
 } from "@core/startup-profiler.js";
-import { PRESET_URL_KEYS } from "@core/url-preset.js";
+import { hasPresetUrlParams, parsePresetFromUrlParams, PRESET_URL_KEYS } from "@core/url-preset.js";
 import { initializePwa } from "@pwa/pwa.js";
 import { presetStore } from "@storage/presets-store.js";
 import { debounce } from "@storage/session-manager.js";
@@ -1773,13 +1773,26 @@ function initializeApp() {
     //    Initial Setup
     // ==================================================================
 
+    // Synchronously hydrate shared preset parameters from the URL before revealing the interface,
+    // ensuring the controls render the shared preset immediately on load without visual flashing or
+    // waiting for asynchronous IndexedDB storage to settle. If recognized parameters exist, immediately
+    // flag user settings interaction so any subsequent session restoration is superseded.
+    const hasSharedUrlPreset = hasPresetUrlParams(window.location.search);
+    const initialSettings = hasSharedUrlPreset
+        ? (parsePresetFromUrlParams(window.location.search, DEFAULT_SETTINGS) ?? DEFAULT_SETTINGS)
+        : DEFAULT_SETTINGS;
+
+    if (hasSharedUrlPreset) {
+        markUserSettingsInteraction();
+    }
+
     try {
         interfaceModeController.initialize();
-        loadAllSettings(DEFAULT_SETTINGS);
+        loadAllSettings(initialSettings);
         keyboardToggle.checked = false;
         updateKeyboardControlUi();
 
-        workspaceController.initialize(getAllSettings());
+        workspaceController.initialize(initialSettings);
         // Synchronize export UI and stash reset tooltip titles installed by workspaceController for initially disabled targets
         updateOfflineExportModeUi();
         historyController.initialize();

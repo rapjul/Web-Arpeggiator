@@ -2,6 +2,7 @@ import {
     clampFloat,
     clampInt,
     hasPresetChanges,
+    hasPresetUrlParams,
     NOTES_REGEX,
     parsePresetFromUrlParams,
     serializePresetToUrlParams,
@@ -163,6 +164,18 @@ describe("URL Preset Domain Module", () => {
         expect(parsePresetFromUrlParams("?pwa=true", defaultSettings)).toBeNull();
         expect(parsePresetFromUrlParams("?unknown=value&foo=bar", defaultSettings)).toBeNull();
         expect(parsePresetFromUrlParams("", defaultSettings)).toBeNull();
+    });
+
+    test("hasPresetUrlParams correctly detects presence of recognized preset keys", () => {
+        expect(hasPresetUrlParams("?bpm=140")).toBe(true);
+        expect(hasPresetUrlParams("?synth=fmSynth")).toBe(true);
+        expect(hasPresetUrlParams("?notes=C4%20E4%20G4")).toBe(true);
+        expect(hasPresetUrlParams(new URLSearchParams("tail=2.5"))).toBe(true);
+        expect(hasPresetUrlParams("?pwa=true")).toBe(false);
+        expect(hasPresetUrlParams("?unknown=123&foo=bar")).toBe(false);
+        expect(hasPresetUrlParams("")).toBe(false);
+        expect(hasPresetUrlParams(null)).toBe(false);
+        expect(hasPresetUrlParams(undefined)).toBe(false);
     });
 
     test("hasPresetChanges detects differences accurately", () => {

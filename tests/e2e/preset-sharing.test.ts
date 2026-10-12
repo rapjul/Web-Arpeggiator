@@ -1,4 +1,4 @@
-import { dismissOnboarding, expect, test } from "./fixtures/app";
+import { dismissOnboarding, expect, readPersistedSession, test } from "./fixtures/app";
 
 test("copies a share URL containing the public preset parameters", async ({ pwaPage: page }) => {
     await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
@@ -67,4 +67,35 @@ test("clamps out-of-range shared preset values", async ({ pwaPage: page }) => {
 
     await dismissOnboarding(page);
     await expect(page.locator("#play-stop")).toHaveText("Stop Audio");
+});
+
+test("takes precedence over previously persisted IndexedDB sessions", async ({ pwaPage: page }) => {
+    await dismissOnboarding(page);
+
+    // Persist a custom session with 175 BPM and amSynth
+    await page.locator("#bpm").fill("175");
+    await page.locator("#synth-type").selectOption("amSynth");
+    await expect
+        .poll(() => readPersistedSession(page))
+        .toMatchObject({
+            bpm: 175,
+            synthType: "amSynth",
+        });
+
+    // Navigate to shared preset URL (145 BPM, fmSynth)
+    await page.goto("/index.html?pwa=true&bpm=145&synth=fmSynth", {
+        waitUntil: "domcontentloaded",
+    });
+
+    // URL preset must hydrate immediately and take precedence over saved session
+    await expect(page.locator("#bpm")).toHaveValue("145");
+    await expect(page.locator("#synth-type")).toHaveValue("fmSynth");
+
+    // Default-matching URL preset (?bpm=120) also supersedes the 175 BPM stored session
+    await page.goto("/index.html?pwa=true&bpm=120", {
+        waitUntil: "domcontentloaded",
+    });
+
+    await expect(page.locator("#bpm")).toHaveValue("120");
+    await expect(page.locator("#synth-type")).toHaveValue("synth");
 });

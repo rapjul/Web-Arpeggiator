@@ -247,6 +247,24 @@ export function serializePresetToUrlParams(settings) {
 }
 
 /**
+ * Checks whether the provided URL search parameters or query string contain any recognized preset keys.
+ *
+ * @param {URLSearchParams|string|null|undefined} searchParams - URL search parameters instance or query string.
+ * @returns {boolean} True if any recognized preset key is present, false otherwise.
+ */
+export function hasPresetUrlParams(searchParams) {
+    if (!searchParams) return false;
+    try {
+        const params =
+            typeof searchParams === "string" ? new URLSearchParams(searchParams) : searchParams;
+        if (!params) return false;
+        return [...params.keys()].some((key) => PRESET_URL_KEYS.has(key));
+    } catch {
+        return false;
+    }
+}
+
+/**
  * Parses and strictly validates preset search parameters against default or current settings.
  *
  * @template {PresetSettings & Record<string, unknown>} T
