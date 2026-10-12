@@ -113,6 +113,8 @@ let audioRuntimeController = null;
 let playbackController = null;
 let exportControlsController = null;
 let presetWorkflowController = null;
+let onboardingController = null;
+let transportActionToken = 0;
 
 /**
  * Starts the deferred audio runtime from a user-initiated action.
@@ -451,6 +453,11 @@ function initializeApp() {
             adaptButton: chordConflictAdaptButton,
             cancelButton: chordConflictCancelButton,
         },
+        isAnotherModalOpen: () =>
+            Boolean(
+                onboardingController?.isQuickStartOpen?.() ||
+                    presetWorkflowController?.isFuturePresetDialogOpen?.(),
+            ),
     });
 
     const patternControlsController = createPatternControlsController({
@@ -777,7 +784,7 @@ function initializeApp() {
         logger: console,
     });
 
-    const onboardingController = createOnboardingController({
+    onboardingController = createOnboardingController({
         dom: {
             appMain,
             quickStartModeChoice,
@@ -802,7 +809,17 @@ function initializeApp() {
         getLocationSearch: () => window.location.search,
         presetUrlKeys: PRESET_URL_KEYS,
         factoryPresets: FACTORY_PRESETS,
+        canOpenModal: () =>
+            !presetWorkflowController?.isImportPending?.() &&
+            !presetWorkflowController?.isFuturePresetDialogOpen?.() &&
+            !chordConflictDialogController?.isOpen?.(),
+        isAnotherModalOpen: () =>
+            Boolean(
+                presetWorkflowController?.isFuturePresetDialogOpen?.() ||
+                    chordConflictDialogController?.isOpen?.(),
+            ),
         onPresetSelected: async (preset) => {
+            const capturedTransportToken = transportActionToken;
             hasAppliedOnboardingChoice = true;
             applySettingsWithHistory(mergeSettings(DEFAULT_SETTINGS, preset.settings));
             if (presetNameInput) {
@@ -824,6 +841,10 @@ function initializeApp() {
                 } catch {
                     // Session restoration error handled on initial startup; proceed with available settings
                 }
+            }
+            if (transportActionToken !== capturedTransportToken) {
+                scheduleLastSessionSave();
+                return;
             }
             if (quickStartOverlay && !quickStartOverlay.classList.contains("is-hidden")) {
                 scheduleLastSessionSave();
@@ -1389,6 +1410,7 @@ function initializeApp() {
      * @returns {void}
      */
     function stopPlayback() {
+        transportActionToken += 1;
         playbackController?.stop();
     }
 
@@ -1763,6 +1785,16 @@ function initializeApp() {
         hideStorageRecovery: hideBrowserStorageRecovery,
         showToast,
         onUrlPresetRecognized: markUserSettingsInteraction,
+        isAnotherModalOpen: () =>
+            Boolean(
+                onboardingController?.isQuickStartOpen?.() ||
+                    chordConflictDialogController?.isOpen?.(),
+            ),
+        onBeforeOpenFuturePresetDialog: () => {
+            if (onboardingController?.isQuickStartOpen?.()) {
+                onboardingController.closeQuickStartModal();
+            }
+        },
         logger: console,
     });
     presetWorkflowController.initialize();

@@ -100,4 +100,37 @@ describe("future preset dialog controller", () => {
 
         expect(overlay?.getAttribute("aria-hidden")).toBe("false");
     });
+
+    it("reports isOpen accurately and respects isAnotherModalOpen when closing", () => {
+        const loadPresetButton = renderDialog();
+        const onBeforeOpen = vi.fn();
+        const isAnotherModalOpen = vi.fn().mockReturnValue(true);
+        const controller = createFuturePresetDialogController({
+            getReturnFocus: () => loadPresetButton,
+            isAnotherModalOpen,
+            onBeforeOpen,
+            onConfirm: vi.fn(),
+        });
+        controllers.push(controller);
+        const appMain = document.getElementById("app-main");
+
+        expect(controller.isOpen()).toBe(false);
+
+        controller.open({ settingsVersion: 99 }, "future.json");
+        expect(controller.isOpen()).toBe(true);
+        expect(onBeforeOpen).toHaveBeenCalled();
+        expect(appMain?.hasAttribute("inert")).toBe(true);
+
+        // Close dialog
+        controller.close();
+        expect(controller.isOpen()).toBe(false);
+        // appMain remains inert because isAnotherModalOpen returned true
+        expect(appMain?.hasAttribute("inert")).toBe(true);
+
+        // When isAnotherModalOpen returns false, closing removes inert
+        isAnotherModalOpen.mockReturnValue(false);
+        controller.open({ settingsVersion: 99 }, "future.json");
+        controller.close();
+        expect(appMain?.hasAttribute("inert")).toBe(false);
+    });
 });

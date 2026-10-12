@@ -26,8 +26,8 @@ import { createFuturePresetDialogController } from "@ui/future-preset-dialog-con
 /**
  * Creates the preset workflow controller.
  *
- * @param {{dom: {sharePresetButton: HTMLElement, savePresetButton: HTMLElement, savePresetToBrowserButton: HTMLElement|null, loadPresetButton: HTMLElement, loadPresetInput: HTMLInputElement, loadSavedPresetButton: HTMLElement|null, clearSavedPresetButton: HTMLElement|null, deleteSavedPresetButton: HTMLElement|null, presetNameInput: HTMLInputElement|null, savedPresetSelect: HTMLSelectElement|null}, windowRef: {location: {origin: string, pathname: string, search: string}}, navigatorRef: {clipboard?: {writeText: (value: string) => Promise<void>}}, fileReaderFactory: () => FileReader, confirm: (message: string) => boolean, factoryPresets: readonly FactoryPreset[], getPresetStore: () => {save: (settings: Record<string, unknown>, metadata: Record<string, string>) => Promise<{id: string}>, get: (id: string) => Promise<StoredPresetRecord|null>, loadLatest: () => Promise<StoredPresetRecord|null>, clear: () => Promise<void>, remove: (id: string) => Promise<void>}|undefined, getAllSettings: () => Record<string, unknown>, applySettingsWithHistory: (settings: unknown, options?: {allowFutureVersion?: boolean}) => {ok: boolean, error?: unknown}, generateFilename: (isRealtime: boolean) => string, refreshSavedPresetList: (selectedId?: string) => Promise<void>, setActiveSoundStarterCard: (presetId?: string|null) => void, showStorageRecovery: () => void, hideStorageRecovery: () => void, showToast: (message: string, type?: string) => void, onUrlPresetRecognized?: () => void, logger?: {log?: (...args: unknown[]) => void, warn?: (...args: unknown[]) => void, error?: (...args: unknown[]) => void}}} dependencies - Injected preset workflow behavior.
- * @returns {{initialize: () => void, destroy: () => void, loadPresetFromUrl: () => void}} Preset workflow API.
+ * @param {{dom: {sharePresetButton: HTMLElement, savePresetButton: HTMLElement, savePresetToBrowserButton: HTMLElement|null, loadPresetButton: HTMLElement, loadPresetInput: HTMLInputElement, loadSavedPresetButton: HTMLElement|null, clearSavedPresetButton: HTMLElement|null, deleteSavedPresetButton: HTMLElement|null, presetNameInput: HTMLInputElement|null, savedPresetSelect: HTMLSelectElement|null}, windowRef: {location: {origin: string, pathname: string, search: string}}, navigatorRef: {clipboard?: {writeText: (value: string) => Promise<void>}}, fileReaderFactory: () => FileReader, confirm: (message: string) => boolean, factoryPresets: readonly FactoryPreset[], getPresetStore: () => {save: (settings: Record<string, unknown>, metadata: Record<string, string>) => Promise<{id: string}>, get: (id: string) => Promise<StoredPresetRecord|null>, loadLatest: () => Promise<StoredPresetRecord|null>, clear: () => Promise<void>, remove: (id: string) => Promise<void>}|undefined, getAllSettings: () => Record<string, unknown>, applySettingsWithHistory: (settings: unknown, options?: {allowFutureVersion?: boolean}) => {ok: boolean, error?: unknown}, generateFilename: (isRealtime: boolean) => string, refreshSavedPresetList: (selectedId?: string) => Promise<void>, setActiveSoundStarterCard: (presetId?: string|null) => void, showStorageRecovery: () => void, hideStorageRecovery: () => void, showToast: (message: string, type?: string) => void, onUrlPresetRecognized?: () => void, isAnotherModalOpen?: () => boolean, onBeforeOpenFuturePresetDialog?: () => void, logger?: {log?: (...args: unknown[]) => void, warn?: (...args: unknown[]) => void, error?: (...args: unknown[]) => void}}} dependencies - Injected preset workflow behavior.
+ * @returns {{initialize: () => void, destroy: () => void, loadPresetFromUrl: () => void, isImportPending: () => boolean, isFuturePresetDialogOpen: () => boolean}} Preset workflow API.
  */
 export function createPresetWorkflowController(dependencies) {
     const {
@@ -63,6 +63,7 @@ export function createPresetWorkflowController(dependencies) {
     } = dom;
     let listenerController = null;
     let futurePresetDialogController = null;
+    let isFileImportPending = false;
 
     function sharePresetAsUrl() {
         const params = serializePresetToUrlParams(getAllSettings());
@@ -149,6 +150,8 @@ export function createPresetWorkflowController(dependencies) {
     function createFuturePresetDialog() {
         return createFuturePresetDialogController({
             getReturnFocus: () => loadPresetButton,
+            isAnotherModalOpen: dependencies.isAnotherModalOpen,
+            onBeforeOpen: dependencies.onBeforeOpenFuturePresetDialog,
             onConfirm: (settings, fileName) => {
                 const result = applySettingsWithHistory(settings, { allowFutureVersion: true });
                 if (result.ok) {
@@ -164,7 +167,9 @@ export function createPresetWorkflowController(dependencies) {
         const file = target.files ? target.files[0] : null;
         if (!file) return;
         const reader = fileReaderFactory();
+        isFileImportPending = true;
         reader.onload = (loadEvent) => {
+            isFileImportPending = false;
             const fileReaderTarget = /** @type {FileReader} */ (loadEvent.target);
             if (!fileReaderTarget || typeof fileReaderTarget.result !== "string") return;
             try {
@@ -185,6 +190,11 @@ export function createPresetWorkflowController(dependencies) {
                 logger.error?.("Failed to load preset:", error);
                 showToast("Failed to load preset.", "error");
             }
+        };
+        reader.onerror = () => {
+            isFileImportPending = false;
+            logger.error?.("Failed to read preset file.");
+            showToast("Failed to load preset.", "error");
         };
         reader.readAsText(file);
         target.value = "";
@@ -305,11 +315,18 @@ export function createPresetWorkflowController(dependencies) {
     }
 
     function destroy() {
+        isFileImportPending = false;
         listenerController?.abort();
         listenerController = null;
         futurePresetDialogController?.destroy();
         futurePresetDialogController = null;
     }
 
-    return { initialize, destroy, loadPresetFromUrl };
+    return {
+        initialize,
+        destroy,
+        loadPresetFromUrl,
+        isImportPending: () => isFileImportPending,
+        isFuturePresetDialogOpen: () => Boolean(futurePresetDialogController?.isOpen?.()),
+    };
 }

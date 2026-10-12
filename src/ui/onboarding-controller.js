@@ -23,6 +23,8 @@ import { normalizeInterfaceMode } from "@core/interface-mode.js";
  * @property {() => Promise<void>|void} onStartFromScratch
  * @property {() => Promise<void>|void} onStartOverlay
  * @property {(mode: "simple"|"full") => void} [onInterfaceModeSelected]
+ * @property {() => boolean} [canOpenModal]
+ * @property {() => boolean} [isAnotherModalOpen]
  * @property {{warn: (...args: unknown[]) => void}} [logger]
  */
 
@@ -34,7 +36,7 @@ const SOUND_STARTERS_OPEN_KEY = "soundStartersOpen";
  * settings, or browser-global application state.
  *
  * @param {OnboardingControllerDependencies} dependencies - Injected UI and app behavior.
- * @returns {{initialize: () => void, destroy: () => void, openQuickStartModal: (options?: {onDemand?: boolean}) => void, closeQuickStartModal: () => void, prepareForPlayback: () => void}}
+ * @returns {{initialize: () => void, destroy: () => void, openQuickStartModal: (options?: {onDemand?: boolean}) => void, closeQuickStartModal: () => void, prepareForPlayback: () => void, isQuickStartOpen: () => boolean}}
  */
 export function createOnboardingController(dependencies) {
     const {
@@ -48,6 +50,8 @@ export function createOnboardingController(dependencies) {
         onStartFromScratch,
         onStartOverlay,
         onInterfaceModeSelected,
+        canOpenModal,
+        isAnotherModalOpen,
         logger = console,
     } = dependencies;
     const {
@@ -178,6 +182,7 @@ export function createOnboardingController(dependencies) {
     function openQuickStartModal(options = {}) {
         const { onDemand = false } = options;
         if (!quickStartOverlay || isActivatingAudio) return;
+        if (canOpenModal && !canOpenModal()) return;
         isOnDemand = Boolean(onDemand);
 
         if (startOverlay && !startOverlay.classList.contains("is-hidden")) {
@@ -266,7 +271,9 @@ export function createOnboardingController(dependencies) {
             quickStartCloseButton.classList.add("hidden");
         }
         quickStartOverlay?.classList.add("is-hidden");
-        appMain?.removeAttribute("inert");
+        if (!isAnotherModalOpen?.()) {
+            appMain?.removeAttribute("inert");
+        }
 
         if (wasStartOverlaySuspended) {
             startOverlay?.classList.remove("is-hidden");
@@ -562,5 +569,13 @@ export function createOnboardingController(dependencies) {
         isInitialized = false;
     }
 
-    return { initialize, destroy, openQuickStartModal, closeQuickStartModal, prepareForPlayback };
+    return {
+        initialize,
+        destroy,
+        openQuickStartModal,
+        closeQuickStartModal,
+        prepareForPlayback,
+        isQuickStartOpen: () =>
+            Boolean(quickStartOverlay && !quickStartOverlay.classList.contains("is-hidden")),
+    };
 }

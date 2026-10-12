@@ -7,8 +7,8 @@
 /**
  * Creates the controller that owns the newer-preset compatibility dialog.
  *
- * @param {{documentRoot?: Document, windowRoot?: Window, getReturnFocus: () => HTMLElement|null, onConfirm: (settings: Record<string, unknown>, fileName: string) => void}} options - Dialog dependencies.
- * @returns {{open: (settings: Record<string, unknown>, fileName: string) => void, close: () => void, destroy: () => void}} Dialog controls.
+ * @param {{documentRoot?: Document, windowRoot?: Window, getReturnFocus: () => HTMLElement|null, onConfirm: (settings: Record<string, unknown>, fileName: string) => void, isAnotherModalOpen?: () => boolean, onBeforeOpen?: () => void}} options - Dialog dependencies.
+ * @returns {{open: (settings: Record<string, unknown>, fileName: string) => void, close: () => void, destroy: () => void, isOpen: () => boolean}} Dialog controls.
  */
 export function createFuturePresetDialogController(options) {
     const { documentRoot = document, windowRoot = window, getReturnFocus, onConfirm } = options;
@@ -30,7 +30,9 @@ export function createFuturePresetDialogController(options) {
         overlay?.classList.add("hidden");
         overlay?.classList.remove("flex");
         overlay?.setAttribute("aria-hidden", "true");
-        appMain?.removeAttribute("inert");
+        if (!options.isAnotherModalOpen?.()) {
+            appMain?.removeAttribute("inert");
+        }
         returnFocus?.focus();
         returnFocus = null;
     }
@@ -43,6 +45,7 @@ export function createFuturePresetDialogController(options) {
      * @returns {void}
      */
     function open(settings, fileName) {
+        options.onBeforeOpen?.();
         pendingPreset = { settings: { ...settings }, fileName };
         returnFocus = getReturnFocus();
         overlay?.classList.remove("hidden");
@@ -111,5 +114,12 @@ export function createFuturePresetDialogController(options) {
         listenerController.abort();
     }
 
-    return { open, close, destroy };
+    return {
+        open,
+        close,
+        destroy,
+        isOpen: () =>
+            overlay?.getAttribute("aria-hidden") === "false" &&
+            !overlay?.classList.contains("hidden"),
+    };
 }

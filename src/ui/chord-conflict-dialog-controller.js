@@ -7,10 +7,11 @@
 /**
  * Creates a controller for the chord/scale conflict dialog.
  *
- * @param {{documentRef: Document, dom: {appMain: HTMLElement|null, overlay: HTMLElement|null, dialog: HTMLElement|null, requestedNotes: HTMLElement|null, adaptedNotes: HTMLElement|null, changedPitches: HTMLElement|null, keepButton: HTMLButtonElement|null, adaptButton: HTMLButtonElement|null, cancelButton: HTMLButtonElement|null}}} dependencies - Injected DOM references.
- * @returns {{open: (details: {chordName: string, root: string, requestedNotes: string[], adaptedNotes: string[], changedPitches: Array<{requested: string, adapted: string}>, onKeep: () => void, onAdapt: () => void, onCancel?: () => void}) => void, close: () => void, destroy: () => void}}
+ * @param {{documentRef: Document, dom: {appMain: HTMLElement|null, overlay: HTMLElement|null, dialog: HTMLElement|null, requestedNotes: HTMLElement|null, adaptedNotes: HTMLElement|null, changedPitches: HTMLElement|null, keepButton: HTMLButtonElement|null, adaptButton: HTMLButtonElement|null, cancelButton: HTMLButtonElement|null}, isAnotherModalOpen?: () => boolean}} dependencies - Injected DOM references.
+ * @returns {{open: (details: {chordName: string, root: string, requestedNotes: string[], adaptedNotes: string[], changedPitches: Array<{requested: string, adapted: string}>, onKeep: () => void, onAdapt: () => void, onCancel?: () => void}) => void, close: () => void, destroy: () => void, isOpen: () => boolean}}
  */
-export function createChordConflictDialogController({ documentRef, dom }) {
+export function createChordConflictDialogController(dependencies) {
+    const { documentRef, dom, isAnotherModalOpen } = dependencies;
     const {
         appMain,
         overlay,
@@ -33,7 +34,9 @@ export function createChordConflictDialogController({ documentRef, dom }) {
         overlay?.classList.add("hidden");
         overlay?.classList.remove("flex");
         overlay?.setAttribute("aria-hidden", "true");
-        appMain?.removeAttribute("inert");
+        if (!isAnotherModalOpen?.()) {
+            appMain?.removeAttribute("inert");
+        }
         returnFocus?.focus();
         returnFocus = null;
     }
@@ -136,5 +139,12 @@ export function createChordConflictDialogController({ documentRef, dom }) {
         listenerController.abort();
     }
 
-    return { open, close, destroy };
+    return {
+        open,
+        close,
+        destroy,
+        isOpen: () =>
+            overlay?.getAttribute("aria-hidden") === "false" &&
+            !overlay?.classList.contains("hidden"),
+    };
 }

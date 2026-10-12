@@ -8,7 +8,9 @@ const controllers: Array<ReturnType<typeof createPresetWorkflowController>> = []
 interface CreateFixtureOptions {
     confirm?: (message: string) => boolean;
     getPresetStore?: () => unknown;
+    isAnotherModalOpen?: () => boolean;
     navigatorRef?: { clipboard?: { writeText: (value: string) => Promise<void> } };
+    onBeforeOpenFuturePresetDialog?: () => void;
     onUrlPresetRecognized?: () => void;
     search?: string;
 }
@@ -35,6 +37,7 @@ function createFixture(options: CreateFixtureOptions = {}) {
     savedOption.value = "saved-1";
     savedPresetSelect.append(factoryOption, savedOption);
     const appMain = document.createElement("main");
+    appMain.id = "app-main";
     const futureOverlay = document.createElement("div");
     futureOverlay.id = "future-preset-overlay";
     futureOverlay.setAttribute("aria-hidden", "true");
@@ -126,12 +129,15 @@ function createFixture(options: CreateFixtureOptions = {}) {
         hideStorageRecovery,
         showToast,
         onUrlPresetRecognized: options.onUrlPresetRecognized,
+        isAnotherModalOpen: options.isAnotherModalOpen,
+        onBeforeOpenFuturePresetDialog: options.onBeforeOpenFuturePresetDialog,
         logger,
     });
     controller.initialize();
     controllers.push(controller);
 
     return {
+        appMain,
         applySettingsWithHistory,
         clearSavedPresetButton,
         clipboard,
@@ -148,6 +154,7 @@ function createFixture(options: CreateFixtureOptions = {}) {
         loadSavedPresetButton,
         logger,
         presetNameInput,
+        reader,
         refreshSavedPresetList,
         savePresetButton,
         savePresetToBrowserButton,
@@ -538,5 +545,87 @@ describe("preset workflow controller", () => {
         fixture.sharePresetButton.click();
 
         expect(fixture.clipboard.writeText).not.toHaveBeenCalled();
+    });
+
+    it("tracks isImportPending during file reader execution and resets on finish", () => {
+        const fixture = createFixture();
+        let triggerLoad: (() => void) | null = null;
+        vi.spyOn(fixture.reader, "readAsText").mockImplementation(() => {
+            triggerLoad = () => {
+                Object.defineProperty(fixture.reader, "result", {
+                    configurable: true,
+                    value: JSON.stringify({ bpm: 128 }),
+                });
+                fixture.reader.dispatchEvent(new Event("load"));
+            };
+        });
+
+        expect(fixture.controller.isImportPending()).toBe(false);
+
+        // Initiate file import
+        const file = new File(["{}"], "preset.json", { type: "application/json" });
+        Object.defineProperty(fixture.loadPresetInput, "files", {
+            configurable: true,
+            value: [file],
+        });
+        fixture.loadPresetInput.dispatchEvent(new Event("change", { bubbles: true }));
+
+        // While reader has not resolved, isImportPending is true
+        expect(fixture.controller.isImportPending()).toBe(true);
+
+        // Resolve reader
+        triggerLoad?.();
+        expect(fixture.controller.isImportPending()).toBe(false);
+    });
+
+    it("tracks isImportPending and resets on reader error", () => {
+        const fixture = createFixture();
+        let triggerError: (() => void) | null = null;
+        vi.spyOn(fixture.reader, "readAsText").mockImplementation(() => {
+            triggerError = () => {
+                fixture.reader.dispatchEvent(new Event("error"));
+            };
+        });
+
+        const file = new File(["{}"], "preset.json", { type: "application/json" });
+        Object.defineProperty(fixture.loadPresetInput, "files", {
+            configurable: true,
+            value: [file],
+        });
+        fixture.loadPresetInput.dispatchEvent(new Event("change", { bubbles: true }));
+
+        expect(fixture.controller.isImportPending()).toBe(true);
+        triggerError?.();
+        expect(fixture.controller.isImportPending()).toBe(false);
+        expect(fixture.showToast).toHaveBeenCalledWith("Failed to load preset.", "error");
+    });
+
+    it("tracks isFuturePresetDialogOpen and respects isAnotherModalOpen on dismiss", () => {
+        const onBeforeOpenFuturePresetDialog = vi.fn();
+        const isAnotherModalOpen = vi.fn().mockReturnValue(true);
+        const fixture = createFixture({
+            isAnotherModalOpen,
+            onBeforeOpenFuturePresetDialog,
+        });
+
+        fixture.applySettingsWithHistory.mockReturnValueOnce({
+            error: new UnsupportedSettingsVersionError(2),
+            ok: false,
+        });
+
+        expect(fixture.controller.isFuturePresetDialogOpen()).toBe(false);
+
+        dispatchFileImport(fixture, JSON.stringify({ bpm: 130, settingsVersion: 2 }));
+
+        expect(fixture.controller.isFuturePresetDialogOpen()).toBe(true);
+        expect(onBeforeOpenFuturePresetDialog).toHaveBeenCalled();
+        expect(fixture.appMain.hasAttribute("inert")).toBe(true);
+
+        // Dismiss dialog via overlay click
+        fixture.futureOverlay.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+        expect(fixture.controller.isFuturePresetDialogOpen()).toBe(false);
+        // Because isAnotherModalOpen returned true, inert must NOT be removed from appMain
+        expect(fixture.appMain.hasAttribute("inert")).toBe(true);
     });
 });

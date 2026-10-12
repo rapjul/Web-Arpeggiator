@@ -17,6 +17,8 @@ interface FixtureOptions {
     onStartFromScratch?: ReturnType<typeof vi.fn>;
     onStartOverlay?: ReturnType<typeof vi.fn>;
     onInterfaceModeSelected?: ReturnType<typeof vi.fn>;
+    canOpenModal?: () => boolean;
+    isAnotherModalOpen?: () => boolean;
 }
 
 const activeControllers: Array<ReturnType<typeof createOnboardingController>> = [];
@@ -137,6 +139,8 @@ function createFixture(
         onStartFromScratch,
         onStartOverlay,
         onInterfaceModeSelected,
+        canOpenModal: options.canOpenModal,
+        isAnotherModalOpen: options.isAnotherModalOpen,
         logger,
     });
     activeControllers.push(controller);
@@ -1152,6 +1156,76 @@ describe("onboarding controller", () => {
             // Once scratch startup completes, guide help button works normally
             quickStartHelpButton?.dispatchEvent(new Event("click"));
             expect(quickStartOverlay?.classList.contains("is-hidden")).toBe(false);
+        });
+
+        it("respects canOpenModal guard and prevents reopening the guide when false", () => {
+            const memoryStorage = new Map<string, string>();
+            const mockStorage = {
+                getItem: (key: string) => memoryStorage.get(key) ?? null,
+                setItem: (key: string, value: string) => memoryStorage.set(key, value),
+            };
+
+            const canOpenModal = vi.fn().mockReturnValue(true);
+            const { controller, quickStartHelpButton, quickStartOverlay } = createFixture({
+                withModeChoice: true,
+                storage: mockStorage,
+                hasHelpButton: true,
+                canOpenModal,
+            });
+
+            controller.initialize();
+            // Initial visit starts with modal open when canOpenModal is true
+            expect(controller.isQuickStartOpen()).toBe(true);
+
+            controller.closeQuickStartModal();
+            expect(controller.isQuickStartOpen()).toBe(false);
+
+            // Setting canOpenModal to false blocks reopening via button or direct call
+            canOpenModal.mockReturnValue(false);
+            quickStartHelpButton?.dispatchEvent(new Event("click"));
+            expect(controller.isQuickStartOpen()).toBe(false);
+
+            controller.openQuickStartModal({ onDemand: true });
+            expect(controller.isQuickStartOpen()).toBe(false);
+            expect(canOpenModal).toHaveBeenCalled();
+
+            // When canOpenModal returns true, reopening succeeds
+            canOpenModal.mockReturnValue(true);
+            controller.openQuickStartModal({ onDemand: true });
+            expect(controller.isQuickStartOpen()).toBe(true);
+            expect(quickStartOverlay?.classList.contains("is-hidden")).toBe(false);
+        });
+
+        it("preserves inert on appMain when closing guide if another modal remains open", () => {
+            const memoryStorage = new Map<string, string>();
+            const mockStorage = {
+                getItem: (key: string) => memoryStorage.get(key) ?? null,
+                setItem: (key: string, value: string) => memoryStorage.set(key, value),
+            };
+
+            const isAnotherModalOpen = vi.fn().mockReturnValue(true);
+            const { appMain, controller } = createFixture({
+                withModeChoice: true,
+                storage: mockStorage,
+                isAnotherModalOpen,
+            });
+
+            controller.initialize();
+            expect(appMain.hasAttribute("inert")).toBe(true);
+
+            // Close the quick start modal while another modal is still open
+            controller.closeQuickStartModal();
+
+            // appMain must remain inert to preserve accessibility
+            expect(appMain.hasAttribute("inert")).toBe(true);
+
+            // When isAnotherModalOpen returns false, closing removes inert
+            isAnotherModalOpen.mockReturnValue(false);
+            controller.openQuickStartModal({ onDemand: true });
+            expect(appMain.hasAttribute("inert")).toBe(true);
+
+            controller.closeQuickStartModal();
+            expect(appMain.hasAttribute("inert")).toBe(false);
         });
     });
 });
