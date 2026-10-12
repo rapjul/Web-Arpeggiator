@@ -825,6 +825,10 @@ function initializeApp() {
                     // Session restoration error handled on initial startup; proceed with available settings
                 }
             }
+            if (quickStartOverlay && !quickStartOverlay.classList.contains("is-hidden")) {
+                scheduleLastSessionSave();
+                return;
+            }
             try {
                 await startPlayback();
                 showToast(`Started with preset: ${preset.name}`, "success");

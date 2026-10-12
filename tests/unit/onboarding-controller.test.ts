@@ -1053,5 +1053,105 @@ describe("onboarding controller", () => {
             quickStartHelpButton?.dispatchEvent(new Event("click"));
             expect(quickStartOverlay?.classList.contains("is-hidden")).toBe(false);
         });
+
+        it("does not allow reopening the guide modal while preset audio activation is in flight", async () => {
+            const memoryStorage = new Map<string, string>();
+            const mockStorage = {
+                getItem: (key: string) => memoryStorage.get(key) ?? null,
+                setItem: (key: string, value: string) => memoryStorage.set(key, value),
+            };
+
+            let resolvePreset: (() => void) | null = null;
+            const onPresetSelected = vi.fn().mockReturnValue(
+                new Promise<void>((resolve) => {
+                    resolvePreset = resolve;
+                }),
+            );
+
+            const {
+                controller,
+                quickStartFullButton,
+                quickStartHelpButton,
+                quickStartOverlay,
+                quickStartPresetsGrid,
+            } = createFixture({
+                withModeChoice: true,
+                storage: mockStorage,
+                hasHelpButton: true,
+                onPresetSelected,
+            });
+
+            controller.initialize();
+            expect(quickStartOverlay?.classList.contains("is-hidden")).toBe(false);
+
+            // User selects full interface mode to advance to preset stage
+            quickStartFullButton?.dispatchEvent(new Event("click"));
+
+            // User clicks first sound starter preset card
+            const firstPresetCard = quickStartPresetsGrid?.querySelector(
+                ".sound-starter-card",
+            ) as HTMLButtonElement | null;
+            expect(firstPresetCard).not.toBeNull();
+            firstPresetCard?.dispatchEvent(new Event("click"));
+
+            expect(onPresetSelected).toHaveBeenCalled();
+            expect(quickStartOverlay?.classList.contains("is-hidden")).toBe(true);
+
+            // While preset startup is in flight, clicking guide help button cannot reopen modal
+            quickStartHelpButton?.dispatchEvent(new Event("click"));
+            expect(quickStartOverlay?.classList.contains("is-hidden")).toBe(true);
+
+            // Finish activation
+            resolvePreset?.();
+            await Promise.resolve();
+
+            // Once preset startup completes, guide help button works normally
+            quickStartHelpButton?.dispatchEvent(new Event("click"));
+            expect(quickStartOverlay?.classList.contains("is-hidden")).toBe(false);
+        });
+
+        it("does not allow reopening the guide modal while scratch audio activation is in flight", async () => {
+            const memoryStorage = new Map<string, string>();
+            const mockStorage = {
+                getItem: (key: string) => memoryStorage.get(key) ?? null,
+                setItem: (key: string, value: string) => memoryStorage.set(key, value),
+            };
+
+            let resolveScratch: (() => void) | null = null;
+            const onStartFromScratch = vi.fn().mockReturnValue(
+                new Promise<void>((resolve) => {
+                    resolveScratch = resolve;
+                }),
+            );
+
+            const { controller, quickStartHelpButton, quickStartOverlay, quickStartScratchButton } =
+                createFixture({
+                    withModeChoice: true,
+                    storage: mockStorage,
+                    hasHelpButton: true,
+                    onStartFromScratch,
+                });
+
+            controller.initialize();
+            expect(quickStartOverlay?.classList.contains("is-hidden")).toBe(false);
+
+            // User clicks start from scratch button
+            quickStartScratchButton?.dispatchEvent(new Event("click"));
+
+            expect(onStartFromScratch).toHaveBeenCalled();
+            expect(quickStartOverlay?.classList.contains("is-hidden")).toBe(true);
+
+            // While scratch startup is in flight, clicking guide help button cannot reopen modal
+            quickStartHelpButton?.dispatchEvent(new Event("click"));
+            expect(quickStartOverlay?.classList.contains("is-hidden")).toBe(true);
+
+            // Finish activation
+            resolveScratch?.();
+            await Promise.resolve();
+
+            // Once scratch startup completes, guide help button works normally
+            quickStartHelpButton?.dispatchEvent(new Event("click"));
+            expect(quickStartOverlay?.classList.contains("is-hidden")).toBe(false);
+        });
     });
 });

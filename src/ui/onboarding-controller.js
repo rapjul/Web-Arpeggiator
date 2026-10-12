@@ -292,6 +292,7 @@ export function createOnboardingController(dependencies) {
      * @returns {Promise<void>}
      */
     async function handleQuickStartPresetClick(preset) {
+        isActivatingAudio = true;
         wasStartOverlaySuspended = false;
         startOverlay?.classList.add("is-hidden");
         closeQuickStartModal();
@@ -301,6 +302,8 @@ export function createOnboardingController(dependencies) {
             await onPresetSelected(preset);
         } catch (error) {
             logger.warn("Could not start audio from a quick start preset:", error);
+        } finally {
+            isActivatingAudio = false;
         }
     }
 
@@ -317,6 +320,7 @@ export function createOnboardingController(dependencies) {
         if (quickStartModeChoice && !hasSelectedInterfaceMode) {
             onInterfaceModeSelected?.("full");
         }
+        isActivatingAudio = true;
         wasStartOverlaySuspended = false;
         startOverlay?.classList.add("is-hidden");
         closeQuickStartModal();
@@ -334,6 +338,8 @@ export function createOnboardingController(dependencies) {
             await onStartFromScratch();
         } catch (error) {
             logger.warn("Could not start audio from scratch:", error);
+        } finally {
+            isActivatingAudio = false;
         }
     }
 
