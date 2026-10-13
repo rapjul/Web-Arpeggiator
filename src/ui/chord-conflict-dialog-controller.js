@@ -99,6 +99,28 @@ export function createChordConflictDialogController(dependencies) {
         listenerOptions,
     );
 
+    /**
+     * Writes the chord conflict details into the dialog, tolerating malformed arrays.
+     *
+     * @param {{chordName?: string, root?: string, requestedNotes?: unknown, adaptedNotes?: unknown, changedPitches?: unknown}} details - Conflict details.
+     * @returns {void}
+     */
+    function renderDetails(details) {
+        const asArray = (value) => (Array.isArray(value) ? value : []);
+        const pitches = asArray(details.changedPitches);
+        if (requestedNotes)
+            requestedNotes.textContent = asArray(details.requestedNotes).join("  •  ");
+        if (adaptedNotes) adaptedNotes.textContent = asArray(details.adaptedNotes).join("  •  ");
+        if (changedPitches) {
+            changedPitches.textContent = pitches
+                .map(({ requested, adapted }) => `${requested} → ${adapted}`)
+                .join(", ");
+        }
+        const title = dialog?.querySelector("[data-chord-conflict-title]");
+        if (title)
+            title.textContent = `${details.root || "C"} ${details.chordName || "Major"} does not fit the active scale`;
+    }
+
     function open(details) {
         if (!details || typeof details !== "object") return;
         const hasRequiredDialogControls = Boolean(
@@ -112,19 +134,7 @@ export function createChordConflictDialogController(dependencies) {
         pending = details;
         returnFocus =
             documentRef.activeElement instanceof HTMLElement ? documentRef.activeElement : null;
-        const requested = Array.isArray(details.requestedNotes) ? details.requestedNotes : [];
-        const adapted = Array.isArray(details.adaptedNotes) ? details.adaptedNotes : [];
-        const pitches = Array.isArray(details.changedPitches) ? details.changedPitches : [];
-        if (requestedNotes) requestedNotes.textContent = requested.join("  •  ");
-        if (adaptedNotes) adaptedNotes.textContent = adapted.join("  •  ");
-        if (changedPitches) {
-            changedPitches.textContent = pitches
-                .map(({ requested, adapted }) => `${requested} → ${adapted}`)
-                .join(", ");
-        }
-        const title = dialog?.querySelector("[data-chord-conflict-title]");
-        if (title)
-            title.textContent = `${details.root || "C"} ${details.chordName || "Major"} does not fit the active scale`;
+        renderDetails(details);
         overlay?.classList.remove("hidden");
         overlay?.classList.add("flex");
         overlay?.setAttribute("aria-hidden", "false");

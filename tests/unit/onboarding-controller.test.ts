@@ -24,6 +24,100 @@ interface FixtureOptions {
 const activeControllers: Array<ReturnType<typeof createOnboardingController>> = [];
 
 /**
+ * Creates the transport play/stop button with disabled styling.
+ *
+ * @param {boolean} enabled - Whether to instantiate the button element.
+ * @returns {HTMLButtonElement | null} Configured button element or null.
+ */
+function createPlayStopElement(enabled: boolean): HTMLButtonElement | null {
+    if (!enabled) return null;
+    const button = document.createElement("button");
+    button.disabled = true;
+    button.classList.add("opacity-50", "cursor-not-allowed", "bg-gray-600");
+    return button;
+}
+
+/**
+ * Creates the startup and quick-start overlay container elements.
+ *
+ * @param {boolean} enabled - Whether overlay elements should be generated.
+ * @returns {{ startOverlay: HTMLDivElement | null, startButton: HTMLButtonElement | null, quickStartOverlay: HTMLDivElement | null }} Overlay elements.
+ */
+function createOverlayElements(enabled: boolean): {
+    startOverlay: HTMLDivElement | null;
+    startButton: HTMLButtonElement | null;
+    quickStartOverlay: HTMLDivElement | null;
+} {
+    if (!enabled) {
+        return { startOverlay: null, startButton: null, quickStartOverlay: null };
+    }
+    const startOverlay = document.createElement("div");
+    startOverlay.classList.add("is-hidden");
+    const startButton = document.createElement("button");
+    startButton.id = "start-button";
+    startOverlay.appendChild(startButton);
+    const quickStartOverlay = document.createElement("div");
+    quickStartOverlay.classList.add("is-hidden");
+    return { startOverlay, startButton, quickStartOverlay };
+}
+
+/**
+ * Creates the modal internal elements and choices.
+ *
+ * @param {{ withModeChoice: boolean, hasCloseButton: boolean, hasPresetsGrid: boolean }} config - Modal configuration flags.
+ * @returns {object} Modal internal controls and container.
+ */
+function createModalElements(config: {
+    withModeChoice: boolean;
+    hasCloseButton: boolean;
+    hasPresetsGrid: boolean;
+}) {
+    const { withModeChoice, hasCloseButton, hasPresetsGrid } = config;
+    const quickStartCloseButton = hasCloseButton ? document.createElement("button") : null;
+    const quickStartModal = document.createElement("div");
+    if (quickStartCloseButton) {
+        quickStartModal.append(quickStartCloseButton);
+    }
+    const quickStartModeChoice = withModeChoice ? document.createElement("div") : null;
+    const quickStartModeContent = withModeChoice ? document.createElement("div") : null;
+    const quickStartSimpleButton = withModeChoice ? document.createElement("button") : null;
+    const quickStartFullButton = withModeChoice ? document.createElement("button") : null;
+    const quickStartPresetsGrid = hasPresetsGrid ? document.createElement("div") : null;
+    const quickStartScratchButton = document.createElement("button");
+
+    if (
+        quickStartModeChoice &&
+        quickStartModeContent &&
+        quickStartSimpleButton &&
+        quickStartFullButton
+    ) {
+        quickStartModeChoice.append(quickStartSimpleButton, quickStartFullButton);
+        quickStartModeContent.hidden = true;
+        if (quickStartPresetsGrid) {
+            quickStartModeContent.append(quickStartPresetsGrid);
+        }
+        quickStartModeContent.append(quickStartScratchButton);
+        quickStartModal.append(quickStartModeChoice, quickStartModeContent);
+    } else {
+        if (quickStartPresetsGrid) {
+            quickStartModal.append(quickStartPresetsGrid);
+        }
+        quickStartModal.append(quickStartScratchButton);
+    }
+
+    return {
+        quickStartModal,
+        quickStartCloseButton,
+        quickStartModeChoice,
+        quickStartModeContent,
+        quickStartSimpleButton,
+        quickStartFullButton,
+        quickStartPresetsGrid,
+        quickStartScratchButton,
+    };
+}
+
+/**
  * Builds a complete onboarding DOM fixture and injected dependencies.
  *
  * @param {string | FixtureOptions} [searchOrOptions=""] - URL search text or fixture options.
@@ -56,54 +150,24 @@ function createFixture(
     } = options;
 
     const appMain = document.createElement("main");
-    const playStopButton = hasPlayStopButton ? document.createElement("button") : null;
-    if (playStopButton) {
-        playStopButton.disabled = true;
-        playStopButton.classList.add("opacity-50", "cursor-not-allowed", "bg-gray-600");
-    }
+    const playStopButton = createPlayStopElement(hasPlayStopButton);
     const quickStartHelpButton = hasHelpButton ? document.createElement("button") : null;
-    const quickStartCloseButton = hasCloseButton ? document.createElement("button") : null;
-    const startOverlay = hasOverlay ? document.createElement("div") : null;
-    startOverlay?.classList.add("is-hidden");
-    const startButton = hasOverlay ? document.createElement("button") : null;
-    if (startButton && startOverlay) {
-        startButton.id = "start-button";
-        startOverlay.appendChild(startButton);
-    }
-    const quickStartOverlay = hasOverlay ? document.createElement("div") : null;
-    quickStartOverlay?.classList.add("is-hidden");
-    const quickStartModal = document.createElement("div");
-    if (quickStartCloseButton) {
-        quickStartModal.append(quickStartCloseButton);
-    }
-    const quickStartModeChoice = withModeChoice ? document.createElement("div") : null;
-    const quickStartModeContent = withModeChoice ? document.createElement("div") : null;
-    const quickStartSimpleButton = withModeChoice ? document.createElement("button") : null;
-    const quickStartFullButton = withModeChoice ? document.createElement("button") : null;
-    const quickStartPresetsGrid = hasPresetsGrid ? document.createElement("div") : null;
-    const quickStartScratchButton = document.createElement("button");
+    const { startOverlay, startButton, quickStartOverlay } = createOverlayElements(hasOverlay);
+    const {
+        quickStartModal,
+        quickStartCloseButton,
+        quickStartModeChoice,
+        quickStartModeContent,
+        quickStartSimpleButton,
+        quickStartFullButton,
+        quickStartPresetsGrid,
+        quickStartScratchButton,
+    } = createModalElements({ withModeChoice, hasCloseButton, hasPresetsGrid });
+
+    quickStartOverlay?.appendChild(quickStartModal);
     const soundStartersDetails = document.createElement("details");
     soundStartersDetails.open = true;
-    if (
-        quickStartModeChoice &&
-        quickStartModeContent &&
-        quickStartSimpleButton &&
-        quickStartFullButton
-    ) {
-        quickStartModeChoice.append(quickStartSimpleButton, quickStartFullButton);
-        quickStartModeContent.hidden = true;
-        if (quickStartPresetsGrid) {
-            quickStartModeContent.append(quickStartPresetsGrid);
-        }
-        quickStartModeContent.append(quickStartScratchButton);
-        quickStartModal.append(quickStartModeChoice, quickStartModeContent);
-    } else {
-        if (quickStartPresetsGrid) {
-            quickStartModal.append(quickStartPresetsGrid);
-        }
-        quickStartModal.append(quickStartScratchButton);
-    }
-    quickStartOverlay?.appendChild(quickStartModal);
+
     document.body.append(
         appMain,
         ...(playStopButton ? [playStopButton] : []),

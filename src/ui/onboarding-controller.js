@@ -174,6 +174,47 @@ export function createOnboardingController(dependencies) {
     }
 
     /**
+     * Shows or hides the Quick Start close button.
+     *
+     * @param {boolean} visible - Whether the close button should be visible.
+     * @returns {void}
+     */
+    function setCloseButtonVisible(visible) {
+        if (!quickStartCloseButton) return;
+        quickStartCloseButton.hidden = !visible;
+        quickStartCloseButton.classList.toggle("hidden", !visible);
+    }
+
+    /**
+     * Switches the modal between the first-visit interface mode choice and the sound starters.
+     *
+     * @param {boolean} showContent - True to show sound starters, false to show the mode choice.
+     * @returns {boolean} Whether both mode panels exist and were switched.
+     */
+    function setModePanelsVisible(showContent) {
+        if (!quickStartModeChoice || !quickStartModeContent) return false;
+        quickStartModeChoice.hidden = showContent;
+        quickStartModeChoice.setAttribute("aria-hidden", String(showContent));
+        quickStartModeContent.hidden = !showContent;
+        quickStartModeContent.classList.toggle("is-hidden", !showContent);
+        quickStartModeContent.setAttribute("aria-hidden", String(!showContent));
+        return true;
+    }
+
+    /**
+     * Builds the sound starter cards and focuses the first available control.
+     *
+     * @param {boolean} [preferCloseButton=false] - Focus the close button before the first starter.
+     * @returns {void}
+     */
+    function showSoundStarters(preferCloseButton = false) {
+        buildQuickStartPresetCards();
+        const firstPresetButton = quickStartPresetsGrid?.querySelector("button");
+        const closeTarget = preferCloseButton ? quickStartCloseButton : null;
+        (closeTarget || firstPresetButton || quickStartScratchButton)?.focus();
+    }
+
+    /**
      * Opens the Quick Start modal and makes the application background inert.
      *
      * @param {{ onDemand?: boolean }} [options={}] - Modal opening options.
@@ -195,43 +236,20 @@ export function createOnboardingController(dependencies) {
 
         const firstVisit = isFirstVisit();
         if (isOnDemand || !firstVisit) {
-            if (!firstVisit) {
-                hasSelectedInterfaceMode = true;
-            }
-            if (quickStartCloseButton) {
-                quickStartCloseButton.hidden = false;
-                quickStartCloseButton.classList.remove("hidden");
-            }
-            if (quickStartModeChoice && quickStartModeContent) {
-                quickStartModeChoice.hidden = true;
-                quickStartModeChoice.setAttribute("aria-hidden", "true");
-                quickStartModeContent.hidden = false;
-                quickStartModeContent.classList.remove("is-hidden");
-                quickStartModeContent.setAttribute("aria-hidden", "false");
-            }
-            buildQuickStartPresetCards();
-            const firstPresetButton = quickStartPresetsGrid?.querySelector("button");
-            (quickStartCloseButton || firstPresetButton || quickStartScratchButton)?.focus();
+            if (!firstVisit) hasSelectedInterfaceMode = true;
+            setCloseButtonVisible(true);
+            setModePanelsVisible(true);
+            showSoundStarters(true);
             return;
         }
 
-        if (quickStartCloseButton) {
-            quickStartCloseButton.hidden = true;
-            quickStartCloseButton.classList.add("hidden");
-        }
-        if (quickStartModeChoice && quickStartModeContent) {
+        setCloseButtonVisible(false);
+        if (setModePanelsVisible(false)) {
             hasSelectedInterfaceMode = false;
-            quickStartModeChoice.hidden = false;
-            quickStartModeChoice.setAttribute("aria-hidden", "false");
-            quickStartModeContent.hidden = true;
-            quickStartModeContent.classList.add("is-hidden");
-            quickStartModeContent.setAttribute("aria-hidden", "true");
             (quickStartSimpleButton || quickStartFullButton)?.focus();
             return;
         }
-        buildQuickStartPresetCards();
-        const firstPresetButton = quickStartPresetsGrid?.querySelector("button");
-        (firstPresetButton || quickStartScratchButton)?.focus();
+        showSoundStarters();
     }
 
     /**
@@ -244,20 +262,9 @@ export function createOnboardingController(dependencies) {
         const normalizedMode = normalizeInterfaceMode(mode);
         hasSelectedInterfaceMode = true;
         onInterfaceModeSelected?.(normalizedMode);
-        if (quickStartCloseButton) {
-            quickStartCloseButton.hidden = false;
-            quickStartCloseButton.classList.remove("hidden");
-        }
-        if (quickStartModeChoice && quickStartModeContent) {
-            quickStartModeChoice.hidden = true;
-            quickStartModeChoice.setAttribute("aria-hidden", "true");
-            quickStartModeContent.hidden = false;
-            quickStartModeContent.classList.remove("is-hidden");
-            quickStartModeContent.setAttribute("aria-hidden", "false");
-        }
-        buildQuickStartPresetCards();
-        const firstPresetButton = quickStartPresetsGrid?.querySelector("button");
-        (firstPresetButton || quickStartScratchButton)?.focus();
+        setCloseButtonVisible(true);
+        setModePanelsVisible(true);
+        showSoundStarters();
     }
 
     /**
@@ -266,10 +273,7 @@ export function createOnboardingController(dependencies) {
      * @returns {void}
      */
     function closeQuickStartModal() {
-        if (quickStartCloseButton) {
-            quickStartCloseButton.hidden = true;
-            quickStartCloseButton.classList.add("hidden");
-        }
+        setCloseButtonVisible(false);
         quickStartOverlay?.classList.add("is-hidden");
         if (!isAnotherModalOpen?.()) {
             appMain?.removeAttribute("inert");

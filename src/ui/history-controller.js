@@ -158,33 +158,47 @@ export function createHistoryController(dependencies) {
     }
 
     /**
+     * Dismisses the reset dialog or history menu when Escape targets them.
+     *
+     * @param {KeyboardEvent} event - Capturing keyboard event.
+     * @returns {boolean} Whether the event was consumed.
+     */
+    function handleEscapeDismissal(event) {
+        if (event.key !== "Escape") return false;
+        if (resetDefaultsOverlay?.getAttribute("aria-hidden") === "false") {
+            event.preventDefault();
+            closeResetDefaultsDialog();
+            return true;
+        }
+        if (historyMenuButton?.getAttribute("aria-expanded") === "true") {
+            event.preventDefault();
+            setHistoryMenuOpen(false);
+            historyMenuButton?.focus();
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Reports whether a modal overlay currently blocks history shortcuts.
+     *
+     * @returns {boolean} True when the app is inert or the Quick Start guide is visible.
+     */
+    function isModalBlockingShortcuts() {
+        return Boolean(
+            appMain?.hasAttribute("inert") ||
+                (quickStartOverlay && !quickStartOverlay.classList.contains("is-hidden")),
+        );
+    }
+
+    /**
      * Processes application-wide history and reset keyboard interactions.
      *
      * @param {KeyboardEvent} event - Capturing keyboard event.
      * @returns {void}
      */
     function handleWindowKeydown(event) {
-        const resetDialogOpen = resetDefaultsOverlay?.getAttribute("aria-hidden") === "false";
-        if (event.key === "Escape" && resetDialogOpen) {
-            event.preventDefault();
-            closeResetDefaultsDialog();
-            return;
-        }
-
-        const historyMenuOpen = historyMenuButton?.getAttribute("aria-expanded") === "true";
-        if (event.key === "Escape" && historyMenuOpen) {
-            event.preventDefault();
-            setHistoryMenuOpen(false);
-            historyMenuButton?.focus();
-            return;
-        }
-
-        if (
-            appMain?.hasAttribute("inert") ||
-            (quickStartOverlay && !quickStartOverlay.classList.contains("is-hidden"))
-        ) {
-            return;
-        }
+        if (handleEscapeDismissal(event) || isModalBlockingShortcuts()) return;
 
         const usesModifier = event.ctrlKey || event.metaKey;
         const key = event.key.toLowerCase();

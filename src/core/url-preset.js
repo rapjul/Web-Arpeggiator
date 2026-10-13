@@ -272,28 +272,69 @@ export function hasPresetUrlParams(searchParams) {
  * @param {T} currentSettings - Current baseline application settings.
  * @returns {T|null} Updated settings object if any preset keys were recognized, or null otherwise.
  */
-export function parsePresetFromUrlParams(searchParams, currentSettings) {
-    const params =
-        typeof searchParams === "string" ? new URLSearchParams(searchParams) : searchParams;
-
-    if (!params) return null;
-
-    const hasRecognizedKey = [...params.keys()].some((k) => PRESET_URL_KEYS.has(k));
-    if (!hasRecognizedKey) return null;
-
-    /** @type {T & PresetSettings} */
-    const settings = { ...currentSettings };
-
-    if (params.has("notes")) {
-        const rawNotes = params.get("notes")?.trim() || "";
-        if (NOTES_REGEX.test(rawNotes)) {
-            const normalized = normalizeNotesSequence(rawNotes);
-            if (normalized.length > 0) {
-                settings.baseNotes = normalized;
-            }
+/**
+ * Applies validated musical notes from query parameters to the settings.
+ *
+ * @param {URLSearchParams} params - Search parameters.
+ * @param {any} settings - Target settings.
+ * @returns {void}
+ */
+function applyNotesUrlParam(params, settings) {
+    if (!params.has("notes")) return;
+    const rawNotes = params.get("notes")?.trim() || "";
+    if (NOTES_REGEX.test(rawNotes)) {
+        const normalized = normalizeNotesSequence(rawNotes);
+        if (normalized.length > 0) {
+            settings.baseNotes = normalized;
         }
     }
+}
 
+/**
+ * Applies discrete string and boolean query parameters to the settings.
+ *
+ * @param {URLSearchParams} params - Search parameters.
+ * @param {any} settings - Target settings.
+ * @returns {void}
+ */
+function applyDiscreteUrlParams(params, settings) {
+    if (params.has("dir")) {
+        const dir = params.get("dir");
+        if (dir && ALLOWED_DIRECTIONS.includes(dir)) settings.direction = dir;
+    }
+    if (params.has("int")) {
+        const interval = params.get("int");
+        if (interval && ALLOWED_INTERVALS.includes(interval)) settings.interval = interval;
+    }
+    if (params.has("quant")) {
+        settings.scaleQuantize = params.get("quant") === "true";
+    }
+    if (params.has("root")) {
+        const root = params.get("root");
+        if (root && ALLOWED_ROOTS.includes(root)) settings.scaleRoot = root;
+    }
+    if (params.has("scale")) {
+        const scale = params.get("scale");
+        if (scale && ALLOWED_SCALES.includes(scale)) settings.scaleType = scale;
+    }
+    if (params.has("synth")) {
+        const synth = params.get("synth");
+        if (synth && ALLOWED_SYNTHS.includes(synth)) settings.synthType = synth;
+    }
+    if (params.has("wave")) {
+        const wave = params.get("wave");
+        if (wave && ALLOWED_WAVEFORMS.includes(wave)) settings.waveform = wave;
+    }
+}
+
+/**
+ * Applies bounded integer and floating point query parameters to the settings.
+ *
+ * @param {URLSearchParams} params - Search parameters.
+ * @param {any} settings - Target settings.
+ * @returns {void}
+ */
+function applyNumericUrlParams(params, settings) {
     if (params.has("bpm"))
         settings.bpm = clampInt(params.get("bpm"), ...SETTINGS_BOUNDS.bpm, settings.bpm);
     if (params.has("swing"))
@@ -306,41 +347,6 @@ export function parsePresetFromUrlParams(searchParams, currentSettings) {
             ...SETTINGS_BOUNDS.postGain,
             settings.postGain,
         );
-
-    if (params.has("dir")) {
-        const dir = params.get("dir");
-        if (dir && ALLOWED_DIRECTIONS.includes(dir)) settings.direction = dir;
-    }
-
-    if (params.has("int")) {
-        const interval = params.get("int");
-        if (interval && ALLOWED_INTERVALS.includes(interval)) settings.interval = interval;
-    }
-
-    if (params.has("quant")) {
-        settings.scaleQuantize = params.get("quant") === "true";
-    }
-
-    if (params.has("root")) {
-        const root = params.get("root");
-        if (root && ALLOWED_ROOTS.includes(root)) settings.scaleRoot = root;
-    }
-
-    if (params.has("scale")) {
-        const scale = params.get("scale");
-        if (scale && ALLOWED_SCALES.includes(scale)) settings.scaleType = scale;
-    }
-
-    if (params.has("synth")) {
-        const synth = params.get("synth");
-        if (synth && ALLOWED_SYNTHS.includes(synth)) settings.synthType = synth;
-    }
-
-    if (params.has("wave")) {
-        const wave = params.get("wave");
-        if (wave && ALLOWED_WAVEFORMS.includes(wave)) settings.waveform = wave;
-    }
-
     if (params.has("harm"))
         settings.harmonicity = clampFloat(params.get("harm"), 0.5, 10.0, settings.harmonicity);
     if (params.has("mod"))
@@ -392,6 +398,16 @@ export function parsePresetFromUrlParams(searchParams, currentSettings) {
         settings.reverbMix = clampFloat(params.get("reverb"), 0.0, 1.0, settings.reverbMix);
     if (params.has("loop"))
         settings.loopCount = clampInt(params.get("loop"), 1, 100, settings.loopCount);
+}
+
+/**
+ * Applies offline audio export query parameters to the settings.
+ *
+ * @param {URLSearchParams} params - Search parameters.
+ * @param {any} settings - Target settings.
+ * @returns {void}
+ */
+function applyExportUrlParams(params, settings) {
     if (params.has("export")) {
         settings.offlineExportMode = normalizeOfflineExportMode(params.get("export"));
     }
@@ -404,8 +420,98 @@ export function parsePresetFromUrlParams(searchParams, currentSettings) {
     if (params.has("tail")) {
         settings.offlineExportTailSeconds = normalizeOfflineExportTailSeconds(params.get("tail"));
     }
+}
+
+/**
+ * Parses and strictly validates preset search parameters against default or current settings.
+ *
+ * @template {PresetSettings & Record<string, unknown>} T
+ * @param {URLSearchParams|string} searchParams - URL search parameters instance or query string.
+ * @param {T} currentSettings - Current baseline application settings.
+ * @returns {T|null} Updated settings object if any preset keys were recognized, or null otherwise.
+ */
+export function parsePresetFromUrlParams(searchParams, currentSettings) {
+    const params =
+        typeof searchParams === "string" ? new URLSearchParams(searchParams) : searchParams;
+
+    if (!params) return null;
+
+    const hasRecognizedKey = [...params.keys()].some((k) => PRESET_URL_KEYS.has(k));
+    if (!hasRecognizedKey) return null;
+
+    /** @type {T & PresetSettings} */
+    const settings = { ...currentSettings };
+
+    applyNotesUrlParam(params, settings);
+    applyNumericUrlParams(params, settings);
+    applyDiscreteUrlParams(params, settings);
+    applyExportUrlParams(params, settings);
 
     return settings;
+}
+
+const PRESET_IDENTITY_FIELDS = [
+    "direction",
+    "interval",
+    "synthType",
+    "waveform",
+    "scaleRoot",
+    "scaleType",
+    "scaleQuantize",
+    "randomSeed",
+    "octaveShift",
+    "octaveRange",
+    "loopCount",
+];
+
+const PRESET_NUMERIC_TOLERANCE_FIELDS = [
+    "bpm",
+    "swing",
+    "postGain",
+    "harmonicity",
+    "modulationIndex",
+    "dutyCycle",
+    "gateRatio",
+    "envAttack",
+    "envDecay",
+    "envSustain",
+    "envRelease",
+    "filterCutoff",
+    "filterResonance",
+    "driveMix",
+    "chorusMix",
+    "autoPanMix",
+    "delayMix",
+    "reverbMix",
+];
+
+/**
+ * Checks whether offline export settings differ between two snapshots.
+ *
+ * @param {PresetSettings & Record<string, unknown>} a - First settings snapshot.
+ * @param {PresetSettings & Record<string, unknown>} b - Second settings snapshot.
+ * @param {number} eps - Numeric tolerance epsilon.
+ * @returns {boolean} True if export settings differ.
+ */
+function hasExportSettingChanges(a, b, eps) {
+    if (
+        normalizeOfflineExportMode(a.offlineExportMode) !==
+        normalizeOfflineExportMode(b.offlineExportMode)
+    ) {
+        return true;
+    }
+    if (
+        normalizeOfflineExportTailMode(a.offlineExportTailMode, "custom") !==
+        normalizeOfflineExportTailMode(b.offlineExportTailMode, "custom")
+    ) {
+        return true;
+    }
+    return (
+        Math.abs(
+            normalizeOfflineExportTailSeconds(a.offlineExportTailSeconds) -
+                normalizeOfflineExportTailSeconds(b.offlineExportTailSeconds),
+        ) > eps
+    );
 }
 
 /**
@@ -418,58 +524,25 @@ export function parsePresetFromUrlParams(searchParams, currentSettings) {
 export function hasPresetChanges(a, b) {
     if (!a || !b) return true;
 
-    const eps = 1e-9;
-
     const notesA = Array.isArray(a.baseNotes) ? a.baseNotes.join(" ") : "";
     const notesB = Array.isArray(b.baseNotes) ? b.baseNotes.join(" ") : "";
     if (notesA !== notesB) return true;
 
-    if (a.direction !== b.direction) return true;
-    if (a.interval !== b.interval) return true;
-    if (a.synthType !== b.synthType) return true;
-    if (a.waveform !== b.waveform) return true;
-    if (a.scaleRoot !== b.scaleRoot) return true;
-    if (a.scaleType !== b.scaleType) return true;
-    if (a.scaleQuantize !== b.scaleQuantize) return true;
-    if (Math.abs((a.bpm ?? 0) - (b.bpm ?? 0)) > eps) return true;
-    if (Math.abs((a.swing ?? 0) - (b.swing ?? 0)) > eps) return true;
-    if (a.randomSeed !== b.randomSeed) return true;
-    if (Math.abs((a.postGain ?? 0) - (b.postGain ?? 0)) > eps) return true;
-    if (Math.abs((a.harmonicity ?? 0) - (b.harmonicity ?? 0)) > eps) return true;
-    if (Math.abs((a.modulationIndex ?? 0) - (b.modulationIndex ?? 0)) > eps) return true;
-    if (Math.abs((a.dutyCycle ?? 0) - (b.dutyCycle ?? 0)) > eps) return true;
-    if (Math.abs((a.gateRatio ?? 0) - (b.gateRatio ?? 0)) > eps) return true;
-    if (a.octaveShift !== b.octaveShift) return true;
-    if (a.octaveRange !== b.octaveRange) return true;
-    if (Math.abs((a.envAttack ?? 0) - (b.envAttack ?? 0)) > eps) return true;
-    if (Math.abs((a.envDecay ?? 0) - (b.envDecay ?? 0)) > eps) return true;
-    if (Math.abs((a.envSustain ?? 0) - (b.envSustain ?? 0)) > eps) return true;
-    if (Math.abs((a.envRelease ?? 0) - (b.envRelease ?? 0)) > eps) return true;
-    if (Math.abs((a.filterCutoff ?? 0) - (b.filterCutoff ?? 0)) > eps) return true;
-    if (Math.abs((a.filterResonance ?? 0) - (b.filterResonance ?? 0)) > eps) return true;
-    if (Math.abs((a.driveMix ?? 0) - (b.driveMix ?? 0)) > eps) return true;
-    if (Math.abs((a.chorusMix ?? 0) - (b.chorusMix ?? 0)) > eps) return true;
-    if (Math.abs((a.autoPanMix ?? 0) - (b.autoPanMix ?? 0)) > eps) return true;
-    if (Math.abs((a.delayMix ?? 0) - (b.delayMix ?? 0)) > eps) return true;
-    if (Math.abs((a.reverbMix ?? 0) - (b.reverbMix ?? 0)) > eps) return true;
-    if (a.loopCount !== b.loopCount) return true;
-    if (
-        normalizeOfflineExportMode(a.offlineExportMode) !==
-        normalizeOfflineExportMode(b.offlineExportMode)
-    )
-        return true;
-    if (
-        normalizeOfflineExportTailMode(a.offlineExportTailMode, "custom") !==
-        normalizeOfflineExportTailMode(b.offlineExportTailMode, "custom")
-    )
-        return true;
-    if (
-        Math.abs(
-            normalizeOfflineExportTailSeconds(a.offlineExportTailSeconds) -
-                normalizeOfflineExportTailSeconds(b.offlineExportTailSeconds),
-        ) > eps
-    )
-        return true;
+    /** @type {Record<string, unknown>} */
+    const recordA = a;
+    /** @type {Record<string, unknown>} */
+    const recordB = b;
 
-    return false;
+    for (const key of PRESET_IDENTITY_FIELDS) {
+        if (recordA[key] !== recordB[key]) return true;
+    }
+
+    const eps = 1e-9;
+    for (const key of PRESET_NUMERIC_TOLERANCE_FIELDS) {
+        const valA = Number(recordA[key] ?? 0);
+        const valB = Number(recordB[key] ?? 0);
+        if (Math.abs(valA - valB) > eps) return true;
+    }
+
+    return hasExportSettingChanges(a, b, eps);
 }
