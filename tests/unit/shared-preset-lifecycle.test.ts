@@ -32,6 +32,11 @@ describe("Shared Preset URL Lifecycle & State Matrix", () => {
 
         const loadAllSettings = vi.fn((settings: Record<string, unknown>) => {
             currentSettings = { ...currentSettings, ...settings };
+            if (Array.isArray(settings.baseNotes)) {
+                currentSettings.notes = (settings.baseNotes as string[]).map(
+                    (n) => `${n} (derived)`,
+                );
+            }
             return { ok: true };
         });
 
@@ -78,7 +83,8 @@ describe("Shared Preset URL Lifecycle & State Matrix", () => {
             workspaceController.markUserSettingsInteraction();
         }
 
-        workspaceController.initialize(initialSettings);
+        loadAllSettings(initialSettings);
+        workspaceController.initialize(getAllSettings());
 
         if (hasUrlPreset) {
             workspaceController.scheduleLastSessionSave();
@@ -311,5 +317,17 @@ describe("Shared Preset URL Lifecycle & State Matrix", () => {
         } finally {
             vi.useRealTimers();
         }
+    });
+
+    it("S12: initializes URL history from canonical live snapshot with derived notes to ensure baseline default state", () => {
+        const fixture = createLifecycleFixture({
+            search: "?notes=E4+G4+B4&range=2&shift=1",
+            storedSession: null,
+        });
+
+        expect(fixture.hasUrlPreset).toBe(true);
+        expect(fixture.workspaceController.getStatus().isAtDefault).toBe(true);
+        expect(fixture.workspaceController.getStatus().canUndo).toBe(false);
+        expect(fixture.workspaceController.getStatus().canRedo).toBe(false);
     });
 });

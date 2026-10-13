@@ -1824,7 +1824,7 @@ function initializeApp() {
         keyboardToggle.checked = false;
         updateKeyboardControlUi();
 
-        workspaceController.initialize(initialSettings);
+        workspaceController.initialize(getAllSettings());
         // Synchronize export UI and stash reset tooltip titles installed by workspaceController for initially disabled targets
         updateOfflineExportModeUi();
         historyController.initialize();

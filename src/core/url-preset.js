@@ -265,18 +265,10 @@ export function hasPresetUrlParams(searchParams) {
 }
 
 /**
- * Parses and strictly validates preset search parameters against default or current settings.
- *
- * @template {PresetSettings & Record<string, unknown>} T
- * @param {URLSearchParams|string} searchParams - URL search parameters instance or query string.
- * @param {T} currentSettings - Current baseline application settings.
- * @returns {T|null} Updated settings object if any preset keys were recognized, or null otherwise.
- */
-/**
  * Applies validated musical notes from query parameters to the settings.
  *
  * @param {URLSearchParams} params - Search parameters.
- * @param {any} settings - Target settings.
+ * @param {PresetSettings & Record<string, unknown>} settings - Target settings.
  * @returns {void}
  */
 function applyNotesUrlParam(params, settings) {
@@ -294,7 +286,7 @@ function applyNotesUrlParam(params, settings) {
  * Applies discrete string and boolean query parameters to the settings.
  *
  * @param {URLSearchParams} params - Search parameters.
- * @param {any} settings - Target settings.
+ * @param {PresetSettings & Record<string, unknown>} settings - Target settings.
  * @returns {void}
  */
 function applyDiscreteUrlParams(params, settings) {
@@ -331,80 +323,163 @@ function applyDiscreteUrlParams(params, settings) {
  * Applies bounded integer and floating point query parameters to the settings.
  *
  * @param {URLSearchParams} params - Search parameters.
- * @param {any} settings - Target settings.
+ * @param {PresetSettings & Record<string, unknown>} settings - Target settings.
  * @returns {void}
  */
 function applyNumericUrlParams(params, settings) {
     if (params.has("bpm"))
-        settings.bpm = clampInt(params.get("bpm"), ...SETTINGS_BOUNDS.bpm, settings.bpm);
+        settings.bpm = clampInt(
+            params.get("bpm"),
+            ...SETTINGS_BOUNDS.bpm,
+            Number(settings.bpm ?? 120),
+        );
     if (params.has("swing"))
-        settings.swing = clampFloat(params.get("swing"), ...SETTINGS_BOUNDS.swing, settings.swing);
+        settings.swing = clampFloat(
+            params.get("swing"),
+            ...SETTINGS_BOUNDS.swing,
+            Number(settings.swing ?? 0),
+        );
     if (params.has("seed"))
-        settings.randomSeed = clampInt(params.get("seed"), 0, MAX_RANDOM_SEED, settings.randomSeed);
+        settings.randomSeed = clampInt(
+            params.get("seed"),
+            0,
+            MAX_RANDOM_SEED,
+            Number(settings.randomSeed ?? 0),
+        );
     if (params.has("gain"))
         settings.postGain = clampFloat(
             params.get("gain"),
             ...SETTINGS_BOUNDS.postGain,
-            settings.postGain,
+            Number(settings.postGain ?? 0),
         );
     if (params.has("harm"))
-        settings.harmonicity = clampFloat(params.get("harm"), 0.5, 10.0, settings.harmonicity);
+        settings.harmonicity = clampFloat(
+            params.get("harm"),
+            0.5,
+            10.0,
+            Number(settings.harmonicity ?? 1.0),
+        );
     if (params.has("mod"))
         settings.modulationIndex = clampFloat(
             params.get("mod"),
             1.0,
             50.0,
-            settings.modulationIndex,
+            Number(settings.modulationIndex ?? 10.0),
         );
     if (params.has("duty"))
-        settings.dutyCycle = clampFloat(params.get("duty"), 0.01, 0.99, settings.dutyCycle);
+        settings.dutyCycle = clampFloat(
+            params.get("duty"),
+            0.01,
+            0.99,
+            Number(settings.dutyCycle ?? 0.5),
+        );
     if (params.has("gate"))
-        settings.gateRatio = clampFloat(params.get("gate"), 0.05, 1.0, settings.gateRatio);
+        settings.gateRatio = clampFloat(
+            params.get("gate"),
+            0.05,
+            1.0,
+            Number(settings.gateRatio ?? 0.8),
+        );
     if (params.has("shift"))
-        settings.octaveShift = clampInt(params.get("shift"), -3, 3, settings.octaveShift);
+        settings.octaveShift = clampInt(
+            params.get("shift"),
+            -3,
+            3,
+            Number(settings.octaveShift ?? 0),
+        );
     if (params.has("range"))
-        settings.octaveRange = clampInt(params.get("range"), 1, 5, settings.octaveRange);
+        settings.octaveRange = clampInt(
+            params.get("range"),
+            1,
+            5,
+            Number(settings.octaveRange ?? 1),
+        );
     if (params.has("attack"))
-        settings.envAttack = clampFloat(params.get("attack"), 0.0, 2.0, settings.envAttack);
+        settings.envAttack = clampFloat(
+            params.get("attack"),
+            0.0,
+            2.0,
+            Number(settings.envAttack ?? 0.01),
+        );
     if (params.has("decay"))
-        settings.envDecay = clampFloat(params.get("decay"), 0.0, 2.0, settings.envDecay);
+        settings.envDecay = clampFloat(
+            params.get("decay"),
+            0.0,
+            2.0,
+            Number(settings.envDecay ?? 0.1),
+        );
     if (params.has("sustain"))
-        settings.envSustain = clampFloat(params.get("sustain"), 0.0, 1.0, settings.envSustain);
+        settings.envSustain = clampFloat(
+            params.get("sustain"),
+            0.0,
+            1.0,
+            Number(settings.envSustain ?? 0.5),
+        );
     if (params.has("release"))
-        settings.envRelease = clampFloat(params.get("release"), 0.0, 5.0, settings.envRelease);
+        settings.envRelease = clampFloat(
+            params.get("release"),
+            0.0,
+            5.0,
+            Number(settings.envRelease ?? 1.0),
+        );
     if (params.has("cutoff"))
         settings.filterCutoff = clampFloat(
             params.get("cutoff"),
             100.0,
             10000.0,
-            settings.filterCutoff,
+            Number(settings.filterCutoff ?? 1000.0),
         );
     if (params.has("res"))
         settings.filterResonance = clampFloat(
             params.get("res"),
             0.0,
             20.0,
-            settings.filterResonance,
+            Number(settings.filterResonance ?? 1.0),
         );
     if (params.has("drive"))
-        settings.driveMix = clampFloat(params.get("drive"), 0.0, 1.0, settings.driveMix ?? 0);
+        settings.driveMix = clampFloat(
+            params.get("drive"),
+            0.0,
+            1.0,
+            Number(settings.driveMix ?? 0),
+        );
     if (params.has("chorus"))
-        settings.chorusMix = clampFloat(params.get("chorus"), 0.0, 1.0, settings.chorusMix ?? 0);
+        settings.chorusMix = clampFloat(
+            params.get("chorus"),
+            0.0,
+            1.0,
+            Number(settings.chorusMix ?? 0),
+        );
     if (params.has("pan"))
-        settings.autoPanMix = clampFloat(params.get("pan"), 0.0, 1.0, settings.autoPanMix ?? 0);
+        settings.autoPanMix = clampFloat(
+            params.get("pan"),
+            0.0,
+            1.0,
+            Number(settings.autoPanMix ?? 0),
+        );
     if (params.has("delay"))
-        settings.delayMix = clampFloat(params.get("delay"), 0.0, 1.0, settings.delayMix);
+        settings.delayMix = clampFloat(
+            params.get("delay"),
+            0.0,
+            1.0,
+            Number(settings.delayMix ?? 0),
+        );
     if (params.has("reverb"))
-        settings.reverbMix = clampFloat(params.get("reverb"), 0.0, 1.0, settings.reverbMix);
+        settings.reverbMix = clampFloat(
+            params.get("reverb"),
+            0.0,
+            1.0,
+            Number(settings.reverbMix ?? 0),
+        );
     if (params.has("loop"))
-        settings.loopCount = clampInt(params.get("loop"), 1, 100, settings.loopCount);
+        settings.loopCount = clampInt(params.get("loop"), 1, 100, Number(settings.loopCount ?? 1));
 }
 
 /**
  * Applies offline audio export query parameters to the settings.
  *
  * @param {URLSearchParams} params - Search parameters.
- * @param {any} settings - Target settings.
+ * @param {PresetSettings & Record<string, unknown>} settings - Target settings.
  * @returns {void}
  */
 function applyExportUrlParams(params, settings) {
@@ -414,7 +489,7 @@ function applyExportUrlParams(params, settings) {
     if (params.has("tail-mode")) {
         settings.offlineExportTailMode = normalizeOfflineExportTailMode(
             params.get("tail-mode"),
-            settings.offlineExportTailMode,
+            settings.offlineExportTailMode === "custom" ? "custom" : "auto",
         );
     }
     if (params.has("tail")) {
