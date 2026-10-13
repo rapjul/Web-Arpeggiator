@@ -6,9 +6,16 @@ const controllers: Array<ReturnType<typeof createHistoryController>> = [];
 /**
  * Builds history controls with injectable state transitions.
  *
- * @param {{canUndo?: boolean, canRedo?: boolean, isAtDefault?: boolean}} [status] - Initial status.
+ * @param {{canUndo?: boolean, canRedo?: boolean, isAtDefault?: boolean, isAnotherModalOpen?: () => boolean}} [status] - Initial status.
  */
-function createFixture(status = {}) {
+function createFixture(
+    status: {
+        canUndo?: boolean;
+        canRedo?: boolean;
+        isAtDefault?: boolean;
+        isAnotherModalOpen?: () => boolean;
+    } = {},
+) {
     const appMain = document.createElement("main");
     const undoButton = document.createElement("button");
     const redoButton = document.createElement("button");
@@ -81,6 +88,7 @@ function createFixture(status = {}) {
         onRedo,
         onResetDefaults,
         onEscapeReset,
+        isAnotherModalOpen: status.isAnotherModalOpen,
     });
     controllers.push(controller);
 
@@ -284,5 +292,33 @@ describe("history controller", () => {
         });
         window.dispatchEvent(workingUndo);
         expect(onUndo).toHaveBeenCalledOnce();
+    });
+
+    test("tracks isResetDefaultsDialogOpen and respects isAnotherModalOpen on close", () => {
+        let otherModalOpen = true;
+        const fixture = createFixture({
+            isAtDefault: false,
+            isAnotherModalOpen: () => otherModalOpen,
+        });
+        fixture.controller.initialize();
+
+        expect(fixture.controller.isResetDefaultsDialogOpen()).toBe(false);
+
+        // Open reset defaults dialog via button
+        fixture.resetDefaultsDesktopButton.click();
+        expect(fixture.controller.isResetDefaultsDialogOpen()).toBe(true);
+        expect(fixture.appMain.hasAttribute("inert")).toBe(true);
+
+        // Close via closeResetDefaultsDialog() while otherModalOpen is true
+        fixture.controller.closeResetDefaultsDialog();
+        expect(fixture.controller.isResetDefaultsDialogOpen()).toBe(false);
+        // appMain remains inert because another modal is open
+        expect(fixture.appMain.hasAttribute("inert")).toBe(true);
+
+        // Re-open, then close when otherModalOpen is false
+        fixture.resetDefaultsDesktopButton.click();
+        otherModalOpen = false;
+        fixture.controller.closeResetDefaultsDialog();
+        expect(fixture.appMain.hasAttribute("inert")).toBe(false);
     });
 });

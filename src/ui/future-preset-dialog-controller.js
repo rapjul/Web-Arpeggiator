@@ -46,6 +46,9 @@ export function createFuturePresetDialogController(options) {
      */
     function open(settings, fileName) {
         options.onBeforeOpen?.();
+        if (options.isAnotherModalOpen?.()) {
+            return;
+        }
         pendingPreset = { settings: { ...settings }, fileName };
         returnFocus = getReturnFocus();
         overlay?.classList.remove("hidden");

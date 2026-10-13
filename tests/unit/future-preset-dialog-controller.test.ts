@@ -101,10 +101,11 @@ describe("future preset dialog controller", () => {
         expect(overlay?.getAttribute("aria-hidden")).toBe("false");
     });
 
-    it("reports isOpen accurately and respects isAnotherModalOpen when closing", () => {
+    it("reports isOpen accurately, blocks opening when another modal is active, and respects isAnotherModalOpen on close", () => {
         const loadPresetButton = renderDialog();
+        let modalOpen = true;
+        const isAnotherModalOpen = vi.fn(() => modalOpen);
         const onBeforeOpen = vi.fn();
-        const isAnotherModalOpen = vi.fn().mockReturnValue(true);
         const controller = createFuturePresetDialogController({
             getReturnFocus: () => loadPresetButton,
             isAnotherModalOpen,
@@ -113,22 +114,30 @@ describe("future preset dialog controller", () => {
         });
         controllers.push(controller);
         const appMain = document.getElementById("app-main");
+        const overlay = document.getElementById("future-preset-overlay");
 
         expect(controller.isOpen()).toBe(false);
 
+        // When another modal remains open, open() is blocked
+        controller.open({ settingsVersion: 99 }, "future.json");
+        expect(onBeforeOpen).toHaveBeenCalled();
+        expect(controller.isOpen()).toBe(false);
+        expect(overlay?.classList.contains("hidden")).toBe(true);
+
+        // When onBeforeOpen closes active modals (or none open), open() succeeds
+        modalOpen = false;
         controller.open({ settingsVersion: 99 }, "future.json");
         expect(controller.isOpen()).toBe(true);
-        expect(onBeforeOpen).toHaveBeenCalled();
         expect(appMain?.hasAttribute("inert")).toBe(true);
 
-        // Close dialog
+        // While open, if another modal opens in background, closing preserves inert on appMain
+        modalOpen = true;
         controller.close();
         expect(controller.isOpen()).toBe(false);
-        // appMain remains inert because isAnotherModalOpen returned true
         expect(appMain?.hasAttribute("inert")).toBe(true);
 
-        // When isAnotherModalOpen returns false, closing removes inert
-        isAnotherModalOpen.mockReturnValue(false);
+        // When no other modal is open, closing removes inert
+        modalOpen = false;
         controller.open({ settingsVersion: 99 }, "future.json");
         controller.close();
         expect(appMain?.hasAttribute("inert")).toBe(false);

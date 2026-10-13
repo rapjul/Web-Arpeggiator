@@ -15,6 +15,7 @@
  * @property {() => void} onUndo
  * @property {() => void} onRedo
  * @property {() => void} onResetDefaults
+ * @property {() => boolean} [isAnotherModalOpen]
  * @property {() => boolean} onEscapeReset
  */
 
@@ -23,7 +24,7 @@
  * dialog, focus behavior, and keyboard shortcuts.
  *
  * @param {HistoryControllerDependencies} dependencies - Injected UI and app behavior.
- * @returns {{initialize: () => void, updateControls: () => void, destroy: () => void}}
+ * @returns {{initialize: () => void, updateControls: () => void, destroy: () => void, isResetDefaultsDialogOpen: () => boolean, closeResetDefaultsDialog: () => void}}
  */
 export function createHistoryController(dependencies) {
     const { dom, documentRef, getStatus, onUndo, onRedo, onResetDefaults, onEscapeReset } =
@@ -114,7 +115,9 @@ export function createHistoryController(dependencies) {
         resetDefaultsOverlay.classList.add("hidden");
         resetDefaultsOverlay.classList.remove("flex");
         resetDefaultsOverlay.setAttribute("aria-hidden", "true");
-        appMain?.removeAttribute("inert");
+        if (!dependencies.isAnotherModalOpen?.()) {
+            appMain?.removeAttribute("inert");
+        }
         resetDialogReturnFocus?.focus();
         resetDialogReturnFocus = null;
     }
@@ -302,5 +305,23 @@ export function createHistoryController(dependencies) {
         isInitialized = false;
     }
 
-    return { initialize, updateControls, destroy };
+    /**
+     * Checks whether the reset defaults confirmation dialog is currently open.
+     *
+     * @returns {boolean} True if the reset defaults dialog is open.
+     */
+    function isResetDefaultsDialogOpen() {
+        return (
+            resetDefaultsOverlay?.getAttribute("aria-hidden") === "false" &&
+            !resetDefaultsOverlay?.classList.contains("hidden")
+        );
+    }
+
+    return {
+        initialize,
+        updateControls,
+        destroy,
+        isResetDefaultsDialogOpen,
+        closeResetDefaultsDialog,
+    };
 }

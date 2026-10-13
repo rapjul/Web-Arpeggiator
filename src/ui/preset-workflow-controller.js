@@ -27,7 +27,7 @@ import { createFuturePresetDialogController } from "@ui/future-preset-dialog-con
  * Creates the preset workflow controller.
  *
  * @param {{dom: {sharePresetButton: HTMLElement, savePresetButton: HTMLElement, savePresetToBrowserButton: HTMLElement|null, loadPresetButton: HTMLElement, loadPresetInput: HTMLInputElement, loadSavedPresetButton: HTMLElement|null, clearSavedPresetButton: HTMLElement|null, deleteSavedPresetButton: HTMLElement|null, presetNameInput: HTMLInputElement|null, savedPresetSelect: HTMLSelectElement|null}, windowRef: {location: {origin: string, pathname: string, search: string}}, navigatorRef: {clipboard?: {writeText: (value: string) => Promise<void>}}, fileReaderFactory: () => FileReader, confirm: (message: string) => boolean, factoryPresets: readonly FactoryPreset[], getPresetStore: () => {save: (settings: Record<string, unknown>, metadata: Record<string, string>) => Promise<{id: string}>, get: (id: string) => Promise<StoredPresetRecord|null>, loadLatest: () => Promise<StoredPresetRecord|null>, clear: () => Promise<void>, remove: (id: string) => Promise<void>}|undefined, getAllSettings: () => Record<string, unknown>, applySettingsWithHistory: (settings: unknown, options?: {allowFutureVersion?: boolean}) => {ok: boolean, error?: unknown}, generateFilename: (isRealtime: boolean) => string, refreshSavedPresetList: (selectedId?: string) => Promise<void>, setActiveSoundStarterCard: (presetId?: string|null) => void, showStorageRecovery: () => void, hideStorageRecovery: () => void, showToast: (message: string, type?: string) => void, onUrlPresetRecognized?: () => void, isAnotherModalOpen?: () => boolean, onBeforeOpenFuturePresetDialog?: () => void, logger?: {log?: (...args: unknown[]) => void, warn?: (...args: unknown[]) => void, error?: (...args: unknown[]) => void}}} dependencies - Injected preset workflow behavior.
- * @returns {{initialize: () => void, destroy: () => void, loadPresetFromUrl: () => void, isImportPending: () => boolean, isFuturePresetDialogOpen: () => boolean}} Preset workflow API.
+ * @returns {{initialize: () => void, destroy: () => void, loadPresetFromUrl: () => void, isImportPending: () => boolean, isBrowserPresetLoadPending: () => boolean, isFuturePresetDialogOpen: () => boolean}} Preset workflow API.
  */
 export function createPresetWorkflowController(dependencies) {
     const {
@@ -64,6 +64,7 @@ export function createPresetWorkflowController(dependencies) {
     let listenerController = null;
     let futurePresetDialogController = null;
     let isFileImportPending = false;
+    let isBrowserPresetLoadPending = false;
 
     function sharePresetAsUrl() {
         const params = serializePresetToUrlParams(getAllSettings());
@@ -212,6 +213,7 @@ export function createPresetWorkflowController(dependencies) {
         }
 
         const store = getPresetStore();
+        isBrowserPresetLoadPending = true;
         try {
             const record = selectedId ? await store?.get(selectedId) : await store?.loadLatest();
             if (!record) {
@@ -230,6 +232,8 @@ export function createPresetWorkflowController(dependencies) {
             logger.error?.("Failed to load saved preset:", error);
             showStorageRecovery();
             showToast("Failed to load saved preset.", "error");
+        } finally {
+            isBrowserPresetLoadPending = false;
         }
     }
 
@@ -316,6 +320,7 @@ export function createPresetWorkflowController(dependencies) {
 
     function destroy() {
         isFileImportPending = false;
+        isBrowserPresetLoadPending = false;
         listenerController?.abort();
         listenerController = null;
         futurePresetDialogController?.destroy();
@@ -327,6 +332,7 @@ export function createPresetWorkflowController(dependencies) {
         destroy,
         loadPresetFromUrl,
         isImportPending: () => isFileImportPending,
+        isBrowserPresetLoadPending: () => isBrowserPresetLoadPending,
         isFuturePresetDialogOpen: () => Boolean(futurePresetDialogController?.isOpen?.()),
     };
 }

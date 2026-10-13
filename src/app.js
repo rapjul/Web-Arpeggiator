@@ -456,6 +456,7 @@ function initializeApp() {
         isAnotherModalOpen: () =>
             Boolean(
                 onboardingController?.isQuickStartOpen?.() ||
+                    historyController?.isResetDefaultsDialogOpen?.() ||
                     presetWorkflowController?.isFuturePresetDialogOpen?.(),
             ),
     });
@@ -811,12 +812,15 @@ function initializeApp() {
         factoryPresets: FACTORY_PRESETS,
         canOpenModal: () =>
             !presetWorkflowController?.isImportPending?.() &&
+            !presetWorkflowController?.isBrowserPresetLoadPending?.() &&
             !presetWorkflowController?.isFuturePresetDialogOpen?.() &&
-            !chordConflictDialogController?.isOpen?.(),
+            !chordConflictDialogController?.isOpen?.() &&
+            !historyController?.isResetDefaultsDialogOpen?.(),
         isAnotherModalOpen: () =>
             Boolean(
                 presetWorkflowController?.isFuturePresetDialogOpen?.() ||
-                    chordConflictDialogController?.isOpen?.(),
+                    chordConflictDialogController?.isOpen?.() ||
+                    historyController?.isResetDefaultsDialogOpen?.(),
             ),
         onPresetSelected: async (preset) => {
             const capturedTransportToken = transportActionToken;
@@ -1139,6 +1143,12 @@ function initializeApp() {
             resetIndividualSettings(definition);
             return true;
         },
+        isAnotherModalOpen: () =>
+            Boolean(
+                onboardingController?.isQuickStartOpen?.() ||
+                    chordConflictDialogController?.isOpen?.() ||
+                    presetWorkflowController?.isFuturePresetDialogOpen?.(),
+            ),
     });
 
     const resetDefinitions = [
@@ -1788,11 +1798,18 @@ function initializeApp() {
         isAnotherModalOpen: () =>
             Boolean(
                 onboardingController?.isQuickStartOpen?.() ||
-                    chordConflictDialogController?.isOpen?.(),
+                    chordConflictDialogController?.isOpen?.() ||
+                    historyController?.isResetDefaultsDialogOpen?.(),
             ),
         onBeforeOpenFuturePresetDialog: () => {
             if (onboardingController?.isQuickStartOpen?.()) {
                 onboardingController.closeQuickStartModal();
+            }
+            if (chordConflictDialogController?.isOpen?.()) {
+                chordConflictDialogController.close();
+            }
+            if (historyController?.isResetDefaultsDialogOpen?.()) {
+                historyController.closeResetDefaultsDialog();
             }
         },
         logger: console,
