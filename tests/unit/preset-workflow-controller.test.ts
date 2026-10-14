@@ -684,4 +684,44 @@ describe("preset workflow controller", () => {
         fixture.controller.destroy();
         expect(fixture.controller.isBrowserPresetLoadPending()).toBe(false);
     });
+
+    it("discards late browser preset load results if another modal opened while storage was reading", async () => {
+        let resolveStore: ((value: unknown) => void) | null = null;
+        const pendingStore = {
+            save: vi.fn(async () => ({ id: "saved-1" })),
+            get: vi.fn(
+                () =>
+                    new Promise((resolve) => {
+                        resolveStore = resolve;
+                    }),
+            ),
+            loadLatest: vi.fn(async () => null),
+            clear: vi.fn(async () => {}),
+            remove: vi.fn(async () => {}),
+        };
+
+        let modalOpen = false;
+        const fixture = createFixture({
+            getPresetStore: () => pendingStore,
+            isAnotherModalOpen: () => modalOpen,
+        });
+        fixture.savedPresetSelect.value = "saved-1";
+
+        fixture.loadSavedPresetButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+        expect(fixture.controller.isBrowserPresetLoadPending()).toBe(true);
+
+        // While storage is reading in flight, another modal opens
+        modalOpen = true;
+
+        // Storage read completes
+        resolveStore?.({ id: "saved-1", name: "Async Preset", settings: { bpm: 140 } });
+        await vi.waitFor(() => expect(fixture.controller.isBrowserPresetLoadPending()).toBe(false));
+
+        // Settings must NOT have been applied
+        expect(fixture.applySettingsWithHistory).not.toHaveBeenCalled();
+        expect(fixture.showToast).not.toHaveBeenCalledWith(
+            "Loaded saved preset from browser storage.",
+            "success",
+        );
+    });
 });

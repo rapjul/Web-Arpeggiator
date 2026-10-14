@@ -16,6 +16,7 @@
  * @property {() => void} onRedo
  * @property {() => void} onResetDefaults
  * @property {() => boolean} [isAnotherModalOpen]
+ * @property {() => boolean} [canOpenResetDefaultsDialog]
  * @property {() => boolean} onEscapeReset
  */
 
@@ -94,6 +95,7 @@ export function createHistoryController(dependencies) {
      */
     function openResetDefaultsDialog() {
         if (!resetDefaultsOverlay) return;
+        if (dependencies.canOpenResetDefaultsDialog?.() === false) return;
         const activeElement = /** @type {HTMLElement | null} */ (documentRef.activeElement);
         setHistoryMenuOpen(false);
         resetDialogReturnFocus =

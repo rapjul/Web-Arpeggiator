@@ -47,6 +47,7 @@ export function createPresetWorkflowController(dependencies) {
         hideStorageRecovery,
         showToast,
         onUrlPresetRecognized,
+        isAnotherModalOpen,
         logger = console,
     } = dependencies;
     const {
@@ -216,6 +217,9 @@ export function createPresetWorkflowController(dependencies) {
         isBrowserPresetLoadPending = true;
         try {
             const record = selectedId ? await store?.get(selectedId) : await store?.loadLatest();
+            if (isAnotherModalOpen?.()) {
+                return;
+            }
             if (!record) {
                 showToast("No saved preset found yet.", "info");
                 return;

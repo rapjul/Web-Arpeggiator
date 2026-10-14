@@ -60,7 +60,7 @@ import { FACTORY_PRESETS } from "./config/factory-presets.js";
 /** @typedef {{oscillator: {width: NumericAudioParam}, harmonicity: NumericAudioParam, modulationIndex: NumericAudioParam, filterEnvelope: {baseFrequency: number, octaves: number}, filter: {Q: NumericAudioParam}, vibratoAmount: NumericAudioParam, dampening: number, resonance: number, attackNoise: number, pitchDecay: number, octaves: number}} ActiveSynthLike */
 /** @typedef {{activeSynth: ActiveSynthLike, currentWaveform: string, setSynth: (type: string) => void, updateEnvelope: () => void, postGain: {volume: NumericAudioParam}, distortion: {wet: NumericAudioParam}, filter: {frequency: NumericAudioParam, Q: NumericAudioParam}, chorus: {wet: NumericAudioParam}, autoPanner: {wet: NumericAudioParam}, delay: {wet: NumericAudioParam}, reverb: {wet: NumericAudioParam}, createOfflineChain: (context: unknown, settings: unknown) => {offlineSynth: {triggerAttackRelease: (note: string, duration: number, time: number) => void}}}} AudioEngineLike */
 /** @typedef {{update: (settings: object) => object|null, getPattern: () => {start: () => void, stop: () => void}|null, getTimeline?: () => CompiledTimeline|null, dispose: () => void, silenceActiveSynth?: () => void}} PatternControllerLike */
-/** @typedef {{isRecording: boolean, isActivelyRecording?: boolean, toggleRecording: () => Promise<void>, stopRecording?: () => Promise<boolean>, exportRealtime: () => Promise<void>, exportOffline: () => Promise<void>, initRecorder: () => Promise<void>, awaitPendingTransition?: () => Promise<void>}} RecorderManagerLike */
+/** @typedef {{isRecording: boolean, isActivelyRecording?: boolean, isStarting?: boolean, toggleRecording: () => Promise<void>, stopRecording?: () => Promise<boolean>, exportRealtime: () => Promise<void>, exportOffline: () => Promise<void>, initRecorder: () => Promise<void>, awaitPendingTransition?: () => Promise<void>}} RecorderManagerLike */
 /** @typedef {{currentMode: string, isVisualizerOn: boolean, toggle: () => void, startUiLoop: () => void, stopUiLoop: () => void, onManualNoteAttack: () => void, onManualNoteRelease: () => void, updateStaticLoopMap: (buffer: unknown, markers: unknown) => void}} VisualizerLike */
 
 // --- Global Config ---
@@ -453,6 +453,11 @@ function initializeApp() {
             adaptButton: chordConflictAdaptButton,
             cancelButton: chordConflictCancelButton,
         },
+        canOpenDialog: () =>
+            !presetWorkflowController?.isBrowserPresetLoadPending?.() &&
+            !onboardingController?.isQuickStartOpen?.() &&
+            !historyController?.isResetDefaultsDialogOpen?.() &&
+            !presetWorkflowController?.isFuturePresetDialogOpen?.(),
         isAnotherModalOpen: () =>
             Boolean(
                 onboardingController?.isQuickStartOpen?.() ||
@@ -815,7 +820,8 @@ function initializeApp() {
             !presetWorkflowController?.isBrowserPresetLoadPending?.() &&
             !presetWorkflowController?.isFuturePresetDialogOpen?.() &&
             !chordConflictDialogController?.isOpen?.() &&
-            !historyController?.isResetDefaultsDialogOpen?.(),
+            !historyController?.isResetDefaultsDialogOpen?.() &&
+            !getRecorderManager()?.isStarting,
         isAnotherModalOpen: () =>
             Boolean(
                 presetWorkflowController?.isFuturePresetDialogOpen?.() ||
@@ -1143,6 +1149,11 @@ function initializeApp() {
             resetIndividualSettings(definition);
             return true;
         },
+        canOpenResetDefaultsDialog: () =>
+            !presetWorkflowController?.isBrowserPresetLoadPending?.() &&
+            !onboardingController?.isQuickStartOpen?.() &&
+            !chordConflictDialogController?.isOpen?.() &&
+            !presetWorkflowController?.isFuturePresetDialogOpen?.(),
         isAnotherModalOpen: () =>
             Boolean(
                 onboardingController?.isQuickStartOpen?.() ||

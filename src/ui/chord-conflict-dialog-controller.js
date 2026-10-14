@@ -7,11 +7,11 @@
 /**
  * Creates a controller for the chord/scale conflict dialog.
  *
- * @param {{documentRef: Document, dom: {appMain: HTMLElement|null, overlay: HTMLElement|null, dialog: HTMLElement|null, requestedNotes: HTMLElement|null, adaptedNotes: HTMLElement|null, changedPitches: HTMLElement|null, keepButton: HTMLButtonElement|null, adaptButton: HTMLButtonElement|null, cancelButton: HTMLButtonElement|null}, isAnotherModalOpen?: () => boolean}} dependencies - Injected DOM references.
+ * @param {{documentRef: Document, dom: {appMain: HTMLElement|null, overlay: HTMLElement|null, dialog: HTMLElement|null, requestedNotes: HTMLElement|null, adaptedNotes: HTMLElement|null, changedPitches: HTMLElement|null, keepButton: HTMLButtonElement|null, adaptButton: HTMLButtonElement|null, cancelButton: HTMLButtonElement|null}, isAnotherModalOpen?: () => boolean, canOpenDialog?: () => boolean}} dependencies - Injected DOM references.
  * @returns {{open: (details: {chordName: string, root: string, requestedNotes: string[], adaptedNotes: string[], changedPitches: Array<{requested: string, adapted: string}>, onKeep: () => void, onAdapt: () => void, onCancel?: () => void}) => void, close: () => void, destroy: () => void, isOpen: () => boolean}}
  */
 export function createChordConflictDialogController(dependencies) {
-    const { documentRef, dom, isAnotherModalOpen } = dependencies;
+    const { documentRef, dom, isAnotherModalOpen, canOpenDialog } = dependencies;
     const {
         appMain,
         overlay,
@@ -126,7 +126,7 @@ export function createChordConflictDialogController(dependencies) {
         const hasRequiredDialogControls = Boolean(
             appMain && overlay && dialog && keepButton && adaptButton && cancelButton,
         );
-        if (isDestroyed || !hasRequiredDialogControls) {
+        if (isDestroyed || !hasRequiredDialogControls || canOpenDialog?.() === false) {
             details.onCancel?.();
             return;
         }

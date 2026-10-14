@@ -6,7 +6,7 @@ const controllers: Array<ReturnType<typeof createHistoryController>> = [];
 /**
  * Builds history controls with injectable state transitions.
  *
- * @param {{canUndo?: boolean, canRedo?: boolean, isAtDefault?: boolean, isAnotherModalOpen?: () => boolean}} [status] - Initial status.
+ * @param {{canUndo?: boolean, canRedo?: boolean, isAtDefault?: boolean, isAnotherModalOpen?: () => boolean, canOpenResetDefaultsDialog?: () => boolean}} [status] - Initial status.
  */
 function createFixture(
     status: {
@@ -14,6 +14,7 @@ function createFixture(
         canRedo?: boolean;
         isAtDefault?: boolean;
         isAnotherModalOpen?: () => boolean;
+        canOpenResetDefaultsDialog?: () => boolean;
     } = {},
 ) {
     const appMain = document.createElement("main");
@@ -89,6 +90,7 @@ function createFixture(
         onResetDefaults,
         onEscapeReset,
         isAnotherModalOpen: status.isAnotherModalOpen,
+        canOpenResetDefaultsDialog: status.canOpenResetDefaultsDialog,
     });
     controllers.push(controller);
 
@@ -320,5 +322,27 @@ describe("history controller", () => {
         otherModalOpen = false;
         fixture.controller.closeResetDefaultsDialog();
         expect(fixture.appMain.hasAttribute("inert")).toBe(false);
+    });
+
+    test("suppresses opening reset defaults dialog when canOpenResetDefaultsDialog returns false", () => {
+        let canOpen = false;
+        const fixture = createFixture({
+            isAtDefault: false,
+            canOpenResetDefaultsDialog: () => canOpen,
+        });
+        fixture.controller.initialize();
+
+        expect(fixture.controller.isResetDefaultsDialogOpen()).toBe(false);
+
+        // Click when canOpen returns false
+        fixture.resetDefaultsDesktopButton.click();
+        expect(fixture.controller.isResetDefaultsDialogOpen()).toBe(false);
+        expect(fixture.appMain.hasAttribute("inert")).toBe(false);
+
+        // Allow opening
+        canOpen = true;
+        fixture.resetDefaultsDesktopButton.click();
+        expect(fixture.controller.isResetDefaultsDialogOpen()).toBe(true);
+        expect(fixture.appMain.hasAttribute("inert")).toBe(true);
     });
 });
