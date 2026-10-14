@@ -7,10 +7,11 @@
 /**
  * Creates a controller for the chord/scale conflict dialog.
  *
- * @param {{documentRef: Document, dom: {appMain: HTMLElement|null, overlay: HTMLElement|null, dialog: HTMLElement|null, requestedNotes: HTMLElement|null, adaptedNotes: HTMLElement|null, changedPitches: HTMLElement|null, keepButton: HTMLButtonElement|null, adaptButton: HTMLButtonElement|null, cancelButton: HTMLButtonElement|null}}} dependencies - Injected DOM references.
- * @returns {{open: (details: {chordName: string, root: string, requestedNotes: string[], adaptedNotes: string[], changedPitches: Array<{requested: string, adapted: string}>, onKeep: () => void, onAdapt: () => void, onCancel?: () => void}) => void, close: () => void, destroy: () => void}}
+ * @param {{documentRef: Document, dom: {appMain: HTMLElement|null, overlay: HTMLElement|null, dialog: HTMLElement|null, requestedNotes: HTMLElement|null, adaptedNotes: HTMLElement|null, changedPitches: HTMLElement|null, keepButton: HTMLButtonElement|null, adaptButton: HTMLButtonElement|null, cancelButton: HTMLButtonElement|null}, isAnotherModalOpen?: () => boolean, canOpenDialog?: () => boolean}} dependencies - Injected DOM references.
+ * @returns {{open: (details: {chordName: string, root: string, requestedNotes: string[], adaptedNotes: string[], changedPitches: Array<{requested: string, adapted: string}>, onKeep: () => void, onAdapt: () => void, onCancel?: () => void}) => void, close: () => void, destroy: () => void, isOpen: () => boolean}}
  */
-export function createChordConflictDialogController({ documentRef, dom }) {
+export function createChordConflictDialogController(dependencies) {
+    const { documentRef, dom, isAnotherModalOpen, canOpenDialog } = dependencies;
     const {
         appMain,
         overlay,
@@ -33,7 +34,9 @@ export function createChordConflictDialogController({ documentRef, dom }) {
         overlay?.classList.add("hidden");
         overlay?.classList.remove("flex");
         overlay?.setAttribute("aria-hidden", "true");
-        appMain?.removeAttribute("inert");
+        if (!isAnotherModalOpen?.()) {
+            appMain?.removeAttribute("inert");
+        }
         returnFocus?.focus();
         returnFocus = null;
     }
@@ -96,24 +99,18 @@ export function createChordConflictDialogController({ documentRef, dom }) {
         listenerOptions,
     );
 
-    function open(details) {
-        if (!details || typeof details !== "object") return;
-        const hasRequiredDialogControls = Boolean(
-            appMain && overlay && dialog && keepButton && adaptButton && cancelButton,
-        );
-        if (isDestroyed || !hasRequiredDialogControls) {
-            details.onCancel?.();
-            return;
-        }
-        if (pending) close();
-        pending = details;
-        returnFocus =
-            documentRef.activeElement instanceof HTMLElement ? documentRef.activeElement : null;
-        const requested = Array.isArray(details.requestedNotes) ? details.requestedNotes : [];
-        const adapted = Array.isArray(details.adaptedNotes) ? details.adaptedNotes : [];
-        const pitches = Array.isArray(details.changedPitches) ? details.changedPitches : [];
-        if (requestedNotes) requestedNotes.textContent = requested.join("  •  ");
-        if (adaptedNotes) adaptedNotes.textContent = adapted.join("  •  ");
+    /**
+     * Writes the chord conflict details into the dialog, tolerating malformed arrays.
+     *
+     * @param {{chordName?: string, root?: string, requestedNotes?: unknown, adaptedNotes?: unknown, changedPitches?: unknown}} details - Conflict details.
+     * @returns {void}
+     */
+    function renderDetails(details) {
+        const asArray = (value) => (Array.isArray(value) ? value : []);
+        const pitches = asArray(details.changedPitches);
+        if (requestedNotes)
+            requestedNotes.textContent = asArray(details.requestedNotes).join("  •  ");
+        if (adaptedNotes) adaptedNotes.textContent = asArray(details.adaptedNotes).join("  •  ");
         if (changedPitches) {
             changedPitches.textContent = pitches
                 .map(({ requested, adapted }) => `${requested} → ${adapted}`)
@@ -122,6 +119,22 @@ export function createChordConflictDialogController({ documentRef, dom }) {
         const title = dialog?.querySelector("[data-chord-conflict-title]");
         if (title)
             title.textContent = `${details.root || "C"} ${details.chordName || "Major"} does not fit the active scale`;
+    }
+
+    function open(details) {
+        if (!details || typeof details !== "object") return;
+        const hasRequiredDialogControls = Boolean(
+            appMain && overlay && dialog && keepButton && adaptButton && cancelButton,
+        );
+        if (isDestroyed || !hasRequiredDialogControls || canOpenDialog?.() === false) {
+            details.onCancel?.();
+            return;
+        }
+        if (pending) close();
+        pending = details;
+        returnFocus =
+            documentRef.activeElement instanceof HTMLElement ? documentRef.activeElement : null;
+        renderDetails(details);
         overlay?.classList.remove("hidden");
         overlay?.classList.add("flex");
         overlay?.setAttribute("aria-hidden", "false");
@@ -136,5 +149,12 @@ export function createChordConflictDialogController({ documentRef, dom }) {
         listenerController.abort();
     }
 
-    return { open, close, destroy };
+    return {
+        open,
+        close,
+        destroy,
+        isOpen: () =>
+            overlay?.getAttribute("aria-hidden") === "false" &&
+            !overlay?.classList.contains("hidden"),
+    };
 }

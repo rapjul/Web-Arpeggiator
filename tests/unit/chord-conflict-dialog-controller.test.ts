@@ -245,4 +245,29 @@ describe("chord conflict dialog controller", () => {
         expect(fixture.overlay.classList.contains("hidden")).toBe(true);
         fixture.controller.destroy();
     });
+
+    it("cancels and does not open when canOpenDialog returns false", () => {
+        const fixture = createFixture();
+        fixture.controller.destroy();
+
+        let canOpen = false;
+        const controller = createChordConflictDialogController({
+            ...fixture.dependencies,
+            canOpenDialog: () => canOpen,
+        });
+
+        const onCancel = vi.fn();
+        controller.open(createDetails({ onCancel }));
+
+        expect(onCancel).toHaveBeenCalledOnce();
+        expect(controller.isOpen()).toBe(false);
+        expect(fixture.overlay.classList.contains("hidden")).toBe(true);
+
+        canOpen = true;
+        controller.open(createDetails());
+        expect(controller.isOpen()).toBe(true);
+        expect(fixture.overlay.classList.contains("hidden")).toBe(false);
+
+        controller.destroy();
+    });
 });

@@ -100,4 +100,46 @@ describe("future preset dialog controller", () => {
 
         expect(overlay?.getAttribute("aria-hidden")).toBe("false");
     });
+
+    it("reports isOpen accurately, blocks opening when another modal is active, and respects isAnotherModalOpen on close", () => {
+        const loadPresetButton = renderDialog();
+        let modalOpen = true;
+        const isAnotherModalOpen = vi.fn(() => modalOpen);
+        const onBeforeOpen = vi.fn();
+        const controller = createFuturePresetDialogController({
+            getReturnFocus: () => loadPresetButton,
+            isAnotherModalOpen,
+            onBeforeOpen,
+            onConfirm: vi.fn(),
+        });
+        controllers.push(controller);
+        const appMain = document.getElementById("app-main");
+        const overlay = document.getElementById("future-preset-overlay");
+
+        expect(controller.isOpen()).toBe(false);
+
+        // When another modal remains open, open() is blocked
+        controller.open({ settingsVersion: 99 }, "future.json");
+        expect(onBeforeOpen).toHaveBeenCalled();
+        expect(controller.isOpen()).toBe(false);
+        expect(overlay?.classList.contains("hidden")).toBe(true);
+
+        // When onBeforeOpen closes active modals (or none open), open() succeeds
+        modalOpen = false;
+        controller.open({ settingsVersion: 99 }, "future.json");
+        expect(controller.isOpen()).toBe(true);
+        expect(appMain?.hasAttribute("inert")).toBe(true);
+
+        // While open, if another modal opens in background, closing preserves inert on appMain
+        modalOpen = true;
+        controller.close();
+        expect(controller.isOpen()).toBe(false);
+        expect(appMain?.hasAttribute("inert")).toBe(true);
+
+        // When no other modal is open, closing removes inert
+        modalOpen = false;
+        controller.open({ settingsVersion: 99 }, "future.json");
+        controller.close();
+        expect(appMain?.hasAttribute("inert")).toBe(false);
+    });
 });

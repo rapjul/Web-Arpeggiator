@@ -9,12 +9,14 @@
 
 /**
  * @typedef {object} HistoryControllerDependencies
- * @property {{appMain?: HTMLElement|null, undoButton?: HTMLButtonElement|null, redoButton?: HTMLButtonElement|null, historyMenuButton?: HTMLButtonElement|null, historyMenu?: HTMLElement|null, historyMenuUndoButton?: HTMLButtonElement|null, historyMenuRedoButton?: HTMLButtonElement|null, resetDefaultsButton?: HTMLButtonElement|null, resetDefaultsDesktopButton?: HTMLButtonElement|null, resetDefaultsOverlay?: HTMLElement|null, resetDefaultsDialog?: HTMLElement|null, resetDefaultsCancelButton?: HTMLButtonElement|null, resetDefaultsConfirmButton?: HTMLButtonElement|null, presetNameInput?: HTMLInputElement|null}} dom
+ * @property {{appMain?: HTMLElement|null, undoButton?: HTMLButtonElement|null, redoButton?: HTMLButtonElement|null, historyMenuButton?: HTMLButtonElement|null, historyMenu?: HTMLElement|null, historyMenuUndoButton?: HTMLButtonElement|null, historyMenuRedoButton?: HTMLButtonElement|null, resetDefaultsButton?: HTMLButtonElement|null, resetDefaultsDesktopButton?: HTMLButtonElement|null, resetDefaultsOverlay?: HTMLElement|null, resetDefaultsDialog?: HTMLElement|null, resetDefaultsCancelButton?: HTMLButtonElement|null, resetDefaultsConfirmButton?: HTMLButtonElement|null, presetNameInput?: HTMLInputElement|null, quickStartOverlay?: HTMLElement|null}} dom
  * @property {Document} documentRef
  * @property {() => {canUndo: boolean, canRedo: boolean, isAtDefault: boolean}} getStatus
  * @property {() => void} onUndo
  * @property {() => void} onRedo
  * @property {() => void} onResetDefaults
+ * @property {() => boolean} [isAnotherModalOpen]
+ * @property {() => boolean} [canOpenResetDefaultsDialog]
  * @property {() => boolean} onEscapeReset
  */
 
@@ -23,7 +25,7 @@
  * dialog, focus behavior, and keyboard shortcuts.
  *
  * @param {HistoryControllerDependencies} dependencies - Injected UI and app behavior.
- * @returns {{initialize: () => void, updateControls: () => void, destroy: () => void}}
+ * @returns {{initialize: () => void, updateControls: () => void, destroy: () => void, isResetDefaultsDialogOpen: () => boolean, closeResetDefaultsDialog: () => void}}
  */
 export function createHistoryController(dependencies) {
     const { dom, documentRef, getStatus, onUndo, onRedo, onResetDefaults, onEscapeReset } =
@@ -35,6 +37,7 @@ export function createHistoryController(dependencies) {
         historyMenuRedoButton,
         historyMenuUndoButton,
         presetNameInput,
+        quickStartOverlay,
         redoButton,
         resetDefaultsButton,
         resetDefaultsCancelButton,
@@ -92,6 +95,7 @@ export function createHistoryController(dependencies) {
      */
     function openResetDefaultsDialog() {
         if (!resetDefaultsOverlay) return;
+        if (dependencies.canOpenResetDefaultsDialog?.() === false) return;
         const activeElement = /** @type {HTMLElement | null} */ (documentRef.activeElement);
         setHistoryMenuOpen(false);
         resetDialogReturnFocus =
@@ -113,7 +117,9 @@ export function createHistoryController(dependencies) {
         resetDefaultsOverlay.classList.add("hidden");
         resetDefaultsOverlay.classList.remove("flex");
         resetDefaultsOverlay.setAttribute("aria-hidden", "true");
-        appMain?.removeAttribute("inert");
+        if (!dependencies.isAnotherModalOpen?.()) {
+            appMain?.removeAttribute("inert");
+        }
         resetDialogReturnFocus?.focus();
         resetDialogReturnFocus = null;
     }
@@ -157,26 +163,47 @@ export function createHistoryController(dependencies) {
     }
 
     /**
+     * Dismisses the reset dialog or history menu when Escape targets them.
+     *
+     * @param {KeyboardEvent} event - Capturing keyboard event.
+     * @returns {boolean} Whether the event was consumed.
+     */
+    function handleEscapeDismissal(event) {
+        if (event.key !== "Escape") return false;
+        if (resetDefaultsOverlay?.getAttribute("aria-hidden") === "false") {
+            event.preventDefault();
+            closeResetDefaultsDialog();
+            return true;
+        }
+        if (historyMenuButton?.getAttribute("aria-expanded") === "true") {
+            event.preventDefault();
+            setHistoryMenuOpen(false);
+            historyMenuButton?.focus();
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Reports whether a modal overlay currently blocks history shortcuts.
+     *
+     * @returns {boolean} True when the app is inert or the Quick Start guide is visible.
+     */
+    function isModalBlockingShortcuts() {
+        return Boolean(
+            appMain?.hasAttribute("inert") ||
+                (quickStartOverlay && !quickStartOverlay.classList.contains("is-hidden")),
+        );
+    }
+
+    /**
      * Processes application-wide history and reset keyboard interactions.
      *
      * @param {KeyboardEvent} event - Capturing keyboard event.
      * @returns {void}
      */
     function handleWindowKeydown(event) {
-        const resetDialogOpen = resetDefaultsOverlay?.getAttribute("aria-hidden") === "false";
-        if (event.key === "Escape" && resetDialogOpen) {
-            event.preventDefault();
-            closeResetDefaultsDialog();
-            return;
-        }
-
-        const historyMenuOpen = historyMenuButton?.getAttribute("aria-expanded") === "true";
-        if (event.key === "Escape" && historyMenuOpen) {
-            event.preventDefault();
-            setHistoryMenuOpen(false);
-            historyMenuButton?.focus();
-            return;
-        }
+        if (handleEscapeDismissal(event) || isModalBlockingShortcuts()) return;
 
         const usesModifier = event.ctrlKey || event.metaKey;
         const key = event.key.toLowerCase();
@@ -280,5 +307,23 @@ export function createHistoryController(dependencies) {
         isInitialized = false;
     }
 
-    return { initialize, updateControls, destroy };
+    /**
+     * Checks whether the reset defaults confirmation dialog is currently open.
+     *
+     * @returns {boolean} True if the reset defaults dialog is open.
+     */
+    function isResetDefaultsDialogOpen() {
+        return (
+            resetDefaultsOverlay?.getAttribute("aria-hidden") === "false" &&
+            !resetDefaultsOverlay?.classList.contains("hidden")
+        );
+    }
+
+    return {
+        initialize,
+        updateControls,
+        destroy,
+        isResetDefaultsDialogOpen,
+        closeResetDefaultsDialog,
+    };
 }
