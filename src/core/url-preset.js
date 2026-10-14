@@ -91,6 +91,36 @@ export {
 export const NOTES_REGEX = /^[A-Ga-g][b#]?[0-9]?(\s+[A-Ga-g][b#]?[0-9]?)*$/;
 
 /**
+ * Parses and clamps an integer value between minimum and maximum bounds, returning null if invalid.
+ *
+ * @param {string|null|undefined} val - Raw string value to parse.
+ * @param {number} min - Inclusive minimum value.
+ * @param {number} max - Inclusive maximum value.
+ * @returns {number|null} The clamped integer, or null if parsing fails.
+ */
+export function tryClampInt(val, min, max) {
+    if (val === null || val === undefined) return null;
+    const parsed = parseInt(val, 10);
+    if (Number.isNaN(parsed)) return null;
+    return Math.min(Math.max(parsed, min), max);
+}
+
+/**
+ * Parses and clamps a floating-point value between minimum and maximum bounds, returning null if invalid.
+ *
+ * @param {string|null|undefined} val - Raw string value to parse.
+ * @param {number} min - Inclusive minimum value.
+ * @param {number} max - Inclusive maximum value.
+ * @returns {number|null} The clamped float, or null if parsing fails.
+ */
+export function tryClampFloat(val, min, max) {
+    if (val === null || val === undefined) return null;
+    const parsed = parseFloat(val);
+    if (Number.isNaN(parsed)) return null;
+    return Math.min(Math.max(parsed, min), max);
+}
+
+/**
  * Parses and clamps an integer value between minimum and maximum bounds.
  *
  * @param {string|null} val - Raw string value to parse.
@@ -100,10 +130,8 @@ export const NOTES_REGEX = /^[A-Ga-g][b#]?[0-9]?(\s+[A-Ga-g][b#]?[0-9]?)*$/;
  * @returns {number} The clamped integer.
  */
 export function clampInt(val, min, max, fallback) {
-    if (val === null || val === undefined) return fallback;
-    const parsed = parseInt(val, 10);
-    if (Number.isNaN(parsed)) return fallback;
-    return Math.min(Math.max(parsed, min), max);
+    const parsed = tryClampInt(val, min, max);
+    return parsed !== null ? parsed : fallback;
 }
 
 /**
@@ -116,10 +144,8 @@ export function clampInt(val, min, max, fallback) {
  * @returns {number} The clamped float.
  */
 export function clampFloat(val, min, max, fallback) {
-    if (val === null || val === undefined) return fallback;
-    const parsed = parseFloat(val);
-    if (Number.isNaN(parsed)) return fallback;
-    return Math.min(Math.max(parsed, min), max);
+    const parsed = tryClampFloat(val, min, max);
+    return parsed !== null ? parsed : fallback;
 }
 
 /**
@@ -247,10 +273,10 @@ export function serializePresetToUrlParams(settings) {
 }
 
 /**
- * Checks whether the provided URL search parameters or query string contain any recognized preset keys.
+ * Checks whether the provided URL search parameters or query string contain any valid recognized preset parameters.
  *
  * @param {URLSearchParams|string|null|undefined} searchParams - URL search parameters instance or query string.
- * @returns {boolean} True if any recognized preset key is present, false otherwise.
+ * @returns {boolean} True if at least one recognized preset parameter contains a valid value, false otherwise.
  */
 export function hasPresetUrlParams(searchParams) {
     if (!searchParams) return false;
@@ -258,7 +284,7 @@ export function hasPresetUrlParams(searchParams) {
         const params =
             typeof searchParams === "string" ? new URLSearchParams(searchParams) : searchParams;
         if (!params) return false;
-        return [...params.keys()].some((key) => PRESET_URL_KEYS.has(key));
+        return parsePresetFromUrlParams(params, /** @type {any} */ ({})) !== null;
     } catch {
         return false;
     }
@@ -269,17 +295,19 @@ export function hasPresetUrlParams(searchParams) {
  *
  * @param {URLSearchParams} params - Search parameters.
  * @param {PresetSettings & Record<string, unknown>} settings - Target settings.
- * @returns {void}
+ * @returns {number} The count of valid applied parameters.
  */
 function applyNotesUrlParam(params, settings) {
-    if (!params.has("notes")) return;
+    if (!params.has("notes")) return 0;
     const rawNotes = params.get("notes")?.trim() || "";
     if (NOTES_REGEX.test(rawNotes)) {
         const normalized = normalizeNotesSequence(rawNotes);
         if (normalized.length > 0) {
             settings.baseNotes = normalized;
+            return 1;
         }
     }
+    return 0;
 }
 
 /**
@@ -287,36 +315,60 @@ function applyNotesUrlParam(params, settings) {
  *
  * @param {URLSearchParams} params - Search parameters.
  * @param {PresetSettings & Record<string, unknown>} settings - Target settings.
- * @returns {void}
+ * @returns {number} The count of valid applied parameters.
  */
 function applyDiscreteUrlParams(params, settings) {
+    let appliedCount = 0;
     if (params.has("dir")) {
         const dir = params.get("dir");
-        if (dir && ALLOWED_DIRECTIONS.includes(dir)) settings.direction = dir;
+        if (dir && ALLOWED_DIRECTIONS.includes(dir)) {
+            settings.direction = dir;
+            appliedCount++;
+        }
     }
     if (params.has("int")) {
         const interval = params.get("int");
-        if (interval && ALLOWED_INTERVALS.includes(interval)) settings.interval = interval;
+        if (interval && ALLOWED_INTERVALS.includes(interval)) {
+            settings.interval = interval;
+            appliedCount++;
+        }
     }
     if (params.has("quant")) {
-        settings.scaleQuantize = params.get("quant") === "true";
+        const quant = params.get("quant");
+        if (quant === "true" || quant === "false") {
+            settings.scaleQuantize = quant === "true";
+            appliedCount++;
+        }
     }
     if (params.has("root")) {
         const root = params.get("root");
-        if (root && ALLOWED_ROOTS.includes(root)) settings.scaleRoot = root;
+        if (root && ALLOWED_ROOTS.includes(root)) {
+            settings.scaleRoot = root;
+            appliedCount++;
+        }
     }
     if (params.has("scale")) {
         const scale = params.get("scale");
-        if (scale && ALLOWED_SCALES.includes(scale)) settings.scaleType = scale;
+        if (scale && ALLOWED_SCALES.includes(scale)) {
+            settings.scaleType = scale;
+            appliedCount++;
+        }
     }
     if (params.has("synth")) {
         const synth = params.get("synth");
-        if (synth && ALLOWED_SYNTHS.includes(synth)) settings.synthType = synth;
+        if (synth && ALLOWED_SYNTHS.includes(synth)) {
+            settings.synthType = synth;
+            appliedCount++;
+        }
     }
     if (params.has("wave")) {
         const wave = params.get("wave");
-        if (wave && ALLOWED_WAVEFORMS.includes(wave)) settings.waveform = wave;
+        if (wave && ALLOWED_WAVEFORMS.includes(wave)) {
+            settings.waveform = wave;
+            appliedCount++;
+        }
     }
+    return appliedCount;
 }
 
 /**
@@ -324,155 +376,165 @@ function applyDiscreteUrlParams(params, settings) {
  *
  * @param {URLSearchParams} params - Search parameters.
  * @param {PresetSettings & Record<string, unknown>} settings - Target settings.
- * @returns {void}
+ * @returns {number} The count of valid applied parameters.
  */
 function applyNumericUrlParams(params, settings) {
-    if (params.has("bpm"))
-        settings.bpm = clampInt(
-            params.get("bpm"),
-            ...SETTINGS_BOUNDS.bpm,
-            Number(settings.bpm ?? 120),
-        );
-    if (params.has("swing"))
-        settings.swing = clampFloat(
-            params.get("swing"),
-            ...SETTINGS_BOUNDS.swing,
-            Number(settings.swing ?? 0),
-        );
-    if (params.has("seed"))
-        settings.randomSeed = clampInt(
-            params.get("seed"),
-            0,
-            MAX_RANDOM_SEED,
-            Number(settings.randomSeed ?? 0),
-        );
-    if (params.has("gain"))
-        settings.postGain = clampFloat(
-            params.get("gain"),
-            ...SETTINGS_BOUNDS.postGain,
-            Number(settings.postGain ?? 0),
-        );
-    if (params.has("harm"))
-        settings.harmonicity = clampFloat(
-            params.get("harm"),
-            0.5,
-            10.0,
-            Number(settings.harmonicity ?? 1.0),
-        );
-    if (params.has("mod"))
-        settings.modulationIndex = clampFloat(
-            params.get("mod"),
-            1.0,
-            50.0,
-            Number(settings.modulationIndex ?? 10.0),
-        );
-    if (params.has("duty"))
-        settings.dutyCycle = clampFloat(
-            params.get("duty"),
-            0.01,
-            0.99,
-            Number(settings.dutyCycle ?? 0.5),
-        );
-    if (params.has("gate"))
-        settings.gateRatio = clampFloat(
-            params.get("gate"),
-            0.05,
-            1.0,
-            Number(settings.gateRatio ?? 0.8),
-        );
-    if (params.has("shift"))
-        settings.octaveShift = clampInt(
-            params.get("shift"),
-            -3,
-            3,
-            Number(settings.octaveShift ?? 0),
-        );
-    if (params.has("range"))
-        settings.octaveRange = clampInt(
-            params.get("range"),
-            1,
-            5,
-            Number(settings.octaveRange ?? 1),
-        );
-    if (params.has("attack"))
-        settings.envAttack = clampFloat(
-            params.get("attack"),
-            0.0,
-            2.0,
-            Number(settings.envAttack ?? 0.01),
-        );
-    if (params.has("decay"))
-        settings.envDecay = clampFloat(
-            params.get("decay"),
-            0.0,
-            2.0,
-            Number(settings.envDecay ?? 0.1),
-        );
-    if (params.has("sustain"))
-        settings.envSustain = clampFloat(
-            params.get("sustain"),
-            0.0,
-            1.0,
-            Number(settings.envSustain ?? 0.5),
-        );
-    if (params.has("release"))
-        settings.envRelease = clampFloat(
-            params.get("release"),
-            0.0,
-            5.0,
-            Number(settings.envRelease ?? 1.0),
-        );
-    if (params.has("cutoff"))
-        settings.filterCutoff = clampFloat(
-            params.get("cutoff"),
-            100.0,
-            10000.0,
-            Number(settings.filterCutoff ?? 1000.0),
-        );
-    if (params.has("res"))
-        settings.filterResonance = clampFloat(
-            params.get("res"),
-            0.0,
-            20.0,
-            Number(settings.filterResonance ?? 1.0),
-        );
-    if (params.has("drive"))
-        settings.driveMix = clampFloat(
-            params.get("drive"),
-            0.0,
-            1.0,
-            Number(settings.driveMix ?? 0),
-        );
-    if (params.has("chorus"))
-        settings.chorusMix = clampFloat(
-            params.get("chorus"),
-            0.0,
-            1.0,
-            Number(settings.chorusMix ?? 0),
-        );
-    if (params.has("pan"))
-        settings.autoPanMix = clampFloat(
-            params.get("pan"),
-            0.0,
-            1.0,
-            Number(settings.autoPanMix ?? 0),
-        );
-    if (params.has("delay"))
-        settings.delayMix = clampFloat(
-            params.get("delay"),
-            0.0,
-            1.0,
-            Number(settings.delayMix ?? 0),
-        );
-    if (params.has("reverb"))
-        settings.reverbMix = clampFloat(
-            params.get("reverb"),
-            0.0,
-            1.0,
-            Number(settings.reverbMix ?? 0),
-        );
-    if (params.has("loop"))
-        settings.loopCount = clampInt(params.get("loop"), 1, 100, Number(settings.loopCount ?? 1));
+    let appliedCount = 0;
+    if (params.has("bpm")) {
+        const val = tryClampInt(params.get("bpm"), ...SETTINGS_BOUNDS.bpm);
+        if (val !== null) {
+            settings.bpm = val;
+            appliedCount++;
+        }
+    }
+    if (params.has("swing")) {
+        const val = tryClampFloat(params.get("swing"), ...SETTINGS_BOUNDS.swing);
+        if (val !== null) {
+            settings.swing = val;
+            appliedCount++;
+        }
+    }
+    if (params.has("seed")) {
+        const val = tryClampInt(params.get("seed"), 0, MAX_RANDOM_SEED);
+        if (val !== null) {
+            settings.randomSeed = val;
+            appliedCount++;
+        }
+    }
+    if (params.has("gain")) {
+        const val = tryClampFloat(params.get("gain"), ...SETTINGS_BOUNDS.postGain);
+        if (val !== null) {
+            settings.postGain = val;
+            appliedCount++;
+        }
+    }
+    if (params.has("harm")) {
+        const val = tryClampFloat(params.get("harm"), 0.5, 10.0);
+        if (val !== null) {
+            settings.harmonicity = val;
+            appliedCount++;
+        }
+    }
+    if (params.has("mod")) {
+        const val = tryClampFloat(params.get("mod"), 1.0, 50.0);
+        if (val !== null) {
+            settings.modulationIndex = val;
+            appliedCount++;
+        }
+    }
+    if (params.has("duty")) {
+        const val = tryClampFloat(params.get("duty"), 0.01, 0.99);
+        if (val !== null) {
+            settings.dutyCycle = val;
+            appliedCount++;
+        }
+    }
+    if (params.has("gate")) {
+        const val = tryClampFloat(params.get("gate"), 0.05, 1.0);
+        if (val !== null) {
+            settings.gateRatio = val;
+            appliedCount++;
+        }
+    }
+    if (params.has("shift")) {
+        const val = tryClampInt(params.get("shift"), -3, 3);
+        if (val !== null) {
+            settings.octaveShift = val;
+            appliedCount++;
+        }
+    }
+    if (params.has("range")) {
+        const val = tryClampInt(params.get("range"), 1, 5);
+        if (val !== null) {
+            settings.octaveRange = val;
+            appliedCount++;
+        }
+    }
+    if (params.has("attack")) {
+        const val = tryClampFloat(params.get("attack"), 0.0, 2.0);
+        if (val !== null) {
+            settings.envAttack = val;
+            appliedCount++;
+        }
+    }
+    if (params.has("decay")) {
+        const val = tryClampFloat(params.get("decay"), 0.0, 2.0);
+        if (val !== null) {
+            settings.envDecay = val;
+            appliedCount++;
+        }
+    }
+    if (params.has("sustain")) {
+        const val = tryClampFloat(params.get("sustain"), 0.0, 1.0);
+        if (val !== null) {
+            settings.envSustain = val;
+            appliedCount++;
+        }
+    }
+    if (params.has("release")) {
+        const val = tryClampFloat(params.get("release"), 0.0, 5.0);
+        if (val !== null) {
+            settings.envRelease = val;
+            appliedCount++;
+        }
+    }
+    if (params.has("cutoff")) {
+        const val = tryClampFloat(params.get("cutoff"), 100.0, 10000.0);
+        if (val !== null) {
+            settings.filterCutoff = val;
+            appliedCount++;
+        }
+    }
+    if (params.has("res")) {
+        const val = tryClampFloat(params.get("res"), 0.0, 20.0);
+        if (val !== null) {
+            settings.filterResonance = val;
+            appliedCount++;
+        }
+    }
+    if (params.has("drive")) {
+        const val = tryClampFloat(params.get("drive"), 0.0, 1.0);
+        if (val !== null) {
+            settings.driveMix = val;
+            appliedCount++;
+        }
+    }
+    if (params.has("chorus")) {
+        const val = tryClampFloat(params.get("chorus"), 0.0, 1.0);
+        if (val !== null) {
+            settings.chorusMix = val;
+            appliedCount++;
+        }
+    }
+    if (params.has("pan")) {
+        const val = tryClampFloat(params.get("pan"), 0.0, 1.0);
+        if (val !== null) {
+            settings.autoPanMix = val;
+            appliedCount++;
+        }
+    }
+    if (params.has("delay")) {
+        const val = tryClampFloat(params.get("delay"), 0.0, 1.0);
+        if (val !== null) {
+            settings.delayMix = val;
+            appliedCount++;
+        }
+    }
+    if (params.has("reverb")) {
+        const val = tryClampFloat(params.get("reverb"), 0.0, 1.0);
+        if (val !== null) {
+            settings.reverbMix = val;
+            appliedCount++;
+        }
+    }
+    if (params.has("loop")) {
+        const val = tryClampInt(params.get("loop"), 1, 100);
+        if (val !== null) {
+            settings.loopCount = val;
+            appliedCount++;
+        }
+    }
+    return appliedCount;
 }
 
 /**
@@ -480,21 +542,35 @@ function applyNumericUrlParams(params, settings) {
  *
  * @param {URLSearchParams} params - Search parameters.
  * @param {PresetSettings & Record<string, unknown>} settings - Target settings.
- * @returns {void}
+ * @returns {number} The count of valid applied parameters.
  */
 function applyExportUrlParams(params, settings) {
+    let appliedCount = 0;
     if (params.has("export")) {
-        settings.offlineExportMode = normalizeOfflineExportMode(params.get("export"));
+        const mode = params.get("export");
+        if (mode === "seamless" || mode === "tail") {
+            settings.offlineExportMode = normalizeOfflineExportMode(mode);
+            appliedCount++;
+        }
     }
     if (params.has("tail-mode")) {
-        settings.offlineExportTailMode = normalizeOfflineExportTailMode(
-            params.get("tail-mode"),
-            settings.offlineExportTailMode === "custom" ? "custom" : "auto",
-        );
+        const tailMode = params.get("tail-mode");
+        if (tailMode === "auto" || tailMode === "custom") {
+            settings.offlineExportTailMode = normalizeOfflineExportTailMode(
+                tailMode,
+                settings.offlineExportTailMode === "custom" ? "custom" : "auto",
+            );
+            appliedCount++;
+        }
     }
     if (params.has("tail")) {
-        settings.offlineExportTailSeconds = normalizeOfflineExportTailSeconds(params.get("tail"));
+        const val = tryClampFloat(params.get("tail"), 0.0, 10.0);
+        if (val !== null) {
+            settings.offlineExportTailSeconds = normalizeOfflineExportTailSeconds(val);
+            appliedCount++;
+        }
     }
+    return appliedCount;
 }
 
 /**
@@ -503,7 +579,7 @@ function applyExportUrlParams(params, settings) {
  * @template {PresetSettings & Record<string, unknown>} T
  * @param {URLSearchParams|string} searchParams - URL search parameters instance or query string.
  * @param {T} currentSettings - Current baseline application settings.
- * @returns {T|null} Updated settings object if any preset keys were recognized, or null otherwise.
+ * @returns {T|null} Updated settings object if any valid preset parameters were recognized, or null otherwise.
  */
 export function parsePresetFromUrlParams(searchParams, currentSettings) {
     const params =
@@ -511,16 +587,16 @@ export function parsePresetFromUrlParams(searchParams, currentSettings) {
 
     if (!params) return null;
 
-    const hasRecognizedKey = [...params.keys()].some((k) => PRESET_URL_KEYS.has(k));
-    if (!hasRecognizedKey) return null;
-
     /** @type {T & PresetSettings} */
     const settings = { ...currentSettings };
 
-    applyNotesUrlParam(params, settings);
-    applyNumericUrlParams(params, settings);
-    applyDiscreteUrlParams(params, settings);
-    applyExportUrlParams(params, settings);
+    let totalApplied = 0;
+    totalApplied += applyNotesUrlParam(params, settings);
+    totalApplied += applyNumericUrlParams(params, settings);
+    totalApplied += applyDiscreteUrlParams(params, settings);
+    totalApplied += applyExportUrlParams(params, settings);
+
+    if (totalApplied === 0) return null;
 
     return settings;
 }

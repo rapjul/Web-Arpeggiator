@@ -6,6 +6,8 @@ import {
     NOTES_REGEX,
     parsePresetFromUrlParams,
     serializePresetToUrlParams,
+    tryClampFloat,
+    tryClampInt,
 } from "@core/url-preset.js";
 import { describe, expect, test } from "vitest";
 
@@ -59,6 +61,24 @@ describe("URL Preset Domain Module", () => {
         expect(clampFloat("1.8", 0.0, 1.0, 0.0)).toBe(1.0);
         expect(clampFloat("-5.0", 0.0, 1.0, 0.0)).toBe(0.0);
         expect(clampFloat("abc", 0.0, 1.0, 0.5)).toBe(0.5);
+    });
+
+    test("tryClampInt strictly parses integers or returns null", () => {
+        expect(tryClampInt("150", 40, 240)).toBe(150);
+        expect(tryClampInt("300", 40, 240)).toBe(240);
+        expect(tryClampInt("10", 40, 240)).toBe(40);
+        expect(tryClampInt("invalid", 40, 240)).toBeNull();
+        expect(tryClampInt(null, 40, 240)).toBeNull();
+        expect(tryClampInt(undefined, 40, 240)).toBeNull();
+    });
+
+    test("tryClampFloat strictly parses floats or returns null", () => {
+        expect(tryClampFloat("0.5", 0.0, 1.0)).toBe(0.5);
+        expect(tryClampFloat("1.8", 0.0, 1.0)).toBe(1.0);
+        expect(tryClampFloat("-5.0", 0.0, 1.0)).toBe(0.0);
+        expect(tryClampFloat("abc", 0.0, 1.0)).toBeNull();
+        expect(tryClampFloat(null, 0.0, 1.0)).toBeNull();
+        expect(tryClampFloat(undefined, 0.0, 1.0)).toBeNull();
     });
 
     test("NOTES_REGEX strictly validates note sequences including bare notes", () => {
@@ -166,11 +186,16 @@ describe("URL Preset Domain Module", () => {
         expect(parsePresetFromUrlParams("", defaultSettings)).toBeNull();
     });
 
-    test("hasPresetUrlParams correctly detects presence of recognized preset keys", () => {
+    test("hasPresetUrlParams correctly detects presence of recognized preset keys with valid values", () => {
         expect(hasPresetUrlParams("?bpm=140")).toBe(true);
+        expect(hasPresetUrlParams("?bpm=120")).toBe(true);
         expect(hasPresetUrlParams("?synth=fmSynth")).toBe(true);
         expect(hasPresetUrlParams("?notes=C4%20E4%20G4")).toBe(true);
         expect(hasPresetUrlParams(new URLSearchParams("tail=2.5"))).toBe(true);
+        expect(hasPresetUrlParams("?bpm=invalid")).toBe(false);
+        expect(hasPresetUrlParams("?notes=invalidNote")).toBe(false);
+        expect(hasPresetUrlParams("?bpm=invalid&notes=invalidNote")).toBe(false);
+        expect(hasPresetUrlParams("?bpm=invalid&synth=fmSynth")).toBe(true);
         expect(hasPresetUrlParams("?pwa=true")).toBe(false);
         expect(hasPresetUrlParams("?unknown=123&foo=bar")).toBe(false);
         expect(hasPresetUrlParams("")).toBe(false);
@@ -301,20 +326,29 @@ describe("URL Preset Domain Module", () => {
             "?export=invalid&tail-mode=invalid&tail=not-a-number",
             defaultSettings,
         );
+        expect(parsed).toBeNull();
 
-        expect(parsed?.offlineExportMode).toBe("tail");
-        expect(parsed?.offlineExportTailMode).toBe("auto");
-        expect(parsed?.offlineExportTailSeconds).toBe(2);
+        const parsedWithValidBpm = parsePresetFromUrlParams(
+            "?bpm=140&export=invalid&tail-mode=invalid&tail=not-a-number",
+            defaultSettings,
+        );
+        expect(parsedWithValidBpm).not.toBeNull();
+        expect(parsedWithValidBpm?.bpm).toBe(140);
+        expect(parsedWithValidBpm?.offlineExportMode).toBe("tail");
+        expect(parsedWithValidBpm?.offlineExportTailMode).toBe("auto");
+        expect(parsedWithValidBpm?.offlineExportTailSeconds).toBe(2);
 
         const customBaseline = { ...defaultSettings, offlineExportTailMode: "custom" as const };
         expect(
-            parsePresetFromUrlParams("?tail-mode=invalid", customBaseline)?.offlineExportTailMode,
+            parsePresetFromUrlParams("?bpm=140&tail-mode=invalid", customBaseline)
+                ?.offlineExportTailMode,
         ).toBe("custom");
         expect(
-            parsePresetFromUrlParams("?tail-mode=", defaultSettings)?.offlineExportTailMode,
+            parsePresetFromUrlParams("?bpm=140&tail-mode=", defaultSettings)?.offlineExportTailMode,
         ).toBe("auto");
         expect(
-            parsePresetFromUrlParams("?tail-mode=null", defaultSettings)?.offlineExportTailMode,
+            parsePresetFromUrlParams("?bpm=140&tail-mode=null", defaultSettings)
+                ?.offlineExportTailMode,
         ).toBe("auto");
     });
 });

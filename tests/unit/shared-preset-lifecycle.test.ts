@@ -330,4 +330,18 @@ describe("Shared Preset URL Lifecycle & State Matrix", () => {
         expect(fixture.workspaceController.getStatus().canUndo).toBe(false);
         expect(fixture.workspaceController.getStatus().canRedo).toBe(false);
     });
+
+    it("S13: malformed or invalid preset query parameters do not trigger URL preset precedence, allowing session restoration", async () => {
+        const fixture = createLifecycleFixture({
+            search: "?bpm=oops&notes=invalid&export=bogus",
+            storedSession: { bpm: 110, synthType: "fmSynth" },
+        });
+
+        expect(fixture.hasUrlPreset).toBe(false);
+        expect(fixture.workspaceController.hasUserModifiedSettings()).toBe(false);
+
+        await fixture.workspaceController.restoreLastSession();
+        expect(fixture.currentSettings().bpm).toBe(110);
+        expect(fixture.currentSettings().synthType).toBe("fmSynth");
+    });
 });
